@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PnP Companion - Dein digitaler Begleiter für Pen and Paper">
+    <meta name="theme-color" content="#6750a4">
+    <title>RIFT - Tabletop Companion</title>
+    <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/global.css">
+    
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ===== PARTICLES ===== */
+        .particles-container {
+            position: fixed;
+            top: 48px; /* Below top-bar */
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            background: var(--md-primary);
+            border-radius: 50%;
+            opacity: 0;
+            animation: floatParticle linear infinite;
+            box-shadow: 0 0 6px var(--md-primary);
+        }
+
+        @keyframes floatParticle {
+            0% {
+                opacity: 0;
+                transform: translateY(100vh) scale(0.5);
+            }
+            15% {
+                opacity: 0.7;
+            }
+            85% {
+                opacity: 0.7;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(1);
+            }
+        }
+
+        /* ===== TOP-BAR (exakt wie nav.js) ===== */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--md-surface-container);
+            box-shadow: var(--elevation-2);
+            z-index: 400;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .module-name {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .hamburger-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            border-radius: 50%;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .hamburger-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: currentColor;
+            opacity: 0;
+            transition: opacity 200ms;
+        }
+
+        .hamburger-btn:hover {
+            color: var(--md-on-surface);
+        }
+
+        .hamburger-btn:hover::before {
+            opacity: 0.08;
+        }
+
+        .hamburger-btn svg {
+            width: 24px;
+            height: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: var(--md-surface-container-high);
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+        }
+
+        .user-chip .user-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            border-radius: 50%;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .icon-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: currentColor;
+            opacity: 0;
+            transition: opacity 200ms;
+        }
+
+        .icon-btn:hover {
+            color: var(--md-on-surface);
+        }
+
+        .icon-btn:hover::before {
+            opacity: 0.08;
+        }
+
+        .icon-btn svg {
+            width: 24px;
+            height: 24px;
+            position: relative;
+            z-index: 1;
+        }
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 200ms ease;
+            position: relative;
+        }
+
+        .icon-btn:hover {
+            background: var(--md-surface-container-high);
+        }
+
+        .icon-btn svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        /* Theme Dropdown */
+        .theme-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--md-surface-container-high);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 12px;
+            box-shadow: var(--elevation-3);
+            min-width: 160px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 200ms ease;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .theme-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .theme-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--md-on-surface);
+            cursor: pointer;
+            transition: background 150ms ease;
+            font-size: 14px;
+        }
+
+        .theme-option:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        .theme-option.active {
+            background: color-mix(in srgb, var(--md-primary) 15%, transparent);
+            color: var(--md-primary);
+        }
+
+        /* Main Container */
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: var(--space-2xl) var(--space-lg);
+            padding-top: 120px;
+        }
+
+        /* Logo Section */
+        .logo-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: var(--space-xl);
+        }
+
+        .logo {
+            width: 320px;
+            height: auto;
+            margin-bottom: var(--space-sm);
+        }
+
+        .logo img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* Show white logo by default (dark themes), hide black */
+        .logo-white { display: block; }
+        .logo-black { display: none; }
+        
+        /* Light theme: show black logo, hide white */
+        [data-theme="light"] .logo-white { display: none; }
+        [data-theme="light"] .logo-black { display: block; }
+
+        .app-subtitle {
+            font-size: var(--body-large);
+            color: var(--md-on-surface-variant);
+            font-weight: 400;
+        }
+
+        /* Module Grid */
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-lg);
+            max-width: 560px;
+            width: 100%;
+        }
+
+        /* Module Cards - Theme aware */
+        .module-card {
+            background: var(--md-surface-container);
+            border-radius: var(--shape-lg);
+            padding: var(--space-lg) var(--space-md);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-sm);
+            cursor: pointer;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--elevation-1);
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            border: 1px solid var(--md-outline-variant);
+        }
+
+        /* Subtle glow effect on hover */
+        .module-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 0%, var(--md-primary), transparent 70%);
+            opacity: 0;
+            transition: opacity 300ms ease;
+        }
+
+        .module-card:hover {
+            border-color: var(--md-primary);
+            box-shadow: 0 8px 32px color-mix(in srgb, var(--md-primary) 25%, transparent);
+            transform: translateY(-4px);
+        }
+
+        .module-card:hover::before {
+            opacity: 0.08;
+        }
+
+        .module-card:hover .module-icon {
+            transform: scale(1.1);
+            box-shadow: 0 4px 20px color-mix(in srgb, var(--md-primary) 40%, transparent);
+        }
+
+        .module-card:hover .module-title {
+            color: var(--md-primary);
+        }
+
+        .module-card:active {
+            transform: translateY(-2px) scale(0.98);
+            transition: all 100ms ease;
+        }
+
+        /* Disabled state */
+        .module-card.disabled {
+            cursor: default;
+            opacity: 0.6;
+        }
+
+        .module-card.disabled:hover {
+            border-color: var(--md-outline-variant);
+            box-shadow: var(--elevation-1);
+            transform: none;
+        }
+
+        .module-card.disabled:hover::before {
+            opacity: 0;
+        }
+
+        .module-card.disabled:hover .module-icon {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .module-card.disabled:hover .module-title {
+            color: var(--md-on-surface);
+        }
+
+        .module-card.disabled:active {
+            transform: none;
+        }
+
+        /* Module Icon */
+        .module-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--md-primary);
+            border-radius: var(--shape-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .module-icon img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
+        }
+
+        /* Module Text */
+        .module-title {
+            font-size: var(--body-large);
+            font-weight: 500;
+            color: var(--md-on-surface);
+            text-align: center;
+            transition: color 300ms ease;
+        }
+
+        .module-subtitle {
+            font-size: var(--body-small);
+            color: var(--md-on-surface-variant);
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        /* Badge */
+        .module-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface-variant);
+            font-size: 9px;
+            font-weight: 600;
+            padding: 3px 6px;
+            border-radius: var(--shape-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Animations */
+        .logo-section {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .module-card {
+            animation: slideUp 0.4s cubic-bezier(0.2, 0, 0, 1) backwards;
+        }
+        .module-card:nth-child(1) { animation-delay: 0.1s; }
+        .module-card:nth-child(2) { animation-delay: 0.15s; }
+        .module-card:nth-child(3) { animation-delay: 0.2s; }
+        .module-card:nth-child(4) { animation-delay: 0.25s; }
+        .module-card:nth-child(5) { animation-delay: 0.3s; }
+        .module-card:nth-child(6) { animation-delay: 0.35s; }
+
+        /* Room Badge */
+        .room-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-xs);
+            padding: var(--space-xs) var(--space-md);
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--shape-full);
+            font-size: var(--label-small);
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            transition: all 200ms ease;
+            animation: fadeIn 0.5s ease-out 0.4s backwards;
+            min-width: 180px;
+        }
+
+        .room-badge:hover {
+            background: var(--md-surface-container-high);
+            border-color: var(--md-primary);
+        }
+
+        .room-badge:active {
+            transform: scale(0.97);
+        }
+
+        .room-badge svg {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+
+        .room-badge code {
+            font-family: 'Roboto Mono', monospace;
+            font-weight: 600;
+            color: var(--md-primary);
+            letter-spacing: 1px;
+        }
+
+        .room-badge.copied {
+            border-color: var(--md-success, #4caf50);
+            color: var(--md-success, #4caf50);
+        }
+
+        .room-badge.copied code {
+            color: var(--md-success, #4caf50);
+        }
+
+        /* Hub Badges Container */
+        .hub-badges {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-top: var(--space-xl);
+            position: relative;
+            z-index: 50;
+        }
+
+        .hub-badges .room-badge {
+            margin-top: 0;
+        }
+
+        /* Regelwerk Badge */
+        .ruleset-badge {
+            cursor: default;
+            opacity: 0.6;
+        }
+
+        .ruleset-badge:hover {
+            opacity: 0.8;
+            border-color: var(--md-outline-variant);
+        }
+
+        /* Theme Badge */
+        .theme-badge {
+            position: relative;
+            padding: 0;
+        }
+
+        .theme-badge-content {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: var(--space-xs) var(--space-md);
+            cursor: pointer;
+        }
+
+        .theme-badge .dropdown-arrow {
+            transition: transform 200ms ease;
+        }
+
+        .theme-badge.open .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* Hub Theme Dropdown */
+        .hub-theme-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--shape-lg);
+            box-shadow: var(--elevation-2);
+            min-width: 160px;
+            padding: 4px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 200ms ease;
+            z-index: 1000;
+        }
+
+        .hub-theme-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .hub-theme-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: var(--shape-sm);
+            cursor: pointer;
+            transition: background 150ms ease;
+            color: var(--md-on-surface-variant);
+            font-size: var(--label-small);
+        }
+
+        .hub-theme-option:hover {
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface);
+        }
+
+        .hub-theme-option.active {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+        }
+
+        .hub-theme-option .theme-icon {
+            font-size: 14px;
+            width: 18px;
+            text-align: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .user-name { display: none; }
+            
+            .container {
+                padding-top: 100px;
+            }
+            
+            .logo-section {
+                margin-bottom: var(--space-xl);
+            }
+            
+            .logo { 
+                width: 200px; 
+                margin-bottom: var(--space-md);
+            }
+            
+            .app-subtitle {
+                font-size: var(--body-large);
+            }
+            
+            .module-grid {
+                gap: var(--space-md);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: var(--space-md) var(--space-md);
+                padding-top: 90px;
+            }
+            
+            .logo-section {
+                margin-bottom: var(--space-lg);
+            }
+            
+            .logo { 
+                width: 170px; 
+                margin-bottom: var(--space-sm);
+            }
+            
+            .app-subtitle { 
+                font-size: var(--body-medium); 
+            }
+            
+            .module-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: var(--space-sm);
+            }
+            
+            .module-card {
+                padding: var(--space-md) var(--space-sm);
+            }
+            
+            .module-icon {
+                width: 48px;
+                height: 48px;
+            }
+            
+            .module-icon img {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .module-title {
+                font-size: var(--body-medium);
+            }
+            
+            .module-subtitle {
+                font-size: var(--label-small);
+            }
+        }
+
+        /* Quote Section */
+        .quote-section {
+            margin-top: var(--space-2xl);
+            padding: var(--space-lg);
+            text-align: center;
+            max-width: 500px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .quote-text {
+            font-size: var(--body-large);
+            font-style: italic;
+            color: var(--md-on-surface-variant);
+            margin-bottom: var(--space-sm);
+            line-height: 1.6;
+            opacity: 0.8;
+        }
+
+        .quote-text::before {
+            content: '„';
+            color: var(--md-primary);
+            font-size: 1.5em;
+            margin-right: 2px;
+        }
+
+        .quote-text::after {
+            content: '"';
+            color: var(--md-primary);
+            font-size: 1.5em;
+            margin-left: 2px;
+        }
+
+        .quote-author {
+            font-size: var(--body-small);
+            color: var(--md-outline);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+        }
+
+        .quote-author::before,
+        .quote-author::after {
+            content: '—';
+            opacity: 0.5;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 300ms ease;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 280px;
+            background: var(--md-surface-container);
+            z-index: 1000;
+            transform: translateX(-100%);
+            transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--elevation-3);
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+
+        .sidebar-logo {
+            height: 32px;
+        }
+
+        .sidebar-logo img {
+            height: 100%;
+            width: auto;
+        }
+
+        .sidebar-close {
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: none;
+            border-radius: 50%;
+            color: var(--md-on-surface);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-close:hover {
+            background: var(--md-surface-container-high);
+        }
+
+        .sidebar-close svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .sidebar-players-section {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+
+        .sidebar-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--md-on-surface-variant);
+            padding: 12px 20px 8px;
+        }
+
+        .sidebar-players-list {
+            padding: 0 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .sidebar-players-loading {
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+            padding: 8px 12px;
+        }
+
+        .sidebar-player-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--md-surface-container-high);
+        }
+
+        .sidebar-player-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .sidebar-player-name {
+            font-size: 13px;
+            color: var(--md-on-surface);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sidebar-player-badge {
+            font-size: 9px;
+            font-weight: 600;
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-player-badge.gm {
+            background: #f44336;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 20px;
+            color: var(--md-on-surface);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 200ms ease;
+            border: none;
+            background: none;
+            width: 100%;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .sidebar-link:hover {
+            background: var(--md-surface-container-high);
+        }
+
+        .sidebar-link img {
+            width: 24px;
+            height: 24px;
+            opacity: 0.8;
+        }
+
+        .sidebar-link svg {
+            width: 24px;
+            height: 24px;
+            opacity: 0.8;
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid var(--md-outline-variant);
+            padding: 8px 0;
+        }
+
+        .sidebar-logout:hover {
+            background: var(--md-error-container);
+            color: var(--md-error);
+        }
+
+        .sidebar-legal {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 12px 8px;
+            border-top: 1px solid var(--md-outline-variant);
+            margin-top: 8px;
+        }
+
+        .sidebar-legal a {
+            color: var(--md-on-surface-variant);
+            text-decoration: none;
+            font-size: 12px;
+            opacity: 0.7;
+            transition: opacity 200ms ease;
+        }
+
+        .sidebar-legal a:hover {
+            opacity: 1;
+            color: var(--md-primary);
+        }
+
+        .sidebar-legal span {
+            color: var(--md-on-surface-variant);
+            opacity: 0.5;
+            font-size: 12px;
+        }
+
+  </style>
+</head>
+<body>
+    <!-- Particles -->
+    <div class="particles-container" id="particlesContainer"></div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="assets/images/logo_rift_white_400px.png" alt="RIFT" class="logo-white">
+                <img src="assets/images/logo_rift_black_400px.png" alt="RIFT" class="logo-black">
+            </div>
+            <button class="sidebar-close" onclick="closeSidebar()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="sidebar-players-section">
+            <div class="sidebar-section-title">Im Raum</div>
+            <div class="sidebar-players-list" id="sidebarPlayersList">
+                <div class="sidebar-players-loading">Lade...</div>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-title">Module</div>
+            <a href="charakterbogen.html" class="sidebar-link">
+                <img src="assets/icons/icon_character.png" alt="">
+                <span>Charakter-Bogen</span>
+            </a>
+            <a href="wuerfel.html" class="sidebar-link">
+                <img src="assets/icons/icon_dice.png" alt="">
+                <span>Würfel</span>
+            </a>
+            <a href="karte.html" class="sidebar-link">
+                <img src="assets/icons/icon_map.png" alt="">
+                <span>Karte</span>
+            </a>
+            <a href="notizen.html" class="sidebar-link">
+                <img src="assets/icons/icon_notes.png" alt="">
+                <span>Notizen</span>
+            </a>
+            <a href="whiteboard.html" class="sidebar-link">
+                <img src="assets/icons/icon_whiteboard.png" alt="">
+                <span>Whiteboard</span>
+            </a>
+            <a href="chat.html" class="sidebar-link">
+                <img src="assets/icons/icon_chat.png" alt="">
+                <span>Chat</span>
+            </a>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <button class="sidebar-link sidebar-logout" onclick="handleLogout()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Ausloggen</span>
+            </button>
+            <div class="sidebar-legal">
+                <a href="impressum.html">Impressum</a>
+                <span>·</span>
+                <a href="privacy.html">Datenschutz</a>
+            </div>
+        </div>
+    </aside>
+
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <button class="hamburger-btn" onclick="toggleSidebar()" title="Menü" aria-label="Menü öffnen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <span class="module-name">Hub</span>
+        </div>
+        <div class="top-bar-right">
+            <div class="user-chip">
+                <span class="user-dot" id="userDot"></span>
+                <span id="userName"></span>
+            </div>
+            <button class="icon-btn" onclick="handleLogout()" title="Ausloggen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <div class="logo">
+                <img src="assets/images/logo_rift_white_400px.png" alt="RIFT" class="logo-white">
+                <img src="assets/images/logo_rift_black_400px.png" alt="RIFT" class="logo-black">
+            </div>
+            <p class="app-subtitle">Ohne Umwege direkt ins Spiel</p>
+        </div>
+
+        <!-- Module Grid -->
+        <div class="module-grid" id="moduleGrid"></div>
+
+        <!-- Hub Badges -->
+        <div class="hub-badges">
+            <!-- Room Badge -->
+            <div class="room-badge" id="roomBadge" onclick="copyRoomCode()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                    <polyline points="10 17 15 12 10 7"/>
+                    <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+                <span>Raum:</span>
+                <code id="roomCode">-----</code>
+            </div>
+
+            <!-- Regelwerk Badge (Mockup) -->
+            <div class="room-badge ruleset-badge" id="rulesetBadge" title="Regelwerk-Auswahl (Coming Soon)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <span>Rum & Rache</span>
+            </div>
+
+            <!-- Theme Auswahl -->
+            <div class="room-badge theme-badge" id="themeBadge">
+                <div class="theme-badge-content" onclick="toggleHubThemeDropdown()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <span id="currentThemeName">Theme</span>
+                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="hub-theme-dropdown" id="hubThemeDropdown"></div>
+            </div>
+        </div>
+
+
+        <!-- Quote Section -->
+        <div class="quote-section">
+            <p class="quote-text" id="quoteText">Würfle oder stirb.</p>
+            <p class="quote-author" id="quoteAuthor">Unbekannter Abenteurer</p>
+        </div>
+
+        <!-- Footer -->
+        <footer class="site-footer">
+            <div class="footer-divider"></div>
+            <div class="footer-content">
+                <nav class="footer-primary">
+                    <a href="about.html">Über RIFT</a>
+                    <span class="footer-dot">·</span>
+                    <a href="branding.html">Branding Guide</a>
+                    <span class="footer-dot">·</span>
+                    <a href="contact.html">Kontakt</a>
+                </nav>
+                <nav class="footer-secondary">
+                    <a href="privacy.html">Datenschutz</a>
+                    <span class="footer-dot">·</span>
+                    <a href="impressum.html">Impressum</a>
+                </nav>
+                <div class="footer-tertiary">
+                    <a href="donation.html">Spenden</a>
+                </div>
+                <p class="footer-copyright">© 2025 RIFT – Tabletop Companion</p>
+            </div>
+        </footer>
+    </main>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/firebase-sync.js"></script>
+    <script>
+        const MODULES = [
+            { id: 'charakterbogen', title: 'Charakter-Bogen', subtitle: 'Spieler PnP Bogen', icon: 'assets/icons/icon_character.png', href: 'charakterbogen.html', active: true },
+            { id: 'wuerfel', title: 'Würfel', subtitle: 'W4 bis W100', icon: 'assets/icons/icon_dice.png', href: 'wuerfel.html', active: true },
+            { id: 'karte', title: 'Karte', subtitle: 'Interaktive Karte', icon: 'assets/icons/icon_map.png', href: 'karte.html', active: true },
+            { id: 'notizen', title: 'Notizen', subtitle: 'Session-Notizen', icon: 'assets/icons/icon_notes.png', href: 'notizen.html', active: true },
+            { id: 'whiteboard', title: 'Whiteboard', subtitle: 'GM Präsentation', icon: 'assets/icons/icon_whiteboard.png', href: 'whiteboard.html', active: true },
+            { id: 'chat', title: 'Chat', subtitle: 'Gruppen-Chat', icon: 'assets/icons/icon_chat.png', href: 'chat.html', active: true }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAuth()) return;
+            
+            // Create particles
+            createParticles();
+            
+            // User Info
+            const user = getCurrentUser();
+            if (user) {
+                document.getElementById('userName').textContent = user.username;
+                const dot = document.getElementById('userDot');
+                dot.style.backgroundColor = user.color;
+                dot.style.boxShadow = `0 0 6px ${user.color}`;
+            }
+            
+            // Room Code
+            const room = getRoom();
+            if (room && room.id) {
+                document.getElementById('roomCode').textContent = room.id;
+            }
+
+            // Render Modules
+            const grid = document.getElementById('moduleGrid');
+            MODULES.forEach(m => {
+                const card = document.createElement(m.active ? 'a' : 'div');
+                card.className = `module-card${m.active ? '' : ' disabled'}`;
+                if (m.active) card.href = m.href;
+                card.innerHTML = `
+                    ${!m.active ? '<span class="module-badge">Soon</span>' : ''}
+                    <div class="module-icon"><img src="${m.icon}" alt="${m.title}"></div>
+                    <div class="module-title">${m.title}</div>
+                    <div class="module-subtitle">${m.subtitle}</div>
+                `;
+                grid.appendChild(card);
+            });
+
+            // Build Hub Theme Dropdown
+            buildHubThemeDropdown();
+
+            // Load Random Quote
+            loadRandomQuote();
+            
+            // Init Firebase for player list
+            initFirebase().then(() => {
+                onPlayersChange(updateSidebarPlayers);
+            });
+        });
+
+        // Update sidebar players
+        function updateSidebarPlayers(players) {
+            const list = document.getElementById('sidebarPlayersList');
+            if (!list) return;
+            
+            if (!players || Object.keys(players).length === 0) {
+                list.innerHTML = '<div class="sidebar-players-loading">Keine Spieler online</div>';
+                return;
+            }
+            
+            const currentUser = getCurrentUser();
+            const isCurrentUserGM = currentUser?.isGM || false;
+            
+            // Sort: GM first, then alphabetically
+            const sortedPlayers = Object.values(players).sort((a, b) => {
+                if (a.isGM && !b.isGM) return -1;
+                if (!a.isGM && b.isGM) return 1;
+                return (a.username || '').localeCompare(b.username || '', 'de');
+            });
+            
+            list.innerHTML = sortedPlayers.map(player => {
+                const isMe = player.username === currentUser?.username;
+                const isGM = player.isGM;
+                const clickable = isCurrentUserGM && !isMe;
+                
+                return `
+                    <div class="sidebar-player-item ${clickable ? 'gm-clickable' : ''}" 
+                         ${clickable ? `onclick="openPlayerManagePopup('${player.username}', '${player.color}', ${isGM}, ${player.isRoomCreator || false})"` : ''}>
+                        <span class="sidebar-player-dot" style="background: ${player.color}; box-shadow: 0 0 6px ${player.color};"></span>
+                        <span class="sidebar-player-name">${player.username}${isMe ? ' (Du)' : ''}</span>
+                        ${isGM ? '<span class="sidebar-player-badge gm">GM</span>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ===== PARTICLES =====
+        function createParticles() {
+            const container = document.getElementById('particlesContainer');
+            const particleCount = 25;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                particle.style.left = Math.random() * 100 + '%';
+                
+                const size = 2 + Math.random() * 3;
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                
+                const duration = 18 + Math.random() * 25;
+                const delay = Math.random() * 20;
+                particle.style.animationDuration = duration + 's';
+                particle.style.animationDelay = delay + 's';
+                
+                container.appendChild(particle);
+            }
+        }
+
+        // Copy Room Code
+        function copyRoomCode() {
+            const room = getRoom();
+            if (!room || !room.id) return;
+            
+            navigator.clipboard.writeText(room.id).then(() => {
+                const badge = document.getElementById('roomBadge');
+                badge.classList.add('copied');
+                document.getElementById('roomCode').textContent = 'Kopiert!';
+                
+                setTimeout(() => {
+                    badge.classList.remove('copied');
+                    document.getElementById('roomCode').textContent = room.id;
+                }, 1500);
+            });
+        }
+
+        // Quotes direkt eingebettet
+        const QUOTES = [
+            ["Ich wollte nur helfen.", "Auslöser einer Katastrophe"],
+            ["Mein Charakter ist nicht dumm, nur mutig.", "Selbstbetrug"],
+            ["Das hätte ich vorher ansagen sollen.", "Erkenntnis"],
+            ["Ich nehme an, das war keine gute Idee.", "Untertreibung"],
+            ["Ich ignoriere das ominöse Gefühl.", "Horrorfilm-Logik"],
+            ["Ich hab den Würfel falsch angefasst.", "Aberglaube"],
+            ["Das fühlt sich wie ein Bosskampf an.", "Vorahnung"],
+            ["Ich laufe schon mal weg.", "Überlebensinstinkt"],
+            ["Ich hab doch Nachtsicht, oder?", "Letzte Hoffnung"],
+            ["Das klang in meinem Kopf cleverer.", "Nachträgliche Analyse"],
+            ["Ich dachte, ihr seid hinter mir.", "Panik"],
+            ["Ich würfle zur Sicherheit nochmal.", "Optimismus"],
+            ["Ich erkläre ihm ganz ruhig die Situation.", "Lüge"],
+            ["Das ist bestimmt nur Deko.", "Famous Last Words"],
+            ["Ich hab noch einen Trick.", "Immer gelogen"],
+            ["Ich teste das mal an ihm.", "Wissenschaft"],
+            ["Das zählt als soziale Interaktion.", "Grenzfall"],
+            ["Ich vergesse absichtlich die Falle.", "Verdrängung"],
+            ["Ich steh direkt daneben.", "Flächenschaden"],
+            ["Ich glaube, das Monster mag mich.", "Falsche Hoffnung"],
+            ["Ich rufe seinen Namen.", "Warum auch immer"],
+            ["Ich hab den Zauber falsch gelesen.", "Alphabetisierung gescheitert"],
+            ["Ich dachte, wir sind noch im Stealth.", "Realitätsverlust"],
+            ["Ich ziehe die Waffe nur zur Abschreckung.", "Eskaliert sofort"],
+            ["Das war ein Missverständnis.", "Nach dem Blutbad"],
+            ["Ich vertraue auf mein Bauchgefühl.", "Würfelpech"],
+            ["Ich wollte eigentlich was anderes machen.", "Zu spät gesagt"],
+            ["Ich bleib genau hier stehen.", "AOE-Ziel"],
+            ["Ich nutze Diplomatie.", "Initiative wird gewürfelt"],
+            ["Ich bin sicher, das hält.", "Tut es nicht"],
+            ["Ich hab den Text übersprungen.", "Klassiker"],
+            ["Ich geh davon aus, dass das klappt.", "Fatalismus"],
+            ["Ich wusste nicht, dass das explodiert.", "Überraschung"],
+            ["Ich erkläre ihm unseren Plan.", "Verrat aus Versehen"],
+            ["Ich tanke erstmal.", "Falsche Prioritäten"],
+            ["Ich dachte, das war ein Skillcheck.", "Regelkenntnis 0"],
+            ["Ich habe eine kreative Lösung.", "Alle seufzen"],
+            ["Ich ignoriere den Schmerz.", "Heldenhaft dumm"],
+            ["Ich würfle mit dem anderen Würfel.", "Verzweiflung"],
+            ["Ich bleib im Charakter.", "Jetzt wird es schlimm"],
+            ["Ich dachte, ihr habt das gesehen.", "Kommunikation"],
+            ["Ich mach das alleine.", "Klassiker"],
+            ["Ich probiere es trotzdem.", "Mut oder Dummheit"],
+            ["Das hätte Konsequenzen?", "Überrascht"],
+            ["Ich dachte, wir sind immun.", "Leseschwäche"],
+            ["Ich vertraue dem Plan von ihm.", "Fehlerkette"],
+            ["Ich hab einen Plan. Er ist schlecht, aber ich hab einen.", "Der Spieler mit Initiative"],
+            ["Moment… das stand SO nicht im Charakterbogen.", "Derjenige, der gerade Mist gebaut hat"],
+            ["Ich würfel… aus dramaturgischen Gründen.", "Der Spielleiter"],
+            ["Mein Charakter würde das niemals tun.", "Kurz bevor er es tut"],
+            ["Kann ich das auch anders interpretieren?", "Der Regeln-Bieger"],
+            ["Das war kein Fehler, das war Rollenspiel.", "Rechtfertigungsmodus"],
+            ["Wie viel Schaden war das jetzt… hypothetisch?", "Zu spät fragender Spieler"],
+            ["Ich öffne die Tür.", "Letzte Worte"],
+            ["Ich geh schon mal einen neuen Charakter bauen.", "Realist"],
+            ["Das ist eine kreative Nutzung der Mechanik.", "Verteidigung vor Gericht"],
+            ["Ich hab da mal was vorbereitet…", "Absolute Lüge"],
+            ["Wir hätten auch einfach reden können.", "Erkenntnis nach dem Kampf"],
+            ["Ich würfle NIE gut, wenn es wichtig ist.", "Gesetz des Universums"],
+            ["Das zählt doch als Deckung, oder?", "Physikverweigerer"],
+            ["Ich vertraue dem NPC.", "Anfänger"],
+            ["Der Plan war gut, bis ihr alle da wart.", "Der Denker"],
+            ["Ich bin nur leicht bewusstlos.", "Technisch korrekt"],
+            ["Ich greife NICHTS an, ich provoziere nur.", "Eskalationsmanager"],
+            ["Das ist kein Metagaming, das ist Intuition.", "Lügner"],
+            ["Ich hab Stärke 18, lass mich.", "Problemlöser"],
+            ["Warum steht da schon wieder mein Name?", "Zielscheibe"],
+            ["Ich würfle heimlich.", "Verdächtig"],
+            ["Das hätte episch sein sollen.", "Enttäuschter Held"],
+            ["Ich will nur kurz was ausprobieren.", "Chaosvorbote"],
+            ["Mein Charakter weiß das nicht.", "Selten, aber ehrenhaft"],
+            ["Ich hab keine Zauber mehr, aber gute Ideen.", "Optimist"],
+            ["Das war so nicht geplant… aber besser.", "Spielleiter, lächelnd"],
+            ["Ich nutze die Umgebung.", "Immer gefährlich"],
+            ["Das war ein Warnschuss.", "Mitten im Kampf"],
+            ["Ich bin nicht tot, ich bin nur… weg.", "Dramatischer Abgang"],
+            ["Wir hätten das auch subtil lösen können.", "Der Lauteste am Tisch"],
+            ["Ich glaube, wir sind die Bösen.", "Späte Einsicht"],
+            ["Ich hab eine Eins gewürfelt.", "Schicksal"],
+            ["Kann ich Inspiration dafür bekommen?", "Verzweiflung"],
+            ["Das zählt als kreativer Einsatz, oder?", "Hoffnung"],
+            ["Ich hab vergessen, dass ich das kann.", "Klassiker"],
+            ["Ich bleib draußen und halte Wache.", "Der Überlebende"],
+            ["Das eskaliert gerade schneller als gedacht.", "Untertreibung"],
+            ["Ich greife ihn NICHT an… ich schubse nur.", "Juristische Feinheit"],
+            ["Warum liegt hier eigentlich alles in Trümmern?", "Rückblick"],
+            ["Ich hab eine sehr schlechte Idee.", "Ehrlichkeit"],
+            ["Ich hab noch einen Lebenspunkt.", "Unnötiger Mut"],
+            ["Das war kein Fail, das war Charakterentwicklung.", "Coping"],
+            ["Ich werfe ihn.", "Immer eine Option"],
+            ["Ich dachte, das wäre ein Nebenquest.", "Fatal"],
+            ["Der Würfel hasst mich persönlich.", "Paranoia"],
+            ["Ich hab das im Hintergrund so geplant.", "Nachträgliche Genialität"],
+            ["Ich hab vergessen, dass Konsequenzen existieren.", "Spieler 101"],
+            ["Das war jetzt sehr on brand für die Gruppe.", "Beobachter"],
+            ["Und genau deswegen spielen wir das Spiel.", "Alle, irgendwann"],
+            ["Wir haben das komplett verkackt.", "Kollektive Selbsterkenntnis"],
+            ["Das klang deutlich schlauer, bevor ich es gesagt habe.", "Nachträgliche Einsicht"],
+            ["Ich habe absolut keinen Plan, aber viel Selbstvertrauen.", "Spielerlogik"],
+            ["Das war nicht der Würfel, das war das Schicksal.", "Coping-Mechanismus"],
+            ["Ich wollte nur helfen, jetzt brennt alles.", "Typischer Verlauf"],
+            ["Mein Charakter ist sehr klug. Ich nicht.", "Trennung von Geist und Spieler"],
+            ["Das ist eine schreckliche Idee. Ich mache sie trotzdem.", "Heldenmut"],
+            ["Ich bereue das sofort.", "Zeitstempel: jetzt"],
+            ["Das fühlt sich wie eine schlechte Entscheidung an.", "Völlig korrekt"],
+            ["Ich dachte, das wäre optional.", "Regelverständnis"],
+            ["Ich habe vergessen, dass Konsequenzen real sind.", "Rollenspiel-Realismus"],
+            ["Das Monster wirkt… persönlich beleidigt.", "Fehlinterpretation"],
+            ["Ich erkläre es nochmal, aber lauter.", "Überzeugungsarbeit"],
+            ["Ich bin zu hübsch, um zu sterben.", "Letzte Hoffnung"],
+            ["Das war kein Fehler, das war Charaktertiefe.", "Rechtfertigung"],
+            ["Ich wollte dramatisch sein, nicht effektiv.", "Stil über Substanz"],
+            ["Warum schauen mich alle so an.", "Späte Erkenntnis"],
+            ["Ich bin sicher, das funktioniert.", "Tut es nicht"],
+            ["Das war deutlich epischer in meinem Kopf.", "Klassiker"],
+            ["Ich habe mich selbst überrascht.", "Negativ"],
+            ["Das ist jetzt ein Problem für Zukunfts-uns.", "Delegation"],
+            ["Ich dachte, du hattest einen Plan.", "Missverständnis"],
+            ["Das ist entweder genial oder tödlich.", "Meistens beides"],
+            ["Ich vertraue auf Chaos.", "Philosophie"],
+            ["Ich wollte keinen Kampf anfangen.", "Hat trotzdem geklappt"],
+            ["Das war emotional keine gute Wahl.", "Aber interessant"],
+            ["Ich habe eine kreative Auslegung der Regeln.", "Regelanwalt light"],
+            ["Das Publikum würde das feiern.", "Meta-Gedanke"],
+            ["Ich hab den Namen vergessen, aber die Schuld bleibt.", "Soziale Interaktion"],
+            ["Ich dachte, wir reden noch.", "Initiative wird gewürfelt"]
+        ];
+
+        function loadRandomQuote() {
+            const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+            document.getElementById('quoteText').textContent = quote[0];
+            document.getElementById('quoteAuthor').textContent = quote[1];
+        }
+
+        function buildHubThemeDropdown() {
+            const dropdown = document.getElementById('hubThemeDropdown');
+            const themes = getThemes();
+            const current = getCurrentTheme();
+            
+            // Update current theme name display
+            const currentTheme = themes.find(t => t.id === current);
+            if (currentTheme) {
+                document.getElementById('currentThemeName').textContent = currentTheme.name;
+            }
+            
+            dropdown.innerHTML = themes.map(t => `
+                <div class="hub-theme-option${t.id === current ? ' active' : ''}" data-theme-id="${t.id}">
+                    <span class="theme-icon">${t.icon}</span>
+                    <span class="theme-name">${t.name}</span>
+                </div>
+            `).join('');
+        }
+        
+        // Single event handler for theme dropdown
+        document.addEventListener('click', function(e) {
+            const themeBadge = document.getElementById('themeBadge');
+            const themeOption = e.target.closest('.hub-theme-option');
+            
+            // Handle theme option click
+            if (themeOption) {
+                e.stopPropagation();
+                const themeId = themeOption.getAttribute('data-theme-id');
+                console.log('[Theme] Clicked:', themeId);
+                if (themeId) {
+                    setTheme(themeId);
+                    buildHubThemeDropdown();
+                    if (themeBadge) {
+                        themeBadge.classList.remove('open');
+                        document.getElementById('hubThemeDropdown').classList.remove('active');
+                    }
+                }
+                return;
+            }
+            
+            // Close dropdown on outside click
+            if (themeBadge && !themeBadge.contains(e.target)) {
+                themeBadge.classList.remove('open');
+                document.getElementById('hubThemeDropdown').classList.remove('active');
+            }
+        });
+
+        function toggleHubThemeDropdown() {
+            const badge = document.getElementById('themeBadge');
+            const dropdown = document.getElementById('hubThemeDropdown');
+            badge.classList.toggle('open');
+            dropdown.classList.toggle('active');
+        }
+
+        function handleLogout() {
+            if (confirm('Möchtest du dich wirklich ausloggen?')) {
+                logout(true);
+            }
+        }
+
+        // ===== SIDEBAR =====
+        let sidebarOpen = false;
+
+        function toggleSidebar() {
+            sidebarOpen ? closeSidebar() : openSidebar();
+        }
+
+        function openSidebar() {
+            sidebarOpen = true;
+            document.getElementById('sidebar').classList.add('open');
+            document.getElementById('sidebarOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            sidebarOpen = false;
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close sidebar with escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && sidebarOpen) closeSidebar();
+        });
+
+</script>
+</body>
+</html>

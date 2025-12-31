@@ -1,0 +1,2758 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Würfel - RIFT</title>
+    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    <script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            const theme = localStorage.getItem('pnp_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--md-background);
+            color: var(--md-on-background);
+            line-height: 1.5;
+            min-height: 100vh;
+            padding: 16px;
+            padding-top: 80px;
+            transition: transform 100ms;
+        }
+
+        body.shake {
+            animation: screenShake 0.5s;
+        }
+
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-5px, 5px); }
+            20%, 40%, 60%, 80% { transform: translate(5px, -5px); }
+        }
+
+        .pill {
+            height: 40px;
+            padding: 0 24px;
+            border: none;
+            border-radius: var(--shape-full);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pill::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            opacity: 0;
+            transition: opacity 200ms;
+        }
+
+        .pill-filled {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            box-shadow: var(--elevation-1);
+        }
+
+        .pill-filled::before {
+            background: var(--md-on-primary);
+        }
+
+        .pill-filled:hover {
+            box-shadow: var(--elevation-2);
+        }
+
+        .pill-filled:hover::before {
+            opacity: 0.08;
+        }
+
+        .pill-tonal {
+            background: var(--md-secondary-container);
+            color: var(--md-on-secondary-container);
+            border: 2px solid transparent;
+        }
+
+        .pill-tonal::before {
+            background: var(--md-on-secondary-container);
+        }
+
+        .pill-tonal:hover {
+            box-shadow: var(--elevation-1);
+        }
+
+        .pill-tonal:hover::before {
+            opacity: 0.08;
+        }
+
+        .pill-tonal.selected {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            border-color: var(--md-primary);
+            box-shadow: var(--elevation-2);
+        }
+
+        .pill-tonal.selected::after {
+            content: '✓';
+            margin-left: 4px;
+            font-weight: 700;
+        }
+
+        .pill-outlined {
+            background: transparent;
+            color: var(--md-primary);
+            border: 1px solid var(--md-outline);
+        }
+
+        .pill-outlined::before {
+            background: var(--md-primary);
+        }
+
+        .pill-outlined:hover::before {
+            opacity: 0.08;
+        }
+
+        .pill-error {
+            background: var(--delete-bg);
+            color: var(--delete-icon);
+            border: none;
+            padding: 0 20px;
+        }
+
+        .pill-error::before {
+            background: var(--delete-icon);
+        }
+
+        .pill-error:hover {
+            box-shadow: var(--elevation-2);
+        }
+
+        .pill-error:hover::before {
+            opacity: 0.15;
+        }
+
+        .card {
+            background: var(--md-surface-container);
+            border-radius: var(--shape-lg);
+            overflow: hidden;
+            box-shadow: var(--elevation-1);
+        }
+
+        .card.dice-card {
+            background: rgba(33, 31, 38, 0.5);
+        }
+
+        .sound-menu {
+            display: none;
+            position: fixed;
+            top: 80px;
+            right: 16px;
+            width: 200px;
+            z-index: 50;
+            animation: slideDown 200ms;
+        }
+
+        .sound-menu.active {
+            display: block;
+        }
+
+        .sound-menu-content {
+            padding: 8px;
+        }
+
+        .sound-option {
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+            color: var(--md-on-surface);
+            cursor: pointer;
+            border-radius: var(--shape-md);
+            font-family: inherit;
+            font-size: 14px;
+            transition: background 200ms;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sound-option:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        .sound-option.selected {
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            font-weight: 500;
+        }
+
+        .sound-option img {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 16px;
+            max-width: 1400px;
+            margin: 0 auto;
+            margin-top: 80px;
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .dice-display {
+            padding: 64px 24px;
+            height: 520px;
+            min-height: 520px;
+            max-height: 520px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            position: relative;
+            overflow: hidden;
+            transition: background 300ms;
+        }
+
+        .dice-display.crit-success {
+            animation: critSuccessFlash 0.8s;
+        }
+
+        .dice-display.crit-fail {
+            animation: critFailFlash 0.8s;
+        }
+
+        @keyframes critSuccessFlash {
+            0%, 100% { background: linear-gradient(135deg, var(--md-surface-container-low) 0%, var(--md-surface-container) 100%); }
+            50% { background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); }
+        }
+
+        @keyframes critFailFlash {
+            0%, 100% { background: linear-gradient(135deg, var(--md-surface-container-low) 0%, var(--md-surface-container) 100%); }
+            50% { background: linear-gradient(135deg, #b71c1c 0%, #c62828 100%); }
+        }
+
+        .dice-num {
+            font-size: 288px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--md-primary) 0%, #9575cd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            user-select: none;
+            filter: drop-shadow(0 0 40px rgba(103, 80, 164, 0.6));
+            transition: opacity 150ms ease-in-out;
+            position: relative;
+            z-index: 2;
+        }
+
+        .dice-num.rolling {
+            font-size: 96px;
+            opacity: 0.6;
+        }
+
+        .dice-num.crit-success {
+            animation: critSuccessPulse 0.8s;
+            background: linear-gradient(135deg, #4caf50 0%, #81c784 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 60px rgba(76, 175, 80, 0.9));
+        }
+
+        .dice-num.crit-fail {
+            animation: critFailPulse 0.8s;
+            background: linear-gradient(135deg, #f44336 0%, #e57373 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 60px rgba(244, 67, 54, 0.9));
+        }
+
+        @keyframes critSuccessPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes critFailPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .dice-num.anim-spin {
+            animation: rollSpin 100ms infinite;
+        }
+
+        .dice-num.anim-bounce {
+            animation: rollBounce 100ms infinite;
+        }
+
+        .dice-num.anim-shake {
+            animation: rollShake 100ms infinite;
+        }
+
+        .dice-num.anim-flip {
+            animation: rollFlip 100ms infinite;
+        }
+
+        @keyframes rollSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes rollBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes rollShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes rollFlip {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+        }
+
+        .energy-spark {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(103, 80, 164, 1) 0%, rgba(149, 117, 205, 0.8) 50%, transparent 100%);
+            pointer-events: none;
+            z-index: 1;
+            box-shadow: 0 0 12px rgba(103, 80, 164, 0.9);
+            animation: sparkFloat 1s linear infinite;
+        }
+
+        @keyframes sparkFloat {
+            from {
+                transform: translate(var(--start-x), var(--start-y)) scale(1);
+                opacity: 1;
+            }
+            to {
+                transform: translate(var(--end-x), var(--end-y)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .firework-particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            animation: fireworkBurst 0.8s ease-out forwards;
+        }
+
+        @keyframes fireworkBurst {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--fx), var(--fy)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 3;
+            animation: particleFloat 1.5s ease-out forwards;
+        }
+
+        .particle.success {
+            background: radial-gradient(circle, #4caf50 0%, transparent 70%);
+        }
+
+        .particle.fail {
+            background: radial-gradient(circle, #f44336 0%, transparent 70%);
+        }
+
+        @keyframes particleFloat {
+            from {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            to {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .shockwave-ring {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border: 4px solid rgba(103, 80, 164, 0.7);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            animation: shockwaveExpand 0.6s ease-out;
+        }
+
+        @keyframes shockwaveExpand {
+            from {
+                transform: translate(-50%, -50%) scale(0.3);
+                opacity: 1;
+                border-width: 5px;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(12);
+                opacity: 0;
+                border-width: 0;
+            }
+        }
+
+        @keyframes resultFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .dice-display > .calc,
+        .dice-display > .dice-num:not(.rolling) {
+            animation: resultFadeIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .calc {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .calc-expr {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--md-on-surface-variant);
+        }
+
+        .calc-val {
+            padding: 6px 12px;
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-md);
+            min-width: 50px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .calc-mod {
+            background: var(--md-tertiary-container);
+            color: var(--md-on-tertiary-container);
+            font-weight: 700;
+        }
+
+        .calc-res {
+            font-size: 220px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--md-primary) 0%, #9575cd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 40px rgba(103, 80, 164, 0.6));
+        }
+
+        .remote-player {
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .dice-label {
+            font-size: 14px;
+            color: var(--md-on-surface-variant);
+            font-weight: 500;
+        }
+
+        .calc-res.crit-success {
+            animation: critSuccessPulse 0.8s;
+            background: linear-gradient(135deg, #4caf50 0%, #81c784 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 60px rgba(76, 175, 80, 0.9));
+        }
+
+        .calc-res.crit-fail {
+            animation: critFailPulse 0.8s;
+            background: linear-gradient(135deg, #f44336 0%, #e57373 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 60px rgba(244, 67, 54, 0.9));
+        }
+
+        .controls {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .ctrl-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ctrl-group.gm-toggle-group {
+            display: none;
+        }
+
+        .ctrl-group.gm-toggle-group.visible {
+            display: flex;
+        }
+
+        .ctrl-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-on-surface-variant);
+            letter-spacing: 0.1px;
+            display: flex;
+            align-items: center;
+        }
+
+        .mod-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--md-primary);
+            margin-left: 8px;
+        }
+
+        .pill-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .roll-btn {
+            width: 100%;
+            height: 56px;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cheer-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Cheer Bar - eigene Leiste zwischen Würfelbox und Controls */
+        .cheer-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--md-surface-container);
+            border-radius: var(--shape-lg);
+            margin-bottom: 16px;
+            box-shadow: var(--elevation-1);
+        }
+
+        .cheer-bar-label {
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+            margin-right: 8px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cheer-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--md-surface-container-high);
+            border: 2px solid transparent;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .cheer-btn:hover {
+            transform: scale(1.2);
+            background: var(--md-surface-container-highest);
+            border-color: var(--md-primary);
+        }
+
+        .cheer-btn:active {
+            transform: scale(0.9);
+        }
+
+        .cheer-btn.cooldown {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .cheer-btn.cooldown::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 50%;
+            border: 2px solid var(--md-outline);
+            border-top-color: transparent;
+            animation: cheerCooldownSpin 1s linear infinite;
+        }
+
+        @keyframes cheerCooldownSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: sticky;
+            top: 80px;
+        }
+
+        .sidebar-card {
+            padding: 16px;
+            height: 520px;
+            min-height: 520px;
+            max-height: 520px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--md-on-surface);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title::before {
+            font-size: 18px;
+            opacity: 0.8;
+        }
+
+        .history {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .history::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .history::-webkit-scrollbar-thumb {
+            background: var(--md-outline-variant);
+            border-radius: 3px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-md);
+            transition: all 200ms;
+            position: relative;
+            overflow: hidden;
+            min-height: 44px;
+        }
+
+        .history-item:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        .history-item.latest {
+            background: linear-gradient(135deg, #4a3f6b 0%, #5d4f7e 100%);
+            color: var(--md-on-surface);
+        }
+
+        .history-player {
+            font-weight: 600;
+            font-size: 13px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .history-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            flex: 1;
+        }
+
+        .history-dice {
+            font-size: 11px;
+            color: var(--md-on-surface-variant);
+            opacity: 0.8;
+        }
+
+        .history-val {
+            font-size: 20px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+
+        .players {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .player {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-full);
+        }
+
+        .player-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .player-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+        }
+
+        .dialog-scrim {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            animation: fadeIn 200ms;
+        }
+
+        .dialog-scrim.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .dialog {
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-xl);
+            box-shadow: var(--elevation-3);
+            min-width: 280px;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: scaleIn 250ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .dialog-head {
+            padding: 24px 24px 16px;
+        }
+
+        .dialog-title {
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--md-on-surface);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dialog-content {
+            padding: 0 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .dialog-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dialog-content::-webkit-scrollbar-thumb {
+            background: var(--md-outline-variant);
+            border-radius: 3px;
+        }
+
+        .dialog-actions {
+            padding: 16px 24px 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .stats-sec {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+
+        .stats-sec:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .stats-label {
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--md-on-surface-variant);
+            margin-bottom: 16px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+        }
+
+        .stat-name {
+            font-size: 14px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .stat-val {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--md-primary);
+        }
+
+        .settings {
+            display: none;
+            position: fixed;
+            top: 80px;
+            right: 16px;
+            width: 280px;
+            z-index: 50;
+            animation: slideDown 200ms;
+        }
+
+        .settings.active {
+            display: block;
+        }
+
+        .settings-content {
+            padding: 16px;
+        }
+
+        .setting {
+            margin-bottom: 16px;
+        }
+
+        .setting:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--md-surface-container-highest);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--md-primary);
+            cursor: pointer;
+            box-shadow: var(--elevation-1);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--md-primary);
+            cursor: pointer;
+            border: none;
+        }
+
+        .slider-val {
+            text-align: center;
+            font-size: 12px;
+            color: var(--md-primary);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .switch-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-md);
+            cursor: pointer;
+        }
+
+        .switch {
+            width: 52px;
+            height: 32px;
+            background: var(--md-surface-container-highest);
+            border: 2px solid var(--md-outline);
+            border-radius: var(--shape-full);
+            position: relative;
+            transition: all 200ms;
+        }
+
+        .switch.active {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+        }
+
+        .switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: var(--md-outline);
+            border-radius: 50%;
+            top: 6px;
+            left: 6px;
+            transition: all 200ms;
+        }
+
+        .switch.active::after {
+            background: var(--md-on-primary);
+            left: 28px;
+            width: 24px;
+            height: 24px;
+            top: 2px;
+        }
+
+        @media (max-width: 1024px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: relative;
+                top: 0;
+            }
+        }
+
+        /* Remote Roll Display */
+        .remote-roll-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .remote-player {
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+                padding-top: 20px;
+            }
+
+            .layout {
+                margin-top: 20px;
+            }
+
+            .dice-num {
+                font-size: 128px;
+            }
+
+            .calc-res {
+                font-size: 128px;
+            }
+
+            .dice-display {
+                padding: 40px 16px;
+                min-height: 400px;
+                height: auto;
+                max-height: none;
+            }
+
+            .sidebar-card {
+                height: auto;
+                min-height: auto;
+                max-height: 300px;
+            }
+
+            .controls {
+                padding: 16px;
+            }
+
+            .cheer-bar {
+                padding: 10px 12px;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+
+            .cheer-bar-label {
+                width: 100%;
+                text-align: center;
+                margin-right: 0;
+                margin-bottom: 4px;
+            }
+
+            .cheer-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+
+            .sound-menu,
+            .settings {
+                top: 72px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sound-menu card" id="soundMenu">
+        <div class="sound-menu-content">
+            <button class="sound-option selected" data-theme="default" onclick="setSoundTheme('default')">
+                <img src="assets/icons/icon_sound_default.png" alt="Default">
+                <span>Default</span>
+            </button>
+            <button class="sound-option" data-theme="chill" onclick="setSoundTheme('chill')">
+                <img src="assets/icons/icon_sound_chill.png" alt="Chill">
+                <span>Chill</span>
+            </button>
+            <button class="sound-option" data-theme="epic" onclick="setSoundTheme('epic')">
+                <img src="assets/icons/icon_sound_epic.png" alt="Epic">
+                <span>Epic</span>
+            </button>
+            <button class="sound-option" data-theme="crazy" onclick="setSoundTheme('crazy')">
+                <img src="assets/icons/icon_sound_crazy.png" alt="Crazy">
+                <span>Crazy</span>
+            </button>
+            <button class="sound-option" data-theme="battle" onclick="setSoundTheme('battle')">
+                <img src="assets/icons/icon_sound_battle.png" alt="Battle">
+                <span>Battle</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="main">
+            <div class="card dice-card">
+                <div class="dice-display" id="diceDisplay">
+                    <div class="dice-num" id="diceNum" onclick="rollDice()" style="cursor: pointer;">100</div>
+                </div>
+            </div>
+
+            <!-- Cheer Bar - zwischen Würfelbox und Controls -->
+            <div class="cheer-bar" id="cheerBar">
+                <span class="cheer-bar-label">Reagieren</span>
+                <button class="cheer-btn" onclick="sendCheer('🎉')" title="Konfetti">🎉</button>
+                <button class="cheer-btn" onclick="sendCheer('😂')" title="Lachen">😂</button>
+                <button class="cheer-btn" onclick="sendCheer('👏')" title="Applaus">👏</button>
+                <button class="cheer-btn" onclick="sendCheer('🔥')" title="Feuer">🔥</button>
+                <button class="cheer-btn" onclick="sendCheer('💀')" title="RIP">💀</button>
+                <button class="cheer-btn" onclick="sendCheer('😱')" title="Schock">😱</button>
+                <button class="cheer-btn" onclick="sendCheer('🤯')" title="Mind Blown">🤯</button>
+                <button class="cheer-btn" onclick="sendCheer('⚔️')" title="Kampf">⚔️</button>
+            </div>
+
+            <div class="card controls">
+                <!-- GM Roll Mode Toggle (nur für GM sichtbar) -->
+                <div class="ctrl-group gm-toggle-group" id="gmToggleGroup">
+                    <label class="ctrl-label">Würfel-Modus</label>
+                    <div class="pill-group">
+                        <button class="pill pill-tonal selected" data-gm-mode="secret" onclick="setGMRollMode('secret')">🔒 Geheim</button>
+                        <button class="pill pill-tonal" data-gm-mode="public" onclick="setGMRollMode('public')">👁️ Sichtbar</button>
+                    </div>
+                </div>
+
+                <div class="ctrl-group">
+                    <label class="ctrl-label">Würfeltyp</label>
+                    <div class="pill-group">
+                        <button class="pill pill-tonal" data-dice="w4">W4</button>
+                        <button class="pill pill-tonal" data-dice="w6">W6</button>
+                        <button class="pill pill-tonal" data-dice="w8">W8</button>
+                        <button class="pill pill-tonal" data-dice="w10">W10</button>
+                        <button class="pill pill-tonal" data-dice="w12">W12</button>
+                        <button class="pill pill-tonal" data-dice="w20">W20</button>
+                        <button class="pill pill-tonal selected" data-dice="w100">W100</button>
+                    </div>
+                </div>
+
+                <div class="ctrl-group">
+                    <label class="ctrl-label">Modifikator <span class="mod-value" id="modDisplay">+0</span></label>
+                    <div class="pill-group">
+                        <button class="pill pill-tonal" data-mod="-20">-20</button>
+                        <button class="pill pill-tonal" data-mod="-10">-10</button>
+                        <button class="pill pill-tonal" data-mod="-5">-5</button>
+                        <button class="pill pill-tonal" data-mod="+5">+5</button>
+                        <button class="pill pill-tonal" data-mod="+10">+10</button>
+                        <button class="pill pill-tonal" data-mod="+20">+20</button>
+                        <button class="pill pill-error" onclick="resetModifier()">↻</button>
+                    </div>
+                </div>
+
+                <button class="pill pill-filled roll-btn" onclick="rollDice()">Würfeln</button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="card sidebar-card">
+                <div class="card-head">
+                    <span class="card-title">≡ Historie</span>
+                    <button class="pill pill-error" style="height: 32px; padding: 0 16px; font-size: 16px;" onclick="clearHistory()">
+                        ↻
+                    </button>
+                </div>
+                <div class="history" id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dialog-scrim" id="statsDialog" onclick="toggleStats()">
+        <div class="dialog" onclick="event.stopPropagation()">
+            <div class="dialog-head">
+                <h2 class="dialog-title"><span>◆</span> Statistiken</h2>
+            </div>
+            <div class="dialog-content">
+                <div class="stats-sec">
+                    <div class="stats-label">Allgemein</div>
+                    <div class="stat-row">
+                        <span class="stat-name">Gesamtwürfe</span>
+                        <span class="stat-val" id="statTotal">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Durchschnitt</span>
+                        <span class="stat-val" id="statAvg">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Höchster Wurf</span>
+                        <span class="stat-val" id="statHigh">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Niedrigster Wurf</span>
+                        <span class="stat-val" id="statLow">0</span>
+                    </div>
+                </div>
+
+                <div class="stats-sec">
+                    <div class="stats-label">Kritische Würfe</div>
+                    <div class="stat-row">
+                        <span class="stat-name">Kritische Erfolge</span>
+                        <span class="stat-val" id="statCritSuccess">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Kritische Fehlschläge</span>
+                        <span class="stat-val" id="statCritFail">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Glücksrate</span>
+                        <span class="stat-val" id="statLuck">0%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="dialog-actions">
+                <button class="pill pill-tonal" onclick="resetStats()">Zurücksetzen</button>
+                <button class="pill pill-filled" onclick="toggleStats()">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings card" id="settingsPopup">
+        <div class="settings-content">
+            <div class="setting">
+                <label class="setting-label">Animationsgeschwindigkeit</label>
+                <input type="range" class="slider" id="speedSlider" min="500" max="3000" value="2000" step="100">
+                <div class="slider-val" id="speedValue">2.0s</div>
+            </div>
+
+            <div class="setting">
+                <div class="switch-row" onclick="toggleSound()">
+                    <span class="setting-label" style="margin: 0;">Sound-Effekte</span>
+                    <div class="switch active" id="soundSwitch"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/firebase-sync.js"></script>
+    <script src="assets/js/nav.js"></script>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        const soundThemes = {
+            default: {
+                roll: { freq: 200, type: 'square', dur: 0.1 },
+                tickPatterns: [
+                    { base: 300, range: 100, type: 'square', dur: 0.04 },
+                    { base: 450, range: 100, type: 'triangle', dur: 0.04 },
+                    { base: 350, range: 150, type: 'sawtooth', dur: 0.04 }
+                ],
+                revealNormal: [
+                    { freq: 600, sweepTo: 800, dur: 0.15, type: 'sine' },
+                    { freq: 900, dur: 0.08, type: 'sine', delay: 100 }
+                ],
+                critSuccess: [
+                    { freq: 800, dur: 0.12, type: 'sine' },
+                    { freq: 1000, dur: 0.12, type: 'sine', delay: 80 },
+                    { freq: 1200, dur: 0.15, type: 'sine', delay: 160 },
+                    { freq: 1400, dur: 0.1, type: 'triangle', delay: 240 }
+                ],
+                critFail: [
+                    { freq: 400, sweepTo: 200, dur: 0.2, type: 'sawtooth' },
+                    { freq: 100, dur: 0.3, type: 'sine', delay: 150 }
+                ]
+            },
+            chill: {
+                roll: { freq: 150, type: 'sine', dur: 0.15 },
+                tickPatterns: [
+                    { base: 250, range: 80, type: 'sine', dur: 0.05 },
+                    { base: 300, range: 100, type: 'triangle', dur: 0.05 },
+                    { base: 200, range: 120, type: 'sine', dur: 0.05 }
+                ],
+                revealNormal: [
+                    { freq: 440, sweepTo: 550, dur: 0.2, type: 'sine' },
+                    { freq: 660, dur: 0.15, type: 'sine', delay: 120 }
+                ],
+                critSuccess: [
+                    { freq: 440, dur: 0.25, type: 'sine' },
+                    { freq: 554.37, dur: 0.25, type: 'sine', delay: 120 },
+                    { freq: 659.25, dur: 0.3, type: 'sine', delay: 240 }
+                ],
+                critFail: [
+                    { freq: 329.63, sweepTo: 246.94, dur: 0.25, type: 'sine' },
+                    { freq: 196, dur: 0.25, type: 'sine', delay: 180 }
+                ]
+            },
+            epic: {
+                roll: { freq: 100, type: 'sawtooth', dur: 0.12 },
+                tickPatterns: [
+                    { base: 400, range: 150, type: 'triangle', dur: 0.035 },
+                    { base: 550, range: 100, type: 'sawtooth', dur: 0.035 },
+                    { base: 350, range: 200, type: 'square', dur: 0.035 }
+                ],
+                revealNormal: [
+                    { freq: 200, sweepTo: 400, dur: 0.18, type: 'sawtooth' },
+                    { freq: 600, dur: 0.12, type: 'triangle', delay: 100 },
+                    { freq: 800, dur: 0.1, type: 'sine', delay: 180 }
+                ],
+                critSuccess: [
+                    { freq: 261.63, dur: 0.15, type: 'sawtooth' },
+                    { freq: 329.63, dur: 0.15, type: 'sawtooth', delay: 70 },
+                    { freq: 392, dur: 0.15, type: 'sawtooth', delay: 140 },
+                    { freq: 523.25, dur: 0.2, type: 'triangle', delay: 210 },
+                    { freq: 659.25, dur: 0.25, type: 'sine', delay: 300 }
+                ],
+                critFail: [
+                    { freq: 220, sweepTo: 110, dur: 0.25, type: 'sawtooth' },
+                    { freq: 80, dur: 0.35, type: 'sine', delay: 180 }
+                ]
+            },
+            crazy: {
+                roll: { freq: () => 150 + Math.random() * 300, type: 'square', dur: 0.08 },
+                tickPatterns: [
+                    { base: 500, range: 300, type: 'square', dur: 0.025 },
+                    { base: 700, range: 250, type: 'sawtooth', dur: 0.025 },
+                    { base: 400, range: 400, type: 'triangle', dur: 0.025 }
+                ],
+                revealNormal: [
+                    { freq: () => 500 + Math.random() * 300, dur: 0.08, type: 'square' },
+                    { freq: () => 600 + Math.random() * 400, dur: 0.08, type: 'square', delay: 60 },
+                    { freq: () => 700 + Math.random() * 500, dur: 0.1, type: 'square', delay: 120 }
+                ],
+                critSuccess: [
+                    { freq: 600, dur: 0.08, type: 'square' },
+                    { freq: 750, dur: 0.08, type: 'square', delay: 40 },
+                    { freq: 900, dur: 0.08, type: 'square', delay: 80 },
+                    { freq: 1050, dur: 0.08, type: 'square', delay: 120 },
+                    { freq: 1200, dur: 0.08, type: 'square', delay: 160 },
+                    { freq: 1400, dur: 0.12, type: 'sine', delay: 200 }
+                ],
+                critFail: [
+                    { freq: 500, dur: 0.08, type: 'square' },
+                    { freq: 400, dur: 0.08, type: 'square', delay: 40 },
+                    { freq: 300, dur: 0.08, type: 'square', delay: 80 },
+                    { freq: 200, dur: 0.08, type: 'square', delay: 120 },
+                    { freq: 100, dur: 0.15, type: 'sawtooth', delay: 160 }
+                ]
+            },
+            battle: {
+                roll: { freq: 300, type: 'sawtooth', dur: 0.09 },
+                tickPatterns: [
+                    { base: 600, range: 250, type: 'square', dur: 0.03 },
+                    { base: 750, range: 200, type: 'sawtooth', dur: 0.03 },
+                    { base: 550, range: 300, type: 'triangle', dur: 0.03 }
+                ],
+                revealNormal: [
+                    { freq: 300, sweepTo: 500, dur: 0.12, type: 'sawtooth' },
+                    { freq: 700, dur: 0.1, type: 'square', delay: 80 },
+                    { freq: 900, dur: 0.08, type: 'triangle', delay: 140 }
+                ],
+                critSuccess: [
+                    { freq: 329.63, dur: 0.12, type: 'sawtooth' },
+                    { freq: 392, dur: 0.12, type: 'sawtooth', delay: 60 },
+                    { freq: 493.88, dur: 0.12, type: 'sawtooth', delay: 120 },
+                    { freq: 659.25, dur: 0.15, type: 'triangle', delay: 180 },
+                    { freq: 880, dur: 0.12, type: 'sine', delay: 250 }
+                ],
+                critFail: [
+                    { freq: 440, sweepTo: 220, dur: 0.18, type: 'sawtooth' },
+                    { freq: 150, dur: 0.25, type: 'sine', delay: 120 },
+                    { freq: 80, dur: 0.2, type: 'sine', delay: 220 }
+                ]
+            }
+        };
+
+        let currentSoundTheme = 'default';
+        let tickPatternIndex = 0;
+
+        function playTone(freq, dur, type = 'sine', sweepTo = null) {
+            if (!soundEnabled) return;
+
+            const actualFreq = typeof freq === 'function' ? freq() : freq;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = actualFreq;
+            osc.type = type;
+
+            if (sweepTo !== null) {
+                osc.frequency.exponentialRampToValueAtTime(sweepTo, audioCtx.currentTime + dur);
+            }
+
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + dur);
+        }
+
+        function playThemeRoll() {
+            const theme = soundThemes[currentSoundTheme].roll;
+            playTone(theme.freq, theme.dur, theme.type);
+        }
+
+        function playThemeTick(temp) {
+            const patterns = soundThemes[currentSoundTheme].tickPatterns;
+            const pattern = patterns[tickPatternIndex % patterns.length];
+
+            const variation = Math.random() * 0.3 - 0.15;
+            const freq = pattern.base + (temp * pattern.range / 100) + (pattern.base * variation);
+            playTone(freq, pattern.dur, pattern.type);
+        }
+
+        function cycleTickPattern() {
+            tickPatternIndex++;
+        }
+
+        function playRevealSound(isCrit, isFail) {
+            let soundConfig;
+
+            if (isCrit) {
+                soundConfig = soundThemes[currentSoundTheme].critSuccess;
+            } else if (isFail) {
+                soundConfig = soundThemes[currentSoundTheme].critFail;
+            } else {
+                soundConfig = soundThemes[currentSoundTheme].revealNormal;
+            }
+
+            soundConfig.forEach(note => {
+                const delay = note.delay || 0;
+                setTimeout(() => {
+                    playTone(note.freq, note.dur, note.type, note.sweepTo);
+                }, delay);
+            });
+        }
+
+        let currentDice = 'w100';
+        let modifier = 0;
+        let isRolling = false;
+        let remoteRollingActive = false;
+        let soundEnabled = true;
+        let animDuration = 2000;
+        let currentPlayer = 'Spieler';
+        let playerColor = '#6750a4';
+        let history = [];
+        let players = new Set();
+        let playerColors = {};
+        let sparkInterval = null;
+        let patternCycleInterval = null;
+
+        let stats = {
+            total: 0,
+            rolls: [],
+            critSuccess: 0,
+            critFail: 0
+        };
+
+        const diceConfig = {
+            w4: { min: 1, max: 4, crit: 4, fail: 1 },
+            w6: { min: 1, max: 6, crit: 6, fail: 1 },
+            w8: { min: 1, max: 8, crit: 8, fail: 1 },
+            w10: { min: 1, max: 10, crit: 10, fail: 1 },
+            w12: { min: 1, max: 12, crit: 12, fail: 1 },
+            w20: { min: 1, max: 20, crit: 20, fail: 1 },
+            w100: { min: 0, max: 100, crit: [0, 1], fail: 100 }
+        };
+
+        const rollAnimations = ['anim-spin', 'anim-bounce', 'anim-shake', 'anim-flip'];
+
+        function init() {
+            loadData();
+            setupEventListeners();
+            updateDisplay();
+        }
+
+        function loadData() {
+            // Get user from auth system
+            const user = getCurrentUser();
+            if (user) {
+                currentPlayer = user.username;
+                playerColor = user.color || '#6750a4';
+            } else {
+                const params = new URLSearchParams(window.location.search);
+                currentPlayer = params.get('username') || localStorage.getItem('rumRache_currentUser') || 'Spieler';
+                playerColor = params.get('color') || localStorage.getItem('rumRache_userColor') || '#6750a4';
+            }
+
+            const savedHistory = localStorage.getItem('rumRacheHistory');
+            if (savedHistory) {
+                history = JSON.parse(savedHistory).slice(0, 12);
+                history.forEach(h => {
+                    players.add(h.player);
+                    if (h.color) playerColors[h.player] = h.color;
+                });
+            }
+
+            const savedStats = localStorage.getItem('rumRacheStats');
+            if (savedStats) stats = JSON.parse(savedStats);
+
+            const savedTheme = localStorage.getItem('rumRache_soundTheme');
+            if (savedTheme) currentSoundTheme = savedTheme;
+
+            players.add(currentPlayer);
+            playerColors[currentPlayer] = playerColor;
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('[data-dice]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('[data-dice]').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    currentDice = btn.dataset.dice;
+
+                    ensureDiceNumExists();
+                    const display = document.getElementById('diceNum');
+
+                    if (currentDice === 'w100') {
+                        display.textContent = '100';
+                    } else {
+                        display.textContent = diceConfig[currentDice].max;
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-mod]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modifier += parseInt(btn.dataset.mod);
+                    updateModDisplay();
+                    playTone(400, 0.05);
+                });
+            });
+
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                animDuration = parseInt(e.target.value);
+                document.getElementById('speedValue').textContent = (animDuration / 1000).toFixed(1) + 's';
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    rollDice();
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                const soundMenu = document.getElementById('soundMenu');
+                const settingsPopup = document.getElementById('settingsPopup');
+
+                if (!soundMenu.contains(e.target) && !e.target.closest('.icon-btn[onclick*="Sound"]')) {
+                    soundMenu.classList.remove('active');
+                }
+
+                if (!settingsPopup.contains(e.target) && !e.target.closest('.icon-btn[onclick*="Settings"]')) {
+                    settingsPopup.classList.remove('active');
+                }
+            });
+        }
+
+        function toggleSoundMenu() {
+            const menu = document.getElementById('soundMenu');
+            const settings = document.getElementById('settingsPopup');
+            settings.classList.remove('active');
+            menu.classList.toggle('active');
+        }
+
+        function setSoundTheme(theme) {
+            currentSoundTheme = theme;
+            localStorage.setItem('rumRache_soundTheme', theme);
+
+            document.querySelectorAll('.sound-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            document.querySelector(`[data-theme="${theme}"]`).classList.add('selected');
+
+            playThemeRoll();
+        }
+
+        function updateModDisplay() {
+            document.getElementById('modDisplay').textContent = modifier >= 0 ? `+${modifier}` : modifier;
+        }
+
+        function resetModifier() {
+            modifier = 0;
+            updateModDisplay();
+            playTone(300, 0.1);
+        }
+
+        function ensureDiceNumExists() {
+            const container = document.getElementById('diceDisplay');
+            let display = document.getElementById('diceNum');
+
+            if (!display) {
+                container.innerHTML = '<div class="dice-num" id="diceNum" onclick="rollDice()" style="cursor: pointer;">100</div>';
+                display = document.getElementById('diceNum');
+            }
+
+            return display;
+        }
+
+        function createEnergySparks() {
+            const container = document.getElementById('diceDisplay');
+            const rect = container.getBoundingClientRect();
+
+            sparkInterval = setInterval(() => {
+                const spark = document.createElement('div');
+                spark.className = 'energy-spark';
+
+                const startX = (Math.random() - 0.5) * rect.width * 0.8;
+                const startY = (Math.random() - 0.5) * rect.height * 0.8;
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 150 + Math.random() * 200;
+                const endX = startX + Math.cos(angle) * distance;
+                const endY = startY + Math.sin(angle) * distance;
+
+                spark.style.setProperty('--start-x', `${startX}px`);
+                spark.style.setProperty('--start-y', `${startY}px`);
+                spark.style.setProperty('--end-x', `${endX}px`);
+                spark.style.setProperty('--end-y', `${endY}px`);
+                spark.style.left = '50%';
+                spark.style.top = '50%';
+
+                container.appendChild(spark);
+
+                setTimeout(() => {
+                    spark.remove();
+                }, 1000);
+            }, 80);
+        }
+
+        function stopEnergySparks() {
+            if (sparkInterval) {
+                clearInterval(sparkInterval);
+                sparkInterval = null;
+            }
+        }
+
+        function createFirework() {
+            const container = document.getElementById('diceDisplay');
+            const particleCount = 20;
+
+            const colors = [
+                'rgba(103, 80, 164, 0.9)',
+                'rgba(149, 117, 205, 0.9)',
+                'rgba(232, 222, 248, 0.8)',
+                'rgba(124, 112, 160, 0.9)'
+            ];
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'firework-particle';
+
+                const angle = (Math.PI * 2 * i) / particleCount;
+                const distance = 100 + Math.random() * 80;
+                const fx = Math.cos(angle) * distance;
+                const fy = Math.sin(angle) * distance;
+
+                const size = 6 + Math.random() * 8;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.boxShadow = `0 0 ${size * 2}px ${colors[Math.floor(Math.random() * colors.length)]}`;
+
+                particle.style.setProperty('--fx', `${fx}px`);
+                particle.style.setProperty('--fy', `${fy}px`);
+                particle.style.left = '50%';
+                particle.style.top = '50%';
+
+                container.appendChild(particle);
+
+                setTimeout(() => {
+                    particle.remove();
+                }, 800);
+            }
+        }
+
+        function createShockwave() {
+            const container = document.getElementById('diceDisplay');
+
+            const ring = document.createElement('div');
+            ring.className = 'shockwave-ring';
+
+            container.appendChild(ring);
+
+            setTimeout(() => {
+                ring.remove();
+            }, 600);
+        }
+
+        function createParticles(isCrit) {
+            const container = document.getElementById('diceDisplay');
+            const particleCount = 30;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = `particle ${isCrit ? 'success' : 'fail'}`;
+
+                const angle = (Math.PI * 2 * i) / particleCount;
+                const distance = 150 + Math.random() * 100;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+
+                particle.style.left = '50%';
+                particle.style.top = '50%';
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+
+                container.appendChild(particle);
+
+                setTimeout(() => {
+                    particle.remove();
+                }, 1500);
+            }
+        }
+
+        function showCalculation(base, final, isCrit, isFail) {
+            const container = document.getElementById('diceDisplay');
+            const modText = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+
+            const critClass = isCrit ? 'crit-success' : (isFail ? 'crit-fail' : '');
+
+            container.innerHTML = `
+                <div class="calc">
+                    <div class="calc-expr">
+                        <div class="calc-val">${base}</div>
+                        <span>+</span>
+                        <div class="calc-val calc-mod">${modText}</div>
+                        <span>=</span>
+                    </div>
+                    <div class="calc-res ${critClass}" onclick="rollDice()" style="cursor: pointer;">${final}</div>
+                </div>
+            `;
+            createShockwave();
+            createFirework();
+            playRevealSound(isCrit, isFail);
+
+            if (isCrit || isFail) {
+                createParticles(isCrit);
+                container.classList.add(critClass);
+                document.body.classList.add('shake');
+                setTimeout(() => {
+                    container.classList.remove(critClass);
+                    document.body.classList.remove('shake');
+                }, 800);
+            }
+        }
+
+        function showW100Result(tens, ones, total, isCrit, isFail) {
+            const container = document.getElementById('diceDisplay');
+
+            const critClass = isCrit ? 'crit-success' : (isFail ? 'crit-fail' : '');
+
+            container.innerHTML = `
+                <div class="calc">
+                    <div class="calc-expr">
+                        <div class="calc-val">${tens === 0 ? '00' : tens}</div>
+                        <span>+</span>
+                        <div class="calc-val">${ones}</div>
+                        <span>=</span>
+                    </div>
+                    <div class="calc-res ${critClass}" onclick="rollDice()" style="cursor: pointer;">${total}</div>
+                </div>
+            `;
+            createShockwave();
+            createFirework();
+            playRevealSound(isCrit, isFail);
+
+            if (isCrit || isFail) {
+                createParticles(isCrit);
+                container.classList.add(critClass);
+                document.body.classList.add('shake');
+                setTimeout(() => {
+                    container.classList.remove(critClass);
+                    document.body.classList.remove('shake');
+                }, 800);
+            }
+        }
+
+        function showW100WithModifier(tens, ones, modVal, total, isCrit, isFail) {
+            const container = document.getElementById('diceDisplay');
+            const modText = modVal >= 0 ? `+${modVal}` : `${modVal}`;
+
+            const critClass = isCrit ? 'crit-success' : (isFail ? 'crit-fail' : '');
+
+            container.innerHTML = `
+                <div class="calc">
+                    <div class="calc-expr">
+                        <div class="calc-val">${tens === 0 ? '00' : tens}</div>
+                        <span>+</span>
+                        <div class="calc-val">${ones}</div>
+                        <span>+</span>
+                        <div class="calc-val calc-mod">${modText}</div>
+                        <span>=</span>
+                    </div>
+                    <div class="calc-res ${critClass}" onclick="rollDice()" style="cursor: pointer;">${total}</div>
+                </div>
+            `;
+            createShockwave();
+            createFirework();
+            playRevealSound(isCrit, isFail);
+
+            if (isCrit || isFail) {
+                createParticles(isCrit);
+                container.classList.add(critClass);
+                document.body.classList.add('shake');
+                setTimeout(() => {
+                    container.classList.remove(critClass);
+                    document.body.classList.remove('shake');
+                }, 800);
+            }
+        }
+
+        async function rollDice() {
+            if (isRolling || remoteRollingActive) return;
+
+            isRolling = true;
+            tickPatternIndex = 0;
+            
+            // Update button state
+            updateRollButtonState();
+
+            // Broadcast rolling start for real-time sync
+            broadcastRollingStart();
+
+            try {
+                let display = ensureDiceNumExists();
+                const config = diceConfig[currentDice];
+                const container = document.getElementById('diceDisplay');
+
+                createEnergySparks();
+
+                const randomAnim = rollAnimations[Math.floor(Math.random() * rollAnimations.length)];
+                display.classList.add('rolling', randomAnim);
+                playThemeRoll();
+
+                patternCycleInterval = setInterval(cycleTickPattern, 250);
+
+                const interval = setInterval(() => {
+                    display = document.getElementById('diceNum');
+                    if (!display) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    const temp = Math.floor(Math.random() * config.max) + config.min;
+                    display.textContent = temp;
+                    playThemeTick(temp);
+                }, 100);
+
+                await new Promise(resolve => setTimeout(resolve, animDuration));
+
+                clearInterval(interval);
+                if (patternCycleInterval) {
+                    clearInterval(patternCycleInterval);
+                    patternCycleInterval = null;
+                }
+                stopEnergySparks();
+
+                let baseRoll;
+                let w100tens, w100ones;
+
+                if (currentDice === 'w100') {
+                    w100tens = Math.floor(Math.random() * 10) * 10;
+                    w100ones = Math.floor(Math.random() * 10);
+                    baseRoll = (w100tens === 0 && w100ones === 0) ? 100 : w100tens + w100ones;
+                } else {
+                    baseRoll = Math.floor(Math.random() * config.max) + config.min;
+                }
+
+                const finalValue = baseRoll + modifier;
+
+                const isCrit = (currentDice === 'w100') 
+                    ? (baseRoll === 0 || baseRoll === 1)
+                    : (baseRoll === config.crit);
+                const isFail = (currentDice === 'w100')
+                    ? (baseRoll === 100)
+                    : (baseRoll === config.fail);
+
+                display = document.getElementById('diceNum');
+                if (display) {
+                    display.style.opacity = '0';
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 150));
+
+                display = document.getElementById('diceNum');
+                if (display) {
+                    display.classList.remove('rolling', randomAnim);
+                    display.style.opacity = '1';
+                }
+
+                if (currentDice === 'w100') {
+                    if (modifier !== 0) {
+                        showW100WithModifier(w100tens, w100ones, modifier, finalValue, isCrit, isFail);
+                    } else {
+                        showW100Result(w100tens, w100ones, baseRoll, isCrit, isFail);
+                    }
+                } else if (modifier !== 0) {
+                    showCalculation(baseRoll, finalValue, isCrit, isFail);
+                } else {
+                    display = ensureDiceNumExists();
+                    display.textContent = finalValue;
+
+                    if (isCrit || isFail) {
+                        const critClass = isCrit ? 'crit-success' : 'crit-fail';
+                        display.classList.add(critClass);
+                        const container = document.getElementById('diceDisplay');
+                        container.classList.add(critClass);
+                        document.body.classList.add('shake');
+                        createParticles(isCrit);
+
+                        setTimeout(() => {
+                            display.classList.remove(critClass);
+                            container.classList.remove(critClass);
+                            document.body.classList.remove('shake');
+                        }, 800);
+                    }
+
+                    createShockwave();
+                    createFirework();
+                    playRevealSound(isCrit, isFail);
+                }
+
+                addToHistory(finalValue);
+                updateStats(finalValue, isCrit, isFail);
+                
+                // Sync to Firebase for real-time multiplayer
+                syncDiceRollToFirebase({
+                    dice: currentDice === 'w100' ? 100 : parseInt(currentDice.replace('w', '')),
+                    baseRoll: baseRoll,
+                    modifier: modifier,
+                    total: finalValue,
+                    crit: isCrit,
+                    fail: isFail
+                });
+
+            } catch (error) {
+                console.error('Roll error:', error);
+                stopEnergySparks();
+                if (patternCycleInterval) {
+                    clearInterval(patternCycleInterval);
+                }
+            } finally {
+                isRolling = false;
+                // Clear remote rolling state
+                clearRollingState();
+                // Update button state
+                updateRollButtonState();
+            }
+        }
+
+        function addToHistory(value, diceType = currentDice, mod = modifier) {
+            history.unshift({
+                player: currentPlayer,
+                value: value,
+                dice: diceType,
+                modifier: mod,
+                color: playerColor,
+                timestamp: Date.now()
+            });
+            history = history.slice(0, 12);
+            localStorage.setItem('rumRacheHistory', JSON.stringify(history));
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            const list = document.getElementById('historyList');
+            if (history.length === 0) {
+                list.innerHTML = '<div style="text-align: center; color: var(--md-on-surface-variant); padding: 16px;">Noch keine Würfe</div>';
+                return;
+            }
+
+            list.innerHTML = history.map((h, i) => `
+                <div class="history-item ${i === 0 ? 'latest' : ''}">
+                    <div class="history-info">
+                        <div class="history-player" style="color: ${h.color}">${h.player}</div>
+                        <div class="history-dice">${h.dice ? h.dice.toUpperCase() : 'W100'}${h.modifier ? (h.modifier > 0 ? '+' : '') + h.modifier : ''}</div>
+                    </div>
+                    <div class="history-val">${h.value}</div>
+                </div>
+            `).join('');
+        }
+
+        function updatePlayerList() {
+            const list = document.getElementById('playerList');
+            if (!list) return; // Element wurde entfernt
+            list.innerHTML = Array.from(players).map(p => {
+                const color = playerColors[p] || playerColor;
+                const isCurrent = p === currentPlayer;
+                return `
+                    <div class="player">
+                        <div class="player-dot" style="background: ${color}"></div>
+                        <div class="player-name">${p}${isCurrent ? ' (Du)' : ''}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats(value, crit, fail) {
+            stats.total++;
+            stats.rolls.push(value);
+            if (crit) stats.critSuccess++;
+            if (fail) stats.critFail++;
+
+            localStorage.setItem('rumRacheStats', JSON.stringify(stats));
+            updateStatsDisplay();
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('statTotal').textContent = stats.total;
+
+            if (stats.rolls.length > 0) {
+                const avg = stats.rolls.reduce((a, b) => a + b, 0) / stats.rolls.length;
+                document.getElementById('statAvg').textContent = avg.toFixed(1);
+                document.getElementById('statHigh').textContent = Math.max(...stats.rolls);
+                document.getElementById('statLow').textContent = Math.min(...stats.rolls);
+            }
+
+            document.getElementById('statCritSuccess').textContent = stats.critSuccess;
+            document.getElementById('statCritFail').textContent = stats.critFail;
+
+            const total = stats.critSuccess + stats.critFail;
+            const luck = total > 0 ? Math.round((stats.critSuccess / total) * 100) : 0;
+            document.getElementById('statLuck').textContent = luck + '%';
+        }
+
+        function clearHistory() {
+            if (confirm('Historie löschen?')) {
+                history = [];
+                players.clear();
+                players.add(currentPlayer);
+                playerColors = { [currentPlayer]: playerColor };
+                localStorage.removeItem('rumRacheHistory');
+                updateDisplay();
+            }
+        }
+
+        function resetStats() {
+            if (confirm('Statistiken zurücksetzen?')) {
+                stats = { total: 0, rolls: [], critSuccess: 0, critFail: 0 };
+                localStorage.removeItem('rumRacheStats');
+                updateStatsDisplay();
+            }
+        }
+
+        function toggleStats() {
+            document.getElementById('statsDialog').classList.toggle('active');
+        }
+
+        function toggleSettings() {
+            const settings = document.getElementById('settingsPopup');
+            const soundMenu = document.getElementById('soundMenu');
+            soundMenu.classList.remove('active');
+            settings.classList.toggle('active');
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundSwitch').classList.toggle('active');
+        }
+
+        function updateDisplay() {
+            updateHistoryDisplay();
+            updatePlayerList();
+            updateStatsDisplay();
+        }
+
+        // Initialize Navigation mit Module-Tools
+        const moduleTools = `
+            <button class="icon-btn" onclick="toggleSoundMenu()" title="Sound">
+                <img src="assets/icons/icon_soundpick.png" alt="Sound">
+            </button>
+            <button class="icon-btn" onclick="toggleStats()" title="Statistiken">
+                <img src="assets/icons/icon_stats.png" alt="Stats">
+            </button>
+            <button class="icon-btn" onclick="toggleSettings()" title="Einstellungen">
+                <img src="assets/icons/icon_settings.png" alt="Settings">
+            </button>
+        `;
+
+        // ===== FIREBASE SYNC =====
+        let isGM = false;
+        let gmRollMode = 'secret'; // 'secret' or 'public'
+
+        // Auth Check
+        if (!requireAuth()) {
+            // Redirect to login
+        } else {
+            createNavigationBar('Würfel', moduleTools);
+            init();
+            
+            // Check if GM and show toggle
+            const user = getCurrentUser();
+            console.log('[Würfel] User:', user);
+            if (user && user.isGM) {
+                isGM = true;
+                console.log('[Würfel] User is GM, showing toggle');
+                const gmToggle = document.getElementById('gmToggleGroup');
+                if (gmToggle) {
+                    gmToggle.classList.add('visible');
+                    console.log('[Würfel] GM Toggle made visible');
+                }
+            }
+            
+            // Initialize Firebase for real-time sync
+            initFirebase().then(() => {
+                initDicePopupListener();
+                initRemoteDiceListener();
+                initRollingListener();
+            });
+        }
+
+        let remoteDiceInitialized = false;
+        let processedRemoteRolls = new Set();
+        
+        function initRemoteDiceListener() {
+            if (!isFirebaseOnline()) return;
+            const user = getCurrentUser();
+            isGM = user?.isGM || false;
+            
+            // First, load recent history (last 12 rolls)
+            getRef('dice').orderByChild('timestamp').limitToLast(12).once('value', snapshot => {
+                const rolls = snapshot.val();
+                if (rolls) {
+                    // Sort by timestamp descending
+                    const sortedRolls = Object.entries(rolls)
+                        .map(([key, roll]) => ({ ...roll, id: key }))
+                        .sort((a, b) => b.timestamp - a.timestamp);
+                    
+                    // Add to history (without affecting local history)
+                    sortedRolls.forEach(roll => {
+                        processedRemoteRolls.add(roll.id);
+                        // Check if already in local history
+                        const exists = history.some(h => 
+                            h.timestamp === roll.timestamp && h.player === roll.player
+                        );
+                        if (!exists) {
+                            addRemoteToHistorySilent(roll);
+                        }
+                    });
+                    
+                    // Show the most recent roll in dice display (without sound/effects)
+                    if (sortedRolls.length > 0) {
+                        const latestRoll = sortedRolls[0];
+                        showLastRollSilent(latestRoll);
+                    }
+                }
+                
+                // Now listen for new rolls
+                remoteDiceInitialized = true;
+            });
+            
+            // Listen for new rolls
+            getRef('dice').orderByChild('timestamp').limitToLast(1).on('child_added', snapshot => {
+                const roll = snapshot.val();
+                const rollId = snapshot.key;
+                
+                if (!roll || !roll.timestamp) return;
+                
+                // Skip already processed
+                if (processedRemoteRolls.has(rollId)) return;
+                processedRemoteRolls.add(rollId);
+                
+                // Skip until initialized
+                if (!remoteDiceInitialized) return;
+                
+                // Skip very old rolls (more than 10 seconds ago)
+                if (Date.now() - roll.timestamp > 10000) return;
+                
+                // Skip own rolls
+                if (roll.player === user?.username) return;
+                
+                // Show remote roll in UI
+                showRemoteRollResult(roll);
+            });
+        }
+        
+        function addRemoteToHistorySilent(roll) {
+            const diceType = typeof roll.dice === 'number' ? 'w' + roll.dice : roll.dice;
+            const historyEntry = {
+                value: roll.total,
+                modifier: roll.mod || 0,
+                baseRoll: roll.roll,
+                dice: diceType,
+                crit: roll.critSuccess,
+                fail: roll.critFail,
+                player: roll.player,
+                color: roll.color,
+                timestamp: roll.timestamp
+            };
+            // Add at correct position based on timestamp
+            const insertIndex = history.findIndex(h => h.timestamp < roll.timestamp);
+            if (insertIndex === -1) {
+                history.push(historyEntry);
+            } else {
+                history.splice(insertIndex, 0, historyEntry);
+            }
+            if (history.length > 12) history.pop();
+            updateHistoryDisplay();
+        }
+        
+        // Show last roll in dice display without sound/effects
+        function showLastRollSilent(roll) {
+            const container = document.getElementById('diceDisplay');
+            if (!container) return;
+            
+            const isCrit = roll.critSuccess;
+            const isFail = roll.critFail;
+            const diceNum = typeof roll.dice === 'number' ? roll.dice : parseInt(roll.dice.replace('w', ''));
+            
+            let calcHTML = '';
+            
+            if (roll.mod && roll.mod !== 0) {
+                calcHTML = `
+                    <div class="calc-expr">
+                        <div class="calc-val">${roll.roll}</div>
+                        <span>${roll.mod >= 0 ? '+' : '−'}</span>
+                        <div class="calc-val calc-mod">${Math.abs(roll.mod)}</div>
+                        <span>=</span>
+                    </div>
+                `;
+            } else if (diceNum === 100) {
+                const tens = Math.floor(roll.roll / 10) * 10;
+                const ones = roll.roll % 10;
+                calcHTML = `
+                    <div class="calc-expr">
+                        <div class="calc-val">${tens === 0 ? '00' : tens}</div>
+                        <span>+</span>
+                        <div class="calc-val">${ones}</div>
+                        <span>=</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = `
+                <div class="calc">
+                    <div class="remote-player" style="background: ${roll.color};">🎲 ${roll.player}</div>
+                    <div class="dice-label" style="margin: 8px 0;">W${diceNum}</div>
+                    ${calcHTML}
+                    <div class="calc-res ${isCrit ? 'crit-success' : isFail ? 'crit-fail' : ''}" onclick="rollDice()" style="cursor: pointer;">${roll.total}</div>
+                </div>
+            `;
+        }
+
+        function setGMRollMode(mode) {
+            gmRollMode = mode;
+            document.querySelectorAll('[data-gm-mode]').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.gmMode === mode);
+            });
+        }
+
+        function showRemoteRollResult(roll) {
+            const container = document.getElementById('diceDisplay');
+            if (!container) return;
+            
+            const isCrit = roll.critSuccess;
+            const isFail = roll.critFail;
+            const diceNum = typeof roll.dice === 'number' ? roll.dice : parseInt(roll.dice.replace('w', ''));
+            
+            // Add to history with dice type
+            const diceType = typeof roll.dice === 'number' ? 'w' + roll.dice : roll.dice;
+            const historyEntry = {
+                value: roll.total,
+                modifier: roll.mod || 0,
+                baseRoll: roll.roll,
+                dice: diceType,
+                crit: isCrit,
+                fail: isFail,
+                player: roll.player,
+                color: roll.color,
+                timestamp: roll.timestamp
+            };
+            history.unshift(historyEntry);
+            if (history.length > 12) history.pop();
+            updateHistoryDisplay();
+            
+            // Build display HTML - vertically stacked
+            let calcHTML = '';
+            
+            // Add calc boxes if there's a modifier or W100
+            if (roll.mod && roll.mod !== 0) {
+                calcHTML = `
+                    <div class="calc-expr">
+                        <div class="calc-val">${roll.roll}</div>
+                        <span>${roll.mod >= 0 ? '+' : '−'}</span>
+                        <div class="calc-val calc-mod">${Math.abs(roll.mod)}</div>
+                        <span>=</span>
+                    </div>
+                `;
+            } else if (diceNum === 100) {
+                const tens = Math.floor(roll.roll / 10) * 10;
+                const ones = roll.roll % 10;
+                calcHTML = `
+                    <div class="calc-expr">
+                        <div class="calc-val">${tens === 0 ? '00' : tens}</div>
+                        <span>+</span>
+                        <div class="calc-val">${ones}</div>
+                        <span>=</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = `
+                <div class="calc">
+                    <div class="remote-player" style="background: ${roll.color};">🎲 ${roll.player}</div>
+                    <div class="dice-label" style="margin: 8px 0;">W${diceNum}</div>
+                    ${calcHTML}
+                    <div class="calc-res ${isCrit ? 'crit-success' : isFail ? 'crit-fail' : ''}" onclick="rollDice()" style="cursor: pointer;">${roll.total}</div>
+                </div>
+            `;
+            
+            createShockwave();
+            playRevealSound(isCrit, isFail);
+            
+            if (isCrit || isFail) {
+                document.body.classList.add('shake');
+                setTimeout(() => document.body.classList.remove('shake'), 500);
+            }
+        }
+
+        async function syncDiceRollToFirebase(rollData) {
+            if (!isFirebaseOnline()) return;
+            if (isGM && gmRollMode === 'secret') {
+                console.log('[Dice] GM secret roll - not syncing');
+                return;
+            }
+            
+            const user = getCurrentUser();
+            if (!user) return;
+            
+            try {
+                await getRef('dice').push({
+                    player: user.username,
+                    color: user.color,
+                    dice: rollData.dice,
+                    roll: rollData.baseRoll,
+                    mod: rollData.modifier || 0,
+                    total: rollData.total,
+                    critSuccess: rollData.crit,
+                    critFail: rollData.fail,
+                    timestamp: Date.now(),
+                    isGM: user.isGM
+                });
+            } catch (e) {
+                console.error('[Dice] Sync failed:', e);
+            }
+        }
+
+        // Broadcast rolling start for real-time animation
+        async function broadcastRollingStart() {
+            if (!isFirebaseOnline()) return;
+            if (isGM && gmRollMode === 'secret') return;
+            
+            const user = getCurrentUser();
+            if (!user) return;
+            
+            try {
+                await getRef('rolling').set({
+                    player: user.username,
+                    color: user.color,
+                    dice: currentDice,
+                    timestamp: Date.now(),
+                    active: true
+                });
+            } catch (e) {
+                console.error('[Dice] Rolling broadcast failed:', e);
+            }
+        }
+        
+        // Clear rolling state after roll completes
+        async function clearRollingState() {
+            if (!isFirebaseOnline()) return;
+            try {
+                await getRef('rolling').update({ active: false });
+            } catch (e) {
+                console.error('[Dice] Clear rolling failed:', e);
+            }
+        }
+
+        // Listen for rolling events from other players
+        let rollingListenerInitialized = false;
+        let currentRemoteRollingId = null;
+        
+        function initRollingListener() {
+            if (!isFirebaseOnline()) return;
+            const user = getCurrentUser();
+            
+            // Skip first value on init
+            rollingListenerInitialized = false;
+            
+            getRef('rolling').on('value', snapshot => {
+                const rolling = snapshot.val();
+                
+                // First call - just mark as initialized
+                if (!rollingListenerInitialized) {
+                    rollingListenerInitialized = true;
+                    if (rolling) currentRemoteRollingId = rolling.timestamp;
+                    return;
+                }
+                
+                if (!rolling || !rolling.timestamp) {
+                    remoteRollingActive = false;
+                    updateRollButtonState();
+                    return;
+                }
+                
+                // Check if rolling is still active
+                if (!rolling.active || Date.now() - rolling.timestamp > 5000) {
+                    remoteRollingActive = false;
+                    updateRollButtonState();
+                    return;
+                }
+                
+                // Skip own rolls for display
+                if (rolling.player === user?.username) return;
+                
+                // Block rolling for others
+                remoteRollingActive = true;
+                updateRollButtonState();
+                
+                // Skip if same roll (prevent re-trigger)
+                if (rolling.timestamp === currentRemoteRollingId) return;
+                currentRemoteRollingId = rolling.timestamp;
+                
+                showRemoteRolling(rolling);
+            });
+        }
+        
+        function updateRollButtonState() {
+            const rollBtn = document.querySelector('.roll-btn');
+            const diceNum = document.getElementById('diceNum');
+            
+            if (isRolling || remoteRollingActive) {
+                if (rollBtn) {
+                    rollBtn.disabled = true;
+                    rollBtn.style.opacity = '0.5';
+                    rollBtn.style.pointerEvents = 'none';
+                }
+                if (diceNum) {
+                    diceNum.style.pointerEvents = 'none';
+                }
+            } else {
+                if (rollBtn) {
+                    rollBtn.disabled = false;
+                    rollBtn.style.opacity = '1';
+                    rollBtn.style.pointerEvents = 'auto';
+                }
+                if (diceNum) {
+                    diceNum.style.pointerEvents = 'auto';
+                }
+            }
+        }
+
+        function showRemoteRolling(rolling) {
+            const container = document.getElementById('diceDisplay');
+            if (!container) return;
+            
+            const diceNum = rolling.dice === 'w100' ? 100 : parseInt(rolling.dice.replace('w', ''));
+            const config = diceConfig[rolling.dice] || { min: 1, max: diceNum };
+            
+            container.innerHTML = `
+                <div class="calc">
+                    <div class="remote-player" style="background: ${rolling.color};">🎲 ${rolling.player}</div>
+                    <div class="dice-label">W${diceNum}</div>
+                    <div class="dice-num rolling anim-spin" id="remoteDiceNum">${Math.floor(Math.random() * config.max) + config.min}</div>
+                </div>
+            `;
+            
+            // Animate random numbers
+            const remoteDisplay = document.getElementById('remoteDiceNum');
+            if (remoteDisplay) {
+                const animInterval = setInterval(() => {
+                    if (!document.getElementById('remoteDiceNum')) {
+                        clearInterval(animInterval);
+                        return;
+                    }
+                    remoteDisplay.textContent = Math.floor(Math.random() * config.max) + config.min;
+                }, 80);
+                
+                // Stop after 2 seconds (result will come from Firebase)
+                setTimeout(() => clearInterval(animInterval), 2000);
+            }
+        }
+
+        // ===== CHEER SYSTEM =====
+        let cheerCooldown = false;
+        
+        // Sound-Definitionen für jeden Cheer
+        const cheerSounds = {
+            '🎉': { type: 'confetti', freq: [523, 659, 784], duration: 0.3 },
+            '😂': { type: 'laugh', freq: [400, 500, 400, 300], duration: 0.15 },
+            '👏': { type: 'clap', freq: [200], duration: 0.1, noise: true },
+            '🔥': { type: 'fire', freq: [150, 200, 250, 300], duration: 0.1 },
+            '💀': { type: 'doom', freq: [100, 80, 60], duration: 0.4 },
+            '😱': { type: 'scream', freq: [800, 1000, 1200, 1000, 800], duration: 0.1 },
+            '🤯': { type: 'explosion', freq: [200, 150, 100, 50], duration: 0.15, noise: true },
+            '⚔️': { type: 'sword', freq: [1200, 800, 600], duration: 0.08 }
+        };
+        
+        // Web Audio Context für Cheer-Sounds
+        let cheerAudioCtx = null;
+        
+        function getCheerAudioContext() {
+            if (!cheerAudioCtx) {
+                cheerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return cheerAudioCtx;
+        }
+        
+        function playCheerSound(emoji) {
+            try {
+                const ctx = getCheerAudioContext();
+                const config = cheerSounds[emoji];
+                if (!config) return;
+                
+                const masterGain = ctx.createGain();
+                masterGain.connect(ctx.destination);
+                masterGain.gain.value = 0.3;
+                
+                if (config.noise) {
+                    // Noise-basierte Sounds (Klatschen, Explosion)
+                    const bufferSize = ctx.sampleRate * config.duration * config.freq.length;
+                    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+                    }
+                    
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.value = config.freq[0];
+                    filter.Q.value = 1;
+                    
+                    noise.connect(filter);
+                    filter.connect(masterGain);
+                    noise.start();
+                } else {
+                    // Ton-basierte Sounds
+                    config.freq.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        
+                        osc.type = config.type === 'doom' ? 'sawtooth' : 'sine';
+                        osc.frequency.value = freq;
+                        
+                        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * config.duration);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (i + 1) * config.duration);
+                        
+                        osc.connect(gain);
+                        gain.connect(masterGain);
+                        
+                        osc.start(ctx.currentTime + i * config.duration);
+                        osc.stop(ctx.currentTime + (i + 1) * config.duration + 0.1);
+                    });
+                }
+            } catch (e) {
+                console.log('[Cheer] Sound failed:', e);
+            }
+        }
+        
+        async function sendCheer(emoji) {
+            if (cheerCooldown) return;
+            if (!isFirebaseOnline()) return;
+            
+            const user = getCurrentUser();
+            if (!user) return;
+            
+            // Set cooldown
+            cheerCooldown = true;
+            document.querySelectorAll('.cheer-btn').forEach(btn => btn.classList.add('cooldown'));
+            
+            try {
+                await getRef('cheers').push({
+                    player: user.username,
+                    color: user.color,
+                    emoji: emoji,
+                    timestamp: Date.now()
+                });
+                
+                // Show own cheer locally
+                showCheerEffect(emoji, user.color);
+            } catch (e) {
+                console.error('[Cheer] Failed:', e);
+            }
+            
+            // Remove cooldown after 30 seconds
+            setTimeout(() => {
+                cheerCooldown = false;
+                document.querySelectorAll('.cheer-btn').forEach(btn => btn.classList.remove('cooldown'));
+            }, 30000);
+        }
+        
+        function initCheerListener() {
+            if (!isFirebaseOnline()) return;
+            const user = getCurrentUser();
+            
+            const ref = getRef('cheers').orderByChild('timestamp').limitToLast(1);
+            let lastCheerTime = Date.now();
+            
+            ref.on('child_added', snapshot => {
+                const cheer = snapshot.val();
+                if (!cheer || !cheer.timestamp) return;
+                if (cheer.timestamp < lastCheerTime) return;
+                lastCheerTime = Date.now();
+                if (cheer.player === user?.username) return;
+                
+                showCheerEffect(cheer.emoji, cheer.color, cheer.player);
+            });
+        }
+        
+        function showCheerEffect(emoji, color, player = null) {
+            // Play sound
+            playCheerSound(emoji);
+            
+            // Create floating emojis
+            const container = document.createElement('div');
+            container.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                pointer-events: none;
+                z-index: 9999;
+                overflow: hidden;
+            `;
+            document.body.appendChild(container);
+            
+            // Create multiple floating emojis
+            for (let i = 0; i < 15; i++) {
+                const emojiEl = document.createElement('div');
+                emojiEl.textContent = emoji;
+                emojiEl.style.cssText = `
+                    position: absolute;
+                    font-size: ${24 + Math.random() * 24}px;
+                    left: ${Math.random() * 100}%;
+                    bottom: -50px;
+                    animation: cheerFloat ${2 + Math.random()}s ease-out forwards;
+                    animation-delay: ${Math.random() * 0.5}s;
+                `;
+                container.appendChild(emojiEl);
+            }
+            
+            // Show player name if from someone else - centered above dice box
+            if (player) {
+                const diceDisplay = document.getElementById('diceDisplay');
+                const nameEl = document.createElement('div');
+                nameEl.textContent = `${player} reagiert!`;
+                nameEl.style.cssText = `
+                    position: absolute;
+                    top: -40px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: ${color};
+                    color: white;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    font-weight: 600;
+                    font-size: 13px;
+                    animation: cheerPop 2s ease-out forwards;
+                    z-index: 100;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    white-space: nowrap;
+                `;
+                if (diceDisplay) {
+                    diceDisplay.style.position = 'relative';
+                    diceDisplay.appendChild(nameEl);
+                    setTimeout(() => nameEl.remove(), 2000);
+                } else {
+                    document.body.appendChild(nameEl);
+                    setTimeout(() => nameEl.remove(), 2000);
+                }
+            }
+            
+            setTimeout(() => container.remove(), 3000);
+        }
+        
+        // Add cheer animations to head
+        const cheerStyles = document.createElement('style');
+        cheerStyles.textContent = `
+            @keyframes cheerFloat {
+                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+            }
+            @keyframes cheerPop {
+                0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+                20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+                30% { transform: translate(-50%, -50%) scale(1); }
+                80% { opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(cheerStyles);
+        
+        // Initialize cheer listener after Firebase is ready
+        setTimeout(initCheerListener, 1000);
+        
+        // Create footer
+        createFooter();
+    </script>
+</body>
+</html>

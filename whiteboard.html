@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PnP Companion - Whiteboard">
+    <meta name="theme-color" content="#6750a4">
+    <title>Whiteboard - PnP Companion</title>
+    <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/global.css">
+    
+    <style>
+        * { box-sizing: border-box; }
+        body { padding-top: 60px; overflow: hidden; }
+        .whiteboard-container { position: fixed; top: 60px; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
+        
+        /* Toolbar */
+        .toolbar { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--md-surface-container); border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0; flex-wrap: wrap; }
+        .toolbar-group { display: flex; align-items: center; gap: var(--space-xs); }
+        .toolbar-divider { width: 1px; height: 28px; background: var(--md-outline-variant); margin: 0 var(--space-xs); }
+        .tool-btn { width: 40px; height: 40px; background: transparent; border: none; border-radius: var(--shape-md); color: var(--md-on-surface-variant); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition-standard); }
+        .tool-btn:hover { background: var(--md-surface-container-high); color: var(--md-on-surface); }
+        .tool-btn.active { background: var(--md-primary); color: var(--md-on-primary); }
+        .tool-btn svg { width: 22px; height: 22px; }
+        .tool-btn-label { display: flex; align-items: center; gap: var(--space-xs); padding: 0 var(--space-md); height: 40px; background: transparent; border: none; border-radius: var(--shape-md); color: var(--md-on-surface-variant); font-family: inherit; font-size: var(--body-medium); cursor: pointer; transition: all var(--transition-standard); }
+        .tool-btn-label:hover { background: var(--md-surface-container-high); color: var(--md-on-surface); }
+        .tool-btn-label svg { width: 20px; height: 20px; }
+        .toolbar-spacer { flex: 1; }
+        .zoom-display { font-size: var(--body-small); color: var(--md-on-surface-variant); min-width: 50px; text-align: center; font-weight: 500; }
+        #imageInput { display: none; }
+        
+        /* Canvas */
+        .canvas-wrapper { flex: 1; position: relative; overflow: hidden; background: var(--md-surface); }
+        .canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: 0 0; }
+        .canvas-grid { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s ease; background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 40px 40px; }
+        .canvas-grid.visible { opacity: 1; }
+        
+        /* Elements */
+        .element { position: absolute; cursor: move; user-select: none; }
+        .element:hover { z-index: 100; }
+        .element.selected { z-index: 101; }
+        .element.selected::after { content: ''; position: absolute; inset: -4px; border: 2px solid var(--md-primary); border-radius: var(--shape-md); pointer-events: none; }
+        .element-image { display: flex; flex-direction: column; align-items: center; }
+        .element-image img { max-width: 100%; height: auto; border-radius: var(--shape-md); box-shadow: var(--elevation-2); pointer-events: none; }
+        .element-text { padding: var(--space-sm) var(--space-md); background: var(--md-surface-container); border-radius: var(--shape-md); color: var(--md-on-surface); font-size: 18px; white-space: pre-wrap; box-shadow: var(--elevation-1); min-width: 60px; max-width: 400px; }
+        .element-text.editing { outline: none; background: var(--md-surface-container-high); cursor: text; }
+        .element-text strong { font-weight: 700; }
+        .element-text em { font-style: italic; }
+        .element-text code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .resize-handle { position: absolute; width: 14px; height: 14px; background: var(--md-primary); border: 2px solid var(--md-on-primary); border-radius: 50%; cursor: nwse-resize; bottom: -7px; right: -7px; opacity: 0; z-index: 10; }
+        .element.selected .resize-handle { opacity: 1; }
+        .element-delete { position: absolute; top: -12px; right: -12px; width: 24px; height: 24px; background: var(--md-error); border: none; border-radius: 50%; color: var(--md-on-error); cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; z-index: 11; }
+        .element-delete svg { width: 14px; height: 14px; }
+        .element.selected .element-delete { opacity: 1; }
+        .element-delete:hover { transform: scale(1.1); }
+        
+        /* Text Toolbar */
+        .text-toolbar { position: fixed; background: var(--md-surface-container-high); border-radius: var(--shape-md); box-shadow: var(--elevation-3); display: flex; gap: 2px; padding: 4px; z-index: 200; opacity: 0; visibility: hidden; transform: translateY(8px); transition: all 0.15s ease; }
+        .text-toolbar.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        .text-toolbar .md-btn { width: 32px; height: 32px; background: transparent; border: none; border-radius: var(--shape-sm); color: var(--md-on-surface-variant); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .text-toolbar .md-btn:hover { background: var(--md-surface-container-highest); color: var(--md-on-surface); }
+        
+        /* Drop Zone */
+        .drop-zone { position: absolute; inset: 0; background: rgba(103, 80, 164, 0.1); border: 3px dashed var(--md-primary); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; }
+        .drop-zone.active { opacity: 1; visibility: visible; }
+        .drop-zone-content { text-align: center; color: var(--md-primary); }
+        .drop-zone-content svg { width: 64px; height: 64px; margin-bottom: var(--space-md); }
+        .drop-zone-content p { font-size: var(--title-medium); font-weight: 500; }
+        
+        /* Empty State */
+        .empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--md-on-surface-variant); pointer-events: none; }
+        .empty-state svg { width: 80px; height: 80px; margin-bottom: var(--space-md); opacity: 0.5; }
+        .empty-state h3 { font-size: var(--title-medium); font-weight: 500; margin-bottom: var(--space-sm); color: var(--md-on-surface); }
+        
+        /* Toast */
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--md-surface-container-highest); color: var(--md-on-surface); padding: var(--space-sm) var(--space-lg); border-radius: var(--shape-md); box-shadow: var(--elevation-3); z-index: 300; opacity: 0; visibility: hidden; }
+        .toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        
+        /* Context Menu */
+        .context-menu { position: fixed; background: var(--md-surface-container-high); border-radius: var(--shape-md); box-shadow: var(--elevation-3); min-width: 160px; z-index: 500; opacity: 0; visibility: hidden; transform: scale(0.95); }
+        .context-menu.active { opacity: 1; visibility: visible; transform: scale(1); }
+        .context-menu-item { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); color: var(--md-on-surface); font-size: var(--body-medium); cursor: pointer; }
+        .context-menu-item:hover { background: var(--md-surface-container-highest); }
+        .context-menu-item svg { width: 18px; height: 18px; color: var(--md-on-surface-variant); }
+        .context-menu-item.danger { color: var(--md-error); }
+        .context-menu-item.danger svg { color: var(--md-error); }
+        
+        /* Viewer Mode - Non-GM users */
+        .toolbar.viewer-mode .tool-btn-label,
+        .toolbar.viewer-mode .tool-btn:not([onclick*="zoom"]):not([onclick*="resetZoom"]),
+        .toolbar.viewer-mode .toolbar-divider:first-of-type,
+        .toolbar.viewer-mode .toolbar-divider:nth-of-type(2),
+        .toolbar.viewer-mode .toolbar-divider:nth-of-type(4) { display: none; }
+        
+        .viewer-mode-banner {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface-variant);
+            padding: var(--space-sm) var(--space-lg);
+            border-radius: var(--shape-full);
+            font-size: var(--body-small);
+            box-shadow: var(--elevation-2);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        
+        .viewer-mode-banner svg { width: 16px; height: 16px; }
+        
+        @media (max-width: 600px) { .tool-btn-label span { display: none; } }
+    </style>
+</head>
+<body>
+    <div id="nav-placeholder"></div>
+
+    <div class="whiteboard-container">
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <button class="tool-btn-label" onclick="triggerImageUpload()" title="Bild hinzufügen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <span>Bild</span>
+                </button>
+                <input type="file" id="imageInput" accept="image/*" multiple onchange="handleImageUpload(event)">
+                <button class="tool-btn-label" onclick="addTextElement()" title="Text hinzufügen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                    <span>Text</span>
+                </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+                <button class="tool-btn" onclick="bringToFront()" title="Nach vorne"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg></button>
+                <button class="tool-btn" onclick="sendToBack()" title="Nach hinten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M8 20h10a2 2 0 0 0 2-2V8"/></svg></button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+                <button class="tool-btn" onclick="zoomOut()" title="Rauszoomen (-)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <span class="zoom-display" id="zoomDisplay">100%</span>
+                <button class="tool-btn" onclick="zoomIn()" title="Reinzoomen (+)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <button class="tool-btn" onclick="resetZoom()" title="Zoom zurücksetzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+                <button class="tool-btn" id="snapToggle" onclick="toggleSnap()" title="Snap to Grid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+            </div>
+            <div class="toolbar-spacer"></div>
+            <div class="toolbar-group">
+                <button class="tool-btn" onclick="clearCanvas()" title="Alles löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <div class="canvas" id="canvas"><div class="canvas-grid" id="canvasGrid"></div></div>
+            <div class="drop-zone" id="dropZone"><div class="drop-zone-content"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><p>Bilder hier ablegen</p></div></div>
+            <div class="empty-state" id="emptyState"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><h3>Whiteboard ist leer</h3><p>Füge Bilder oder Text hinzu</p></div>
+        </div>
+    </div>
+
+    <div class="text-toolbar" id="textToolbar">
+        <button class="md-btn" onclick="insertTextMarkdown('bold')" title="Fett"><strong>B</strong></button>
+        <button class="md-btn" onclick="insertTextMarkdown('italic')" title="Kursiv"><em>I</em></button>
+        <button class="md-btn" onclick="insertTextMarkdown('code')" title="Code"><code>&lt;/&gt;</code></button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="bringToFront()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>Nach vorne</div>
+        <div class="context-menu-item" onclick="sendToBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M8 20h10a2 2 0 0 0 2-2V8"/></svg>Nach hinten</div>
+        <div class="context-menu-item" onclick="duplicateElement()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</div>
+        <div class="context-menu-item danger" onclick="deleteSelected()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/firebase-sync.js"></script>
+    <script src="assets/js/nav.js"></script>
+    <script>
+        let elements = [], selectedElement = null, isDragging = false, isResizing = false;
+        let dragOffset = { x: 0, y: 0 }, zIndexCounter = 1;
+        let zoomLevel = 1, snapEnabled = false, editingTextElement = null;
+        let isGM = false; // GM-Status
+        let unsubscribeWhiteboard = null;
+        const ZOOM_MIN = 0.25, ZOOM_MAX = 3, ZOOM_STEP = 0.25, GRID_SIZE = 40;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!requireAuth()) return;
+            
+            initNavigation('Whiteboard', '');
+            
+            // Initialize Firebase first
+            await initFirebase();
+            
+            // Check GM status AFTER Firebase is ready
+            isGM = isCurrentUserGM();
+            console.log('[Whiteboard] GM Status:', isGM);
+            
+            // Setup for non-GMs (viewer mode)
+            if (!isGM) {
+                document.querySelector('.toolbar').classList.add('viewer-mode');
+                document.getElementById('emptyState').innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <h3>Zuschauer-Modus</h3>
+                    <p>Warte auf Inhalte vom Spielleiter</p>
+                `;
+                
+                // Add viewer banner
+                const banner = document.createElement('div');
+                banner.className = 'viewer-mode-banner';
+                banner.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Zuschauer-Modus
+                `;
+                document.body.appendChild(banner);
+            }
+            
+            loadWhiteboard();
+            setupEventListeners();
+            updateEmptyState();
+            
+            // For non-GMs: Listen for remote whiteboard changes
+            if (!isGM && isFirebaseOnline()) {
+                unsubscribeWhiteboard = onWhiteboardChange(handleRemoteWhiteboardUpdate);
+            }
+        });
+
+        // Handle remote whiteboard updates (for viewers)
+        function handleRemoteWhiteboardUpdate(state) {
+            if (isGM) return; // GMs don't receive updates, they send them
+            
+            // Clear current elements
+            elements.forEach(e => e.domElement.remove());
+            elements = [];
+            
+            // Recreate elements from state
+            if (state.elements?.length > 0) {
+                state.elements.forEach(el => {
+                    if (el.type === 'image') createImageElement(el.src, el.x, el.y, el.width, el.id, el.zIndex);
+                    else if (el.type === 'text') createTextElement(el.text, el.x, el.y, el.id, el.zIndex, el.rawText);
+                });
+                zIndexCounter = Math.max(...state.elements.map(e => e.zIndex || 1)) + 1;
+            }
+            
+            if (state.zoom) { zoomLevel = state.zoom; applyZoom(); }
+            updateEmptyState();
+        }
+
+        function loadWhiteboard() {
+            // First try Firebase for viewers
+            if (!isGM && isFirebaseOnline()) {
+                // Will be handled by onWhiteboardChange listener
+                return;
+            }
+            
+            // GMs and offline: Load from localStorage
+            const saved = loadSharedData('whiteboard', { elements: [], zoom: 1, snap: false });
+            if (saved.elements?.length > 0) {
+                saved.elements.forEach(el => {
+                    if (el.type === 'image') createImageElement(el.src, el.x, el.y, el.width, el.id, el.zIndex);
+                    else if (el.type === 'text') createTextElement(el.text, el.x, el.y, el.id, el.zIndex, el.rawText);
+                });
+                zIndexCounter = Math.max(...saved.elements.map(e => e.zIndex || 1)) + 1;
+            }
+            if (saved.zoom) { zoomLevel = saved.zoom; applyZoom(); }
+            if (saved.snap) { snapEnabled = true; document.getElementById('snapToggle').classList.add('active'); document.getElementById('canvasGrid').classList.add('visible'); }
+        }
+
+        function saveWhiteboard() {
+            const state = {
+                elements: elements.map(el => ({ id: el.id, type: el.type, x: el.x, y: el.y, zIndex: el.zIndex, ...(el.type === 'image' ? { src: el.src, width: el.width } : { text: el.text, rawText: el.rawText }) })),
+                zoom: zoomLevel, snap: snapEnabled
+            };
+            
+            // Save to localStorage
+            saveSharedData('whiteboard', state);
+            
+            // Sync to Firebase if GM and online
+            if (isGM && isFirebaseOnline()) {
+                saveWhiteboardState(state);
+            }
+        }
+
+        function setupEventListeners() {
+            const canvas = document.getElementById('canvas'), wrapper = document.getElementById('canvasWrapper');
+            canvas.addEventListener('mousedown', (e) => { if (e.target === canvas || e.target.id === 'canvasGrid') { deselectAll(); hideTextToolbar(); } });
+            canvas.addEventListener('click', (e) => { 
+                // Deselect wenn auf leere Fläche geklickt wird (nicht auf Element oder dessen Kinder)
+                if (e.target === canvas || e.target.id === 'canvasGrid') { 
+                    deselectAll(); 
+                    hideTextToolbar(); 
+                }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (editingTextElement) return;
+                if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement && !e.target.isContentEditable) { e.preventDefault(); deleteSelected(); }
+                if (e.key === 'Escape') { deselectAll(); hideContextMenu(); hideTextToolbar(); }
+                if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomIn(); }
+                if (e.key === '-') { e.preventDefault(); zoomOut(); }
+                if (e.key === '0' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); resetZoom(); }
+            });
+            wrapper.addEventListener('wheel', (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); e.deltaY < 0 ? zoomIn() : zoomOut(); } }, { passive: false });
+            document.addEventListener('click', hideContextMenu);
+            wrapper.addEventListener('dragover', (e) => { e.preventDefault(); document.getElementById('dropZone').classList.add('active'); });
+            wrapper.addEventListener('dragleave', (e) => { if (!e.relatedTarget || !wrapper.contains(e.relatedTarget)) document.getElementById('dropZone').classList.remove('active'); });
+            wrapper.addEventListener('drop', (e) => { e.preventDefault(); document.getElementById('dropZone').classList.remove('active'); handleDroppedFiles(e.dataTransfer.files, e.clientX, e.clientY); });
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            
+            // Touch events for mobile
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd);
+        }
+        
+        function handleTouchMove(e) {
+            if (!selectedElement || !isDragging) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = document.getElementById('canvas').getBoundingClientRect();
+            let x = snapToGrid((touch.clientX - rect.left) / zoomLevel - dragOffset.x);
+            let y = snapToGrid((touch.clientY - rect.top) / zoomLevel - dragOffset.y);
+            selectedElement.domElement.style.left = x + 'px';
+            selectedElement.domElement.style.top = y + 'px';
+            selectedElement.x = x;
+            selectedElement.y = y;
+        }
+        
+        function handleTouchEnd() {
+            if (isDragging || isResizing) saveWhiteboard();
+            isDragging = false;
+            isResizing = false;
+        }
+
+        function zoomIn() { if (zoomLevel < ZOOM_MAX) { zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP); applyZoom(); saveWhiteboard(); } }
+        function zoomOut() { if (zoomLevel > ZOOM_MIN) { zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP); applyZoom(); saveWhiteboard(); } }
+        function resetZoom() { zoomLevel = 1; applyZoom(); saveWhiteboard(); }
+        function applyZoom() { document.getElementById('canvas').style.transform = `scale(${zoomLevel})`; document.getElementById('zoomDisplay').textContent = Math.round(zoomLevel * 100) + '%'; }
+
+        function toggleSnap() { snapEnabled = !snapEnabled; document.getElementById('snapToggle').classList.toggle('active', snapEnabled); document.getElementById('canvasGrid').classList.toggle('visible', snapEnabled); showToast(snapEnabled ? 'Snap to Grid aktiviert' : 'Snap to Grid deaktiviert'); saveWhiteboard(); }
+        function snapToGrid(v) { return snapEnabled ? Math.round(v / GRID_SIZE) * GRID_SIZE : v; }
+
+        function triggerImageUpload() { 
+            if (!isGM) return; // Block for non-GMs
+            document.getElementById('imageInput').click(); 
+        }
+        function handleImageUpload(e) {
+            if (!isGM) return; // Block for non-GMs
+            const files = e.target.files; if (!files.length) return;
+            Array.from(files).forEach((f, i) => {
+                if (!f.type.startsWith('image/')) return;
+                const r = new FileReader();
+                r.onload = (ev) => loadImageWithSize(ev.target.result, null, null, i);
+                r.readAsDataURL(f);
+            });
+            e.target.value = '';
+        }
+        function handleDroppedFiles(files, clientX, clientY) {
+            if (!isGM) return; // Block for non-GMs
+            const rect = document.getElementById('canvas').getBoundingClientRect();
+            const dropX = (clientX - rect.left) / zoomLevel, dropY = (clientY - rect.top) / zoomLevel;
+            Array.from(files).forEach((f, i) => {
+                if (!f.type.startsWith('image/')) return;
+                const r = new FileReader();
+                r.onload = (ev) => loadImageWithSize(ev.target.result, dropX + i*20, dropY + i*20, i);
+                r.readAsDataURL(f);
+            });
+        }
+        function loadImageWithSize(src, dropX, dropY, offset) {
+            const img = new Image();
+            img.onload = () => {
+                const wrapper = document.getElementById('canvasWrapper');
+                const maxW = wrapper.clientWidth * 0.6, maxH = wrapper.clientHeight * 0.6;
+                let w = img.naturalWidth, h = img.naturalHeight;
+                if (w > maxW) { h = h * (maxW / w); w = maxW; }
+                if (h > maxH) { w = w * (maxH / h); h = maxH; }
+                const x = dropX !== null ? dropX - w/2 : (wrapper.clientWidth / 2 / zoomLevel) - w/2 + offset*30;
+                const y = dropY !== null ? dropY - h/2 : (wrapper.clientHeight / 2 / zoomLevel) - h/2 + offset*30;
+                createImageElement(src, x, y, Math.round(w));
+            };
+            img.src = src;
+        }
+
+        function createImageElement(src, x = 100, y = 100, width = null, id = null, zIndex = null) {
+            const canvas = document.getElementById('canvas'), elementId = id || 'el_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), elementZIndex = zIndex || zIndexCounter++;
+            x = snapToGrid(x); y = snapToGrid(y);
+            const el = document.createElement('div'); el.className = 'element element-image'; el.id = elementId;
+            el.style.cssText = `left:${x}px;top:${y}px;z-index:${elementZIndex}` + (width ? `;width:${width}px` : '');
+            
+            // Only show controls for GM
+            if (isGM) {
+                el.innerHTML = `<img src="${src}" draggable="false"><div class="resize-handle"></div><button class="element-delete" onclick="deleteElement('${elementId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+            } else {
+                el.innerHTML = `<img src="${src}" draggable="false">`;
+                el.style.pointerEvents = 'none';
+            }
+            
+            const elementData = { id: elementId, type: 'image', src, x, y, width, zIndex: elementZIndex, domElement: el };
+            elements.push(elementData);
+            
+            if (isGM) {
+                el.addEventListener('mousedown', (e) => handleElementMouseDown(e, elementData));
+                el.addEventListener('touchstart', (e) => handleElementTouchStart(e, elementData), { passive: false });
+                el.addEventListener('contextmenu', (e) => handleContextMenu(e, elementData));
+                const resizeHandle = el.querySelector('.resize-handle');
+                if (resizeHandle) {
+                    resizeHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); isResizing = true; selectElement(elementData); });
+                    resizeHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); isResizing = true; selectElement(elementData); }, { passive: false });
+                }
+                canvas.appendChild(el); selectElement(elementData);
+            } else {
+                canvas.appendChild(el);
+            }
+            updateEmptyState(); 
+            if (isGM) saveWhiteboard();
+        }
+
+        function addTextElement() { 
+            if (!isGM) return; // Block for non-GMs
+            const rect = document.getElementById('canvas').getBoundingClientRect(); 
+            createTextElement('Text eingeben', (rect.width / 2 / zoomLevel) - 60, (rect.height / 2 / zoomLevel) - 20); 
+        }
+        function createTextElement(text = 'Text', x = 100, y = 100, id = null, zIndex = null, rawText = null) {
+            const canvas = document.getElementById('canvas'), elementId = id || 'el_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), elementZIndex = zIndex || zIndexCounter++;
+            x = snapToGrid(x); y = snapToGrid(y);
+            const el = document.createElement('div'); el.className = 'element element-text'; el.id = elementId; el.style.cssText = `left:${x}px;top:${y}px;z-index:${elementZIndex}`;
+            el.innerHTML = renderMarkdown(rawText || text);
+            
+            // Only add controls for GM
+            if (isGM) {
+                const delBtn = document.createElement('button'); delBtn.className = 'element-delete'; delBtn.onclick = () => deleteElement(elementId);
+                delBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+                el.appendChild(delBtn);
+            } else {
+                el.style.pointerEvents = 'none';
+            }
+            
+            const elementData = { id: elementId, type: 'text', text, rawText: rawText || text, x, y, zIndex: elementZIndex, domElement: el };
+            elements.push(elementData);
+            
+            if (isGM) {
+                el.addEventListener('mousedown', (e) => handleElementMouseDown(e, elementData));
+                el.addEventListener('touchstart', (e) => handleElementTouchStart(e, elementData), { passive: false });
+                el.addEventListener('contextmenu', (e) => handleContextMenu(e, elementData));
+                el.addEventListener('dblclick', () => startTextEditing(elementData));
+                canvas.appendChild(el); selectElement(elementData);
+            } else {
+                canvas.appendChild(el);
+            }
+            updateEmptyState(); 
+            if (isGM) saveWhiteboard();
+            if (isGM && text === 'Text eingeben') setTimeout(() => startTextEditing(elementData), 100);
+        }
+
+        function renderMarkdown(t) { if (!t) return ''; let h = escapeHtml(t); h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>'); h = h.replace(/`([^`]+)`/g, '<code>$1</code>'); return h.replace(/\n/g, '<br>'); }
+        function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        function startTextEditing(elementData) {
+            const el = elementData.domElement; editingTextElement = elementData;
+            el.textContent = elementData.rawText; el.contentEditable = true; el.classList.add('editing'); el.focus();
+            const range = document.createRange(); range.selectNodeContents(el); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+            showTextToolbar(el);
+            el.onblur = () => stopTextEditing(elementData);
+            el.onkeydown = (e) => { if (e.ctrlKey && e.key === 'b') { e.preventDefault(); insertTextMarkdown('bold'); } if (e.ctrlKey && e.key === 'i') { e.preventDefault(); insertTextMarkdown('italic'); } if (e.key === 'Escape') el.blur(); };
+        }
+
+        function stopTextEditing(elementData) {
+            const el = elementData.domElement; el.contentEditable = false; el.classList.remove('editing');
+            let raw = el.innerText.trim() || 'Text'; elementData.rawText = raw; elementData.text = raw;
+            el.innerHTML = renderMarkdown(raw);
+            const delBtn = document.createElement('button'); delBtn.className = 'element-delete'; delBtn.onclick = () => deleteElement(elementData.id);
+            delBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+            el.appendChild(delBtn);
+            editingTextElement = null; hideTextToolbar(); saveWhiteboard();
+        }
+
+        function showTextToolbar(el) { const tb = document.getElementById('textToolbar'), rect = el.getBoundingClientRect(); tb.style.left = rect.left + 'px'; tb.style.top = (rect.top - 44) + 'px'; tb.classList.add('active'); }
+        function hideTextToolbar() { document.getElementById('textToolbar').classList.remove('active'); }
+        function insertTextMarkdown(type) {
+            if (!editingTextElement) return;
+            const el = editingTextElement.domElement, sel = window.getSelection(); if (!sel.rangeCount) return;
+            const range = sel.getRangeAt(0), txt = range.toString();
+            let b = '', a = '', p = ''; if (type === 'bold') { b = '**'; a = '**'; p = 'fett'; } else if (type === 'italic') { b = '*'; a = '*'; p = 'kursiv'; } else if (type === 'code') { b = '`'; a = '`'; p = 'code'; }
+            range.deleteContents(); range.insertNode(document.createTextNode(b + (txt || p) + a)); sel.collapseToEnd(); el.focus();
+        }
+
+        function selectElement(d) { deselectAll(); selectedElement = d; d.domElement.classList.add('selected'); }
+        function deselectAll() { if (selectedElement) { selectedElement.domElement.classList.remove('selected'); selectedElement = null; } }
+
+        function handleElementMouseDown(e, d) {
+            if (e.target.classList.contains('element-delete') || e.target.contentEditable === 'true') return;
+            e.preventDefault(); selectElement(d); hideTextToolbar();
+            if (!e.target.classList.contains('resize-handle')) { isDragging = true; const r = d.domElement.getBoundingClientRect(); dragOffset.x = (e.clientX - r.left) / zoomLevel; dragOffset.y = (e.clientY - r.top) / zoomLevel; }
+        }
+        
+        function handleElementTouchStart(e, d) {
+            if (e.target.classList.contains('element-delete') || e.target.contentEditable === 'true') return;
+            e.preventDefault(); 
+            selectElement(d); 
+            hideTextToolbar();
+            if (!e.target.classList.contains('resize-handle')) { 
+                isDragging = true; 
+                const touch = e.touches[0];
+                const r = d.domElement.getBoundingClientRect(); 
+                dragOffset.x = (touch.clientX - r.left) / zoomLevel; 
+                dragOffset.y = (touch.clientY - r.top) / zoomLevel; 
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (!selectedElement) return;
+            const rect = document.getElementById('canvas').getBoundingClientRect();
+            if (isDragging) { let x = snapToGrid((e.clientX - rect.left) / zoomLevel - dragOffset.x), y = snapToGrid((e.clientY - rect.top) / zoomLevel - dragOffset.y); selectedElement.domElement.style.left = x + 'px'; selectedElement.domElement.style.top = y + 'px'; selectedElement.x = x; selectedElement.y = y; }
+            if (isResizing && selectedElement.type === 'image') { const r = selectedElement.domElement.getBoundingClientRect(); let w = (e.clientX - r.left) / zoomLevel; if (w > 50) { selectedElement.domElement.style.width = w + 'px'; selectedElement.width = w; } }
+        }
+
+        function handleMouseUp(e) { 
+            if (isDragging || isResizing) saveWhiteboard(); 
+            isDragging = false; 
+            isResizing = false; 
+        }
+        
+        // Globaler Click-Handler für Deselect
+        document.addEventListener('click', (e) => {
+            const canvas = document.getElementById('canvas');
+            const target = e.target;
+            
+            // Nicht deselecten wenn auf Toolbar, Menüs oder Element-Controls geklickt
+            if (target.closest('.toolbar') || target.closest('.context-menu') || target.closest('.text-toolbar') || 
+                target.closest('.element-delete') || target.closest('.resize-handle')) {
+                return;
+            }
+            
+            // Wenn auf Canvas/Grid geklickt wird (nicht auf ein Element)
+            if (target === canvas || target.id === 'canvasGrid' || target.id === 'canvasWrapper' || target.id === 'dropZone' || target.id === 'emptyState') {
+                deselectAll();
+                hideTextToolbar();
+            }
+        });
+
+        function handleContextMenu(e, d) { e.preventDefault(); selectElement(d); const m = document.getElementById('contextMenu'); m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; m.classList.add('active'); }
+        function hideContextMenu() { document.getElementById('contextMenu').classList.remove('active'); }
+
+        function deleteElement(id) { const i = elements.findIndex(e => e.id === id); if (i === -1) return; elements[i].domElement.remove(); elements.splice(i, 1); if (selectedElement?.id === id) selectedElement = null; updateEmptyState(); saveWhiteboard(); }
+        function deleteSelected() { if (selectedElement) { deleteElement(selectedElement.id); hideContextMenu(); } }
+        function bringToFront() { if (selectedElement) { selectedElement.zIndex = zIndexCounter++; selectedElement.domElement.style.zIndex = selectedElement.zIndex; hideContextMenu(); saveWhiteboard(); } }
+        function sendToBack() { if (selectedElement) { selectedElement.zIndex = 0; selectedElement.domElement.style.zIndex = 0; hideContextMenu(); saveWhiteboard(); } }
+        function duplicateElement() { if (!selectedElement) return; if (selectedElement.type === 'image') createImageElement(selectedElement.src, selectedElement.x + 30, selectedElement.y + 30, selectedElement.width); else createTextElement(selectedElement.text, selectedElement.x + 30, selectedElement.y + 30, null, null, selectedElement.rawText); hideContextMenu(); }
+        function clearCanvas() { 
+            if (!isGM) return; // Block for non-GMs
+            if (!elements.length || !confirm('Alle Elemente löschen?')) return; 
+            elements.forEach(e => e.domElement.remove()); 
+            elements = []; selectedElement = null; zIndexCounter = 1; 
+            updateEmptyState(); saveWhiteboard(); showToast('Whiteboard geleert'); 
+        }
+
+        function updateEmptyState() { document.getElementById('emptyState').style.display = elements.length ? 'none' : 'block'; }
+        function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+        
+        // Footer nicht auf Whiteboard - spezielles Layout
+    </script>
+</body>
+</html>

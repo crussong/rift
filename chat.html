@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chat - RIFT</title>
+    <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html {
+            height: 100%;
+            height: 100dvh;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--md-background);
+            color: var(--md-on-background);
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            /* Override nav.js padding - we handle it ourselves */
+            padding-top: 0 !important;
+        }
+
+        .chat-wrapper {
+            position: fixed;
+            top: 60px; /* Navbar height desktop */
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            min-height: 0;
+            padding: var(--space-md);
+            padding-bottom: 0;
+            position: relative;
+        }
+
+        @media (max-width: 768px) {
+            .chat-wrapper {
+                top: 56px; /* Navbar height mobile */
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .chat-container {
+                padding: var(--space-sm);
+                padding-bottom: 0;
+            }
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--md-error);
+            flex-shrink: 0;
+        }
+
+        .connection-dot.online {
+            background: var(--md-success, #4caf50);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-sm) var(--space-md);
+            background: var(--md-surface-container);
+            border-radius: var(--shape-lg) var(--shape-lg) 0 0;
+            border-bottom: 1px solid var(--md-outline-variant);
+            flex-shrink: 0;
+        }
+
+        .chat-title {
+            font-size: var(--title-small);
+            font-weight: 600;
+            color: var(--md-on-surface);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .chat-title svg {
+            width: 20px;
+            height: 20px;
+            color: var(--md-primary);
+        }
+
+        .players-online {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-size: var(--label-small);
+            color: var(--md-on-surface-variant);
+        }
+
+        .players-avatars {
+            display: flex;
+            margin-left: var(--space-xs);
+        }
+
+        .player-mini-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--md-surface-container);
+            margin-left: -8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .player-mini-avatar:first-child {
+            margin-left: 0;
+        }
+
+        .messages-area {
+            flex: 1;
+            background: var(--md-surface-container);
+            padding: var(--space-md);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            min-height: 0;
+        }
+
+        .drag-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(103, 80, 164, 0.2);
+            border: 3px dashed var(--md-primary);
+            border-radius: var(--shape-lg);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: var(--space-md);
+            pointer-events: none;
+        }
+
+        .drag-overlay.active {
+            display: flex;
+        }
+
+        .drag-overlay svg {
+            width: 64px;
+            height: 64px;
+            color: var(--md-primary);
+        }
+
+        .drag-overlay span {
+            font-size: var(--title-medium);
+            color: var(--md-primary);
+            font-weight: 500;
+        }
+
+        .message {
+            display: flex;
+            gap: var(--space-sm);
+            animation: messageIn 200ms ease;
+            position: relative;
+        }
+
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+
+        .message-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: baseline;
+            gap: var(--space-sm);
+            margin-bottom: 2px;
+        }
+
+        .message-author {
+            font-weight: 600;
+            font-size: var(--body-medium);
+            color: var(--md-on-surface);
+        }
+
+        .gm-badge {
+            font-size: 9px;
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .message-time {
+            font-size: var(--label-small);
+            color: var(--md-on-surface-variant);
+        }
+
+        .message-text {
+            font-size: var(--body-medium);
+            color: var(--md-on-surface);
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .message-edited {
+            font-size: 10px;
+            color: var(--md-on-surface-variant);
+            font-style: italic;
+            margin-left: var(--space-xs);
+        }
+
+        /* Inline Edit */
+        .message-edit-input {
+            width: 100%;
+            padding: var(--space-xs) var(--space-sm);
+            background: var(--md-surface-container-high);
+            border: 1px solid var(--md-primary);
+            border-radius: var(--shape-sm);
+            color: var(--md-on-surface);
+            font-family: inherit;
+            font-size: var(--body-medium);
+            outline: none;
+        }
+
+        .message-edit-actions {
+            display: flex;
+            gap: var(--space-xs);
+            margin-top: var(--space-xs);
+        }
+
+        .message-edit-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: var(--shape-sm);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .message-edit-btn.save {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+        }
+
+        .message-edit-btn.cancel {
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface);
+        }
+
+        .message-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 150ms ease;
+        }
+
+        .message-action-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 150ms ease;
+        }
+
+        .message-action-btn:hover {
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface);
+        }
+
+        .message-action-btn.delete:hover {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        .message-action-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .message-dice {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            background: var(--md-surface-container-high);
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--shape-sm);
+            margin-top: var(--space-xs);
+        }
+
+        .dice-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .dice-type {
+            font-size: var(--label-small);
+            color: var(--md-on-surface-variant);
+        }
+
+        .dice-result {
+            font-weight: 700;
+            font-size: var(--body-large);
+            color: var(--md-primary);
+        }
+
+        .dice-result.crit-success {
+            color: var(--md-success, #4caf50);
+        }
+
+        .dice-result.crit-fail {
+            color: var(--md-error);
+        }
+
+        .message-system {
+            text-align: center;
+            padding: var(--space-sm);
+            font-size: var(--label-small);
+            color: var(--md-on-surface-variant);
+            font-style: italic;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--md-on-surface-variant);
+            text-align: center;
+            gap: var(--space-md);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: var(--title-medium);
+            font-weight: 500;
+        }
+
+        .empty-state p {
+            font-size: var(--body-small);
+        }
+
+        .input-area {
+            display: flex;
+            gap: var(--space-sm);
+            padding: var(--space-md);
+            background: var(--md-surface-container);
+            border-radius: 0 0 var(--shape-lg) var(--shape-lg);
+            border-top: 1px solid var(--md-outline-variant);
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: var(--space-sm) var(--space-md);
+            background: var(--md-surface-container-high);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--shape-full);
+            color: var(--md-on-surface);
+            font-family: inherit;
+            font-size: var(--body-medium);
+            outline: none;
+            transition: all 200ms ease;
+            min-width: 0;
+        }
+
+        .message-input:focus {
+            border-color: var(--md-primary);
+            background: var(--md-surface-container-highest);
+        }
+
+        .message-input::placeholder {
+            color: var(--md-on-surface-variant);
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--md-primary);
+            border: none;
+            border-radius: 50%;
+            color: var(--md-on-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 200ms ease;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: var(--elevation-2);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .send-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .input-action-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--md-surface-container-high);
+            border: none;
+            border-radius: 50%;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 200ms ease;
+            flex-shrink: 0;
+        }
+
+        .input-action-btn:hover {
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface);
+        }
+
+        .input-action-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .emoji-picker-wrapper {
+            position: relative;
+        }
+
+        .emoji-picker {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--md-surface-container-high);
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            z-index: 1000;
+            min-width: 260px;
+        }
+
+        @media (max-width: 600px) {
+            .emoji-picker {
+                position: fixed;
+                bottom: 70px;
+                left: 50%;
+                transform: translateX(-50%);
+                right: auto;
+            }
+        }
+
+        .emoji-picker.active {
+            display: block;
+        }
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 4px;
+        }
+
+        .emoji-grid span {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+
+        .emoji-grid span:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        /* Image Gallery for multi-upload */
+        .message-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: var(--space-xs);
+            margin-top: var(--space-xs);
+            max-width: 80%;
+        }
+
+        .message-gallery.single {
+            grid-template-columns: 1fr;
+            max-width: 80%;
+        }
+
+        .message-gallery.double {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .message-gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .message-gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s;
+        }
+
+        .message-gallery-item:hover img {
+            transform: scale(1.05);
+        }
+
+        .message-image-container {
+            margin-top: var(--space-xs);
+            display: inline-block;
+        }
+
+        .message-image {
+            display: block;
+            max-width: 400px !important;
+            max-height: 400px !important;
+            width: auto !important;
+            height: auto !important;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .message-image:hover {
+            transform: scale(1.02);
+        }
+
+        .message-file {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-md);
+            margin-top: var(--space-xs);
+            max-width: 80%;
+        }
+
+        .message-file svg {
+            width: 24px;
+            height: 24px;
+            color: var(--md-primary);
+            flex-shrink: 0;
+        }
+
+        .message-file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .message-file-name {
+            font-size: var(--body-medium);
+            color: var(--md-on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .message-file-size {
+            font-size: var(--label-small);
+            color: var(--md-on-surface-variant);
+        }
+
+        .message-file-download {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .message-file-download svg {
+            width: 16px;
+            height: 16px;
+            color: var(--md-on-primary);
+        }
+
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .image-modal.active {
+            display: flex;
+        }
+
+        .image-modal img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        /* Upload Progress */
+        .upload-progress {
+            display: none;
+            padding: var(--space-sm) var(--space-md);
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-md);
+            margin-bottom: var(--space-sm);
+            font-size: var(--body-small);
+            color: var(--md-on-surface-variant);
+        }
+
+        .upload-progress.active {
+            display: block;
+        }
+
+        @media (max-width: 600px) {
+            .chat-container {
+                padding: var(--space-sm);
+                padding-bottom: 0;
+            }
+
+            .message-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+
+            .chat-header {
+                padding: var(--space-sm);
+            }
+
+            .players-online span {
+                display: none;
+            }
+
+            .input-area {
+                padding: var(--space-sm);
+            }
+
+            .message-actions {
+                opacity: 1;
+            }
+
+            .input-action-btn {
+                width: 36px;
+                height: 36px;
+            }
+
+            .send-btn {
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="nav-placeholder"></div>
+
+    <div class="chat-wrapper">
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <div class="connection-dot" id="connectionDot" title="Verbinde..."></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Gruppen-Chat
+                </div>
+                <div class="players-online" id="playersOnline">
+                    <span>Online:</span>
+                    <div class="players-avatars" id="playersAvatars"></div>
+                </div>
+            </div>
+
+            <div class="drag-overlay" id="dragOverlay">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>Dateien hier ablegen</span>
+            </div>
+
+            <div class="messages-area" id="messagesArea">
+                <div class="empty-state" id="emptyState">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <h3>Noch keine Nachrichten</h3>
+                    <p>Starte die Konversation!</p>
+                </div>
+            </div>
+
+            <div class="upload-progress" id="uploadProgress">Dateien werden hochgeladen...</div>
+
+            <div class="input-area">
+                <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.txt" multiple style="display: none;" onchange="handleFileSelect(event)">
+                <button class="input-action-btn" id="fileBtn" onclick="document.getElementById('fileInput').click()" title="Dateien senden (max. 5MB)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                </button>
+                <div class="emoji-picker-wrapper">
+                    <button class="input-action-btn" id="emojiBtn" onclick="toggleEmojiPicker()" title="Emoji">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                            <line x1="9" y1="9" x2="9.01" y2="9"/>
+                            <line x1="15" y1="9" x2="15.01" y2="9"/>
+                        </svg>
+                    </button>
+                    <div class="emoji-picker" id="emojiPicker">
+                        <div class="emoji-grid">
+                            <span onclick="insertEmoji('😀')">😀</span>
+                            <span onclick="insertEmoji('😂')">😂</span>
+                            <span onclick="insertEmoji('🤣')">🤣</span>
+                            <span onclick="insertEmoji('😊')">😊</span>
+                            <span onclick="insertEmoji('😍')">😍</span>
+                            <span onclick="insertEmoji('🤔')">🤔</span>
+                            <span onclick="insertEmoji('😎')">😎</span>
+                            <span onclick="insertEmoji('😭')">😭</span>
+                            <span onclick="insertEmoji('😱')">😱</span>
+                            <span onclick="insertEmoji('🤯')">🤯</span>
+                            <span onclick="insertEmoji('👍')">👍</span>
+                            <span onclick="insertEmoji('👎')">👎</span>
+                            <span onclick="insertEmoji('👏')">👏</span>
+                            <span onclick="insertEmoji('🙏')">🙏</span>
+                            <span onclick="insertEmoji('💪')">💪</span>
+                            <span onclick="insertEmoji('🎉')">🎉</span>
+                            <span onclick="insertEmoji('🔥')">🔥</span>
+                            <span onclick="insertEmoji('💀')">💀</span>
+                            <span onclick="insertEmoji('⚔️')">⚔️</span>
+                            <span onclick="insertEmoji('🛡️')">🛡️</span>
+                            <span onclick="insertEmoji('🗡️')">🗡️</span>
+                            <span onclick="insertEmoji('🏴‍☠️')">🏴‍☠️</span>
+                            <span onclick="insertEmoji('💰')">💰</span>
+                            <span onclick="insertEmoji('🍺')">🍺</span>
+                            <span onclick="insertEmoji('🎲')">🎲</span>
+                            <span onclick="insertEmoji('❤️')">❤️</span>
+                            <span onclick="insertEmoji('💔')">💔</span>
+                            <span onclick="insertEmoji('✨')">✨</span>
+                            <span onclick="insertEmoji('⭐')">⭐</span>
+                            <span onclick="insertEmoji('🌙')">🌙</span>
+                        </div>
+                    </div>
+                </div>
+                <input 
+                    type="text" 
+                    class="message-input" 
+                    id="messageInput" 
+                    placeholder="Nachricht eingeben..."
+                    maxlength="500"
+                    autocomplete="off"
+                >
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Senden">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="19" x2="12" y2="5"/>
+                        <polyline points="5 12 12 5 19 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="image-modal" id="imageModal" onclick="closeImageModal()">
+        <img id="modalImage" src="" alt="Vorschau">
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/firebase-sync.js"></script>
+    <script src="assets/js/nav.js"></script>
+    <script>
+        let messageIds = new Set();
+        let messagesData = {};
+        let currentUser = null;
+        let unsubscribeFns = [];
+        let editingMessageId = null;
+
+        const BLOCKED_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bat', '.cmd', '.msi'];
+        const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!requireAuth()) return;
+            
+            currentUser = getCurrentUser();
+            initNavigation('Chat', '');
+            
+            const connected = await initFirebase();
+            updateConnectionStatus(connected);
+            
+            if (connected) {
+                joinSession();
+                
+                // Reset unread counter when entering chat
+                if (typeof resetChatUnreadCounter === 'function') {
+                    resetChatUnreadCounter();
+                }
+                
+                const unsubChat = onChatMessage(handleNewMessage, 50);
+                unsubscribeFns.push(unsubChat);
+                
+                // Listen for message changes (edits)
+                listenForMessageChanges();
+                
+                const unsubPlayers = onPlayersChange(updatePlayersDisplay);
+                unsubscribeFns.push(unsubPlayers);
+            }
+            
+            document.addEventListener('firebase-connection', (e) => {
+                updateConnectionStatus(e.detail.online);
+            });
+            
+            initDicePopupListener();
+            
+            document.getElementById('messageInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            if (window.innerWidth > 768) {
+                document.getElementById('messageInput').focus();
+            }
+
+            setupDragAndDrop();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            unsubscribeFns.forEach(fn => fn());
+            // Update last read timestamp when leaving chat
+            if (typeof setChatLastReadTimestamp === 'function') {
+                setChatLastReadTimestamp();
+            }
+        });
+
+        function listenForMessageChanges() {
+            if (!isFirebaseOnline()) return;
+            
+            const ref = getRef('chat');
+            ref.on('child_changed', (snapshot) => {
+                const msg = snapshot.val();
+                if (msg && messagesData[msg.id]) {
+                    updateMessageInDOM(msg);
+                }
+            });
+            
+            ref.on('child_removed', (snapshot) => {
+                const msg = snapshot.val();
+                if (msg) {
+                    const msgEl = document.querySelector(`[data-message-id="${msg.id}"]`);
+                    if (msgEl) msgEl.remove();
+                    delete messagesData[msg.id];
+                    messageIds.delete(msg.id);
+                }
+            });
+        }
+
+        function setupDragAndDrop() {
+            const container = document.getElementById('chatContainer');
+            const overlay = document.getElementById('dragOverlay');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+                container.addEventListener(event, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            container.addEventListener('dragenter', () => overlay.classList.add('active'));
+            container.addEventListener('dragover', () => overlay.classList.add('active'));
+            container.addEventListener('dragleave', (e) => {
+                if (!container.contains(e.relatedTarget)) {
+                    overlay.classList.remove('active');
+                }
+            });
+            container.addEventListener('drop', (e) => {
+                overlay.classList.remove('active');
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) {
+                    handleMultipleFiles(files);
+                }
+            });
+        }
+
+        function updateConnectionStatus(online) {
+            const dot = document.getElementById('connectionDot');
+            if (online) {
+                dot.classList.add('online');
+                dot.title = 'Verbunden';
+            } else {
+                dot.classList.remove('online');
+                dot.title = 'Offline';
+            }
+        }
+
+        function handleNewMessage(msg) {
+            if (messageIds.has(msg.id)) return;
+            
+            messageIds.add(msg.id);
+            messagesData[msg.id] = msg;
+            
+            document.getElementById('emptyState').style.display = 'none';
+            
+            const area = document.getElementById('messagesArea');
+            area.appendChild(createMessageElement(msg));
+            
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function updateMessageInDOM(msg) {
+            messagesData[msg.id] = msg;
+            const msgEl = document.querySelector(`[data-message-id="${msg.id}"]`);
+            if (msgEl) {
+                const textEl = msgEl.querySelector('.message-text');
+                if (textEl && !msgEl.querySelector('.message-edit-input')) {
+                    textEl.innerHTML = escapeHtml(msg.text || '') + 
+                        (msg.edited ? '<span class="message-edited">(bearbeitet)</span>' : '');
+                }
+            }
+        }
+
+        function updatePlayersDisplay(players) {
+            const container = document.getElementById('playersAvatars');
+            container.innerHTML = '';
+            
+            Object.values(players).forEach(player => {
+                const avatar = document.createElement('div');
+                avatar.className = 'player-mini-avatar';
+                avatar.style.backgroundColor = player.color;
+                avatar.textContent = player.username.charAt(0).toUpperCase();
+                avatar.title = player.username + (player.isGM ? ' (GM)' : '');
+                container.appendChild(avatar);
+            });
+        }
+
+        function createMessageElement(msg) {
+            const div = document.createElement('div');
+            div.dataset.messageId = msg.id;
+            
+            if (msg.type === 'system') {
+                div.className = 'message-system';
+                div.textContent = msg.text;
+                return div;
+            }
+            
+            div.className = 'message';
+            
+            const initial = msg.author.charAt(0).toUpperCase();
+            const time = formatTime(msg.timestamp);
+            const gmBadge = msg.isGM ? '<span class="gm-badge">GM</span>' : '';
+            
+            const isOwnMessage = msg.author === currentUser.username;
+            const canDelete = isOwnMessage || currentUser.isGM;
+            const canEdit = isOwnMessage && msg.type === 'text';
+            
+            let actionsHTML = '';
+            if (canEdit || canDelete) {
+                actionsHTML = '<div class="message-actions">';
+                if (canEdit) {
+                    actionsHTML += `
+                        <button class="message-action-btn edit" onclick="startInlineEdit('${msg.id}')" title="Bearbeiten">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                    `;
+                }
+                if (canDelete) {
+                    actionsHTML += `
+                        <button class="message-action-btn delete" onclick="deleteMessage('${msg.id}')" title="Löschen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    `;
+                }
+                actionsHTML += '</div>';
+            }
+            
+            let contentHTML = `
+                <div class="message-avatar" style="background-color: ${msg.color}">${initial}</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-author" style="color: ${msg.color}">${escapeHtml(msg.author)}</span>
+                        ${gmBadge}
+                        <span class="message-time">${time}</span>
+                    </div>
+            `;
+            
+            if (msg.type === 'dice') {
+                const critClass = msg.diceResult === 1 ? 'crit-fail' : 
+                                  msg.diceResult === msg.diceMax ? 'crit-success' : '';
+                contentHTML += `
+                    <div class="message-dice">
+                        <img src="assets/icons/icon_dice.png" class="dice-icon" alt="">
+                        <span class="dice-type">${msg.diceType}</span>
+                        <span class="dice-result ${critClass}">${msg.diceResult}</span>
+                    </div>
+                `;
+            } else if (msg.type === 'gallery' && msg.images && msg.images.length > 0) {
+                // Image gallery
+                const gridClass = msg.images.length === 1 ? 'single' : msg.images.length === 2 ? 'double' : '';
+                contentHTML += `<div class="message-gallery ${gridClass}">`;
+                msg.images.forEach((img, idx) => {
+                    contentHTML += `
+                        <div class="message-gallery-item" onclick="openImageModal('${img.data}')">
+                            <img src="${img.data}" alt="${escapeHtml(img.name || 'Bild ' + (idx + 1))}">
+                        </div>
+                    `;
+                });
+                contentHTML += '</div>';
+            } else if (msg.type === 'image' && msg.imageData) {
+                contentHTML += `
+                    <div class="message-image-container">
+                        <img src="${msg.imageData}" class="message-image" onclick="openImageModal(this.src)" alt="${escapeHtml(msg.fileName || 'Bild')}">
+                    </div>
+                `;
+            } else if (msg.type === 'file' && msg.fileData) {
+                const fileSize = formatFileSize(msg.fileSize || 0);
+                contentHTML += `
+                    <div class="message-file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <div class="message-file-info">
+                            <div class="message-file-name">${escapeHtml(msg.fileName || 'Datei')}</div>
+                            <div class="message-file-size">${fileSize}</div>
+                        </div>
+                        <button class="message-file-download" onclick="downloadFile('${msg.fileData}', '${escapeHtml(msg.fileName || 'datei')}')" title="Herunterladen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+            } else {
+                const editedTag = msg.edited ? '<span class="message-edited">(bearbeitet)</span>' : '';
+                contentHTML += `<div class="message-text">${escapeHtml(msg.text || '')}${editedTag}</div>`;
+            }
+            
+            contentHTML += '</div>';
+            contentHTML += actionsHTML;
+            
+            div.innerHTML = contentHTML;
+            
+            return div;
+        }
+
+        // Inline Edit Functions
+        function startInlineEdit(messageId) {
+            if (editingMessageId) {
+                cancelInlineEdit(editingMessageId);
+            }
+            
+            const msg = messagesData[messageId];
+            if (!msg || msg.author !== currentUser.username) return;
+            
+            editingMessageId = messageId;
+            const msgEl = document.querySelector(`[data-message-id="${messageId}"]`);
+            const textEl = msgEl.querySelector('.message-text');
+            
+            if (!textEl) return;
+            
+            const currentText = msg.text || '';
+            textEl.innerHTML = `
+                <input type="text" class="message-edit-input" value="${escapeHtml(currentText)}" maxlength="500">
+                <div class="message-edit-actions">
+                    <button class="message-edit-btn save" onclick="saveInlineEdit('${messageId}')">Speichern</button>
+                    <button class="message-edit-btn cancel" onclick="cancelInlineEdit('${messageId}')">Abbrechen</button>
+                </div>
+            `;
+            
+            const input = textEl.querySelector('.message-edit-input');
+            input.focus();
+            input.selectionStart = input.selectionEnd = input.value.length;
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveInlineEdit(messageId);
+                } else if (e.key === 'Escape') {
+                    cancelInlineEdit(messageId);
+                }
+            });
+        }
+
+        async function saveInlineEdit(messageId) {
+            const msgEl = document.querySelector(`[data-message-id="${messageId}"]`);
+            const input = msgEl.querySelector('.message-edit-input');
+            
+            if (!input) return;
+            
+            const newText = input.value.trim();
+            if (!newText) {
+                cancelInlineEdit(messageId);
+                return;
+            }
+            
+            if (isFirebaseOnline() && typeof editChatMessage === 'function') {
+                await editChatMessage(messageId, newText);
+            }
+            
+            // Update local data
+            messagesData[messageId].text = newText;
+            messagesData[messageId].edited = true;
+            
+            editingMessageId = null;
+            
+            // Update DOM
+            const textEl = msgEl.querySelector('.message-text');
+            if (textEl) {
+                textEl.innerHTML = escapeHtml(newText) + '<span class="message-edited">(bearbeitet)</span>';
+            }
+        }
+
+        function cancelInlineEdit(messageId) {
+            editingMessageId = null;
+            const msg = messagesData[messageId];
+            const msgEl = document.querySelector(`[data-message-id="${messageId}"]`);
+            const textEl = msgEl?.querySelector('.message-text');
+            
+            if (textEl && msg) {
+                const editedTag = msg.edited ? '<span class="message-edited">(bearbeitet)</span>' : '';
+                textEl.innerHTML = escapeHtml(msg.text || '') + editedTag;
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            await sendTextMessage(text);
+            
+            input.value = '';
+            input.focus();
+        }
+
+        async function sendTextMessage(text) {
+            const msg = {
+                type: 'text',
+                author: currentUser.username,
+                color: currentUser.color,
+                isGM: currentUser.isGM || false,
+                text: text
+            };
+            
+            if (isFirebaseOnline()) {
+                await sendChatMessage(msg);
+            } else {
+                msg.id = 'local_' + Date.now();
+                msg.timestamp = Date.now();
+                handleNewMessage(msg);
+            }
+        }
+
+        async function deleteMessage(messageId) {
+            const msg = messagesData[messageId];
+            if (!msg) return;
+            
+            const isOwnMessage = msg.author === currentUser.username;
+            const canDelete = isOwnMessage || currentUser.isGM;
+            
+            if (!canDelete) return;
+            
+            if (!confirm('Nachricht wirklich löschen?')) return;
+            
+            if (isFirebaseOnline() && typeof deleteChatMessage === 'function') {
+                await deleteChatMessage(messageId);
+            }
+            
+            const msgEl = document.querySelector(`[data-message-id="${messageId}"]`);
+            if (msgEl) msgEl.remove();
+            
+            delete messagesData[messageId];
+            messageIds.delete(messageId);
+        }
+
+        // Multi-File Upload
+        async function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+            
+            await handleMultipleFiles(files);
+            
+            event.target.value = '';
+        }
+
+        async function handleMultipleFiles(files) {
+            const progress = document.getElementById('uploadProgress');
+            progress.classList.add('active');
+            
+            // Separate images and other files
+            const imageFiles = [];
+            const otherFiles = [];
+            
+            for (const file of files) {
+                if (file.size > MAX_FILE_SIZE) {
+                    alert(`${file.name} ist zu groß! Maximal 5MB erlaubt.`);
+                    continue;
+                }
+                
+                const fileName = file.name.toLowerCase();
+                const isBlocked = BLOCKED_EXTENSIONS.some(ext => fileName.endsWith(ext));
+                if (isBlocked) {
+                    alert(`${file.name}: Dateityp nicht erlaubt.`);
+                    continue;
+                }
+                
+                if (file.type.startsWith('image/')) {
+                    imageFiles.push(file);
+                } else {
+                    otherFiles.push(file);
+                }
+            }
+            
+            // Upload images as gallery (single message)
+            if (imageFiles.length > 0) {
+                progress.textContent = `Bilder werden verarbeitet...`;
+                await uploadImageGallery(imageFiles);
+            }
+            
+            // Upload other files separately
+            for (let i = 0; i < otherFiles.length; i++) {
+                progress.textContent = `Datei ${i + 1} / ${otherFiles.length}...`;
+                await uploadSingleFile(otherFiles[i]);
+            }
+            
+            progress.classList.remove('active');
+        }
+
+        async function uploadImageGallery(imageFiles) {
+            const images = [];
+            
+            for (const file of imageFiles) {
+                const base64 = await readFileAsBase64(file);
+                images.push({
+                    data: base64,
+                    name: file.name,
+                    size: file.size
+                });
+            }
+            
+            const msg = {
+                type: 'gallery',
+                author: currentUser.username,
+                color: currentUser.color,
+                isGM: currentUser.isGM || false,
+                images: images
+            };
+            
+            if (isFirebaseOnline()) {
+                await sendChatMessage(msg);
+            }
+        }
+
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadSingleFile(file) {
+            const base64 = await readFileAsBase64(file);
+            
+            const msg = {
+                type: 'file',
+                author: currentUser.username,
+                color: currentUser.color,
+                isGM: currentUser.isGM || false,
+                fileName: file.name,
+                fileSize: file.size,
+                fileData: base64
+            };
+            
+            if (isFirebaseOnline()) {
+                await sendChatMessage(msg);
+            }
+        }
+
+        function downloadFile(dataUrl, fileName) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function formatTime(ts) {
+            if (!ts) return '';
+            const date = new Date(ts);
+            return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openImageModal(src) {
+            document.getElementById('modalImage').src = src;
+            document.getElementById('imageModal').classList.add('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+
+        function toggleEmojiPicker() {
+            document.getElementById('emojiPicker').classList.toggle('active');
+        }
+
+        function insertEmoji(emoji) {
+            const input = document.getElementById('messageInput');
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const text = input.value;
+            input.value = text.substring(0, start) + emoji + text.substring(end);
+            input.focus();
+            input.selectionStart = input.selectionEnd = start + emoji.length;
+            toggleEmojiPicker();
+        }
+
+        document.addEventListener('click', (e) => {
+            const picker = document.getElementById('emojiPicker');
+            const btn = document.getElementById('emojiBtn');
+            if (!picker.contains(e.target) && !btn.contains(e.target)) {
+                picker.classList.remove('active');
+            }
+        });
+        
+        // Footer nicht auf Chat - spezielles Layout
+    </script>
+</body>
+</html>

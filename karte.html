@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Weltkarte - RIFT</title>
+    <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Roboto', sans-serif; background: var(--md-background); color: var(--md-on-background); overflow: hidden; height: 100vh; }
+        
+        .map-container { position: relative; width: 100%; height: 100vh; overflow: hidden; background: #1a1a2e; }
+        
+        .map-search-bar { position: fixed; top: 60px; left: 0; right: 0; height: 48px; background: var(--md-surface-container); border-bottom: 1px solid var(--md-outline-variant); display: flex; align-items: center; justify-content: center; padding: 0 16px; z-index: 200; }
+        .search-input-wrapper { position: relative; width: 100%; max-width: 400px; }
+        .search-input { width: 100%; height: 36px; padding: 0 12px 0 40px; background: var(--md-surface-container-high); border: 1px solid transparent; border-radius: 18px; font-size: 14px; color: var(--md-on-surface); }
+        .search-input:focus { outline: none; border-color: var(--md-primary); }
+        .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; opacity: 0.6; }
+        .search-results { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: var(--md-surface-container); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-height: 300px; overflow-y: auto; display: none; z-index: 300; }
+        .search-results.visible { display: block; }
+        .search-result-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; }
+        .search-result-item:hover { background: var(--md-surface-container-high); }
+        .search-result-dot { width: 10px; height: 10px; border-radius: 50%; }
+        
+        .map-canvas-wrapper { position: absolute; inset: 0; top: 108px; overflow: hidden; cursor: grab; touch-action: none; }
+        .map-canvas-wrapper.dragging { cursor: grabbing; }
+        .map-canvas-wrapper.placing-marker { cursor: crosshair; }
+        .map-canvas { position: absolute; transform-origin: 0 0; }
+        .map-canvas img { display: block; user-select: none; pointer-events: none; }
+        
+        .map-marker { position: absolute; transform: translate(-50%, -50%); cursor: pointer; z-index: 10; transition: transform 0.1s ease; }
+        .map-marker:hover { transform: translate(-50%, -50%) scale(1.4); z-index: 20; }
+        .map-marker.dragging { cursor: grabbing; z-index: 100; transition: none; }
+        .marker-pin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.9); box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+        .marker-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; padding: 2px 6px; background: rgba(0,0,0,0.8); color: #fff; font-size: 10px; font-weight: 500; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; }
+        .map-marker:hover .marker-label { opacity: 1; }
+        
+        .map-marker.pulse { animation: markerPulse 0.5s ease 3; }
+        @keyframes markerPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.8); }
+        }
+        
+        .marker-pin.quest { background: #a78bfa; }
+        .marker-pin.npc { background: #34d399; }
+        .marker-pin.ort { background: #60a5fa; }
+        .marker-pin.lore { background: #fbbf24; }
+        .marker-pin.item { background: #f87171; }
+        .marker-pin.idee { background: #f472b6; }
+        .marker-pin.monster { background: #fb923c; }
+        .marker-pin.geheimnis { background: #c084fc; }
+        .marker-pin.session { background: #22d3ee; }
+        
+        .map-controls { position: fixed; bottom: 24px; left: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; background: var(--md-surface-container); border-radius: 12px; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .control-btn { width: 44px; height: 44px; border: none; border-radius: 8px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .control-btn:hover { background: var(--md-surface-container-high); }
+        .control-btn.active { background: var(--md-primary); }
+        .control-btn img { width: 24px; height: 24px; opacity: 0.9; }
+        .control-btn.active img { filter: brightness(10); }
+        
+        .map-legend { position: fixed; bottom: 24px; left: 90px; background: var(--md-surface-container); border-radius: 12px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 100; display: none; min-width: 180px; }
+        .map-legend.visible { display: block; }
+        .legend-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--md-on-surface-variant); padding: 4px 0; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); }
+        
+        .zoom-indicator { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--md-surface-container); padding: 8px 16px; border-radius: 18px; font-size: 12px; font-weight: 500; color: var(--md-on-surface-variant); z-index: 100; }
+        
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: none; }
+        .modal-backdrop.visible { display: block; }
+        .marker-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--md-surface-container); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; z-index: 501; box-shadow: 0 8px 32px rgba(0,0,0,0.4); display: none; }
+        .marker-modal.visible { display: block; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 20px; font-weight: 600; }
+        .modal-close { width: 36px; height: 36px; border: none; background: transparent; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface-variant); font-size: 20px; }
+        .modal-close:hover { background: var(--md-surface-container-high); }
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--md-on-surface-variant); margin-bottom: 6px; }
+        .form-input { width: 100%; padding: 12px 14px; background: var(--md-surface-container-high); border: 1px solid var(--md-outline-variant); border-radius: 8px; font-family: inherit; font-size: 14px; color: var(--md-on-surface); }
+        .form-input:focus { outline: none; border-color: var(--md-primary); }
+        textarea.form-input { resize: vertical; min-height: 80px; }
+        .category-select { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .category-option { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; background: var(--md-surface-container-high); border: 2px solid transparent; border-radius: 8px; cursor: pointer; }
+        .category-option:hover { background: var(--md-surface-container-highest); }
+        .category-option.selected { border-color: var(--md-primary); background: var(--md-surface-container-highest); }
+        .category-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); }
+        .category-name { font-size: 10px; font-weight: 500; color: var(--md-on-surface-variant); }
+        .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+        .modal-btn { flex: 1; padding: 12px 16px; border: none; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+        .modal-btn.primary { background: var(--md-primary); color: var(--md-on-primary); }
+        .modal-btn.secondary { background: var(--md-surface-container-high); color: var(--md-on-surface); }
+        .modal-btn.danger { background: var(--md-error); color: var(--md-on-error); }
+        .marker-info { text-align: center; }
+        .marker-info-category { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; background: var(--md-surface-container-high); border-radius: 18px; font-size: 13px; margin-bottom: 16px; }
+        .marker-info-name { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .marker-info-desc { font-size: 14px; color: var(--md-on-surface-variant); line-height: 1.6; white-space: pre-wrap; text-align: left; background: var(--md-surface-container-high); padding: 12px; border-radius: 8px; margin: 16px 0; }
+        .marker-info-meta { font-size: 11px; color: var(--md-on-surface-variant); opacity: 0.7; }
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--md-inverse-surface); color: var(--md-inverse-on-surface); padding: 12px 24px; border-radius: 18px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 600; }
+        .toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        
+        @media (max-width: 768px) {
+            .map-controls { bottom: 16px; left: 16px; }
+            .control-btn { width: 40px; height: 40px; }
+            .control-btn img { width: 20px; height: 20px; }
+            .map-legend { left: 70px; bottom: 16px; }
+            .marker-pin { width: 12px; height: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="nav-placeholder"></div>
+
+    <div class="map-search-bar">
+        <div class="search-input-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="search-input" id="markerSearch" placeholder="Marker suchen..." autocomplete="off">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+
+    <div class="map-container" id="mapRoot">
+        <div class="map-canvas-wrapper" id="mapWrapper">
+            <div class="map-canvas" id="mapCanvas">
+                <img src="assets/images/map_pnp2026_02.png" alt="Weltkarte" id="mapImage">
+            </div>
+        </div>
+
+        <div class="map-controls">
+            <div class="control-group">
+                <button class="control-btn" id="btnZoomIn" title="Hineinzoomen"><img src="assets/icons/icon_zoomin.png" alt="+"></button>
+                <button class="control-btn" id="btnZoomOut" title="Herauszoomen"><img src="assets/icons/icon_zoomout.png" alt="-"></button>
+                <button class="control-btn" id="btnReset" title="Ansicht zurücksetzen"><img src="assets/icons/icon_map.png" alt="Reset"></button>
+            </div>
+            <div class="control-group">
+                <button class="control-btn" id="btnAddMarker" title="Marker hinzufügen"><img src="assets/icons/icon_pin.png" alt="Pin"></button>
+                <button class="control-btn" id="btnLegend" title="Legende"><img src="assets/icons/icon_legende.png" alt="Legende"></button>
+                <button class="control-btn" id="btnToggleMap" title="Karte umschalten"><img src="assets/icons/icon_title.png" alt="Toggle"></button>
+            </div>
+        </div>
+
+        <div class="zoom-indicator" id="zoomIndicator">100%</div>
+
+        <div class="map-legend" id="mapLegend">
+            <div class="legend-title">Marker-Kategorien</div>
+            <div class="legend-items">
+                <div class="legend-item"><div class="legend-color" style="background:#a78bfa"></div><span>Quest</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#34d399"></div><span>NPC</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#60a5fa"></div><span>Ort</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#fbbf24"></div><span>Lore</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#f87171"></div><span>Item</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#f472b6"></div><span>Idee</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#fb923c"></div><span>Monster</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#c084fc"></div><span>Geheimnis</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#22d3ee"></div><span>Session</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="marker-modal" id="markerModal"></div>
+    <div class="toast" id="toast"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/firebase-sync.js"></script>
+    <script src="assets/js/nav.js"></script>
+
+    <script>
+        requireAuth();
+        initNavigation('Weltkarte', '');
+
+        // CONFIG
+        const STORAGE_KEY = 'rift_mapData_v3';
+        const MAP_EMPTY = 'assets/images/map_pnp2026_01.png';
+        const MAP_FULL = 'assets/images/map_pnp2026_02.png';
+        const CATEGORIES = [
+            { id: 'quest', name: 'Quest', color: '#a78bfa' },
+            { id: 'npc', name: 'NPC', color: '#34d399' },
+            { id: 'ort', name: 'Ort', color: '#60a5fa' },
+            { id: 'lore', name: 'Lore', color: '#fbbf24' },
+            { id: 'item', name: 'Item', color: '#f87171' },
+            { id: 'idee', name: 'Idee', color: '#f472b6' },
+            { id: 'monster', name: 'Monster', color: '#fb923c' },
+            { id: 'geheimnis', name: 'Geheimnis', color: '#c084fc' },
+            { id: 'session', name: 'Session', color: '#22d3ee' }
+        ];
+
+        // STATE
+        let markers = [];
+        let isFullMap = true;
+        let addMarkerMode = false;
+        let pendingMarkerPos = null;
+        let currentScale = 1;
+        let currentX = 0;
+        let currentY = 0;
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+        let draggingMarkerIndex = null;
+        let markerActuallyMoved = false;
+        let initialPinchDistance = 0;
+        let initialPinchScale = 1;
+        let isPinching = false;
+
+        // DOM
+        const mapWrapper = document.getElementById('mapWrapper');
+        const mapCanvas = document.getElementById('mapCanvas');
+        const mapImage = document.getElementById('mapImage');
+        const markerModal = document.getElementById('markerModal');
+        const modalBackdrop = document.getElementById('modalBackdrop');
+
+        // INIT
+        window.addEventListener('load', function() {
+            loadLocalData();
+            setupEventListeners();
+            
+            if (mapImage.complete && mapImage.naturalWidth > 0) {
+                initMapView();
+                renderMarkers();
+            } else {
+                mapImage.onload = function() {
+                    initMapView();
+                    renderMarkers();
+                };
+            }
+
+            // Firebase (optional)
+            try {
+                if (typeof initFirebase === 'function') initFirebase();
+                if (typeof isFirebaseOnline === 'function' && isFirebaseOnline() && typeof onMarkersChange === 'function') {
+                    onMarkersChange(function(remoteMarkers) {
+                        if (remoteMarkers && Array.isArray(remoteMarkers)) {
+                            markers = remoteMarkers;
+                            saveLocalData();
+                            renderMarkers();
+                        }
+                    });
+                }
+                if (typeof initDicePopupListener === 'function') initDicePopupListener();
+            } catch (e) { console.warn('Firebase error:', e); }
+        });
+
+        function loadLocalData() {
+            try {
+                var saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    var data = JSON.parse(saved);
+                    markers = data.markers || [];
+                    isFullMap = data.isFullMap !== false;
+                    mapImage.src = isFullMap ? MAP_FULL : MAP_EMPTY;
+                }
+            } catch (e) {}
+        }
+
+        function saveLocalData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ markers: markers, isFullMap: isFullMap }));
+        }
+
+        function saveMarkers() {
+            saveLocalData();
+            try {
+                // Use the same path as onMarkersChange
+                if (typeof syncMapMarkers === 'function') {
+                    syncMapMarkers(markers);
+                }
+            } catch (e) { console.warn('Marker sync failed:', e); }
+        }
+
+        // MAP CONTROLS
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        function initMapView() {
+            var cw = mapWrapper.clientWidth;
+            var ch = mapWrapper.clientHeight;
+            var iw = mapImage.naturalWidth || 3000;
+            var ih = mapImage.naturalHeight || 2000;
+            currentScale = isMobile() ? 0.5 : 1; // 50% on mobile, 100% on desktop
+            currentX = (cw - iw * currentScale) / 2;
+            currentY = (ch - ih * currentScale) / 2;
+            updateTransform();
+        }
+
+        function fitMapToScreen() {
+            var cw = mapWrapper.clientWidth;
+            var ch = mapWrapper.clientHeight;
+            var iw = mapImage.naturalWidth || 3000;
+            var ih = mapImage.naturalHeight || 2000;
+            var minZoom = isMobile() ? 0.5 : 0.75;
+            currentScale = Math.max(minZoom, Math.min(cw / iw, ch / ih));
+            currentX = (cw - iw * currentScale) / 2;
+            currentY = (ch - ih * currentScale) / 2;
+            updateTransform();
+        }
+
+        function zoomBy(factor) {
+            var minZoom = isMobile() ? 0.5 : 0.75;
+            var newScale = Math.max(minZoom, Math.min(5, currentScale * factor));
+            var cx = mapWrapper.clientWidth / 2;
+            var cy = mapWrapper.clientHeight / 2;
+            currentX = cx - (cx - currentX) * (newScale / currentScale);
+            currentY = cy - (cy - currentY) * (newScale / currentScale);
+            currentScale = newScale;
+            updateTransform();
+        }
+
+        function updateTransform() {
+            mapCanvas.style.transform = 'translate(' + currentX + 'px, ' + currentY + 'px) scale(' + currentScale + ')';
+            document.getElementById('zoomIndicator').textContent = Math.round(currentScale * 100) + '%';
+        }
+
+        function clampPosition() {
+            var iw = (mapImage.naturalWidth || 3000) * currentScale;
+            var ih = (mapImage.naturalHeight || 2000) * currentScale;
+            var cw = mapWrapper.clientWidth;
+            var ch = mapWrapper.clientHeight;
+            currentX = Math.max(cw - iw - 50, Math.min(50, currentX));
+            currentY = Math.max(ch - ih - 50, Math.min(50, currentY));
+        }
+
+        // EVENT LISTENERS
+        function setupEventListeners() {
+            // Control buttons
+            document.getElementById('btnZoomIn').addEventListener('click', function() { zoomBy(1.3); });
+            document.getElementById('btnZoomOut').addEventListener('click', function() { zoomBy(0.77); });
+            document.getElementById('btnReset').addEventListener('click', fitMapToScreen);
+            document.getElementById('btnAddMarker').addEventListener('click', function() {
+                addMarkerMode = !addMarkerMode;
+                this.classList.toggle('active', addMarkerMode);
+                mapWrapper.classList.toggle('placing-marker', addMarkerMode);
+                if (addMarkerMode) showToast('Klicke auf die Karte');
+            });
+            document.getElementById('btnLegend').addEventListener('click', function() {
+                document.getElementById('mapLegend').classList.toggle('visible');
+                this.classList.toggle('active');
+            });
+            document.getElementById('btnToggleMap').addEventListener('click', function() {
+                isFullMap = !isFullMap;
+                mapImage.src = isFullMap ? MAP_FULL : MAP_EMPTY;
+                this.classList.toggle('active', isFullMap);
+                saveLocalData();
+            });
+
+            // Modal backdrop
+            modalBackdrop.addEventListener('click', closeModal);
+
+            // Panning
+            mapWrapper.addEventListener('mousedown', function(e) {
+                if (e.target.closest('.map-marker')) return;
+                if (addMarkerMode) return;
+                isPanning = true;
+                panStartX = e.clientX - currentX;
+                panStartY = e.clientY - currentY;
+                mapWrapper.classList.add('dragging');
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isPanning) {
+                    currentX = e.clientX - panStartX;
+                    currentY = e.clientY - panStartY;
+                    clampPosition();
+                    updateTransform();
+                }
+                if (draggingMarkerIndex !== null) {
+                    moveMarkerTo(e.clientX, e.clientY);
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isPanning) {
+                    isPanning = false;
+                    mapWrapper.classList.remove('dragging');
+                }
+                if (draggingMarkerIndex !== null) {
+                    var el = mapCanvas.querySelectorAll('.map-marker')[draggingMarkerIndex];
+                    if (el) el.classList.remove('dragging');
+                    
+                    // Only save and block click if marker was actually moved
+                    if (markerActuallyMoved) {
+                        saveMarkers();
+                        // Reset after a short delay so click event is blocked
+                        setTimeout(function() { markerActuallyMoved = false; }, 50);
+                    }
+                    draggingMarkerIndex = null;
+                }
+            });
+
+            // Touch events for mobile
+            mapWrapper.addEventListener('touchstart', function(e) {
+                if (e.target.closest('.map-marker')) return;
+                if (addMarkerMode) return;
+                
+                if (e.touches.length === 2) {
+                    // Pinch zoom start
+                    isPinching = true;
+                    isPanning = false;
+                    initialPinchDistance = getPinchDistance(e.touches);
+                    initialPinchScale = currentScale;
+                } else if (e.touches.length === 1) {
+                    isPanning = true;
+                    var touch = e.touches[0];
+                    panStartX = touch.clientX - currentX;
+                    panStartY = touch.clientY - currentY;
+                    mapWrapper.classList.add('dragging');
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', function(e) {
+                if (isPinching && e.touches.length === 2) {
+                    e.preventDefault();
+                    var newDistance = getPinchDistance(e.touches);
+                    var scale = (newDistance / initialPinchDistance) * initialPinchScale;
+                    var minZoom = isMobile() ? 0.5 : 0.75;
+                    currentScale = Math.max(minZoom, Math.min(5, scale));
+                    
+                    // Zoom towards center of pinch
+                    var rect = mapWrapper.getBoundingClientRect();
+                    var centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+                    var centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+                    
+                    updateTransform();
+                } else if (isPanning && e.touches.length === 1 && !isPinching) {
+                    var touch = e.touches[0];
+                    currentX = touch.clientX - panStartX;
+                    currentY = touch.clientY - panStartY;
+                    clampPosition();
+                    updateTransform();
+                }
+                if (draggingMarkerIndex !== null && e.touches.length === 1) {
+                    e.preventDefault();
+                    var touch = e.touches[0];
+                    moveMarkerTo(touch.clientX, touch.clientY);
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', function(e) {
+                if (e.touches.length < 2) {
+                    isPinching = false;
+                }
+                if (e.touches.length === 0) {
+                    if (isPanning) {
+                        isPanning = false;
+                        mapWrapper.classList.remove('dragging');
+                    }
+                    if (draggingMarkerIndex !== null) {
+                        var el = mapCanvas.querySelectorAll('.map-marker')[draggingMarkerIndex];
+                        if (el) el.classList.remove('dragging');
+                        
+                        if (markerActuallyMoved) {
+                            saveMarkers();
+                            setTimeout(function() { markerActuallyMoved = false; }, 50);
+                        }
+                        draggingMarkerIndex = null;
+                    }
+                }
+            });
+
+            // Click to place marker
+            mapWrapper.addEventListener('click', function(e) {
+                if (!addMarkerMode) return;
+                if (e.target.closest('.map-marker')) return;
+                
+                var rect = mapWrapper.getBoundingClientRect();
+                var clickX = e.clientX - rect.left;
+                var clickY = e.clientY - rect.top;
+                var imgX = (clickX - currentX) / currentScale;
+                var imgY = (clickY - currentY) / currentScale;
+                var iw = mapImage.naturalWidth || 3000;
+                var ih = mapImage.naturalHeight || 2000;
+                var px = (imgX / iw) * 100;
+                var py = (imgY / ih) * 100;
+                
+                if (px >= 0 && px <= 100 && py >= 0 && py <= 100) {
+                    pendingMarkerPos = { x: px, y: py };
+                    showCreateModal();
+                    addMarkerMode = false;
+                    document.getElementById('btnAddMarker').classList.remove('active');
+                    mapWrapper.classList.remove('placing-marker');
+                }
+            });
+
+            // Zoom wheel
+            mapWrapper.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                var factor = e.deltaY > 0 ? 0.9 : 1.1;
+                var minZoom = isMobile() ? 0.5 : 0.75;
+                var newScale = Math.max(minZoom, Math.min(5, currentScale * factor));
+                var rect = mapWrapper.getBoundingClientRect();
+                var mx = e.clientX - rect.left;
+                var my = e.clientY - rect.top;
+                currentX = mx - (mx - currentX) * (newScale / currentScale);
+                currentY = my - (my - currentY) * (newScale / currentScale);
+                currentScale = newScale;
+                updateTransform();
+            }, { passive: false });
+
+            // Search
+            var searchInput = document.getElementById('markerSearch');
+            var searchResults = document.getElementById('searchResults');
+            
+            searchInput.addEventListener('input', function() {
+                var q = searchInput.value.trim().toLowerCase();
+                if (!q) { searchResults.classList.remove('visible'); return; }
+                
+                var results = markers.filter(function(m) {
+                    return m.name.toLowerCase().indexOf(q) !== -1 || (m.description || '').toLowerCase().indexOf(q) !== -1;
+                });
+                
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div style="padding:16px;text-align:center;color:var(--md-on-surface-variant)">Keine Marker gefunden</div>';
+                } else {
+                    searchResults.innerHTML = results.map(function(m) {
+                        var cat = CATEGORIES.find(function(c) { return c.id === m.category; });
+                        var idx = markers.indexOf(m);
+                        return '<div class="search-result-item" data-idx="' + idx + '"><div class="search-result-dot" style="background:' + (cat ? cat.color : '#999') + '"></div><span>' + escapeHtml(m.name) + '</span></div>';
+                    }).join('');
+                    
+                    searchResults.querySelectorAll('.search-result-item').forEach(function(item) {
+                        item.addEventListener('click', function() {
+                            goToMarker(parseInt(this.dataset.idx));
+                        });
+                    });
+                }
+                searchResults.classList.add('visible');
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.search-input-wrapper')) {
+                    searchResults.classList.remove('visible');
+                }
+            });
+        }
+
+        // MARKERS
+        function renderMarkers() {
+            mapCanvas.querySelectorAll('.map-marker').forEach(function(el) { el.remove(); });
+
+            markers.forEach(function(marker, index) {
+                var el = document.createElement('div');
+                el.className = 'map-marker';
+                el.style.left = marker.x + '%';
+                el.style.top = marker.y + '%';
+                el.innerHTML = '<div class="marker-pin ' + marker.category + '"></div><div class="marker-label">' + escapeHtml(marker.name) + '</div>';
+
+                el.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (!markerActuallyMoved) showMarkerDetails(index);
+                });
+
+                el.addEventListener('mousedown', function(e) {
+                    if (addMarkerMode) return;
+                    e.stopPropagation();
+                    draggingMarkerIndex = index;
+                    el.classList.add('dragging');
+                });
+
+                el.addEventListener('touchstart', function(e) {
+                    if (addMarkerMode) return;
+                    e.stopPropagation();
+                    draggingMarkerIndex = index;
+                    el.classList.add('dragging');
+                }, { passive: true });
+
+                mapCanvas.appendChild(el);
+            });
+        }
+
+        function moveMarkerTo(clientX, clientY) {
+            var marker = markers[draggingMarkerIndex];
+            if (!marker) return;
+
+            markerActuallyMoved = true;
+
+            var rect = mapWrapper.getBoundingClientRect();
+            var clickX = clientX - rect.left;
+            var clickY = clientY - rect.top;
+            var imgX = (clickX - currentX) / currentScale;
+            var imgY = (clickY - currentY) / currentScale;
+            var iw = mapImage.naturalWidth || 3000;
+            var ih = mapImage.naturalHeight || 2000;
+
+            marker.x = Math.max(0, Math.min(100, (imgX / iw) * 100));
+            marker.y = Math.max(0, Math.min(100, (imgY / ih) * 100));
+
+            var el = mapCanvas.querySelectorAll('.map-marker')[draggingMarkerIndex];
+            if (el) {
+                el.style.left = marker.x + '%';
+                el.style.top = marker.y + '%';
+            }
+        }
+
+        function goToMarker(index) {
+            var marker = markers[index];
+            if (!marker) return;
+            
+            document.getElementById('searchResults').classList.remove('visible');
+            document.getElementById('markerSearch').value = '';
+            
+            var iw = mapImage.naturalWidth || 3000;
+            var ih = mapImage.naturalHeight || 2000;
+            var cw = mapWrapper.clientWidth;
+            var ch = mapWrapper.clientHeight;
+            
+            // Zoom to 250%
+            currentScale = 2.5;
+            currentX = cw / 2 - (marker.x / 100) * iw * currentScale;
+            currentY = ch / 2 - (marker.y / 100) * ih * currentScale;
+            updateTransform();
+            
+            // Pulse animation on marker
+            setTimeout(function() {
+                var el = mapCanvas.querySelectorAll('.map-marker')[index];
+                if (el) {
+                    el.classList.add('pulse');
+                    setTimeout(function() { el.classList.remove('pulse'); }, 1500);
+                }
+            }, 100);
+        }
+
+        // MODALS
+        function showCreateModal() {
+            var html = '<div class="modal-header"><h2 class="modal-title">Neuer Marker</h2><button class="modal-close" id="modalClose">✕</button></div>';
+            html += '<div class="form-group"><label class="form-label">Kategorie</label><div class="category-select" id="catSelect">';
+            CATEGORIES.forEach(function(c, i) {
+                html += '<div class="category-option' + (i === 0 ? ' selected' : '') + '" data-cat="' + c.id + '"><div class="category-dot" style="background:' + c.color + '"></div><span class="category-name">' + c.name + '</span></div>';
+            });
+            html += '</div></div>';
+            html += '<div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="markerName" placeholder="Name..." maxlength="50"></div>';
+            html += '<div class="form-group"><label class="form-label">Beschreibung</label><textarea class="form-input" id="markerDesc" placeholder="Optional..." rows="3"></textarea></div>';
+            html += '<div class="modal-actions"><button class="modal-btn secondary" id="modalCancel">Abbrechen</button><button class="modal-btn primary" id="modalSave">Speichern</button></div>';
+            
+            markerModal.innerHTML = html;
+            openModal();
+            
+            document.getElementById('modalClose').addEventListener('click', closeModal);
+            document.getElementById('modalCancel').addEventListener('click', closeModal);
+            document.getElementById('modalSave').addEventListener('click', saveNewMarker);
+            document.querySelectorAll('.category-option').forEach(function(opt) {
+                opt.addEventListener('click', function() {
+                    document.querySelectorAll('.category-option').forEach(function(o) { o.classList.remove('selected'); });
+                    this.classList.add('selected');
+                });
+            });
+            
+            setTimeout(function() { document.getElementById('markerName').focus(); }, 50);
+        }
+
+        function showMarkerDetails(index) {
+            var m = markers[index];
+            var cat = CATEGORIES.find(function(c) { return c.id === m.category; }) || CATEGORIES[0];
+            
+            var html = '<div class="modal-header"><h2 class="modal-title">Marker</h2><button class="modal-close" id="modalClose">✕</button></div>';
+            html += '<div class="marker-info">';
+            html += '<div class="marker-info-category"><div class="category-dot" style="background:' + cat.color + '"></div><span>' + cat.name + '</span></div>';
+            html += '<div class="marker-info-name">' + escapeHtml(m.name) + '</div>';
+            if (m.description) html += '<div class="marker-info-desc">' + escapeHtml(m.description) + '</div>';
+            html += '<div class="marker-info-meta">von ' + escapeHtml(m.createdBy || 'Unbekannt') + '</div>';
+            html += '</div>';
+            html += '<div class="modal-actions"><button class="modal-btn danger" id="modalDelete">Löschen</button><button class="modal-btn secondary" id="modalEdit">Bearbeiten</button></div>';
+            
+            markerModal.innerHTML = html;
+            openModal();
+            
+            document.getElementById('modalClose').addEventListener('click', closeModal);
+            document.getElementById('modalDelete').addEventListener('click', function() { deleteMarker(index); });
+            document.getElementById('modalEdit').addEventListener('click', function() { editMarker(index); });
+        }
+
+        function editMarker(index) {
+            var m = markers[index];
+            
+            var html = '<div class="modal-header"><h2 class="modal-title">Bearbeiten</h2><button class="modal-close" id="modalClose">✕</button></div>';
+            html += '<div class="form-group"><label class="form-label">Kategorie</label><div class="category-select" id="catSelect">';
+            CATEGORIES.forEach(function(c) {
+                html += '<div class="category-option' + (c.id === m.category ? ' selected' : '') + '" data-cat="' + c.id + '"><div class="category-dot" style="background:' + c.color + '"></div><span class="category-name">' + c.name + '</span></div>';
+            });
+            html += '</div></div>';
+            html += '<div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="markerName" value="' + escapeHtml(m.name) + '" maxlength="50"></div>';
+            html += '<div class="form-group"><label class="form-label">Beschreibung</label><textarea class="form-input" id="markerDesc" rows="3">' + escapeHtml(m.description || '') + '</textarea></div>';
+            html += '<div class="modal-actions"><button class="modal-btn secondary" id="modalCancel">Abbrechen</button><button class="modal-btn primary" id="modalSave">Speichern</button></div>';
+            
+            markerModal.innerHTML = html;
+            openModal();
+            
+            document.getElementById('modalClose').addEventListener('click', closeModal);
+            document.getElementById('modalCancel').addEventListener('click', closeModal);
+            document.getElementById('modalSave').addEventListener('click', function() { updateMarker(index); });
+            document.querySelectorAll('.category-option').forEach(function(opt) {
+                opt.addEventListener('click', function() {
+                    document.querySelectorAll('.category-option').forEach(function(o) { o.classList.remove('selected'); });
+                    this.classList.add('selected');
+                });
+            });
+        }
+
+        function openModal() {
+            modalBackdrop.classList.add('visible');
+            markerModal.classList.add('visible');
+        }
+
+        function closeModal() {
+            modalBackdrop.classList.remove('visible');
+            markerModal.classList.remove('visible');
+            pendingMarkerPos = null;
+        }
+
+        // CRUD
+        function saveNewMarker() {
+            var name = document.getElementById('markerName').value.trim();
+            var desc = document.getElementById('markerDesc').value.trim();
+            var catEl = document.querySelector('.category-option.selected');
+            var cat = catEl ? catEl.dataset.cat : 'ort';
+
+            if (!name) { showToast('Name fehlt'); return; }
+            if (!pendingMarkerPos) { showToast('Position fehlt'); return; }
+
+            var user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            markers.push({
+                id: 'marker_' + Date.now(),
+                x: pendingMarkerPos.x,
+                y: pendingMarkerPos.y,
+                name: name,
+                description: desc,
+                category: cat,
+                createdBy: user ? user.username : 'Unbekannt',
+                createdAt: Date.now()
+            });
+
+            saveMarkers();
+            renderMarkers();
+            closeModal();
+            showToast('Marker erstellt');
+        }
+
+        function updateMarker(index) {
+            var name = document.getElementById('markerName').value.trim();
+            var desc = document.getElementById('markerDesc').value.trim();
+            var catEl = document.querySelector('.category-option.selected');
+            var cat = catEl ? catEl.dataset.cat : null;
+
+            if (!name) { showToast('Name fehlt'); return; }
+
+            markers[index].name = name;
+            markers[index].description = desc;
+            if (cat) markers[index].category = cat;
+
+            saveMarkers();
+            renderMarkers();
+            closeModal();
+            showToast('Marker aktualisiert');
+        }
+
+        function deleteMarker(index) {
+            markers.splice(index, 1);
+            saveMarkers();
+            renderMarkers();
+            closeModal();
+            showToast('Marker gelöscht');
+        }
+
+        // UTILS
+        function getPinchDistance(touches) {
+            var dx = touches[0].clientX - touches[1].clientX;
+            var dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function showToast(msg) {
+            var t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(function() { t.classList.remove('show'); }, 2500);
+        }
+    </script>
+</body>
+</html>
