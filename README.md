@@ -4,6 +4,11 @@ RIFT is a lightweight, browser-based tool for organizing tabletop roleplaying se
 ## Status
 Private repository. Code not publicly available.
 
+![Stars](https://img.shields.io/github/stars/crussong/rift?style=flat)
+![Forks](https://img.shields.io/github/forks/crussong/rift?style=flat)
+![Issues](https://img.shields.io/github/issues/crussong/rift?style=flat)
+
+
 ## About RIFT
 ![alt text](https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png "RIFT logo")
 
