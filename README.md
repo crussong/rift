@@ -9,6 +9,10 @@ RIFT is a lightweight, browser-based tool for organizing tabletop roleplaying se
 Public repository under active development.
 The project is evolving and not considered feature-complete.
 
+## Language Availability
+
+RIFT is currently developed and maintained in German.
+The user interface and all in-application text are available in German only. Multilingual support may be added at a later stage.
 
 ## About RIFT
 ![alt text](https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png "RIFT logo")
