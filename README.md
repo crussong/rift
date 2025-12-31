@@ -14,6 +14,8 @@ The project is evolving and not considered feature-complete.
 The current version of RIFT can be accessed here:  
 https://rift-app.com
 
+[![Website](https://img.shields.io/badge/Website-rift--app.com-blue)](https://rift-app.com)
+
 ## Language Availability
 
 RIFT is currently developed and maintained in German.
