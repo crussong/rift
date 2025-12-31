@@ -132,6 +132,13 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
                 <img src="assets/icons/icon_home.png" alt="">
                 <span>Zurück zum Hub</span>
             </a>
+            <a href="gm-options.html" class="sidebar-link sidebar-gm-options" id="sidebarGmOptions">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+                </svg>
+                <span>GM Optionen</span>
+            </a>
             <button class="sidebar-link sidebar-logout" onclick="handleLogout()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -160,6 +167,20 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
 
     // Inject styles
     injectNavStyles();
+    
+    // Show GM Options link only for GMs
+    try {
+        const userData = JSON.parse(localStorage.getItem('pnp_companion_user') || '{}');
+        const gmLink = document.getElementById('sidebarGmOptions');
+        const isGM = userData && (userData.isGM === true || userData.isGM === 'true');
+        console.log('[Nav] GM Check:', { username: userData?.username, isGM: userData?.isGM, result: isGM });
+        if (gmLink && isGM) {
+            gmLink.classList.add('visible');
+            console.log('[Nav] GM Options enabled for:', userData.username);
+        }
+    } catch (e) {
+        console.log('[Nav] Could not check GM status:', e);
+    }
     
     // Add body padding
     document.body.style.paddingTop = `${NAV_CONFIG.HEIGHT_DESKTOP}px`;
@@ -828,6 +849,23 @@ function injectNavStyles() {
 
         .sidebar-logout:hover {
             background: color-mix(in srgb, var(--md-error, #f2b8b5) 10%, transparent);
+        }
+
+        .sidebar-gm-options {
+            color: #4CAF50;
+            display: none;
+        }
+
+        .sidebar-gm-options.visible {
+            display: flex;
+        }
+
+        .sidebar-gm-options:hover {
+            background: color-mix(in srgb, #4CAF50 15%, transparent);
+        }
+
+        .sidebar-gm-options svg {
+            color: #4CAF50;
         }
 
         .sidebar-legal {

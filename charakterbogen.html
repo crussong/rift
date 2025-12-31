@@ -1640,7 +1640,14 @@
             }
 
             .skill-row {
-                grid-template-columns: 1fr 100px;
+                grid-template-columns: 1fr 70px 28px;
+                gap: 6px;
+            }
+
+            .skill-delete-btn {
+                width: 24px;
+                height: 24px;
+                font-size: 14px;
             }
 
             .dice-checks {
@@ -1663,10 +1670,10 @@
             }
 
             .category-final-value {
-                width: 80px;
+                width: 70px;
                 height: 38px;
                 font-size: 16px;
-                margin-right: 40px;
+                margin-right: 34px;
             }
 
             .help-skills-grid {
@@ -1735,8 +1742,8 @@
         <!-- RULESET BOX -->
         <div class="ruleset-box">
             <span class="ruleset-label">Aktuelles Abenteuer:</span>
-            <img src="assets/icons/icon_ruleset_rumundrache.png" alt="Regelwerk" class="ruleset-icon">
-            <span class="ruleset-name">Rum & Rache</span>
+            <img src="assets/icons/icon_ruleset_rumundrache.svg" alt="Regelwerk" class="ruleset-icon" id="ruleset-icon">
+            <span class="ruleset-name" id="ruleset-name">Rum & Rache</span>
         </div>
 
         <!-- PORTRAIT UPLOAD - GANZ OBEN -->
@@ -2114,6 +2121,60 @@
                 
                 // Listen for players
                 unsubscribePlayers = onPlayersChange(updatePlayerBar);
+                
+                // Check URL parameter for direct character view
+                const urlParams = new URLSearchParams(window.location.search);
+                const viewParam = urlParams.get('view');
+                if (viewParam) {
+                    console.log('[Charakter] GM view requested for:', viewParam);
+                    
+                    // Wait for players to load, then switch
+                    const waitForPlayers = () => {
+                        if (Object.keys(allPlayers).length === 0) {
+                            setTimeout(waitForPlayers, 100);
+                            return;
+                        }
+                        
+                        // Load the character directly using the key
+                        viewingPlayer = viewParam;
+                        document.body.classList.add('gm-readonly');
+                        
+                        // Update player bar to reflect current selection
+                        updatePlayerBar(allPlayers);
+                        
+                        // Add banner
+                        const existingBanner = document.querySelector('.gm-viewing-banner');
+                        if (!existingBanner) {
+                            const banner = document.createElement('div');
+                            banner.className = 'gm-viewing-banner';
+                            banner.innerHTML = `
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                Du siehst den Charakterbogen von <strong>${viewParam}</strong> (Nur Ansicht)
+                            `;
+                            const container = document.querySelector('.container');
+                            const playerBar = document.getElementById('playerBar');
+                            if (playerBar) {
+                                container.insertBefore(banner, playerBar.nextSibling);
+                            } else {
+                                container.insertBefore(banner, container.firstChild);
+                            }
+                        }
+                        
+                        // Load the character - viewParam is already the sanitized key
+                        getRef(`characters/${viewParam}`).once('value').then(snapshot => {
+                            const data = snapshot.val();
+                            console.log('[Charakter] Loaded character data:', data ? 'found' : 'not found');
+                            if (data) {
+                                applyCharacterData(data);
+                            }
+                        });
+                    };
+                    
+                    setTimeout(waitForPlayers, 200);
+                }
             }
             
             // Listen for character updates (both GM and players)
@@ -2274,8 +2335,11 @@
                 if (player.username === user?.username) return; // Skip self
                 if (player.isGM) return; // Skip other GMs
                 
+                const sanitizedName = sanitizeKey(player.username);
                 const tab = document.createElement('button');
-                tab.className = `player-tab ${viewingPlayer === player.username ? 'active' : ''}`;
+                tab.className = `player-tab ${viewingPlayer === player.username || viewingPlayer === sanitizedName ? 'active' : ''}`;
+                tab.dataset.player = player.username;
+                tab.dataset.playerKey = sanitizedName;
                 tab.innerHTML = `
                     <span class="player-tab-dot" style="background: ${player.color}"></span>
                     ${player.username}
@@ -2287,15 +2351,22 @@
 
         function switchToPlayer(playerName) {
             viewingPlayer = playerName;
+            console.log('[Charakter] switchToPlayer:', playerName);
             
             // Update tabs
             document.querySelectorAll('.player-tab').forEach(tab => {
                 tab.classList.remove('active');
+                // Activate correct tab based on playerName (can be username or sanitized key)
+                if (playerName === null && tab.classList.contains('own')) {
+                    tab.classList.add('active');
+                } else if (tab.dataset.player === playerName || tab.dataset.playerKey === playerName) {
+                    tab.classList.add('active');
+                    // Use the actual username for loading
+                    if (tab.dataset.player) {
+                        viewingPlayer = tab.dataset.player;
+                    }
+                }
             });
-            if (event && event.target) {
-                const tab = event.target.closest('.player-tab');
-                if (tab) tab.classList.add('active');
-            }
             
             // Remove existing banner
             const existingBanner = document.querySelector('.gm-viewing-banner');
@@ -4000,6 +4071,54 @@
         
         // Create footer
         createFooter();
+        
+        // ===== CATALOG DISPLAY =====
+        const CATALOG_INFO = {
+            'rum-und-rache': { name: 'Rum & Rache', icon: 'assets/icons/icon_ruleset_rumundrache.svg' },
+            'fantasy-classic': { name: 'Fantasy Classic', icon: 'assets/icons/icon_ruleset_fantasy.svg' },
+            'neon-abyss': { name: 'Neon Abyss', icon: 'assets/icons/icon_ruleset_neon.svg' },
+            'basis': { name: 'Basis', icon: 'assets/icons/icon_ruleset_basis.svg' }
+        };
+        
+        function updateRulesetDisplay() {
+            const catalogId = localStorage.getItem('rift_active_catalog') || 'rum-und-rache';
+            const catalog = CATALOG_INFO[catalogId] || CATALOG_INFO['rum-und-rache'];
+            
+            const nameEl = document.getElementById('ruleset-name');
+            const iconEl = document.getElementById('ruleset-icon');
+            
+            if (nameEl) nameEl.textContent = catalog.name;
+            if (iconEl) {
+                iconEl.src = catalog.icon;
+                iconEl.onerror = () => { iconEl.src = 'assets/icons/icon_hub.png'; };
+            }
+        }
+        
+        // Listen for catalog changes from Firebase
+        function listenForCatalogChanges() {
+            if (typeof getRef === 'function' && typeof isFirebaseOnline === 'function' && isFirebaseOnline()) {
+                const ref = getRef('settings/catalog');
+                if (ref) {
+                    ref.on('value', (snapshot) => {
+                        const catalogId = snapshot.val();
+                        if (catalogId) {
+                            localStorage.setItem('rift_active_catalog', catalogId);
+                            updateRulesetDisplay();
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Initial display update
+        updateRulesetDisplay();
+        
+        // Try to sync with Firebase if available
+        if (typeof initFirebase === 'function') {
+            initFirebase().then(() => {
+                listenForCatalogChanges();
+            }).catch(() => {});
+        }
     </script>
 </body>
 </html>

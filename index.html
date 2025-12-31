@@ -463,7 +463,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: var(--space-xs);
+            gap: 8px;
             padding: var(--space-xs) var(--space-md);
             background: var(--md-surface-container);
             border: 1px solid var(--md-outline-variant);
@@ -485,11 +485,16 @@
             transform: scale(0.97);
         }
 
-        .room-badge svg {
-            width: 14px;
-            height: 14px;
+        .room-badge > svg {
+            width: 16px;
+            height: 16px;
             opacity: 0.7;
             flex-shrink: 0;
+        }
+
+        .room-badge > span {
+            position: relative;
+            top: 1px;
         }
 
         .room-badge code {
@@ -497,6 +502,8 @@
             font-weight: 600;
             color: var(--md-primary);
             letter-spacing: 1px;
+            position: relative;
+            top: 1px;
         }
 
         .room-badge.copied {
@@ -525,13 +532,103 @@
 
         /* Regelwerk Badge */
         .ruleset-badge {
-            cursor: default;
-            opacity: 0.6;
+            position: relative;
+            padding: 0;
         }
 
-        .ruleset-badge:hover {
+        .ruleset-badge-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: var(--space-xs) var(--space-md);
+            cursor: pointer;
+        }
+
+        .ruleset-badge-content img {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            opacity: 0.7;
+        }
+
+        .ruleset-badge-content span {
+            position: relative;
+            top: 1px;
+        }
+
+        .ruleset-badge .dropdown-arrow {
+            transition: transform 200ms ease;
+            opacity: 0.7;
+        }
+
+        .ruleset-badge.open .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* Ruleset Dropdown */
+        .ruleset-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--shape-lg);
+            box-shadow: var(--elevation-2);
+            min-width: 200px;
+            padding: 4px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 200ms ease;
+            z-index: 1000;
+        }
+
+        .ruleset-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .ruleset-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: var(--shape-sm);
+            cursor: pointer;
+            transition: background 150ms ease;
+            color: var(--md-on-surface-variant);
+            font-size: var(--label-small);
+        }
+
+        .ruleset-option:hover {
+            background: var(--md-surface-container-high);
+        }
+
+        .ruleset-option.active {
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface);
+        }
+
+        .ruleset-option img {
+            width: 18px;
+            height: 18px;
             opacity: 0.8;
-            border-color: var(--md-outline-variant);
+        }
+
+        .ruleset-option.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .ruleset-gm-note {
+            padding: 6px 12px;
+            font-size: 11px;
+            color: var(--md-on-surface-variant);
+            opacity: 0.7;
+            text-align: center;
+            border-bottom: 1px solid var(--md-outline-variant);
+            margin-bottom: 4px;
         }
 
         /* Theme Badge */
@@ -543,13 +640,26 @@
         .theme-badge-content {
             display: flex;
             align-items: center;
-            gap: var(--space-xs);
+            justify-content: center;
+            gap: 8px;
             padding: var(--space-xs) var(--space-md);
             cursor: pointer;
         }
 
+        .theme-badge-content svg:first-child {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        .theme-badge-content span {
+            position: relative;
+            top: 1px;
+        }
+
         .theme-badge .dropdown-arrow {
             transition: transform 200ms ease;
+            opacity: 0.7;
         }
 
         .theme-badge.open .dropdown-arrow {
@@ -607,6 +717,28 @@
             text-align: center;
         }
 
+        /* GM Badge */
+        .gm-badge {
+            text-decoration: none;
+            border-color: #4CAF50;
+            color: #4CAF50;
+        }
+
+        .gm-badge:hover {
+            background: color-mix(in srgb, #4CAF50 15%, var(--md-surface-container));
+            border-color: #4CAF50;
+        }
+
+        .gm-badge svg {
+            color: #4CAF50;
+            opacity: 1 !important;
+        }
+
+        .gm-badge span {
+            position: relative;
+            top: 1px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .user-name { display: none; }
@@ -630,6 +762,24 @@
             
             .module-grid {
                 gap: var(--space-md);
+            }
+
+            .hub-badges {
+                margin-top: var(--space-xl);
+            }
+
+            .quote-section {
+                margin-top: var(--space-md);
+                padding: var(--space-sm);
+            }
+
+            .quote-text {
+                font-size: var(--body-medium);
+                margin-bottom: 4px;
+            }
+
+            .quote-author {
+                font-size: 11px;
             }
         }
 
@@ -1067,7 +1217,7 @@
         <div class="hub-badges">
             <!-- Room Badge -->
             <div class="room-badge" id="roomBadge" onclick="copyRoomCode()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 16px; height: 16px; opacity: 0.7;">
                     <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
                     <polyline points="10 17 15 12 10 7"/>
                     <line x1="15" y1="12" x2="3" y2="12"/>
@@ -1076,36 +1226,51 @@
                 <code id="roomCode">-----</code>
             </div>
 
-            <!-- Regelwerk Badge (Mockup) -->
-            <div class="room-badge ruleset-badge" id="rulesetBadge" title="Regelwerk-Auswahl (Coming Soon)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                </svg>
-                <span>Rum & Rache</span>
+            <!-- Regelwerk Badge -->
+            <div class="room-badge ruleset-badge" id="rulesetBadge">
+                <div class="ruleset-badge-content" onclick="toggleRulesetDropdown()">
+                    <img src="assets/icons/icon_ruleset_rumundrache.svg" alt="Regelwerk" id="rulesetIcon">
+                    <span id="rulesetName">Rum & Rache</span>
+                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="ruleset-dropdown" id="rulesetDropdown">
+                    <div class="ruleset-gm-note" id="rulesetGmNote" style="display: none;">Nur GM kann ändern</div>
+                    <!-- Options werden dynamisch geladen -->
+                </div>
             </div>
 
             <!-- Theme Auswahl -->
             <div class="room-badge theme-badge" id="themeBadge">
                 <div class="theme-badge-content" onclick="toggleHubThemeDropdown()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="5"/>
-                        <line x1="12" y1="1" x2="12" y2="3"/>
-                        <line x1="12" y1="21" x2="12" y2="23"/>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                        <line x1="1" y1="12" x2="3" y2="12"/>
-                        <line x1="21" y1="12" x2="23" y2="12"/>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 16px; height: 16px; opacity: 0.7;">
+                        <circle cx="12" cy="12" r="4"/>
+                        <line x1="12" y1="2" x2="12" y2="4"/>
+                        <line x1="12" y1="20" x2="12" y2="22"/>
+                        <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/>
+                        <line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/>
+                        <line x1="2" y1="12" x2="4" y2="12"/>
+                        <line x1="20" y1="12" x2="22" y2="12"/>
+                        <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/>
+                        <line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>
                     </svg>
                     <span id="currentThemeName">Theme</span>
-                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">
+                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px; opacity: 0.7;">
                         <polyline points="6 9 12 15 18 9"/>
                     </svg>
                 </div>
                 <div class="hub-theme-dropdown" id="hubThemeDropdown"></div>
             </div>
+
+            <!-- GM Options Badge (nur für GMs sichtbar) -->
+            <a href="gm-options.html" class="room-badge gm-badge" id="gmBadge" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 16px; height: 16px;">
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+                </svg>
+                <span>GM</span>
+            </a>
         </div>
 
 
@@ -1192,14 +1357,47 @@
             // Build Hub Theme Dropdown
             buildHubThemeDropdown();
 
+            // Early GM Badge check (before Firebase)
+            if (user?.isGM) {
+                const gmBadge = document.getElementById('gmBadge');
+                if (gmBadge) gmBadge.style.display = 'inline-flex';
+            }
+
             // Load Random Quote
             loadRandomQuote();
             
-            // Init Firebase for player list
+            // Init Firebase for player list and catalog
             initFirebase().then(() => {
                 onPlayersChange(updateSidebarPlayers);
+                loadCatalogFromFirebase();
+                updateRulesetBadgeForRole();
             });
         });
+
+        // Update ruleset badge based on GM status
+        function updateRulesetBadgeForRole() {
+            const user = getCurrentUser();
+            const isGM = user?.isGM || false;
+            const badge = document.getElementById('rulesetBadge');
+            const arrow = badge?.querySelector('.dropdown-arrow');
+            const gmBadge = document.getElementById('gmBadge');
+            
+            if (!isGM) {
+                // Non-GMs: kein Arrow, nicht klickbar aussehen
+                if (arrow) arrow.style.display = 'none';
+                badge.style.cursor = 'default';
+                badge.title = 'Nur der GM kann das Abenteuer ändern';
+                // GM Badge verstecken
+                if (gmBadge) gmBadge.style.display = 'none';
+            } else {
+                // GMs: Arrow zeigen, klickbar
+                if (arrow) arrow.style.display = '';
+                badge.style.cursor = 'pointer';
+                badge.title = 'Abenteuer-Katalog auswählen';
+                // GM Badge zeigen
+                if (gmBadge) gmBadge.style.display = 'inline-flex';
+            }
+        }
 
         // Update sidebar players
         function updateSidebarPlayers(players) {
@@ -1454,7 +1652,13 @@
                 return;
             }
             
-            // Close dropdown on outside click
+            // Close dropdowns on outside click
+            const rulesetBadge = document.getElementById('rulesetBadge');
+            if (rulesetBadge && !rulesetBadge.contains(e.target)) {
+                rulesetBadge.classList.remove('open');
+                document.getElementById('rulesetDropdown').classList.remove('active');
+            }
+            
             if (themeBadge && !themeBadge.contains(e.target)) {
                 themeBadge.classList.remove('open');
                 document.getElementById('hubThemeDropdown').classList.remove('active');
@@ -1464,6 +1668,11 @@
         function toggleHubThemeDropdown() {
             const badge = document.getElementById('themeBadge');
             const dropdown = document.getElementById('hubThemeDropdown');
+            
+            // Close ruleset dropdown if open
+            document.getElementById('rulesetBadge').classList.remove('open');
+            document.getElementById('rulesetDropdown').classList.remove('active');
+            
             badge.classList.toggle('open');
             dropdown.classList.toggle('active');
         }
@@ -1498,7 +1707,154 @@
         // Close sidebar with escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && sidebarOpen) closeSidebar();
+            if (e.key === 'Escape') closeRulesetDropdown();
         });
+
+        // ===== CATALOG SELECTOR (DROPDOWN) =====
+        const CATALOGS = [
+            {
+                id: 'rum-und-rache',
+                name: 'Rum & Rache',
+                icon: 'assets/icons/icon_ruleset_rumundrache.svg'
+            },
+            {
+                id: 'fantasy-classic',
+                name: 'Fantasy Classic',
+                icon: 'assets/icons/icon_ruleset_fantasy.svg'
+            },
+            {
+                id: 'neon-abyss',
+                name: 'Neon Abyss',
+                icon: 'assets/icons/icon_ruleset_neon.svg'
+            },
+            {
+                id: 'basis',
+                name: 'Basis',
+                icon: 'assets/icons/icon_ruleset_basis.svg'
+            }
+        ];
+
+        let selectedCatalogId = 'rum-und-rache';
+
+        function toggleRulesetDropdown() {
+            const user = getCurrentUser();
+            const isGM = user?.isGM || false;
+            
+            // Non-GMs können das Dropdown nicht öffnen
+            if (!isGM) {
+                return;
+            }
+            
+            const badge = document.getElementById('rulesetBadge');
+            const dropdown = document.getElementById('rulesetDropdown');
+            const isOpen = badge.classList.contains('open');
+            
+            // Close theme dropdown if open
+            document.getElementById('themeBadge').classList.remove('open');
+            document.getElementById('hubThemeDropdown').classList.remove('active');
+            
+            if (isOpen) {
+                closeRulesetDropdown();
+            } else {
+                badge.classList.add('open');
+                dropdown.classList.add('active');
+                renderRulesetDropdown();
+            }
+        }
+
+        function closeRulesetDropdown() {
+            document.getElementById('rulesetBadge').classList.remove('open');
+            document.getElementById('rulesetDropdown').classList.remove('active');
+        }
+
+        function renderRulesetDropdown() {
+            const user = getCurrentUser();
+            const isGM = user?.isGM || false;
+            const dropdown = document.getElementById('rulesetDropdown');
+            const gmNote = document.getElementById('rulesetGmNote');
+            
+            // Show/hide GM note
+            gmNote.style.display = isGM ? 'none' : 'block';
+            
+            // Clear existing options (keep gmNote)
+            dropdown.querySelectorAll('.ruleset-option').forEach(el => el.remove());
+            
+            CATALOGS.forEach(catalog => {
+                const option = document.createElement('div');
+                option.className = `ruleset-option${catalog.id === selectedCatalogId ? ' active' : ''}${!isGM ? ' disabled' : ''}`;
+                option.innerHTML = `
+                    <img src="${catalog.icon}" alt="${catalog.name}" onerror="this.style.display='none'">
+                    <span>${catalog.name}</span>
+                `;
+                
+                if (isGM) {
+                    // Use addEventListener with captured catalogId
+                    const catId = catalog.id;
+                    option.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        selectCatalog(catId);
+                    });
+                }
+                
+                dropdown.appendChild(option);
+            });
+        }
+
+        function selectCatalog(catalogId) {
+            const user = getCurrentUser();
+            if (!user?.isGM) return;
+            
+            selectedCatalogId = catalogId;
+            updateRulesetBadge();
+            saveCatalogToFirebase();
+            closeRulesetDropdown();
+        }
+
+        function updateRulesetBadge() {
+            const catalog = CATALOGS.find(c => c.id === selectedCatalogId) || CATALOGS[0];
+            document.getElementById('rulesetName').textContent = catalog.name;
+            document.getElementById('rulesetIcon').src = catalog.icon;
+            
+            // Store locally as well
+            localStorage.setItem('rift_active_catalog', selectedCatalogId);
+        }
+
+        function saveCatalogToFirebase() {
+            if (!isFirebaseOnline()) return;
+            
+            const ref = getRef('settings/catalog');
+            if (ref) {
+                ref.set(selectedCatalogId);
+                console.log('[Catalog] Saved to Firebase:', selectedCatalogId);
+            }
+        }
+
+        function loadCatalogFromFirebase() {
+            if (!isFirebaseOnline()) {
+                // Load from localStorage as fallback
+                const stored = localStorage.getItem('rift_active_catalog');
+                if (stored) {
+                    selectedCatalogId = stored;
+                    updateRulesetBadge();
+                }
+                return;
+            }
+            
+            const ref = getRef('settings/catalog');
+            if (ref) {
+                ref.on('value', (snapshot) => {
+                    const catalogId = snapshot.val();
+                    if (catalogId && CATALOGS.find(c => c.id === catalogId)) {
+                        selectedCatalogId = catalogId;
+                        updateRulesetBadge();
+                        console.log('[Catalog] Loaded from Firebase:', selectedCatalogId);
+                    }
+                });
+            }
+        }
+
+        // Load catalog after Firebase init - integrated in main DOMContentLoaded
 
 </script>
 </body>

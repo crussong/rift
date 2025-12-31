@@ -28,6 +28,9 @@ let currentSessionId = 'default';
 let onlineStatusRef = null;
 let connectedRef = null;
 
+// Room cleanup config
+const ROOM_INACTIVITY_TIMEOUT = 168 * 60 * 60 * 1000; // 168 hours (7 days)
+
 // Callbacks for modules
 const listeners = {
     chat: [],
@@ -77,6 +80,9 @@ async function initFirebase() {
         // Setup connection monitoring
         setupConnectionMonitoring();
         
+        // Check if room is expired and cleanup if necessary
+        await checkAndCleanupRoom();
+        
         // Auto-join session for player presence
         joinSession();
         
@@ -85,12 +91,21 @@ async function initFirebase() {
             initSidebarPlayersListener();
         }
         
-        // Init popup listeners for all pages
-        initDicePopupListener();
-        initChatPopupListener();
-        initWhiteboardPopupListener();
-        initTypingListener();
-        initChatUnreadCounter();
+        // Init popup listeners only if user is logged in (not on login page)
+        const isLoginPage = window.location.pathname.includes('login.html');
+        const hasUser = typeof getCurrentUser === 'function' && getCurrentUser() !== null;
+        
+        if (!isLoginPage && hasUser) {
+            initDicePopupListener();
+            initChatPopupListener();
+            initWhiteboardPopupListener();
+            initTypingListener();
+            initChatUnreadCounter();
+            initGlobalDiceClearListener();
+            initGlobalTimerListener();
+        } else {
+            console.log('[Firebase] Skipping popup listeners (login page or no user)');
+        }
         
         console.log('[Firebase] Initialized successfully for session:', currentSessionId);
         isOnline = true;
@@ -167,6 +182,75 @@ function getRef(path) {
 }
 
 
+// ===== ROOM ACTIVITY & CLEANUP =====
+
+/**
+ * Update room's last activity timestamp
+ * Called automatically on important actions
+ */
+function updateRoomActivity() {
+    if (!database || currentSessionId === 'default') return;
+    
+    database.ref(`sessions/${currentSessionId}/meta/lastActivity`).set(
+        firebase.database.ServerValue.TIMESTAMP
+    );
+}
+
+/**
+ * Check if room is expired and clean up if necessary
+ * @returns {Promise<boolean>} True if room was cleaned/is fresh, false on error
+ */
+async function checkAndCleanupRoom() {
+    if (!database || currentSessionId === 'default') return true;
+    
+    try {
+        const metaRef = database.ref(`sessions/${currentSessionId}/meta`);
+        const snapshot = await metaRef.once('value');
+        const meta = snapshot.val();
+        
+        // If no meta or no lastActivity, this is a new room
+        if (!meta || !meta.lastActivity) {
+            console.log('[Firebase] New room, setting initial activity');
+            await metaRef.set({
+                lastActivity: firebase.database.ServerValue.TIMESTAMP,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            return true;
+        }
+        
+        // Check if room is expired
+        const now = Date.now();
+        const lastActivity = meta.lastActivity;
+        const timeSinceActivity = now - lastActivity;
+        
+        if (timeSinceActivity > ROOM_INACTIVITY_TIMEOUT) {
+            console.log(`[Firebase] Room expired (inactive for ${Math.round(timeSinceActivity / (1000 * 60 * 60))}h), cleaning up...`);
+            
+            // Delete all room data
+            await database.ref(`sessions/${currentSessionId}`).remove();
+            
+            // Create fresh room
+            await metaRef.set({
+                lastActivity: firebase.database.ServerValue.TIMESTAMP,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            console.log('[Firebase] Room recycled successfully');
+            return true;
+        }
+        
+        // Room is still active, update activity
+        console.log(`[Firebase] Room still active (last activity ${Math.round(timeSinceActivity / (1000 * 60 * 60))}h ago)`);
+        updateRoomActivity();
+        return true;
+        
+    } catch (error) {
+        console.error('[Firebase] Room cleanup check failed:', error);
+        return false;
+    }
+}
+
+
 // ===== PLAYER ONLINE STATUS =====
 
 /**
@@ -184,7 +268,88 @@ function joinSession() {
     // Remove on disconnect
     onlineStatusRef.onDisconnect().remove();
     
+    // Listen for changes to own player data (GM can change color, GM status, or kick)
+    listenForOwnPlayerChanges(user.username);
+    
     console.log(`[Firebase] Player joined: ${user.username}`);
+}
+
+/**
+ * Listen for changes to own player data made by GM
+ * Listens for color, GM status changes, and kick flag
+ */
+function listenForOwnPlayerChanges(username) {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user || !database) return;
+    
+    const playerRef = getRef(`players/${sanitizeKey(username)}`);
+    let loadCount = 0;
+    
+    console.log('[Firebase] Starting player change listener for:', username);
+    
+    playerRef.on('value', (snapshot) => {
+        const playerData = snapshot.val();
+        loadCount++;
+        
+        console.log('[Firebase] Player data received (load #' + loadCount + '):', playerData ? 'exists' : 'null');
+        
+        // Skip first 2 loads to avoid race conditions
+        if (loadCount <= 2) {
+            console.log('[Firebase] Initial load #' + loadCount + ', skipping');
+            return;
+        }
+        
+        // Check if we've been kicked (kicked flag set)
+        if (playerData && playerData.kicked === true) {
+            console.log('[Firebase] Player was kicked from room!');
+            alert('Du wurdest aus dem Raum entfernt.');
+            localStorage.removeItem('pnp_companion_user');
+            localStorage.removeItem('pnp_companion_room');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        // Ignore null - player data might be temporarily unavailable
+        if (playerData === null) {
+            console.log('[Firebase] Player data is null, ignoring');
+            return;
+        }
+        
+        // Check if GM changed our data
+        const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        if (!currentUser) return;
+        
+        console.log('[Firebase] Comparing - Firebase:', playerData.color, playerData.isGM, 'Local:', currentUser.color, currentUser.isGM);
+        
+        let needsUpdate = false;
+        const updates = {};
+        
+        // Check color change
+        if (playerData.color && playerData.color !== currentUser.color) {
+            console.log('[Firebase] Color changed by GM:', playerData.color);
+            updates.color = playerData.color;
+            needsUpdate = true;
+        }
+        
+        // Check GM status change
+        const currentIsGM = currentUser.isGM === true || currentUser.isGM === 'true';
+        const newIsGM = playerData.isGM === true || playerData.isGM === 'true';
+        if (newIsGM !== currentIsGM) {
+            console.log('[Firebase] GM status changed by GM:', playerData.isGM);
+            updates.isGM = playerData.isGM;
+            needsUpdate = true;
+        }
+        
+        // Apply updates to localStorage
+        if (needsUpdate) {
+            const updatedUser = { ...currentUser, ...updates };
+            localStorage.setItem('pnp_companion_user', JSON.stringify(updatedUser));
+            console.log('[Firebase] Updated local user data:', updates);
+            
+            // Reload page to apply changes
+            window.location.reload();
+        }
+    });
 }
 
 /**
@@ -236,6 +401,7 @@ async function sendChatMessage(message) {
     };
     
     await ref.set(messageData);
+    updateRoomActivity();
     return ref.key;
 }
 
@@ -313,6 +479,7 @@ async function sendDiceRoll(roll) {
     };
     
     await ref.set(rollData);
+    updateRoomActivity();
     
     // Auto-cleanup old rolls (keep last 20)
     const snapshot = await getRef('dice').orderByChild('timestamp').once('value');
@@ -360,6 +527,7 @@ async function saveWhiteboardState(state) {
         ...state,
         updatedAt: firebase.database.ServerValue.TIMESTAMP
     });
+    updateRoomActivity();
 }
 
 /**
@@ -505,6 +673,13 @@ function initDicePopupListener() {
         
         // Skip own rolls
         const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        
+        // Skip if user is not logged in (e.g., on login page after being kicked)
+        if (!user) {
+            console.log('[Firebase] Skipping dice popup - no user logged in');
+            return;
+        }
+        
         if (roll.player === user?.username) return;
         
         console.log('[Firebase] Showing dice popup for:', roll.player);
@@ -513,9 +688,301 @@ function initDicePopupListener() {
 }
 
 /**
+ * Global listener for dice being cleared by GM
+ * Clears localStorage on all pages, not just wuerfel.html
+ */
+function initGlobalDiceClearListener() {
+    if (!database) return;
+    
+    getRef('dice').on('value', (snapshot) => {
+        const dice = snapshot.val();
+        // If dice node is null/empty, clear local history too
+        if (dice === null) {
+            const hadHistory = localStorage.getItem('rumRacheHistory');
+            if (hadHistory) {
+                console.log('[Firebase] Dice cleared by GM, clearing local history');
+                localStorage.removeItem('rumRacheHistory');
+            }
+        }
+    });
+}
+
+/**
+ * Initialize global timer listener
+ * Shows timer display above FABs on all pages
+ */
+let globalTimerInterval = null;
+let lastExpiredTimerId = null; // Track which timer we already played sound for
+
+function initGlobalTimerListener() {
+    if (!database) return;
+    
+    // Don't show on GM Options (they have their own display)
+    if (window.location.pathname.includes('gm-options')) return;
+    
+    console.log('[Firebase] Global timer listener started');
+    
+    getRef('timer').on('value', (snapshot) => {
+        const timer = snapshot.val();
+        updateGlobalTimerDisplay(timer);
+    });
+}
+
+function updateGlobalTimerDisplay(timer) {
+    // Clear existing interval
+    if (globalTimerInterval) {
+        clearInterval(globalTimerInterval);
+        globalTimerInterval = null;
+    }
+    
+    let timerBox = document.getElementById('globalTimerBox');
+    
+    // No active timer - hide box and reset tracking
+    if (!timer || !timer.active) {
+        if (timerBox) {
+            timerBox.style.display = 'none';
+        }
+        lastExpiredTimerId = null;
+        return;
+    }
+    
+    // Create unique ID for this timer instance
+    const timerId = timer.startedAt || timer.endTime;
+    
+    // Create timer box if not exists
+    if (!timerBox) {
+        timerBox = createGlobalTimerBox();
+    }
+    
+    const valueEl = timerBox.querySelector('.global-timer-value');
+    
+    // Timer is paused
+    if (timer.paused) {
+        timerBox.style.display = 'flex';
+        timerBox.classList.remove('running', 'expired');
+        timerBox.classList.add('paused');
+        valueEl.textContent = formatTimerTime(timer.remainingMs || 0);
+        return;
+    }
+    
+    // Check if timer already expired (e.g., page reload after expiry)
+    const now = Date.now();
+    const remaining = timer.endTime - now;
+    
+    if (remaining <= 0) {
+        // Timer already expired - just hide it, don't play sound
+        console.log('[Timer] Already expired on load, hiding without sound');
+        timerBox.style.display = 'none';
+        timerBox.classList.remove('running', 'paused', 'expired');
+        // Clean up Firebase silently
+        if (typeof getRef === 'function') {
+            getRef('timer').remove();
+        }
+        return;
+    }
+    
+    // Timer is running - show it
+    timerBox.style.display = 'flex';
+    timerBox.classList.remove('paused', 'expired');
+    timerBox.classList.add('running');
+    
+    const updateCountdown = () => {
+        const now = Date.now();
+        const remaining = timer.endTime - now;
+        
+        if (remaining <= 0) {
+            clearInterval(globalTimerInterval);
+            globalTimerInterval = null;
+            valueEl.textContent = '00:00';
+            timerBox.classList.remove('running');
+            timerBox.classList.add('expired');
+            
+            // Only play sound if we haven't already for this timer
+            if (lastExpiredTimerId !== timerId) {
+                lastExpiredTimerId = timerId;
+                playTimerEndSound();
+            }
+            
+            // Remove timer from Firebase after expiry
+            if (typeof getRef === 'function') {
+                setTimeout(() => {
+                    getRef('timer').remove();
+                    console.log('[Timer] Removed from Firebase after expiry');
+                }, 100);
+            }
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                if (timerBox && timerBox.classList.contains('expired')) {
+                    timerBox.style.display = 'none';
+                    timerBox.classList.remove('expired');
+                }
+            }, 5000);
+            return;
+        }
+        
+        valueEl.textContent = formatTimerTime(remaining);
+    };
+    
+    updateCountdown();
+    globalTimerInterval = setInterval(updateCountdown, 100);
+}
+
+function formatTimerTime(ms) {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function createGlobalTimerBox() {
+    const box = document.createElement('div');
+    box.id = 'globalTimerBox';
+    box.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span class="global-timer-value">00:00</span>
+    `;
+    
+    // Add styles
+    const style = document.createElement('style');
+    style.id = 'globalTimerStyles';
+    style.textContent = `
+        #globalTimerBox {
+            position: fixed;
+            bottom: 152px;
+            right: 24px;
+            z-index: 999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            padding: 4px;
+            background: var(--md-surface-container-high, #2b2930);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-family: 'Roboto Mono', 'Roboto', sans-serif;
+        }
+        
+        #globalTimerBox svg {
+            width: 16px;
+            height: 16px;
+            color: var(--md-primary, #6750a4);
+            margin-bottom: 1px;
+        }
+        
+        .global-timer-value {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--md-on-surface, #e6e1e5);
+        }
+        
+        #globalTimerBox.running svg {
+            color: #4CAF50;
+        }
+        
+        #globalTimerBox.running .global-timer-value {
+            color: #4CAF50;
+        }
+        
+        #globalTimerBox.paused svg {
+            color: #FF9800;
+        }
+        
+        #globalTimerBox.paused .global-timer-value {
+            color: #FF9800;
+        }
+        
+        #globalTimerBox.expired {
+            animation: timerExpiredBlink 0.5s ease infinite;
+        }
+        
+        #globalTimerBox.expired svg {
+            color: #f44336;
+        }
+        
+        #globalTimerBox.expired .global-timer-value {
+            color: #f44336;
+        }
+        
+        @keyframes timerExpiredBlink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.02); }
+        }
+        
+        @media (max-width: 600px) {
+            #globalTimerBox {
+                bottom: 132px;
+                right: 16px;
+                width: 48px;
+                height: 48px;
+            }
+            
+            #globalTimerBox svg {
+                width: 14px;
+                height: 14px;
+            }
+            
+            .global-timer-value {
+                font-size: 10px;
+            }
+        }
+    `;
+    
+    if (!document.getElementById('globalTimerStyles')) {
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(box);
+    return box;
+}
+
+function playTimerEndSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Play a sequence of beeps
+        const playBeep = (time, freq) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + time);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime + time);
+            gain.gain.setValueAtTime(0.01, audioCtx.currentTime + time + 0.15);
+            
+            osc.start(audioCtx.currentTime + time);
+            osc.stop(audioCtx.currentTime + time + 0.15);
+        };
+        
+        // Play 3 rounds of beeps (3 beeps each round)
+        for (let round = 0; round < 3; round++) {
+            const offset = round * 0.8; // 0.8 seconds between rounds
+            playBeep(offset + 0, 880);
+            playBeep(offset + 0.2, 880);
+            playBeep(offset + 0.4, 1100);
+        }
+        
+    } catch (e) {
+        console.log('[Timer] Could not play sound:', e);
+    }
+}
+
+/**
  * Show dice roll popup
  */
 function showDicePopup(roll) {
+    // Don't show popups if user is not logged in (e.g., was kicked)
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return;
+    
     // Create popup container if not exists
     let container = document.getElementById('dicePopupContainer');
     if (!container) {
@@ -801,6 +1268,10 @@ function showChatPopup(message) {
     // Don't show on chat page
     if (window.location.pathname.includes('chat')) return;
     
+    // Don't show popups if user is not logged in (e.g., was kicked)
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return;
+    
     // Add animation styles if not present
     if (!document.getElementById('popupAnimStyles')) {
         const style = document.createElement('style');
@@ -874,6 +1345,10 @@ function showChatPopup(message) {
 function showWhiteboardPopup() {
     // Don't show on whiteboard page
     if (window.location.pathname.includes('whiteboard')) return;
+    
+    // Don't show popups if user is not logged in (e.g., was kicked)
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return;
     
     let container = document.getElementById('dicePopupContainer');
     if (!container) {
@@ -961,6 +1436,13 @@ function initChatPopupListener() {
         
         // Skip own messages (check both sender and author)
         const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        
+        // Skip if user is not logged in
+        if (!user) {
+            console.log('[Firebase] Skipping chat popup - no user logged in');
+            return;
+        }
+        
         const msgSender = message.sender || message.author;
         if (msgSender === user?.username) return;
         
@@ -1001,6 +1483,10 @@ function initChatUnreadCounter() {
         return;
     }
     
+    // Skip if not logged in
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return;
+    
     const isOnChatPage = window.location.pathname.includes('chat');
     
     // If on chat page, mark as read and exit
@@ -1012,7 +1498,6 @@ function initChatUnreadCounter() {
     
     chatUnreadInitialized = true;
     const lastRead = getChatLastReadTimestamp();
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     
     console.log('[Firebase] Unread counter started, last read:', new Date(lastRead).toLocaleTimeString());
     
@@ -1081,8 +1566,9 @@ function initWhiteboardPopupListener() {
     }
     if (window.location.pathname.includes('whiteboard')) return;
     
-    // Only for non-GM players
+    // Only for non-GM players who are logged in
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return; // Skip if not logged in
     if (user?.isGM) return;
     
     whiteboardPopupInitialized = true;
@@ -1090,6 +1576,10 @@ function initWhiteboardPopupListener() {
     const ref = getRef('whiteboard');
     
     ref.on('value', (snapshot) => {
+        // Check again if user is still logged in
+        const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        if (!currentUser) return;
+        
         const data = snapshot.val();
         if (!data || !data.updatedAt) return;
         

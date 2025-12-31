@@ -16,7 +16,7 @@ const AUTH_CONFIG = {
     ROOM_STORAGE_KEY: 'pnp_companion_room',
     DEFAULT_ROOM_ID: 'local',
     DEFAULT_ROOM_NAME: 'Lokale Session',
-    SESSION_TIMEOUT: 24 * 60 * 60 * 1000, // 24 hours
+    SESSION_TIMEOUT: 72 * 60 * 60 * 1000, // 72 hours (3 days)
     MIN_USERNAME_LENGTH: 2,
     MAX_USERNAME_LENGTH: 20
 };

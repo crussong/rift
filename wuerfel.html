@@ -2202,6 +2202,18 @@
                 remoteDiceInitialized = true;
             });
             
+            // Listen for dice being cleared (by GM)
+            getRef('dice').on('value', snapshot => {
+                const dice = snapshot.val();
+                // If dice node is null/empty, clear local history too
+                if (dice === null) {
+                    console.log('[Würfel] Dice cleared by GM, clearing local history');
+                    history = [];
+                    localStorage.removeItem('rumRacheHistory');
+                    updateHistoryDisplay();
+                }
+            });
+            
             // Listen for new rolls
             getRef('dice').orderByChild('timestamp').limitToLast(1).on('child_added', snapshot => {
                 const roll = snapshot.val();
