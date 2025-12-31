@@ -5,7 +5,7 @@ RIFT is a lightweight, browser-based tool for organizing tabletop roleplaying se
 Private repository. Code not publicly available.
 
 ## About RIFT
-[/assets/images/logo_rift_white_400px.png](https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png?raw=true)
+![alt text](https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px "Logo Title")
 
 RIFT is a lightweight, browser-based application designed to support tabletop roleplaying sessions with minimal setup and maximum immediacy.
 
