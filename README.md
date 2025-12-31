@@ -3,19 +3,12 @@ RIFT is a lightweight, browser-based tool for organizing tabletop roleplaying se
 
 ![Last commit](https://img.shields.io/github/last-commit/crussong/rift?style=flat)
 ![Repo size](https://img.shields.io/github/repo-size/crussong/rift?style=flat)
-![Contributors](https://img.shields.io/github/contributors/crussong/rift?style=flat)
 
 ## Status
-Private repository. Code not publicly available.
 
-![Stars](https://img.shields.io/github/stars/crussong/rift?style=flat)
-![Forks](https://img.shields.io/github/forks/crussong/rift?style=flat)
-![Issues](https://img.shields.io/github/issues/crussong/rift?style=flat)
+Public repository under active development.
+The project is evolving and not considered feature-complete.
 
-## Language Availability
-
-RIFT is currently developed and maintained in German.
-The user interface and all in-application text are available in German only. Multilingual support may be added at a later stage.
 
 ## About RIFT
 ![alt text](https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png "RIFT logo")
