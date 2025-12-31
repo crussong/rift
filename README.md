@@ -67,3 +67,6 @@ RIFT runs entirely on the client side and is implemented using plain HTML, CSS, 
 ## Project Status
 
 RIFT is an actively developed personal project. Features and structure may evolve over time, with a continued focus on simplicity, fast access, and a frictionless start to play.
+
+### With help from
+![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=white)![Netlify](https://img.shields.io/badge/netlify-%23000000.svg?style=for-the-badge&logo=netlify&logoColor=#00C7B7)![Firebase](https://img.shields.io/badge/firebase-a08021?style=for-the-badge&logo=firebase&logoColor=ffcd34)![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white)
