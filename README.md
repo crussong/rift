@@ -12,6 +12,10 @@ Private repository. Code not publicly available.
 ![Forks](https://img.shields.io/github/forks/crussong/rift?style=flat)
 ![Issues](https://img.shields.io/github/issues/crussong/rift?style=flat)
 
+## Language Availability
+
+RIFT is currently developed and maintained in German.
+The user interface and all in-application text are available in German only. Multilingual support may be added at a later stage.
 
 ## About RIFT
 ![alt text](https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png "RIFT logo")
