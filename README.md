@@ -1,6 +1,10 @@
 # RIFT
 RIFT is a lightweight, browser-based tool for organizing tabletop roleplaying sessions, characters and notes without unnecessary complexity.
 
+![Last commit](https://img.shields.io/github/last-commit/crussong/rift?style=flat)
+![Repo size](https://img.shields.io/github/repo-size/crussong/rift?style=flat)
+![Contributors](https://img.shields.io/github/contributors/crussong/rift?style=flat)
+
 ## Status
 Private repository. Code not publicly available.
 
