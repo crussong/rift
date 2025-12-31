@@ -31,6 +31,18 @@ RIFT is built around three main principles:
 
 The application deliberately avoids framework complexity and feature overload in favor of reliability, clarity, and speed.
 
+## Screenshots
+### Desktop
+Main dashboard and module overview  
+![Desktop Screenshot 1](screenshots/desktop1.png)
+Character player sheet overview
+![Desktop Screenshot 1](screenshots/desktop2.png)
+Session dice roll with history and modifiers  
+![Desktop Screenshot 1](screenshots/desktop3.png)
+Interactive map with marker function and zoom  
+![Desktop Screenshot 1](screenshots/desktop4.png)
+
+
 ## Core Modules
 
 ### Characters
