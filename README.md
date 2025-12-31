@@ -9,6 +9,11 @@ RIFT is a lightweight, browser-based tool for organizing tabletop roleplaying se
 Public repository under active development.
 The project is evolving and not considered feature-complete.
 
+## Project Website
+
+The current version of RIFT can be accessed here:  
+https://rift-app.com
+
 ## Language Availability
 
 RIFT is currently developed and maintained in German.
