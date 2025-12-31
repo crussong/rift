@@ -33,24 +33,12 @@ The application deliberately avoids framework complexity and feature overload in
 
 ## Screenshots
 ### Desktop
-Main dashboard and module overview  
-![Desktop Screenshot 1](screenshots/desktop1.png)
-Character player sheet overview
-![Desktop Screenshot 1](screenshots/desktop2.png)
-Session dice roll with history and modifiers  
-![Desktop Screenshot 1](screenshots/desktop3.png)
-Interactive map with marker function and zoom  
-![Desktop Screenshot 1](screenshots/desktop4.png)
-### Mobile
-Main dashboard and module overview  
-![Desktop Screenshot 1](screenshots/mobile1.png)
-Character player sheet overview
-![Desktop Screenshot 1](screenshots/mobile2.png)
-Session dice roll with history and modifiers  
-![Desktop Screenshot 1](screenshots/mobile3.png)
-Interactive map with marker function and zoom  
-![Desktop Screenshot 1](screenshots/mobile4.png)
+<img src="screenshots/desktop1.png" width="200"> <img src="screenshots/desktop2.png" width="200">
+<img src="screenshots/desktop3.png" width="200"> <img src="screenshots/desktop4.png" width="200">
 
+### Mobile
+<img src="screenshots/mobile1.png" width="200"> <img src="screenshots/mobile2.png" width="200">
+<img src="screenshots/mobile3.png" width="200"> <img src="screenshots/mobile4.png" width="200">
 
 ## Core Modules
 
