@@ -73,6 +73,46 @@
             margin-top: var(--space-xs);
         }
 
+        /* Pause Control */
+        .pause-control {
+            margin-bottom: var(--space-xl);
+        }
+
+        .pause-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px 24px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: var(--shape-lg);
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 200ms ease;
+        }
+
+        .pause-btn:hover {
+            background: #E53935;
+            transform: scale(1.02);
+        }
+
+        .pause-btn.paused {
+            background: #4CAF50;
+        }
+
+        .pause-btn.paused:hover {
+            background: #43A047;
+        }
+
+        .pause-btn svg {
+            width: 28px;
+            height: 28px;
+        }
+
         /* Section Styling */
         .gm-section {
             background: var(--md-surface-container);
@@ -349,6 +389,82 @@
 
         .copy-btn:hover {
             filter: brightness(1.1);
+        }
+
+        /* Module Toggles */
+        .module-toggles {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .module-toggle-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-md);
+            background: var(--md-surface-container-high);
+            border-radius: var(--shape-md);
+            transition: background 200ms ease;
+        }
+
+        .module-toggle-item:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        .module-toggle-info {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            font-weight: 500;
+        }
+
+        .module-toggle-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--shape-sm);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 52px;
+            height: 28px;
+            cursor: pointer;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: var(--md-surface-container-highest);
+            border-radius: 28px;
+            transition: all 200ms ease;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 4px;
+            top: 4px;
+            background: var(--md-on-surface-variant);
+            border-radius: 50%;
+            transition: all 200ms ease;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--md-primary);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(24px);
+            background: white;
         }
 
         /* QR Code */
@@ -1196,6 +1312,20 @@
             <p class="gm-subtitle">Raum- und Spielerverwaltung</p>
         </div>
 
+        <!-- Pause Game Button -->
+        <div class="pause-control" id="pauseControl">
+            <button class="pause-btn" id="pauseBtn" onclick="togglePause()">
+                <svg class="pause-icon-svg" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+                <svg class="play-icon-svg" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+                <span class="pause-btn-text">Spiel pausieren</span>
+            </button>
+        </div>
+
         <!-- Room Info Section -->
         <div class="gm-section" id="sectionRoomInfo">
             <div class="section-header" onclick="toggleSection('sectionRoomInfo')">
@@ -1241,6 +1371,69 @@
                     <div class="room-info-item">
                         <div class="room-info-label">Würfelwürfe</div>
                         <div class="room-info-value" id="roomDiceCount">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modules Section -->
+        <div class="gm-section" id="sectionModules">
+            <div class="section-header" onclick="toggleSection('sectionModules')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                <span class="section-title">Module</span>
+                <svg class="section-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </div>
+            <div class="section-content">
+                <p style="color: var(--md-on-surface-variant); margin-bottom: var(--space-md); font-size: 14px;">
+                    Aktiviere oder deaktiviere Module für alle Spieler. Deaktivierte Module werden im Hub ausgegraut.
+                </p>
+                <div class="module-toggles" id="moduleToggles">
+                    <div class="module-toggle-item">
+                        <div class="module-toggle-info">
+                            <img src="assets/icons/icon_map.png" alt="Karte" class="module-toggle-icon">
+                            <span>Karte</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="moduleKarte" checked onchange="toggleModule('karte', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="module-toggle-item">
+                        <div class="module-toggle-info">
+                            <img src="assets/icons/icon_whiteboard.png" alt="Whiteboard" class="module-toggle-icon">
+                            <span>Whiteboard</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="moduleWhiteboard" checked onchange="toggleModule('whiteboard', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="module-toggle-item">
+                        <div class="module-toggle-info">
+                            <img src="assets/icons/icon_notes.png" alt="Notizen" class="module-toggle-icon">
+                            <span>Notizen</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="moduleNotizen" checked onchange="toggleModule('notizen', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="module-toggle-item">
+                        <div class="module-toggle-info">
+                            <img src="assets/icons/icon_chat.png" alt="Chat" class="module-toggle-icon">
+                            <span>Chat</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="moduleChat" checked onchange="toggleModule('chat', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -1732,6 +1925,8 @@
                     loadCharacters();
                     loadTimerState();
                     loadSessionLog();
+                    loadPauseState();
+                    loadModuleStates();
                 }
             } catch (error) {
                 console.error('[GM Options] Firebase init error:', error);
@@ -2180,6 +2375,77 @@
         function clearSessionLog() {
             sessionLogEntries = [];
             renderSessionLog();
+        }
+
+        // ===== PAUSE FUNCTIONS =====
+        let isPaused = false;
+
+        function loadPauseState() {
+            if (!isFirebaseOnline()) return;
+            
+            getRef('pause').on('value', (snapshot) => {
+                const pause = snapshot.val();
+                isPaused = pause?.active || false;
+                updatePauseButton();
+            });
+        }
+
+        function updatePauseButton() {
+            const btn = document.getElementById('pauseBtn');
+            const pauseIcon = btn.querySelector('.pause-icon-svg');
+            const playIcon = btn.querySelector('.play-icon-svg');
+            const text = btn.querySelector('.pause-btn-text');
+            
+            if (isPaused) {
+                btn.classList.add('paused');
+                pauseIcon.style.display = 'none';
+                playIcon.style.display = 'block';
+                text.textContent = 'Spiel fortsetzen';
+            } else {
+                btn.classList.remove('paused');
+                pauseIcon.style.display = 'block';
+                playIcon.style.display = 'none';
+                text.textContent = 'Spiel pausieren';
+            }
+        }
+
+        async function togglePause() {
+            if (!isFirebaseOnline()) return;
+            
+            if (isPaused) {
+                await getRef('pause').remove();
+                console.log('[Pause] Game resumed');
+            } else {
+                await getRef('pause').set({
+                    active: true,
+                    pausedBy: user?.username || 'GM',
+                    pausedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                console.log('[Pause] Game paused');
+            }
+        }
+
+        // ===== MODULE MANAGEMENT =====
+        
+        function loadModuleStates() {
+            if (!isFirebaseOnline()) return;
+            
+            getRef('modules').on('value', (snapshot) => {
+                const modules = snapshot.val() || {};
+                
+                // Update checkboxes
+                document.getElementById('moduleKarte').checked = modules.karte !== false;
+                document.getElementById('moduleWhiteboard').checked = modules.whiteboard !== false;
+                document.getElementById('moduleNotizen').checked = modules.notizen !== false;
+                document.getElementById('moduleChat').checked = modules.chat !== false;
+            });
+        }
+        
+        async function toggleModule(moduleId, enabled) {
+            if (!isFirebaseOnline()) return;
+            
+            await getRef(`modules/${moduleId}`).set(enabled);
+            console.log(`[Modules] ${moduleId} set to ${enabled}`);
         }
 
         // Toggle section

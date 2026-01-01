@@ -35,13 +35,82 @@
         }
 
         body.shake {
-            animation: screenShake 0.5s;
+            animation: screenShake 0.6s;
         }
 
         @keyframes screenShake {
             0%, 100% { transform: translate(0, 0); }
             10%, 30%, 50%, 70%, 90% { transform: translate(-5px, 5px); }
             20%, 40%, 60%, 80% { transform: translate(5px, -5px); }
+        }
+
+        /* Kritischer Erfolg - Goldener Flash */
+        body.crit-success-flash::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.4) 0%, transparent 70%);
+            z-index: 9998;
+            animation: goldFlash 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes goldFlash {
+            0% { opacity: 0; transform: scale(0.5); }
+            30% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+
+        /* Kritischer Fehlschlag - Roter Pulse */
+        body.crit-fail-flash::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(244, 67, 54, 0.5) 0%, transparent 60%);
+            z-index: 9998;
+            animation: redPulse 0.6s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes redPulse {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            40% { opacity: 0.3; }
+            60% { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
+
+        /* Confetti Container */
+        .confetti-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: -20px;
+            animation: confettiFall linear forwards;
+        }
+
+        .confetti.gold { background: #FFD700; }
+        .confetti.yellow { background: #FFC107; }
+        .confetti.orange { background: #FF9800; }
+        .confetti.white { background: #FFFFFF; }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
         }
 
         .pill {
@@ -1822,6 +1891,55 @@
             }
         }
 
+        // Kritischer Erfolg - Goldener Confetti-Regen
+        function createCritSuccessEffect() {
+            // Gold Flash
+            document.body.classList.add('crit-success-flash');
+            setTimeout(() => document.body.classList.remove('crit-success-flash'), 800);
+
+            // Confetti
+            const container = document.createElement('div');
+            container.className = 'confetti-container';
+            document.body.appendChild(container);
+
+            const colors = ['gold', 'yellow', 'orange', 'white'];
+            const confettiCount = 50;
+
+            for (let i = 0; i < confettiCount; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = `confetti ${colors[Math.floor(Math.random() * colors.length)]}`;
+                
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+                confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                
+                // Random shapes
+                if (Math.random() > 0.5) {
+                    confetti.style.borderRadius = '50%';
+                } else {
+                    confetti.style.borderRadius = '2px';
+                    confetti.style.width = '8px';
+                    confetti.style.height = '14px';
+                }
+
+                container.appendChild(confetti);
+            }
+
+            setTimeout(() => container.remove(), 4000);
+        }
+
+        // Kritischer Fehlschlag - Roter Flash + heftiger Shake
+        function createCritFailEffect() {
+            // Red Flash
+            document.body.classList.add('crit-fail-flash');
+            setTimeout(() => document.body.classList.remove('crit-fail-flash'), 600);
+
+            // Extra intense shake
+            document.body.style.animation = 'none';
+            document.body.offsetHeight; // Trigger reflow
+            document.body.style.animation = 'screenShake 0.6s';
+        }
+
         function showCalculation(base, final, isCrit, isFail) {
             const container = document.getElementById('diceDisplay');
             const modText = modifier >= 0 ? `+${modifier}` : `${modifier}`;
@@ -1847,6 +1965,14 @@
                 createParticles(isCrit);
                 container.classList.add(critClass);
                 document.body.classList.add('shake');
+                
+                // Neue dramatische Effekte
+                if (isCrit) {
+                    createCritSuccessEffect();
+                } else {
+                    createCritFailEffect();
+                }
+                
                 setTimeout(() => {
                     container.classList.remove(critClass);
                     document.body.classList.remove('shake');
@@ -1878,6 +2004,14 @@
                 createParticles(isCrit);
                 container.classList.add(critClass);
                 document.body.classList.add('shake');
+                
+                // Neue dramatische Effekte
+                if (isCrit) {
+                    createCritSuccessEffect();
+                } else {
+                    createCritFailEffect();
+                }
+                
                 setTimeout(() => {
                     container.classList.remove(critClass);
                     document.body.classList.remove('shake');
@@ -1912,6 +2046,14 @@
                 createParticles(isCrit);
                 container.classList.add(critClass);
                 document.body.classList.add('shake');
+                
+                // Neue dramatische Effekte
+                if (isCrit) {
+                    createCritSuccessEffect();
+                } else {
+                    createCritFailEffect();
+                }
+                
                 setTimeout(() => {
                     container.classList.remove(critClass);
                     document.body.classList.remove('shake');
@@ -2016,6 +2158,13 @@
                         container.classList.add(critClass);
                         document.body.classList.add('shake');
                         createParticles(isCrit);
+
+                        // Neue dramatische Effekte
+                        if (isCrit) {
+                            createCritSuccessEffect();
+                        } else {
+                            createCritFailEffect();
+                        }
 
                         setTimeout(() => {
                             display.classList.remove(critClass);

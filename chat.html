@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chat - RIFT</title>
     <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
-    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    <link rel="icon" type="image/png" href="assets/icons/icon_favicon.png">
+    <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -186,17 +187,38 @@
         .message {
             display: flex;
             gap: var(--space-sm);
-            animation: messageIn 200ms ease;
+            animation: messageSlideIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
             position: relative;
+        }
+
+        .message.own {
+            animation: messageSlideInRight 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .message:hover .message-actions {
             opacity: 1;
         }
 
-        @keyframes messageIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes messageSlideIn {
+            from { 
+                opacity: 0; 
+                transform: translateX(-20px) scale(0.95); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateX(0) scale(1); 
+            }
+        }
+
+        @keyframes messageSlideInRight {
+            from { 
+                opacity: 0; 
+                transform: translateX(20px) scale(0.95); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateX(0) scale(1); 
+            }
         }
 
         .message-avatar {
@@ -339,6 +361,104 @@
         .message-action-btn svg {
             width: 14px;
             height: 14px;
+        }
+
+        /* Message Reactions */
+        .message-reactions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .message-reaction {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: var(--md-surface-container-high);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 12px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .message-reaction:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        .message-reaction.active {
+            background: color-mix(in srgb, var(--md-primary) 20%, transparent);
+            border-color: var(--md-primary);
+        }
+
+        .message-reaction-emoji {
+            font-size: 14px;
+        }
+
+        .message-reaction-count {
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .message-reaction.active .message-reaction-count {
+            color: var(--md-primary);
+        }
+
+        .reaction-add-btn {
+            width: 24px;
+            height: 24px;
+            border: 1px dashed var(--md-outline-variant);
+            border-radius: 12px;
+            background: transparent;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            opacity: 0;
+            transition: all 150ms ease;
+        }
+
+        .message:hover .reaction-add-btn {
+            opacity: 1;
+        }
+
+        .reaction-add-btn:hover {
+            background: var(--md-surface-container-high);
+            border-style: solid;
+        }
+
+        .reaction-picker {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            display: flex;
+            gap: 4px;
+            padding: 6px;
+            background: var(--md-surface-container-high);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        .reaction-picker-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .reaction-picker-btn:hover {
+            background: var(--md-surface-container-highest);
+            transform: scale(1.2);
         }
 
         .message-dice {
@@ -553,53 +673,58 @@
 
         /* Image Gallery for multi-upload */
         .message-gallery {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: var(--space-xs);
             margin-top: var(--space-xs);
-            max-width: 80%;
+            max-width: 100%;
         }
 
         .message-gallery.single {
-            grid-template-columns: 1fr;
-            max-width: 80%;
+            max-width: 100%;
         }
 
         .message-gallery.double {
-            grid-template-columns: repeat(2, 1fr);
+            max-width: 100%;
         }
 
         .message-gallery-item {
             position: relative;
-            aspect-ratio: 1;
-            border-radius: 8px;
+            border-radius: 10px;
             overflow: hidden;
             cursor: pointer;
+            /* Keine feste aspect-ratio - Bild bestimmt Größe */
         }
 
         .message-gallery-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 360px;
+            object-fit: contain;
             transition: transform 0.2s;
         }
 
         .message-gallery-item:hover img {
-            transform: scale(1.05);
+            transform: scale(1.02);
         }
 
         .message-image-container {
             margin-top: var(--space-xs);
             display: inline-block;
+            max-width: 100%;
         }
 
         .message-image {
             display: block;
-            max-width: 400px !important;
-            max-height: 400px !important;
+            /* Nicht hochskalieren, aber bei Bedarf verkleinern */
             width: auto !important;
             height: auto !important;
-            border-radius: 8px;
+            max-width: 100% !important;
+            max-height: 360px !important;
+            object-fit: contain;
+            border-radius: 10px;
             cursor: pointer;
             transition: transform 0.2s;
         }
@@ -1053,6 +1178,12 @@
             const gmBadge = msg.isGM ? '<span class="gm-badge">GM</span>' : '';
             
             const isOwnMessage = msg.author === currentUser.username;
+            
+            // Add 'own' class for own messages (for different slide animation)
+            if (isOwnMessage) {
+                div.classList.add('own');
+            }
+            
             const canDelete = isOwnMessage || currentUser.isGM;
             const canEdit = isOwnMessage && msg.type === 'text';
             
@@ -1145,6 +1276,9 @@
                 const editedTag = msg.edited ? '<span class="message-edited">(bearbeitet)</span>' : '';
                 contentHTML += `<div class="message-text">${escapeHtml(msg.text || '')}${editedTag}</div>`;
             }
+            
+            // Add reactions
+            contentHTML += renderReactions(msg);
             
             contentHTML += '</div>';
             contentHTML += actionsHTML;
@@ -1260,6 +1394,89 @@
                 msg.id = 'local_' + Date.now();
                 msg.timestamp = Date.now();
                 handleNewMessage(msg);
+            }
+        }
+
+        // ===== REACTIONS =====
+        const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢'];
+
+        function renderReactions(msg) {
+            const reactions = msg.reactions || {};
+            let html = '<div class="message-reactions">';
+            
+            // Render existing reactions
+            for (const [emoji, users] of Object.entries(reactions)) {
+                if (!users || Object.keys(users).length === 0) continue;
+                const count = Object.keys(users).length;
+                const isActive = users[currentUser.username] ? 'active' : '';
+                const userList = Object.keys(users).join(', ');
+                html += `
+                    <button class="message-reaction ${isActive}" 
+                            onclick="toggleReaction('${msg.id}', '${emoji}')"
+                            title="${userList}">
+                        <span class="message-reaction-emoji">${emoji}</span>
+                        <span class="message-reaction-count">${count}</span>
+                    </button>
+                `;
+            }
+            
+            // Add reaction button
+            html += `
+                <button class="reaction-add-btn" onclick="showReactionPicker(event, '${msg.id}')" title="Reaktion hinzufügen">
+                    +
+                </button>
+            `;
+            
+            html += '</div>';
+            return html;
+        }
+
+        function showReactionPicker(event, messageId) {
+            event.stopPropagation();
+            
+            // Remove existing picker
+            const existingPicker = document.querySelector('.reaction-picker');
+            if (existingPicker) existingPicker.remove();
+            
+            const btn = event.currentTarget;
+            const picker = document.createElement('div');
+            picker.className = 'reaction-picker';
+            picker.innerHTML = REACTION_EMOJIS.map(emoji => 
+                `<button class="reaction-picker-btn" onclick="toggleReaction('${messageId}', '${emoji}')">${emoji}</button>`
+            ).join('');
+            
+            btn.parentElement.style.position = 'relative';
+            btn.parentElement.appendChild(picker);
+            
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', function closePicker(e) {
+                    if (!picker.contains(e.target)) {
+                        picker.remove();
+                        document.removeEventListener('click', closePicker);
+                    }
+                });
+            }, 0);
+        }
+
+        async function toggleReaction(messageId, emoji) {
+            // Close picker
+            const picker = document.querySelector('.reaction-picker');
+            if (picker) picker.remove();
+            
+            if (!isFirebaseOnline()) return;
+            
+            const ref = getRef(`chat/${messageId}/reactions/${emoji}/${currentUser.username}`);
+            
+            try {
+                const snapshot = await ref.once('value');
+                if (snapshot.exists()) {
+                    await ref.remove();
+                } else {
+                    await ref.set(true);
+                }
+            } catch (e) {
+                console.error('Reaction error:', e);
             }
         }
 

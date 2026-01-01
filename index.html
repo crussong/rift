@@ -7,7 +7,8 @@
     <meta name="theme-color" content="#6750a4">
     <title>RIFT - Tabletop Companion</title>
     <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
-    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    <link rel="icon" type="image/png" href="assets/icons/icon_favicon.png">
+    <link rel="manifest" href="manifest.json">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -278,6 +279,29 @@
             width: 320px;
             height: auto;
             margin-bottom: var(--space-sm);
+            animation: logoPulse 1s ease-out;
+        }
+
+        @keyframes logoPulse {
+            0% {
+                filter: drop-shadow(0 0 0 transparent);
+                transform: scale(0.95);
+                opacity: 0;
+            }
+            30% {
+                filter: drop-shadow(0 0 30px rgba(103, 80, 164, 0.8));
+                transform: scale(1.02);
+                opacity: 1;
+            }
+            60% {
+                filter: drop-shadow(0 0 20px rgba(103, 80, 164, 0.5));
+                transform: scale(1);
+            }
+            100% {
+                filter: drop-shadow(0 0 0 transparent);
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .logo img {
@@ -391,6 +415,18 @@
             transform: none;
         }
 
+        /* GM Disabled Hint */
+        .module-disabled-hint {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--md-on-surface-variant);
+            opacity: 0.7;
+            white-space: nowrap;
+        }
+
         /* Module Icon */
         .module-icon {
             width: 56px;
@@ -444,19 +480,46 @@
         }
 
         /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
         .logo-section {
             animation: fadeIn 0.5s ease-out;
         }
 
-        .module-card {
-            animation: slideUp 0.4s cubic-bezier(0.2, 0, 0, 1) backwards;
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
-        .module-card:nth-child(1) { animation-delay: 0.1s; }
-        .module-card:nth-child(2) { animation-delay: 0.15s; }
-        .module-card:nth-child(3) { animation-delay: 0.2s; }
-        .module-card:nth-child(4) { animation-delay: 0.25s; }
-        .module-card:nth-child(5) { animation-delay: 0.3s; }
-        .module-card:nth-child(6) { animation-delay: 0.35s; }
+
+        .module-card {
+            animation: slideUp 0.3s cubic-bezier(0.2, 0, 0, 1) backwards;
+            pointer-events: none;
+        }
+        .module-card.ready {
+            pointer-events: auto;
+        }
+        .module-card.disabled {
+            pointer-events: none !important;
+        }
+        .module-card:nth-child(1) { animation-delay: 0.05s; }
+        .module-card:nth-child(2) { animation-delay: 0.075s; }
+        .module-card:nth-child(3) { animation-delay: 0.1s; }
+        .module-card:nth-child(4) { animation-delay: 0.125s; }
+        .module-card:nth-child(5) { animation-delay: 0.15s; }
+        .module-card:nth-child(6) { animation-delay: 0.175s; }
 
         /* Room Badge */
         .room-badge {
@@ -525,6 +588,14 @@
             position: relative;
             z-index: 50;
         }
+
+        .hub-badges > * {
+            animation: slideUp 0.3s cubic-bezier(0.2, 0, 0, 1) backwards;
+        }
+        .hub-badges > *:nth-child(1) { animation-delay: 0.2s; }
+        .hub-badges > *:nth-child(2) { animation-delay: 0.225s; }
+        .hub-badges > *:nth-child(3) { animation-delay: 0.25s; }
+        .hub-badges > *:nth-child(4) { animation-delay: 0.275s; }
 
         .hub-badges .room-badge {
             margin-top: 0;
@@ -1371,8 +1442,120 @@
                 onPlayersChange(updateSidebarPlayers);
                 loadCatalogFromFirebase();
                 updateRulesetBadgeForRole();
+                listenForModuleStates();
             });
         });
+
+        // Listen for module state changes from GM
+        function listenForModuleStates() {
+            if (!isFirebaseOnline()) return;
+            
+            const user = getCurrentUser();
+            const isGM = user?.isGM || false;
+            
+            // GM can always access all modules - but show hint for disabled ones
+            if (isGM) {
+                let firstLoadGM = true;
+                
+                getRef('modules').on('value', (snapshot) => {
+                    const modules = snapshot.val() || {};
+                    const moduleIds = ['karte', 'whiteboard', 'notizen', 'chat'];
+                    
+                    const applyGMState = () => {
+                        moduleIds.forEach(moduleId => {
+                            const enabled = modules[moduleId] !== false;
+                            const card = document.querySelector(`.module-card[href="${moduleId}.html"]`);
+                            
+                            if (card) {
+                                // Remove existing hint if any
+                                const existingHint = card.querySelector('.module-disabled-hint');
+                                if (existingHint) existingHint.remove();
+                                
+                                // GM always has access, but show hint if disabled for players
+                                card.classList.add('ready');
+                                card.classList.remove('disabled', 'gm-disabled');
+                                card.style.opacity = '';
+                                
+                                if (!enabled) {
+                                    // Add hint for GM
+                                    const hint = document.createElement('div');
+                                    hint.className = 'module-disabled-hint';
+                                    hint.textContent = 'Für Spieler deaktiviert';
+                                    card.appendChild(hint);
+                                }
+                            }
+                        });
+                        
+                        // Also make charakterbogen and wuerfel ready
+                        document.querySelectorAll('.module-card[href="charakterbogen.html"], .module-card[href="wuerfel.html"]').forEach(card => {
+                            card.classList.add('ready');
+                        });
+                    };
+                    
+                    if (firstLoadGM) {
+                        firstLoadGM = false;
+                        setTimeout(applyGMState, 50);
+                    } else {
+                        applyGMState();
+                    }
+                });
+                return;
+            }
+            
+            // Make charakterbogen and wuerfel ready after animation (always enabled)
+            setTimeout(() => {
+                document.querySelectorAll('.module-card[href="charakterbogen.html"], .module-card[href="wuerfel.html"]').forEach(card => {
+                    card.classList.add('ready');
+                });
+            }, 50);
+            
+            let firstLoad = true;
+            
+            getRef('modules').on('value', (snapshot) => {
+                const modules = snapshot.val() || {};
+                
+                // Update module cards based on state
+                const moduleIds = ['karte', 'whiteboard', 'notizen', 'chat'];
+                
+                const applyState = () => {
+                    moduleIds.forEach(moduleId => {
+                        const enabled = modules[moduleId] !== false; // default to enabled
+                        const card = document.querySelector(`.module-card[href="${moduleId}.html"]`);
+                        
+                        if (card) {
+                            // Remove existing hint if any
+                            const existingHint = card.querySelector('.module-disabled-hint');
+                            if (existingHint) existingHint.remove();
+                            
+                            if (enabled) {
+                                card.classList.remove('disabled', 'gm-disabled');
+                                card.classList.add('ready');
+                                card.style.opacity = '';
+                            } else {
+                                card.classList.add('disabled', 'gm-disabled');
+                                card.classList.remove('ready');
+                                card.style.opacity = '0.5';
+                                
+                                // Add subtle hint
+                                const hint = document.createElement('div');
+                                hint.className = 'module-disabled-hint';
+                                hint.textContent = 'Durch GM deaktiviert';
+                                card.appendChild(hint);
+                            }
+                        }
+                    });
+                };
+                
+                // First load: wait for animation, then apply
+                if (firstLoad) {
+                    firstLoad = false;
+                    setTimeout(applyState, 50);
+                } else {
+                    // Subsequent updates: apply immediately
+                    applyState();
+                }
+            });
+        }
 
         // Update ruleset badge based on GM status
         function updateRulesetBadgeForRole() {
