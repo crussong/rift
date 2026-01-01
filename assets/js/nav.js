@@ -6,6 +6,17 @@
  * Includes slide-in sidebar for mobile navigation.
  */
 
+// ===== SERVICE WORKER REGISTRATION =====
+if ('serviceWorker' in navigator) {
+    // Versuche relativen Pfad zuerst, dann absolut
+    const swPath = location.hostname === 'localhost' || location.protocol === 'file:' 
+        ? './sw.js' 
+        : '/sw.js';
+    navigator.serviceWorker.register(swPath)
+        .then(() => console.log('[SW] Registered'))
+        .catch((err) => console.log('[SW] Registration failed:', err));
+}
+
 // ===== CONFIGURATION =====
 const NAV_CONFIG = {
     HEIGHT_DESKTOP: 60,
@@ -38,6 +49,32 @@ let isSwiping = false;
  * Handle page transition on link click
  */
 function initPageTransitions() {
+    // Prefetch cache to avoid duplicate prefetches
+    const prefetched = new Set();
+    
+    // Prefetch on hover - loads page before click
+    document.addEventListener('mouseover', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
+        
+        const href = link.getAttribute('href');
+        if (!href || 
+            href.startsWith('http') || 
+            href.startsWith('#') || 
+            href.startsWith('javascript:') ||
+            href.startsWith('mailto:') ||
+            prefetched.has(href)) {
+            return;
+        }
+        
+        // Create prefetch link
+        const prefetchLink = document.createElement('link');
+        prefetchLink.rel = 'prefetch';
+        prefetchLink.href = href;
+        document.head.appendChild(prefetchLink);
+        prefetched.add(href);
+    });
+    
     // Add transition to internal links
     document.addEventListener('click', (e) => {
         const link = e.target.closest('a');
@@ -63,10 +100,10 @@ function initPageTransitions() {
         // Add transition out class
         document.body.classList.add('page-transition-out');
         
-        // Navigate after animation
+        // Navigate after animation (schneller: 100ms)
         setTimeout(() => {
             window.location.href = href;
-        }, 200);
+        }, 100);
     });
 }
 
