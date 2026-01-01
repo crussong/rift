@@ -1638,6 +1638,13 @@ function createFooter(containerId = null) {
     function _createFooter() {
         const footer = document.createElement('footer');
         footer.className = 'site-footer';
+        
+        // Auf Login-Seite: fixed am unteren Rand (wegen fixed screens)
+        const isLoginPage = window.location.pathname.includes('login');
+        if (isLoginPage) {
+            footer.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; background: transparent;';
+        }
+        
         footer.innerHTML = `
             <div class="footer-divider"></div>
             <div class="footer-content">
