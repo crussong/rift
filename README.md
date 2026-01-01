@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Skip the setup. Start playing.</strong><br>
-  A lightning-fast, browser-based companion for tabletop RPG sessions.
+  A lightning-fast, browser-based companion for online or offline roleplay sessions.
 </p>
 
 <p align="center">
