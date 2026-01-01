@@ -1,79 +1,170 @@
-# RIFT
-RIFT is a lightweight, browser-based tool for organizing tabletop roleplaying sessions, characters and notes without unnecessary complexity.
+<p align="center">
+  <img src="https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png" alt="RIFT Logo" width="300">
+</p>
 
-![Last commit](https://img.shields.io/github/last-commit/crussong/rift?style=flat)
-![Repo size](https://img.shields.io/github/repo-size/crussong/rift?style=flat)
+<h1 align="center">RIFT – Tabletop Companion</h1>
 
-## Status
+<p align="center">
+  <strong>Skip the setup. Start playing.</strong><br>
+  A lightning-fast, browser-based companion for tabletop RPG sessions.
+</p>
 
-Public repository under active development.
-The project is evolving and not considered feature-complete.
+<p align="center">
+  <a href="https://rift-app.com">
+    <img src="https://img.shields.io/badge/🎲_Try_RIFT_Now-6750a4?style=for-the-badge" alt="Try RIFT">
+  </a>
+</p>
 
-## Project Website
+<p align="center">
+  <img src="https://img.shields.io/github/last-commit/crussong/rift?style=flat-square" alt="Last commit">
+  <img src="https://img.shields.io/github/repo-size/crussong/rift?style=flat-square" alt="Repo size">
+  <img src="https://img.shields.io/badge/status-active_development-brightgreen?style=flat-square" alt="Status">
+  <img src="https://img.shields.io/badge/language-German-blue?style=flat-square" alt="Language">
+</p>
 
-The current version of RIFT can be accessed here:  
-https://rift-app.com
+---
 
-[![Website](https://img.shields.io/badge/Website-rift--app.com-blue)](https://rift-app.com)
+## ⚡ Why RIFT?
 
-## Language Availability
+**Because your session shouldn't wait for your tools.**
 
-RIFT is currently developed and maintained in German.
-The user interface and all in-application text are available in German only. Multilingual support may be added at a later stage.
+Most tabletop apps want you to sign up, configure settings, watch tutorials, and sync accounts before you even roll your first die. RIFT takes a different approach:
 
-## About RIFT
-![alt text](https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png "RIFT logo")
+> **Open → Create Room → Play.** That's it.
 
-RIFT is a lightweight, browser-based application designed to support tabletop roleplaying sessions with minimal setup and maximum immediacy.
+No accounts. No installations. No friction. Just you, your party, and the adventure.
 
-The core idea behind RIFT is a fast game start. Instead of complex configuration, accounts, or preparation steps, the application is ready to use the moment it is opened. All functionality is available locally in the browser, without a backend, build process, or external dependencies. This allows RIFT to be used offline and keeps all data under direct user control.
+---
 
-## Design Philosophy
+## 🚀 Features
 
-RIFT is built around three main principles:
+| Module | Description |
+|--------|-------------|
+| 🎭 **Character Sheets** | Quick-access character management designed for play, not paperwork |
+| 🎲 **Dice Roller** | Instant rolls from D4 to D100 – with satisfying animations and critical hit effects |
+| 💬 **Live Chat** | Real-time group chat with image sharing, reactions, and file uploads |
+| 🗺️ **Interactive Map** | Share and explore maps together with zoom, pan, and markers |
+| 📝 **Notes** | Capture session moments, plot hooks, and ideas on the fly |
+| 🎨 **Whiteboard** | Collaborative drawing space for sketches, tactics, and spontaneous creativity |
 
-- Immediate usability without onboarding or setup
-- Clear separation of features into focused modules
-- Long-term maintainability through simple, transparent technology
+### ✨ Highlights
 
-The application deliberately avoids framework complexity and feature overload in favor of reliability, clarity, and speed.
+- **Instant Room Creation** – Generate a 5-digit code and share it. Done.
+- **Real-time Sync** – Everyone sees dice rolls, chat messages, and whiteboard changes live
+- **GM Tools** – Player management, session timer, module controls, and session logs
+- **Works Everywhere** – Desktop, tablet, mobile. No app install needed.
+- **Offline Capable** – Service Worker caching for blazing fast load times
+- **PWA Ready** – Add to homescreen for an app-like experience
 
-## Screenshots
+---
+
+## 🎮 Getting Started
+
+```
+1. Go to rift-app.com
+2. Create a room (you're the GM) or join with a code
+3. Pick a name and color
+4. Play!
+```
+
+That's not a simplified version. That's actually all there is to it.
+
+---
+
+## 📸 Screenshots
+
 ### Desktop
-<img src="screenshots/desktop1.png" width="200"> <img src="screenshots/desktop2.png" width="200">
-<img src="screenshots/desktop3.png" width="200"> <img src="screenshots/desktop4.png" width="200">
+<p>
+  <img src="screenshots/desktop1.png" width="400">
+  <img src="screenshots/desktop2.png" width="400">
+</p>
+<p>
+  <img src="screenshots/desktop3.png" width="400">
+  <img src="screenshots/desktop4.png" width="400">
+</p>
 
 ### Mobile
-<img src="screenshots/mobile1.png" width="200"> <img src="screenshots/mobile2.png" width="200">
-<img src="screenshots/mobile3.png" width="200"> <img src="screenshots/mobile4.png" width="200">
+<p>
+  <img src="screenshots/mobile1.png" width="200">
+  <img src="screenshots/mobile2.png" width="200">
+  <img src="screenshots/mobile3.png" width="200">
+  <img src="screenshots/mobile4.png" width="200">
+</p>
 
-## Core Modules
+---
 
-### Characters
-The character module provides structured character sheets designed for quick access during play. Information is organized for readability and fast reference, allowing players and game masters to retrieve relevant details without breaking the flow of the session.
+## 🎯 Design Philosophy
 
-### Notes
-The notes module is a lightweight space for freeform text, reminders, and session-related thoughts. It is intentionally unstructured and optimized for fast writing, making it suitable for capturing ideas without interrupting gameplay.
+RIFT is built on three pillars:
 
-### Chat
-The chat module provides a simple in-application communication channel. It is designed for quick exchanges, dice callouts, or short coordination messages without relying on external chat tools.
+### 1. Speed First
+Every interaction is optimized for minimal clicks and instant feedback. Hover-prefetching, service worker caching, and lightweight code ensure the app feels native-fast.
 
-### Dice
-The dice module allows instant in-browser dice rolls without external tools or physical dice. It is built for speed and minimal interaction to support the pacing of live sessions.
+### 2. Zero Friction
+No sign-ups, no tutorials, no configuration wizards. If a feature needs explanation, it's redesigned until it doesn't.
 
-### Whiteboard
-The whiteboard module offers a minimal visual space for sketches, positioning, or quick explanations. It is intentionally kept simple and flexible rather than feature-rich.
+### 3. Focused Simplicity
+Each module does one thing well. No feature bloat, no hidden menus, no "pro tiers". Everything is available to everyone, immediately.
 
-### Map
-The map module provides a lightweight way to reference or display locations relevant to the session. It supports orientation and spatial context without introducing complex mapping workflows.
+---
 
-## Technical Overview
+## 🛠️ Technical Stack
 
-RIFT runs entirely on the client side and is implemented using plain HTML, CSS, and JavaScript. No server, account system, or third-party services are required. All data is stored locally in the browser, enabling offline use and ensuring that session data remains private and fully user-controlled.
+RIFT runs entirely in the browser with no build step required:
 
-## Project Status
+- **Frontend:** Vanilla HTML, CSS, JavaScript
+- **Real-time Sync:** Firebase Realtime Database
+- **Hosting:** Netlify (with automatic pretty URLs)
+- **Domain & DNS:** Cloudflare
+- **PWA:** Service Worker + Web App Manifest
 
-RIFT is an actively developed personal project. Features and structure may evolve over time, with a continued focus on simplicity, fast access, and a frictionless start to play.
+No React. No Vue. No webpack. Just fast, maintainable code that works.
 
-### With help from
-![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=white)![Netlify](https://img.shields.io/badge/netlify-%23000000.svg?style=for-the-badge&logo=netlify&logoColor=#00C7B7)![Firebase](https://img.shields.io/badge/firebase-a08021?style=for-the-badge&logo=firebase&logoColor=ffcd34)![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white)
+---
+
+## 🌍 Language
+
+RIFT is currently available in **German only**. The entire UI, all text, and documentation within the app are in German. International language support may be considered in the future.
+
+---
+
+## 📋 Roadmap
+
+- [x] Core modules (Character, Dice, Chat, Map, Notes, Whiteboard)
+- [x] Real-time multiplayer sync
+- [x] GM tools and session management
+- [x] PWA support
+- [x] Pretty URLs
+- [ ] Multiple rulesets/systems support
+- [ ] Export/Import session data
+- [ ] English language option
+
+---
+
+## 🤝 Built With
+
+<p>
+  <img src="https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=white" alt="Claude">
+  <img src="https://img.shields.io/badge/Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white" alt="Netlify">
+  <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase">
+  <img src="https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare">
+</p>
+
+---
+
+## 📜 License
+
+This project is under active development. License details coming soon.
+
+---
+
+<p align="center">
+  <strong>Ready to roll?</strong><br><br>
+  <a href="https://rift-app.com">
+    <img src="https://img.shields.io/badge/🎲_Start_Playing-6750a4?style=for-the-badge&logoColor=white" alt="Start Playing">
+  </a>
+</p>
+
+<p align="center">
+  <sub>Made with 🎲 for tabletop enthusiasts</sub>
+</p>
