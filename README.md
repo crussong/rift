@@ -28,7 +28,7 @@
 
 **Because your session shouldn't wait for your tools.**
 
-Most tabletop apps want you to sign up, configure settings, watch tutorials, and sync accounts before you even roll your first die. 
+Most tabletop apps want you to sign up, configure settings, watch tutorials, and sync accounts before you even roll your first die.
 RIFT takes a different approach:
 
 > **Open → Create Room → Play.** That's it.
