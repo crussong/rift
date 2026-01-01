@@ -103,6 +103,9 @@ async function initFirebase() {
             initChatUnreadCounter();
             initGlobalDiceClearListener();
             initGlobalTimerListener();
+            
+            // Create GM Options FAB for GMs
+            createGMOptionsFAB();
         } else {
             console.log('[Firebase] Skipping popup listeners (login page or no user)');
         }
@@ -115,6 +118,61 @@ async function initFirebase() {
         isOnline = false;
         return false;
     }
+}
+
+/**
+ * Create GM Options FAB for GMs (called after Firebase init to ensure user data is available)
+ */
+function createGMOptionsFAB() {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const isGmOptionsPage = window.location.pathname.includes('gm-options');
+    const isLoginPage = window.location.pathname.includes('login');
+    
+    if (!user?.isGM || isGmOptionsPage || isLoginPage) {
+        return;
+    }
+    
+    if (document.querySelector('.gm-options-fab')) {
+        return;
+    }
+    
+    const isMobile = window.innerWidth <= 600;
+    const hasOtherFabs = !!document.querySelector('.fly-btn-container');
+    
+    const gmFab = document.createElement('a');
+    gmFab.href = 'gm-options.html';
+    gmFab.className = 'gm-options-fab';
+    gmFab.title = 'GM Optionen';
+    
+    // INLINE STYLES - cannot be overridden
+    gmFab.style.cssText = `
+        position: fixed !important;
+        bottom: ${isMobile ? '16px' : '24px'} !important;
+        right: ${hasOtherFabs ? (isMobile ? '74px' : '88px') : (isMobile ? '16px' : '24px')} !important;
+        width: ${isMobile ? '48px' : '52px'} !important;
+        height: ${isMobile ? '48px' : '52px'} !important;
+        background: #4CAF50 !important;
+        border-radius: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        cursor: pointer !important;
+        text-decoration: none !important;
+        z-index: 1000 !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    `;
+    
+    gmFab.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: ${isMobile ? '22px' : '26px'}; height: ${isMobile ? '22px' : '26px'};">
+            <rect x="2" y="7" width="20" height="14" rx="2"/>
+            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            <line x1="12" y1="12" x2="12" y2="12.01"/>
+        </svg>
+    `;
+    
+    document.body.appendChild(gmFab);
 }
 
 /**
@@ -849,10 +907,14 @@ function createGlobalTimerBox() {
     // Add styles
     const style = document.createElement('style');
     style.id = 'globalTimerStyles';
+    
+    // Check if we're on chat page (needs more space for input)
+    const isChat = window.location.pathname.includes('chat');
+    
     style.textContent = `
         #globalTimerBox {
             position: fixed;
-            bottom: 152px;
+            bottom: ${isChat ? '152px' : '140px'};
             right: 24px;
             z-index: 999;
             display: none;
@@ -869,10 +931,10 @@ function createGlobalTimerBox() {
         }
         
         #globalTimerBox svg {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             color: var(--md-primary, #6750a4);
-            margin-bottom: 1px;
+            margin-bottom: 2px;
         }
         
         .global-timer-value {
@@ -916,15 +978,15 @@ function createGlobalTimerBox() {
         
         @media (max-width: 600px) {
             #globalTimerBox {
-                bottom: 132px;
+                bottom: ${isChat ? '180px' : '122px'};
                 right: 16px;
                 width: 48px;
                 height: 48px;
             }
             
             #globalTimerBox svg {
-                width: 14px;
-                height: 14px;
+                width: 12px;
+                height: 12px;
             }
             
             .global-timer-value {
@@ -933,9 +995,12 @@ function createGlobalTimerBox() {
         }
     `;
     
-    if (!document.getElementById('globalTimerStyles')) {
-        document.head.appendChild(style);
+    // Remove old styles and add new ones (to handle dynamic chat detection)
+    const oldStyle = document.getElementById('globalTimerStyles');
+    if (oldStyle) {
+        oldStyle.remove();
     }
+    document.head.appendChild(style);
     
     document.body.appendChild(box);
     return box;

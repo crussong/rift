@@ -232,6 +232,7 @@ function addFlyButtons(currentPage) {
     };
     
     const buttons = config[currentPage];
+    
     if (!buttons) return; // No buttons for index.html or unknown pages
     
     const container = document.createElement('div');

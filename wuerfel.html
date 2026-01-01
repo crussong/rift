@@ -171,7 +171,7 @@
             top: 80px;
             right: 16px;
             width: 200px;
-            z-index: 50;
+            z-index: 1000;
             animation: slideDown 200ms;
         }
 
@@ -566,6 +566,57 @@
             display: flex;
         }
 
+        /* GM Mode Toggle Buttons */
+        .gm-mode-pills {
+            gap: 8px;
+        }
+
+        .gm-mode-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 200ms ease;
+            border: none;
+        }
+
+        .gm-mode-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .gm-mode-visible {
+            background: rgba(76, 175, 80, 0.15);
+            color: #81C784;
+        }
+
+        .gm-mode-visible.selected {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .gm-mode-visible:hover:not(.selected) {
+            background: rgba(76, 175, 80, 0.25);
+        }
+
+        .gm-mode-secret {
+            background: rgba(244, 67, 54, 0.15);
+            color: #E57373;
+        }
+
+        .gm-mode-secret.selected {
+            background: #f44336;
+            color: white;
+        }
+
+        .gm-mode-secret:hover:not(.selected) {
+            background: rgba(244, 67, 54, 0.25);
+        }
+
         .ctrl-label {
             font-size: 14px;
             font-weight: 500;
@@ -811,35 +862,33 @@
         .dialog-scrim {
             display: none;
             position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 100;
-            align-items: center;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
             justify-content: center;
+            align-items: center;
             padding: 24px;
-            animation: fadeIn 200ms;
         }
 
         .dialog-scrim.active {
-            display: flex;
+            display: flex !important;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .dialog {
-            background: var(--md-surface-container-high);
-            border-radius: var(--shape-xl);
-            box-shadow: var(--elevation-3);
-            min-width: 280px;
-            max-width: 560px;
-            max-height: 90vh;
-            overflow: hidden;
+        .stats-dialog {
+            background: #2b2930;
+            border-radius: 28px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            min-width: 300px;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: visible;
             display: flex;
             flex-direction: column;
-            animation: scaleIn 250ms cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 10001;
         }
 
         @keyframes scaleIn {
@@ -853,35 +902,36 @@
             }
         }
 
-        .dialog-head {
+        .stats-dialog-head {
             padding: 24px 24px 16px;
         }
 
-        .dialog-title {
+        .stats-dialog-title {
             font-size: 24px;
             font-weight: 400;
-            color: var(--md-on-surface);
+            color: #e6e1e5;
             display: flex;
             align-items: center;
             gap: 12px;
         }
 
-        .dialog-content {
+        .stats-dialog-content {
             padding: 0 24px;
             overflow-y: auto;
             flex: 1;
+            color: #e6e1e5;
         }
 
-        .dialog-content::-webkit-scrollbar {
+        .stats-dialog-content::-webkit-scrollbar {
             width: 6px;
         }
 
-        .dialog-content::-webkit-scrollbar-thumb {
-            background: var(--md-outline-variant);
+        .stats-dialog-content::-webkit-scrollbar-thumb {
+            background: #49454f;
             border-radius: 3px;
         }
 
-        .dialog-actions {
+        .stats-dialog-actions {
             padding: 16px 24px 24px;
             display: flex;
             justify-content: flex-end;
@@ -891,7 +941,7 @@
         .stats-sec {
             margin-bottom: 24px;
             padding-bottom: 24px;
-            border-bottom: 1px solid var(--md-outline-variant);
+            border-bottom: 1px solid #49454f;
         }
 
         .stats-sec:last-child {
@@ -905,7 +955,7 @@
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: var(--md-on-surface-variant);
+            color: #cac4d0;
             margin-bottom: 16px;
         }
 
@@ -918,13 +968,13 @@
 
         .stat-name {
             font-size: 14px;
-            color: var(--md-on-surface-variant);
+            color: #cac4d0;
         }
 
         .stat-val {
             font-size: 18px;
             font-weight: 700;
-            color: var(--md-primary);
+            color: #6750a4;
         }
 
         .settings {
@@ -933,7 +983,7 @@
             top: 80px;
             right: 16px;
             width: 280px;
-            z-index: 50;
+            z-index: 1000;
             animation: slideDown 200ms;
         }
 
@@ -1181,9 +1231,15 @@
                 <!-- GM Roll Mode Toggle (nur für GM sichtbar) -->
                 <div class="ctrl-group gm-toggle-group" id="gmToggleGroup">
                     <label class="ctrl-label">Würfel-Modus</label>
-                    <div class="pill-group">
-                        <button class="pill pill-tonal selected" data-gm-mode="secret" onclick="setGMRollMode('secret')">🔒 Geheim</button>
-                        <button class="pill pill-tonal" data-gm-mode="public" onclick="setGMRollMode('public')">👁️ Sichtbar</button>
+                    <div class="pill-group gm-mode-pills">
+                        <button class="gm-mode-btn gm-mode-visible selected" data-gm-mode="public" onclick="setGMRollMode('public')">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                            Sichtbar
+                        </button>
+                        <button class="gm-mode-btn gm-mode-secret" data-gm-mode="secret" onclick="setGMRollMode('secret')">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+                            Geheim
+                        </button>
                     </div>
                 </div>
 
@@ -1231,11 +1287,11 @@
     </div>
 
     <div class="dialog-scrim" id="statsDialog" onclick="toggleStats()">
-        <div class="dialog" onclick="event.stopPropagation()">
-            <div class="dialog-head">
-                <h2 class="dialog-title"><span>◆</span> Statistiken</h2>
+        <div class="stats-dialog" onclick="event.stopPropagation()">
+            <div class="stats-dialog-head">
+                <h2 class="stats-dialog-title"><span>◆</span> Statistiken</h2>
             </div>
-            <div class="dialog-content">
+            <div class="stats-dialog-content">
                 <div class="stats-sec">
                     <div class="stats-label">Allgemein</div>
                     <div class="stat-row">
@@ -1272,7 +1328,7 @@
                     </div>
                 </div>
             </div>
-            <div class="dialog-actions">
+            <div class="stats-dialog-actions">
                 <button class="pill pill-tonal" onclick="resetStats()">Zurücksetzen</button>
                 <button class="pill pill-filled" onclick="toggleStats()">Schließen</button>
             </div>
@@ -2132,7 +2188,7 @@
 
         // ===== FIREBASE SYNC =====
         let isGM = false;
-        let gmRollMode = 'secret'; // 'secret' or 'public'
+        let gmRollMode = 'public'; // 'secret' or 'public' - default visible for GM
 
         // Auth Check
         if (!requireAuth()) {
