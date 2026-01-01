@@ -92,7 +92,7 @@ async function initFirebase() {
         }
         
         // Init popup listeners only if user is logged in (not on login page)
-        const isLoginPage = window.location.pathname.includes('login.html');
+        const isLoginPage = window.location.pathname.includes('login');
         const hasUser = typeof getCurrentUser === 'function' && getCurrentUser() !== null;
         
         if (!isLoginPage && hasUser) {
@@ -103,6 +103,9 @@ async function initFirebase() {
             initChatUnreadCounter();
             initGlobalDiceClearListener();
             initGlobalTimerListener();
+            initPauseListener();
+            initPlayerToastListener();
+            initAutoModuleAccessCheck();
             
             // Create GM Options FAB for GMs
             createGMOptionsFAB();
@@ -127,8 +130,9 @@ function createGMOptionsFAB() {
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     const isGmOptionsPage = window.location.pathname.includes('gm-options');
     const isLoginPage = window.location.pathname.includes('login');
+    const isIndexPage = window.location.pathname.endsWith('/') || window.location.pathname.includes('index');
     
-    if (!user?.isGM || isGmOptionsPage || isLoginPage) {
+    if (!user?.isGM || isGmOptionsPage || isLoginPage || isIndexPage) {
         return;
     }
     
@@ -855,10 +859,11 @@ function updateGlobalTimerDisplay(timer) {
             timerBox.classList.remove('running');
             timerBox.classList.add('expired');
             
-            // Only play sound if we haven't already for this timer
+            // Only play sound and effect if we haven't already for this timer
             if (lastExpiredTimerId !== timerId) {
                 lastExpiredTimerId = timerId;
                 playTimerEndSound();
+                createTimerExpiredEffect();
             }
             
             // Remove timer from Firebase after expiry
@@ -1041,6 +1046,682 @@ function playTimerEndSound() {
 }
 
 /**
+ * Create dramatic timer expired effect
+ */
+function createTimerExpiredEffect() {
+    // Inject styles if needed
+    if (!document.getElementById('timerExpiredStyles')) {
+        const style = document.createElement('style');
+        style.id = 'timerExpiredStyles';
+        style.textContent = `
+            .timer-expired-overlay {
+                position: fixed;
+                inset: 0;
+                background: radial-gradient(circle at center, rgba(244, 67, 54, 0.3) 0%, transparent 70%);
+                z-index: 9998;
+                pointer-events: none;
+                animation: timerExpiredFlash 2s ease-out forwards;
+            }
+            
+            @keyframes timerExpiredFlash {
+                0% { opacity: 0; }
+                10% { opacity: 1; }
+                20% { opacity: 0.5; }
+                30% { opacity: 1; }
+                40% { opacity: 0.5; }
+                50% { opacity: 0.8; }
+                100% { opacity: 0; }
+            }
+            
+            .timer-expired-ring {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                width: 100px;
+                height: 100px;
+                border: 4px solid #f44336;
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 9999;
+                pointer-events: none;
+                animation: timerExpiredRing 1.5s ease-out forwards;
+            }
+            
+            @keyframes timerExpiredRing {
+                0% {
+                    transform: translate(-50%, -50%) scale(0.5);
+                    opacity: 1;
+                    border-width: 8px;
+                }
+                100% {
+                    transform: translate(-50%, -50%) scale(4);
+                    opacity: 0;
+                    border-width: 1px;
+                }
+            }
+            
+            .timer-expired-text {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(0.5);
+                font-size: 48px;
+                font-weight: 700;
+                color: #f44336;
+                text-shadow: 0 0 20px rgba(244, 67, 54, 0.8);
+                z-index: 10000;
+                pointer-events: none;
+                animation: timerExpiredText 2s ease-out forwards;
+            }
+            
+            @keyframes timerExpiredText {
+                0% {
+                    transform: translate(-50%, -50%) scale(0.5);
+                    opacity: 0;
+                }
+                20% {
+                    transform: translate(-50%, -50%) scale(1.2);
+                    opacity: 1;
+                }
+                40% {
+                    transform: translate(-50%, -50%) scale(1);
+                }
+                100% {
+                    transform: translate(-50%, -50%) scale(1);
+                    opacity: 0;
+                }
+            }
+            
+            @media (max-width: 600px) {
+                .timer-expired-text {
+                    font-size: 32px;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Create overlay flash
+    const overlay = document.createElement('div');
+    overlay.className = 'timer-expired-overlay';
+    document.body.appendChild(overlay);
+    
+    // Create expanding ring
+    const ring = document.createElement('div');
+    ring.className = 'timer-expired-ring';
+    document.body.appendChild(ring);
+    
+    // Create "ENDE!" text
+    const text = document.createElement('div');
+    text.className = 'timer-expired-text';
+    text.textContent = 'ENDE!';
+    document.body.appendChild(text);
+    
+    // Remove elements after animation
+    setTimeout(() => {
+        overlay.remove();
+        ring.remove();
+        text.remove();
+    }, 2500);
+}
+
+
+// ===== PAUSE SCREEN FEATURE =====
+
+/**
+ * Initialize global pause listener
+ * Shows pause overlay on all devices when GM activates pause
+ */
+function initPauseListener() {
+    if (!database) return;
+    
+    console.log('[Firebase] Pause listener started');
+    
+    getRef('pause').on('value', (snapshot) => {
+        const pause = snapshot.val();
+        updatePauseOverlay(pause);
+    });
+}
+
+/**
+ * Update pause overlay based on Firebase state
+ */
+function updatePauseOverlay(pause) {
+    let overlay = document.getElementById('pauseOverlay');
+    
+    // Not paused - remove overlay
+    if (!pause || !pause.active) {
+        if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 300);
+        }
+        return;
+    }
+    
+    // Paused - create overlay if not exists
+    if (!overlay) {
+        overlay = createPauseOverlay();
+    }
+    
+    // Update GM controls visibility
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const gmControls = overlay.querySelector('.pause-gm-controls');
+    if (gmControls) {
+        gmControls.style.display = user?.isGM ? 'block' : 'none';
+    }
+    
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+    });
+}
+
+/**
+ * Create pause overlay element
+ */
+function createPauseOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'pauseOverlay';
+    
+    overlay.innerHTML = `
+        <div class="pause-particles" id="pauseParticles"></div>
+        <div class="pause-content">
+            <div class="pause-logo-container">
+                <div class="pause-ripple"></div>
+                <div class="pause-ripple delay-1"></div>
+                <div class="pause-ripple delay-2"></div>
+                <img src="assets/images/logo_rift_emblem_white.png" alt="RIFT" class="pause-logo">
+            </div>
+            <div class="pause-text">Kurze Spielunterbrechung</div>
+            <div class="pause-gm-controls">
+                <button class="pause-resume-btn" onclick="resumeGame()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    Fortsetzen
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Inject styles
+    if (!document.getElementById('pauseOverlayStyles')) {
+        const style = document.createElement('style');
+        style.id = 'pauseOverlayStyles';
+        style.textContent = `
+            #pauseOverlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(19, 18, 21, 0.92);
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 300ms ease;
+                overflow: hidden;
+            }
+            
+            .pause-particles {
+                position: absolute;
+                inset: 0;
+                pointer-events: none;
+                overflow: hidden;
+            }
+            
+            .pause-particle {
+                position: absolute;
+                background: #6750a4;
+                border-radius: 50%;
+                opacity: 0;
+                animation: pauseFloat linear infinite;
+                box-shadow: 0 0 6px #6750a4;
+            }
+            
+            @keyframes pauseFloat {
+                0% {
+                    opacity: 0;
+                    transform: translateY(100vh) scale(0.5);
+                }
+                15% {
+                    opacity: 0.6;
+                }
+                85% {
+                    opacity: 0.6;
+                }
+                100% {
+                    opacity: 0;
+                    transform: translateY(-100px) scale(1);
+                }
+            }
+            
+            .pause-content {
+                text-align: center;
+                color: white;
+                position: relative;
+                z-index: 1;
+            }
+            
+            .pause-logo-container {
+                position: relative;
+                width: 200px;
+                height: 200px;
+                margin: 0 auto 30px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .pause-logo {
+                width: 100px;
+                height: 100px;
+                object-fit: contain;
+                filter: brightness(0) saturate(100%) invert(36%) sepia(60%) saturate(1352%) hue-rotate(224deg) brightness(87%) contrast(91%);
+                animation: pausePulse 2s ease-in-out infinite;
+                position: relative;
+                z-index: 2;
+            }
+            
+            @keyframes pausePulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.08); opacity: 0.85; }
+            }
+            
+            .pause-ripple {
+                position: absolute;
+                width: 100px;
+                height: 100px;
+                border: 2px solid #6750a4;
+                border-radius: 50%;
+                animation: pauseRipple 4s ease-out infinite;
+            }
+            
+            .pause-ripple.delay-1 {
+                animation-delay: 1.3s;
+            }
+            
+            .pause-ripple.delay-2 {
+                animation-delay: 2.6s;
+            }
+            
+            @keyframes pauseRipple {
+                0% {
+                    transform: scale(1);
+                    opacity: 0.5;
+                }
+                100% {
+                    transform: scale(3);
+                    opacity: 0;
+                }
+            }
+            
+            .pause-text {
+                font-size: 22px;
+                font-weight: 500;
+                letter-spacing: 2px;
+                opacity: 0.9;
+                margin-bottom: 40px;
+            }
+            
+            .pause-gm-controls {
+                display: none;
+            }
+            
+            .pause-resume-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                padding: 14px 32px;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 18px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 200ms ease;
+            }
+            
+            .pause-resume-btn:hover {
+                background: #43A047;
+                transform: scale(1.05);
+            }
+            
+            .pause-resume-btn svg {
+                width: 24px;
+                height: 24px;
+            }
+            
+            @media (max-width: 600px) {
+                .pause-logo-container {
+                    width: 160px;
+                    height: 160px;
+                    margin-bottom: 24px;
+                }
+                
+                .pause-logo {
+                    width: 80px;
+                    height: 80px;
+                }
+                
+                .pause-ripple {
+                    width: 80px;
+                    height: 80px;
+                }
+                
+                .pause-text {
+                    font-size: 18px;
+                    letter-spacing: 1px;
+                }
+                
+                .pause-resume-btn {
+                    padding: 12px 24px;
+                    font-size: 16px;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(overlay);
+    
+    // Create particles
+    createPauseParticles();
+    
+    return overlay;
+}
+
+/**
+ * Create floating particles for pause overlay
+ */
+function createPauseParticles() {
+    const container = document.getElementById('pauseParticles');
+    if (!container) return;
+    
+    const particleCount = 30;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'pause-particle';
+        
+        particle.style.left = Math.random() * 100 + '%';
+        
+        const size = 2 + Math.random() * 4;
+        particle.style.width = size + 'px';
+        particle.style.height = size + 'px';
+        
+        const duration = 15 + Math.random() * 20;
+        const delay = Math.random() * 15;
+        particle.style.animationDuration = duration + 's';
+        particle.style.animationDelay = delay + 's';
+        
+        container.appendChild(particle);
+    }
+}
+
+/**
+ * Resume game (GM only) - called from overlay button
+ */
+window.resumeGame = async function() {
+    if (!database) return;
+    
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user?.isGM) return;
+    
+    await getRef('pause').remove();
+    console.log('[Pause] Game resumed by GM');
+};
+
+/**
+ * Pause game (GM only) - called from GM Options
+ */
+window.pauseGame = async function() {
+    if (!database) return;
+    
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user?.isGM) return;
+    
+    await getRef('pause').set({
+        active: true,
+        pausedBy: user.username,
+        pausedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    console.log('[Pause] Game paused by GM');
+};
+
+
+// ===== PLAYER JOIN/LEAVE TOASTS =====
+
+let knownPlayersForToast = new Set();
+let playerToastInitialized = false;
+let pendingLeaveToasts = new Map(); // Track pending leave toasts for debounce
+
+/**
+ * Initialize player join/leave toast notifications
+ */
+function initPlayerToastListener() {
+    if (!database) return;
+    
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return;
+    
+    console.log('[Toast] Player toast listener started');
+    
+    // Inject toast styles
+    injectPlayerToastStyles();
+    
+    getRef('players').on('value', (snapshot) => {
+        const players = snapshot.val() || {};
+        const currentPlayers = new Set(Object.keys(players));
+        
+        // First load - just populate known players
+        if (!playerToastInitialized) {
+            knownPlayersForToast = currentPlayers;
+            playerToastInitialized = true;
+            console.log('[Toast] Initial players:', [...currentPlayers]);
+            return;
+        }
+        
+        // Check for new players (joined)
+        currentPlayers.forEach(playerKey => {
+            if (!knownPlayersForToast.has(playerKey)) {
+                const playerData = players[playerKey];
+                if (playerData && playerData.username !== user.username) {
+                    // Check if this player had a pending leave toast (module switch)
+                    if (pendingLeaveToasts.has(playerKey)) {
+                        // Cancel the leave toast - player just switched modules
+                        clearTimeout(pendingLeaveToasts.get(playerKey));
+                        pendingLeaveToasts.delete(playerKey);
+                        console.log('[Toast] Cancelled leave toast for', playerKey, '- module switch detected');
+                    } else {
+                        // Genuine join
+                        showPlayerToast(playerData.username, playerData.color, 'join');
+                    }
+                }
+            }
+        });
+        
+        // Check for removed players (left) - with delay to detect module switches
+        knownPlayersForToast.forEach(playerKey => {
+            if (!currentPlayers.has(playerKey)) {
+                const playerName = playerKey.replace(/_/g, ' ');
+                if (playerName !== user.username) {
+                    // Set a delayed leave toast - will be cancelled if player rejoins quickly
+                    const timeoutId = setTimeout(() => {
+                        pendingLeaveToasts.delete(playerKey);
+                        showPlayerToast(playerName, '#666', 'leave');
+                    }, 3000); // 3 second delay
+                    
+                    pendingLeaveToasts.set(playerKey, timeoutId);
+                }
+            }
+        });
+        
+        // Update known players
+        knownPlayersForToast = currentPlayers;
+    });
+}
+
+/**
+ * Show player join/leave toast notification
+ */
+function showPlayerToast(username, color, type) {
+    const isJoin = type === 'join';
+    
+    const toast = document.createElement('div');
+    toast.className = `player-toast ${type}`;
+    
+    toast.innerHTML = `
+        <div class="player-toast-avatar" style="background-color: ${color || '#6750a4'}">
+            ${username.charAt(0).toUpperCase()}
+        </div>
+        <div class="player-toast-content">
+            <span class="player-toast-name">${username}</span>
+            <span class="player-toast-action">${isJoin ? 'ist beigetreten' : 'hat den Raum verlassen'}</span>
+        </div>
+        <div class="player-toast-icon">
+            ${isJoin ? 
+                '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>' :
+                '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>'
+            }
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Trigger animation
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+    
+    // Remove after delay
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 3500);
+}
+
+/**
+ * Inject player toast styles
+ */
+function injectPlayerToastStyles() {
+    if (document.getElementById('playerToastStyles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'playerToastStyles';
+    style.textContent = `
+        .player-toast {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--md-surface-container-high, #2b2930);
+            border-radius: 50px;
+            padding: 8px 16px 8px 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 10000;
+            opacity: 0;
+            transition: all 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .player-toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .player-toast.join {
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        
+        .player-toast.leave {
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+        
+        .player-toast-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+        }
+        
+        .player-toast-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .player-toast-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--md-on-surface, #e6e1e5);
+        }
+        
+        .player-toast-action {
+            font-size: 12px;
+            color: var(--md-on-surface-variant, #cac4d0);
+        }
+        
+        .player-toast.join .player-toast-action {
+            color: #4CAF50;
+        }
+        
+        .player-toast.leave .player-toast-action {
+            color: #f44336;
+        }
+        
+        .player-toast-icon {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .player-toast.join .player-toast-icon {
+            color: #4CAF50;
+        }
+        
+        .player-toast.leave .player-toast-icon {
+            color: #f44336;
+        }
+        
+        .player-toast-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        @media (max-width: 600px) {
+            .player-toast {
+                top: 60px;
+                padding: 6px 12px 6px 6px;
+                gap: 8px;
+            }
+            
+            .player-toast-avatar {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+            
+            .player-toast-name {
+                font-size: 13px;
+            }
+            
+            .player-toast-action {
+                font-size: 11px;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+
+/**
  * Show dice roll popup
  */
 function showDicePopup(roll) {
@@ -1100,7 +1781,7 @@ function showDicePopup(roll) {
                 border: 1px solid var(--md-outline-variant, #444);
                 border-radius: 12px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 4.7s forwards;
+                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 2.2s forwards;
                 transition: transform 0.15s ease, box-shadow 0.15s ease;
             }
             
@@ -1181,14 +1862,14 @@ function showDicePopup(roll) {
                 border: 1px solid var(--md-outline-variant, #444);
                 border-radius: 12px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 4.7s forwards;
+                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 2.2s forwards;
                 cursor: pointer;
-                max-width: 280px;
-                transition: transform 0.15s ease;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
             }
             
             .chat-popup:hover {
                 transform: scale(1.02);
+                box-shadow: 0 6px 24px rgba(0,0,0,0.4);
             }
             
             .chat-popup-avatar {
@@ -1198,26 +1879,26 @@ function showDicePopup(roll) {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-weight: 700;
-                font-size: 14px;
                 color: white;
                 flex-shrink: 0;
             }
             
             .chat-popup-content {
-                flex: 1;
-                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
             }
             
             .chat-popup-name {
                 font-size: 12px;
                 color: var(--md-on-surface-variant, #aaa);
-                margin-bottom: 2px;
             }
             
             .chat-popup-message {
-                font-size: 14px;
+                font-size: 16px;
+                font-weight: 600;
                 color: var(--md-on-surface, #e6e1e5);
+                max-width: 180px;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -1233,7 +1914,7 @@ function showDicePopup(roll) {
                 border: 1px solid var(--md-primary, #6750a4);
                 border-radius: 12px;
                 box-shadow: 0 4px 20px rgba(103, 80, 164, 0.3);
-                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 5.7s forwards;
+                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 2.2s forwards;
                 cursor: pointer;
                 transition: transform 0.15s ease;
             }
@@ -1320,10 +2001,128 @@ function showDicePopup(roll) {
     // Play sound
     playPopupNotificationSound();
     
+    // Show crit effects for all players
+    if (roll.critSuccess) {
+        showGlobalCritSuccessEffect();
+    } else if (roll.critFail) {
+        showGlobalCritFailEffect();
+    }
+    
     // Remove after animation
     setTimeout(() => {
         popup.remove();
-    }, 5000);
+    }, 2500);
+}
+
+/**
+ * Show global crit success effect (confetti) for all players
+ */
+function showGlobalCritSuccessEffect() {
+    // Add flash
+    if (!document.getElementById('globalCritStyles')) {
+        const style = document.createElement('style');
+        style.id = 'globalCritStyles';
+        style.textContent = `
+            @keyframes globalCritFlash {
+                0% { opacity: 0; }
+                20% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            @keyframes confettiFall {
+                0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+            }
+            .global-crit-flash {
+                position: fixed;
+                inset: 0;
+                background: radial-gradient(circle at center, rgba(255,215,0,0.4) 0%, rgba(255,165,0,0.2) 50%, transparent 70%);
+                pointer-events: none;
+                z-index: 9998;
+                animation: globalCritFlash 0.8s ease-out forwards;
+            }
+            .global-confetti-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 9999;
+                overflow: hidden;
+            }
+            .global-confetti {
+                position: absolute;
+                top: -10px;
+                width: 10px;
+                height: 10px;
+                animation: confettiFall linear forwards;
+            }
+            .global-confetti.gold { background: #FFD700; }
+            .global-confetti.yellow { background: #FFC107; }
+            .global-confetti.orange { background: #FF9800; }
+            .global-confetti.white { background: #FFFFFF; }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Flash
+    const flash = document.createElement('div');
+    flash.className = 'global-crit-flash';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 800);
+    
+    // Confetti
+    const container = document.createElement('div');
+    container.className = 'global-confetti-container';
+    document.body.appendChild(container);
+    
+    const colors = ['gold', 'yellow', 'orange', 'white'];
+    for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = `global-confetti ${colors[Math.floor(Math.random() * colors.length)]}`;
+        confetti.style.left = Math.random() * 100 + '%';
+        confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+        confetti.style.animationDelay = Math.random() * 0.5 + 's';
+        confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        if (confetti.style.borderRadius === '2px') {
+            confetti.style.width = '8px';
+            confetti.style.height = '14px';
+        }
+        container.appendChild(confetti);
+    }
+    
+    setTimeout(() => container.remove(), 4000);
+}
+
+/**
+ * Show global crit fail effect (red flash) for all players
+ */
+function showGlobalCritFailEffect() {
+    if (!document.getElementById('globalCritFailStyles')) {
+        const style = document.createElement('style');
+        style.id = 'globalCritFailStyles';
+        style.textContent = `
+            @keyframes globalFailFlash {
+                0%, 100% { opacity: 0; }
+                25%, 75% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+            .global-fail-flash {
+                position: fixed;
+                inset: 0;
+                background: radial-gradient(circle at center, rgba(244,67,54,0.3) 0%, rgba(183,28,28,0.15) 50%, transparent 70%);
+                pointer-events: none;
+                z-index: 9998;
+                animation: globalFailFlash 0.6s ease-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    const flash = document.createElement('div');
+    flash.className = 'global-fail-flash';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 600);
 }
 
 /**
@@ -1337,14 +2136,62 @@ function showChatPopup(message) {
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (!user) return;
     
-    // Add animation styles if not present
-    if (!document.getElementById('popupAnimStyles')) {
+    // Add styles if not present
+    if (!document.getElementById('chatPopupStyles')) {
         const style = document.createElement('style');
-        style.id = 'popupAnimStyles';
+        style.id = 'chatPopupStyles';
         style.textContent = `
             @keyframes popupSlideIn {
                 from { transform: translateX(100px); opacity: 0; }
                 to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes popupFadeOut {
+                to { opacity: 0; transform: translateX(50px); }
+            }
+            .chat-popup {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                background: var(--md-surface-container-high, #2d2d30);
+                border: 1px solid var(--md-outline-variant, #444);
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 2.2s forwards;
+                cursor: pointer;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+            .chat-popup:hover {
+                transform: scale(1.02);
+                box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+            }
+            .chat-popup-avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                flex-shrink: 0;
+            }
+            .chat-popup-content {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            .chat-popup-name {
+                font-size: 12px;
+                color: var(--md-on-surface-variant, #aaa);
+            }
+            .chat-popup-message {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--md-on-surface, #e6e1e5);
+                max-width: 180px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
         `;
         document.head.appendChild(style);
@@ -1369,39 +2216,39 @@ function showChatPopup(message) {
     // Support both 'sender' and 'author' field names
     const senderName = message.sender || message.author || 'Spieler';
     const senderColor = message.color || '#6750a4';
-    const msgText = message.text || '';
-    const truncatedMsg = msgText.length > 35 ? msgText.substring(0, 35) + '...' : msgText;
+    
+    // Determine message text based on type
+    let displayMsg = '';
+    let displayIcon = '';
+    if (message.type === 'image' || message.type === 'gallery') {
+        displayMsg = 'Bild geteilt';
+        displayIcon = '<img src="assets/icons/icon_image.png" alt="" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;">';
+    } else if (message.type === 'file') {
+        displayMsg = 'Datei geteilt';
+        displayIcon = '<img src="assets/icons/icon_file.png" alt="" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;">';
+    } else {
+        const msgText = message.text || '';
+        displayMsg = msgText.length > 25 ? msgText.substring(0, 25) + '...' : msgText;
+    }
     
     const popup = document.createElement('div');
-    popup.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        background: #2b2930;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        cursor: pointer;
-        animation: popupSlideIn 0.3s ease;
-        min-width: 200px;
-        max-width: 300px;
-    `;
+    popup.className = 'chat-popup';
     popup.onclick = () => window.location.href = 'chat.html';
     
     popup.innerHTML = `
-        <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: ${senderColor}; border-radius: 50%; font-weight: 700; font-size: 16px; color: white; flex-shrink: 0;">
-            ${senderName.charAt(0).toUpperCase()}
+        <div class="chat-popup-avatar" style="background-color: ${senderColor}">
+            <img src="assets/icons/icon_chat.png" alt="Chat" style="width: 20px; height: 20px;">
         </div>
-        <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 600; font-size: 13px; color: #e6e1e5;">Neue Nachricht</div>
-            <div style="font-size: 12px; color: #cac4d0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncatedMsg}</div>
+        <div class="chat-popup-content">
+            <div class="chat-popup-name">${senderName}</div>
+            <div class="chat-popup-message">${displayIcon}${displayMsg}</div>
         </div>
     `;
     
     container.appendChild(popup);
     playPopupNotificationSound();
     
-    setTimeout(() => popup.remove(), 5000);
+    setTimeout(() => popup.remove(), 2500);
 }
 
 /**
@@ -1414,6 +2261,63 @@ function showWhiteboardPopup() {
     // Don't show popups if user is not logged in (e.g., was kicked)
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (!user) return;
+    
+    // Add styles if not present
+    if (!document.getElementById('whiteboardPopupStyles')) {
+        const style = document.createElement('style');
+        style.id = 'whiteboardPopupStyles';
+        style.textContent = `
+            .whiteboard-popup {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                background: var(--md-surface-container-high, #2d2d30);
+                border: 1px solid var(--md-primary, #6750a4);
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(103, 80, 164, 0.3);
+                animation: popupSlideIn 0.3s ease, popupFadeOut 0.3s ease 2.2s forwards;
+                cursor: pointer;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+            .whiteboard-popup:hover {
+                transform: scale(1.02);
+                box-shadow: 0 6px 24px rgba(103, 80, 164, 0.4);
+            }
+            .whiteboard-popup-avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: var(--md-primary, #6750a4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            .whiteboard-popup-content {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            .whiteboard-popup-name {
+                font-size: 12px;
+                color: var(--md-on-surface-variant, #aaa);
+            }
+            .whiteboard-popup-message {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--md-on-surface, #e6e1e5);
+            }
+            @keyframes popupSlideIn {
+                from { transform: translateX(100px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes popupFadeOut {
+                to { opacity: 0; transform: translateX(50px); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
     let container = document.getElementById('dicePopupContainer');
     if (!container) {
@@ -1432,37 +2336,23 @@ function showWhiteboardPopup() {
     }
     
     const popup = document.createElement('div');
-    popup.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        background: var(--md-surface-container-high, #2b2930);
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        cursor: pointer;
-        animation: slideIn 0.3s ease;
-        min-width: 200px;
-    `;
+    popup.className = 'whiteboard-popup';
     popup.onclick = () => window.location.href = 'whiteboard.html';
     
     popup.innerHTML = `
-        <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--md-primary, #6750a4); border-radius: 8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 18px; height: 18px;">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <path d="M3 9h18"/>
-            </svg>
+        <div class="whiteboard-popup-avatar">
+            <img src="assets/icons/icon_whiteboard.png" alt="Whiteboard" style="width: 20px; height: 20px;">
         </div>
-        <div>
-            <div style="font-weight: 600; font-size: 13px; color: var(--md-on-surface, #e6e1e5);">Whiteboard</div>
-            <div style="font-size: 11px; color: var(--md-on-surface-variant, #cac4d0);">Aktualisiert durch GM</div>
+        <div class="whiteboard-popup-content">
+            <div class="whiteboard-popup-name">Whiteboard</div>
+            <div class="whiteboard-popup-message">Neues Element</div>
         </div>
     `;
     
     container.appendChild(popup);
     playPopupNotificationSound();
     
-    setTimeout(() => popup.remove(), 5000);
+    setTimeout(() => popup.remove(), 2500);
 }
 
 /**
@@ -1639,6 +2529,7 @@ function initWhiteboardPopupListener() {
     whiteboardPopupInitialized = true;
     
     const ref = getRef('whiteboard');
+    let lastElementCount = -1; // -1 = not initialized
     
     ref.on('value', (snapshot) => {
         // Check again if user is still logged in
@@ -1646,19 +2537,25 @@ function initWhiteboardPopupListener() {
         if (!currentUser) return;
         
         const data = snapshot.val();
-        if (!data || !data.updatedAt) return;
+        if (!data) return;
         
-        // Skip if this is the first load or same update
-        if (lastWhiteboardUpdate === 0) {
-            lastWhiteboardUpdate = data.updatedAt;
+        // Count elements
+        const elements = data.elements || [];
+        const currentElementCount = elements.length;
+        
+        // First load - just remember state
+        if (lastElementCount === -1) {
+            lastElementCount = currentElementCount;
             return;
         }
         
-        // Skip if not newer
-        if (data.updatedAt <= lastWhiteboardUpdate) return;
+        // Only show popup if new elements were added
+        if (currentElementCount > lastElementCount) {
+            showWhiteboardPopup();
+        }
         
-        lastWhiteboardUpdate = data.updatedAt;
-        showWhiteboardPopup();
+        // Update tracking
+        lastElementCount = currentElementCount;
     });
 }
 
@@ -1773,6 +2670,10 @@ function initTypingListener() {
  * Play popup notification sound
  */
 function playPopupNotificationSound() {
+    // Check if sound is muted
+    if (typeof isSoundMuted === 'function' && isSoundMuted()) return;
+    if (localStorage.getItem('pnp_sound_muted') === 'true') return;
+    
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
@@ -2262,6 +3163,76 @@ function initGMRequestListener() {
 setTimeout(() => {
     initGMRequestListener();
 }, 2000);
+
+
+// ===== MODULE ACCESS CHECK =====
+
+/**
+ * Auto-detect current page and set up module access listener
+ */
+function initAutoModuleAccessCheck() {
+    const path = window.location.pathname;
+    let moduleId = null;
+    
+    if (path.includes('karte')) moduleId = 'karte';
+    else if (path.includes('whiteboard')) moduleId = 'whiteboard';
+    else if (path.includes('notizen')) moduleId = 'notizen';
+    else if (path.includes('chat')) moduleId = 'chat';
+    
+    if (moduleId) {
+        initModuleAccessListener(moduleId);
+    }
+}
+
+/**
+ * Check if a module is enabled
+ * @param {string} moduleId - Module ID (karte, whiteboard, notizen, chat)
+ * @returns {Promise<boolean>} Whether the module is enabled
+ */
+async function checkModuleAccess(moduleId) {
+    if (!database) return true;
+    
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    
+    // GM always has access
+    if (user?.isGM) return true;
+    
+    try {
+        const snapshot = await getRef(`modules/${moduleId}`).once('value');
+        const enabled = snapshot.val();
+        return enabled !== false; // default to enabled if not set
+    } catch (e) {
+        console.log('[Modules] Error checking access:', e);
+        return true; // default to enabled on error
+    }
+}
+
+/**
+ * Initialize module access listener - redirects if module is disabled
+ * @param {string} moduleId - Module ID to check
+ */
+function initModuleAccessListener(moduleId) {
+    if (!database) return;
+    
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    
+    // GM always has access
+    if (user?.isGM) return;
+    
+    getRef(`modules/${moduleId}`).on('value', (snapshot) => {
+        const enabled = snapshot.val();
+        
+        if (enabled === false) {
+            // Module was disabled - redirect to hub
+            alert('Dieses Modul wurde vom GM deaktiviert.');
+            window.location.href = 'index.html';
+        }
+    });
+}
+
+// Make functions globally available
+window.checkModuleAccess = checkModuleAccess;
+window.initModuleAccessListener = initModuleAccessListener;
 
 
 // ===== EXPORTS =====

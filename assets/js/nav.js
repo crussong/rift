@@ -32,6 +32,48 @@ let touchCurrentX = 0;
 let isSwiping = false;
 
 
+// ===== PAGE TRANSITIONS =====
+
+/**
+ * Handle page transition on link click
+ */
+function initPageTransitions() {
+    // Add transition to internal links
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
+        
+        const href = link.getAttribute('href');
+        
+        // Skip external links, anchors, and javascript: links
+        if (!href || 
+            href.startsWith('http') || 
+            href.startsWith('#') || 
+            href.startsWith('javascript:') ||
+            href.startsWith('mailto:') ||
+            link.target === '_blank') {
+            return;
+        }
+        
+        // Skip if modifier key pressed
+        if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+        
+        e.preventDefault();
+        
+        // Add transition out class
+        document.body.classList.add('page-transition-out');
+        
+        // Navigate after animation
+        setTimeout(() => {
+            window.location.href = href;
+        }, 200);
+    });
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', initPageTransitions);
+
+
 // ===== MAIN FUNCTION =====
 
 /**
@@ -46,7 +88,7 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
     const userColor = user?.color || '#6750a4';
 
     // Detect current module from URL
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const currentPage = window.location.pathname.split('/').pop() || '/';
 
     // Create navbar element
     const navbar = document.createElement('nav');
@@ -139,6 +181,19 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
                 </svg>
                 <span>GM Optionen</span>
             </a>
+            <button class="sidebar-link sidebar-sound-toggle" id="sidebarSoundToggle" onclick="toggleSoundSetting()">
+                <svg id="soundIconOn" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                </svg>
+                <svg id="soundIconOff" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <line x1="23" y1="9" x2="17" y2="15"/>
+                    <line x1="17" y1="9" x2="23" y2="15"/>
+                </svg>
+                <span id="soundToggleText">Sound an</span>
+            </button>
             <button class="sidebar-link sidebar-logout" onclick="handleLogout()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -182,6 +237,9 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
         console.log('[Nav] Could not check GM status:', e);
     }
     
+    // Initialize sound toggle state
+    initSoundToggle();
+    
     // Add body padding
     document.body.style.paddingTop = `${NAV_CONFIG.HEIGHT_DESKTOP}px`;
     
@@ -204,34 +262,37 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
  * - Notizen/Karte/Whiteboard: Chat + Charakterbogen
  */
 function addFlyButtons(currentPage) {
+    // Normalize currentPage - remove .html and leading slash
+    const page = currentPage.replace('.html', '').replace(/^\//, '');
+    
     const config = {
-        'wuerfel.html': [
+        'wuerfel': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
             { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
-        'charakterbogen.html': [
+        'charakterbogen': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
             { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
         ],
-        'chat.html': [
+        'chat': [
             { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' },
             { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
-        'notizen.html': [
+        'notizen': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
             { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
-        'karte.html': [
+        'karte': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
             { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
-        'whiteboard.html': [
+        'whiteboard': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
             { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
         ]
     };
     
-    const buttons = config[currentPage];
+    const buttons = config[page];
     
     if (!buttons) return; // No buttons for index.html or unknown pages
     
@@ -247,7 +308,7 @@ function addFlyButtons(currentPage) {
         if (btn.icon === 'chat') {
             link.id = 'fly-btn-chat';
             link.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <img src="assets/icons/icon_chat.png" alt="Chat" style="width: 24px; height: 24px;">
                 <span class="fly-btn-badge" id="chatUnreadBadge"></span>
             `;
         } else if (btn.icon === 'dice') {
@@ -374,8 +435,28 @@ function setupTouchEvents() {
 
     // Close on escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && sidebarOpen) {
-            closeSidebar();
+        if (e.key === 'Escape') {
+            // Close sidebar
+            if (sidebarOpen) {
+                closeSidebar();
+                return;
+            }
+            
+            // Close any open dropdowns
+            document.querySelectorAll('.theme-dropdown.active, .ruleset-dropdown.open, .hub-theme-dropdown.open').forEach(el => {
+                el.classList.remove('active', 'open');
+            });
+            
+            // Close any open modals/popups
+            document.querySelectorAll('.popup-overlay, .modal-overlay, [class*="modal"].active').forEach(el => {
+                el.remove();
+            });
+            
+            // Close image modal if exists
+            const imgModal = document.getElementById('imageModal');
+            if (imgModal && imgModal.style.display !== 'none') {
+                imgModal.style.display = 'none';
+            }
         }
     });
 }
@@ -386,6 +467,40 @@ function setupTouchEvents() {
 function navigateToHub() {
     window.location.href = 'index.html';
 }
+
+// ===== SOUND SETTINGS =====
+
+function toggleSoundSetting() {
+    const isMuted = localStorage.getItem('pnp_sound_muted') === 'true';
+    const newState = !isMuted;
+    localStorage.setItem('pnp_sound_muted', newState);
+    updateSoundToggleUI(newState);
+}
+
+function updateSoundToggleUI(isMuted) {
+    const iconOn = document.getElementById('soundIconOn');
+    const iconOff = document.getElementById('soundIconOff');
+    const text = document.getElementById('soundToggleText');
+    
+    if (iconOn && iconOff && text) {
+        iconOn.style.display = isMuted ? 'none' : 'block';
+        iconOff.style.display = isMuted ? 'block' : 'none';
+        text.textContent = isMuted ? 'Sound aus' : 'Sound an';
+    }
+}
+
+function initSoundToggle() {
+    const isMuted = localStorage.getItem('pnp_sound_muted') === 'true';
+    updateSoundToggleUI(isMuted);
+}
+
+function isSoundMuted() {
+    return localStorage.getItem('pnp_sound_muted') === 'true';
+}
+
+// Make available globally
+window.toggleSoundSetting = toggleSoundSetting;
+window.isSoundMuted = isSoundMuted;
 
 function handleLogout() {
     if (confirm('Möchtest du dich wirklich ausloggen?')) {
@@ -1169,6 +1284,22 @@ function injectNavStyles() {
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
             text-decoration: none;
+            animation: fabSlideIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+
+        .fly-btn:nth-child(1) { animation-delay: 100ms; }
+        .fly-btn:nth-child(2) { animation-delay: 200ms; }
+        .fly-btn:nth-child(3) { animation-delay: 300ms; }
+
+        @keyframes fabSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .fly-btn:hover {
