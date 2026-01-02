@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Würfel - RIFT</title>
-    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    <link rel="icon" type="image/png" href="assets/icons/icon_favicon.png">
+    <link rel="manifest" href="manifest.json">
     <script>
         // Apply theme immediately to prevent flash
         (function() {
@@ -1326,7 +1327,7 @@
                 </div>
 
                 <div class="ctrl-group">
-                    <label class="ctrl-label">Modifikator <span class="mod-value" id="modDisplay">+0</span></label>
+                    <label class="ctrl-label" data-i18n="dice.modifier">Modifikator</label> <span class="mod-value" id="modDisplay">+0</span>
                     <div class="pill-group">
                         <button class="pill pill-tonal" data-mod="-20">-20</button>
                         <button class="pill pill-tonal" data-mod="-10">-10</button>
@@ -1338,14 +1339,14 @@
                     </div>
                 </div>
 
-                <button class="pill pill-filled roll-btn" onclick="rollDice()">Würfeln</button>
+                <button class="pill pill-filled roll-btn" onclick="rollDice()" data-i18n="dice.roll">Würfeln</button>
             </div>
         </div>
 
         <div class="sidebar">
             <div class="card sidebar-card">
                 <div class="card-head">
-                    <span class="card-title">≡ Historie</span>
+                    <span class="card-title">≡ <span data-i18n="dice.history">Historie</span></span>
                     <button class="pill pill-error" style="height: 32px; padding: 0 16px; font-size: 16px;" onclick="clearHistory()">
                         ↻
                     </button>
@@ -1358,41 +1359,41 @@
     <div class="dialog-scrim" id="statsDialog" onclick="toggleStats()">
         <div class="stats-dialog" onclick="event.stopPropagation()">
             <div class="stats-dialog-head">
-                <h2 class="stats-dialog-title"><span>◆</span> Statistiken</h2>
+                <h2 class="stats-dialog-title"><span>◆</span> <span data-i18n="dice.statistics">Statistiken</span></h2>
             </div>
             <div class="stats-dialog-content">
                 <div class="stats-sec">
-                    <div class="stats-label">Allgemein</div>
+                    <div class="stats-label" data-i18n="dice.general">Allgemein</div>
                     <div class="stat-row">
-                        <span class="stat-name">Gesamtwürfe</span>
+                        <span class="stat-name" data-i18n="dice.total_rolls">Gesamtwürfe</span>
                         <span class="stat-val" id="statTotal">0</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-name">Durchschnitt</span>
+                        <span class="stat-name" data-i18n="dice.average">Durchschnitt</span>
                         <span class="stat-val" id="statAvg">0</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-name">Höchster Wurf</span>
+                        <span class="stat-name" data-i18n="dice.highest">Höchster Wurf</span>
                         <span class="stat-val" id="statHigh">0</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-name">Niedrigster Wurf</span>
+                        <span class="stat-name" data-i18n="dice.lowest">Niedrigster Wurf</span>
                         <span class="stat-val" id="statLow">0</span>
                     </div>
                 </div>
 
                 <div class="stats-sec">
-                    <div class="stats-label">Kritische Würfe</div>
+                    <div class="stats-label" data-i18n="dice.critical_rolls">Kritische Würfe</div>
                     <div class="stat-row">
-                        <span class="stat-name">Kritische Erfolge</span>
+                        <span class="stat-name" data-i18n="dice.crit_success">Kritische Erfolge</span>
                         <span class="stat-val" id="statCritSuccess">0</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-name">Kritische Fehlschläge</span>
+                        <span class="stat-name" data-i18n="dice.crit_fail">Kritische Fehlschläge</span>
                         <span class="stat-val" id="statCritFail">0</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-name">Glücksrate</span>
+                        <span class="stat-name" data-i18n="dice.luck_rate">Glücksrate</span>
                         <span class="stat-val" id="statLuck">0%</span>
                     </div>
                 </div>
@@ -1411,16 +1412,11 @@
                 <input type="range" class="slider" id="speedSlider" min="500" max="3000" value="2000" step="100">
                 <div class="slider-val" id="speedValue">2.0s</div>
             </div>
-
-            <div class="setting">
-                <div class="switch-row" onclick="toggleSound()">
-                    <span class="setting-label" style="margin: 0;">Sound-Effekte</span>
-                    <div class="switch active" id="soundSwitch"></div>
-                </div>
-            </div>
         </div>
     </div>
 
+    <script src="assets/js/lang.js"></script>
+    <script src="assets/js/i18n.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/firebase-sync.js"></script>
     <script src="assets/js/nav.js"></script>
@@ -1555,7 +1551,7 @@
         let tickPatternIndex = 0;
 
         function playTone(freq, dur, type = 'sine', sweepTo = null) {
-            if (!soundEnabled) return;
+            if (isSoundMuted()) return;
 
             const actualFreq = typeof freq === 'function' ? freq() : freq;
 
@@ -1617,7 +1613,6 @@
         let modifier = 0;
         let isRolling = false;
         let remoteRollingActive = false;
-        let soundEnabled = true;
         let animDuration = 2000;
         let currentPlayer = 'Spieler';
         let playerColor = '#6750a4';
@@ -2311,11 +2306,6 @@
             settings.classList.toggle('active');
         }
 
-        function toggleSound() {
-            soundEnabled = !soundEnabled;
-            document.getElementById('soundSwitch').classList.toggle('active');
-        }
-
         function updateDisplay() {
             updateHistoryDisplay();
             updatePlayerList();
@@ -2324,13 +2314,13 @@
 
         // Initialize Navigation mit Module-Tools
         const moduleTools = `
-            <button class="icon-btn" onclick="toggleSoundMenu()" title="Sound">
+            <button class="icon-btn" onclick="toggleSoundMenu()" title="${t('dice.sound')}">
                 <img src="assets/icons/icon_soundpick.png" alt="Sound">
             </button>
-            <button class="icon-btn" onclick="toggleStats()" title="Statistiken">
+            <button class="icon-btn" onclick="toggleStats()" title="${t('dice.statistics')}">
                 <img src="assets/icons/icon_stats.png" alt="Stats">
             </button>
-            <button class="icon-btn" onclick="toggleSettings()" title="Einstellungen">
+            <button class="icon-btn" onclick="toggleSettings()" title="${t('settings')}">
                 <img src="assets/icons/icon_settings.png" alt="Settings">
             </button>
         `;
@@ -2343,7 +2333,7 @@
         if (!requireAuth()) {
             // Redirect to login
         } else {
-            createNavigationBar('Würfel', moduleTools);
+            createNavigationBar(t('module.dice'), moduleTools);
             init();
             
             // Check if GM and show toggle

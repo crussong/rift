@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Charakterbogen - PnP Companion</title>
     <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
-    <link rel="icon" type="image/png" href="assets/images/logo_rift_emblem_white.png">
+    <link rel="icon" type="image/png" href="assets/icons/icon_favicon.png">
+    <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <style>
         /* Module-specific styles only */
 
@@ -152,7 +154,7 @@
         .jolly-container {
             position: relative;
             width: 200px;
-            height: 115px;
+            height: 120px;
         }
 
         .jolly-preview {
@@ -1735,13 +1737,261 @@
                 page-break-inside: avoid;
             }
         }
+
+        /* ===== IMAGE CROPPER MODAL ===== */
+        .crop-dialog-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .crop-dialog-overlay.active {
+            display: flex;
+            animation: fadeIn 200ms ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .crop-dialog {
+            background: var(--md-surface-container);
+            border-radius: 24px;
+            max-width: 480px;
+            width: 100%;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            animation: slideUp 250ms ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .crop-dialog-header {
+            padding: 20px 24px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .crop-dialog-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+            letter-spacing: -0.3px;
+        }
+
+        .crop-dialog-close {
+            background: none;
+            border: none;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            padding: 8px;
+            margin: -8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 200ms;
+        }
+
+        .crop-dialog-close:hover {
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface);
+        }
+
+        .crop-dialog-body {
+            flex: 1;
+            overflow: hidden;
+            background: var(--md-surface-container-lowest, #0f0f0f);
+            min-height: 300px;
+            max-height: 50vh;
+            position: relative;
+            margin: 0 16px;
+            border-radius: 16px;
+        }
+
+        .crop-dialog-body img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .crop-dialog-footer {
+            padding: 20px 24px 24px;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .crop-dialog-btn {
+            padding: 12px 24px;
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 200ms;
+            font-family: inherit;
+        }
+
+        .crop-dialog-btn-cancel {
+            background: var(--md-surface-container-high);
+            border: none;
+            color: var(--md-on-surface);
+        }
+
+        .crop-dialog-btn-cancel:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        .crop-dialog-btn-confirm {
+            background: var(--md-primary);
+            border: none;
+            color: var(--md-on-primary);
+        }
+
+        .crop-dialog-btn-confirm:hover {
+            filter: brightness(1.15);
+        }
+
+        /* ===== CROPPER.JS STYLING ===== */
+        /* Crop-Box Rahmen */
+        .crop-dialog-body .cropper-view-box {
+            outline: 2px solid var(--md-primary) !important;
+            outline-offset: -2px !important;
+        }
+
+        .crop-dialog-body .cropper-face {
+            background-color: transparent !important;
+        }
+
+        /* Verstecke das karierte Standard-Muster */
+        .crop-dialog-body .cropper-bg {
+            background-image: none !important;
+        }
+
+        /* Dashed Lines innerhalb der Crop-Box - dezenter */
+        .crop-dialog-body .cropper-dashed {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        /* Resize-Linien an den Kanten */
+        .crop-dialog-body .cropper-line {
+            background-color: var(--md-primary) !important;
+        }
+
+        /* Eck-Handles */
+        .crop-dialog-body .cropper-point {
+            background-color: var(--md-primary) !important;
+            width: 12px !important;
+            height: 12px !important;
+            border-radius: 50% !important;
+            opacity: 1 !important;
+            border: 2px solid #fff !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .crop-dialog-body .cropper-point.point-e,
+        .crop-dialog-body .cropper-point.point-w,
+        .crop-dialog-body .cropper-point.point-n,
+        .crop-dialog-body .cropper-point.point-s {
+            display: none !important;
+        }
+
+        .crop-dialog-body .cropper-point.point-nw {
+            left: -6px !important;
+            top: -6px !important;
+        }
+        .crop-dialog-body .cropper-point.point-ne {
+            right: -6px !important;
+            top: -6px !important;
+        }
+        .crop-dialog-body .cropper-point.point-sw {
+            left: -6px !important;
+            bottom: -6px !important;
+        }
+        .crop-dialog-body .cropper-point.point-se {
+            right: -6px !important;
+            bottom: -6px !important;
+        }
+
+        /* Center-Indicator verstecken */
+        .crop-dialog-body .cropper-center {
+            display: none !important;
+        }
+
+        /* Drag-Box - nicht überschreiben */
+        .crop-dialog-body .cropper-crop-box {
+            border-radius: 0 !important;
+        }
+
+        @media (max-width: 600px) {
+            .crop-dialog {
+                max-width: 100%;
+                max-height: 90vh;
+                border-radius: 20px;
+                margin: 8px;
+            }
+
+            .crop-dialog-body {
+                min-height: 250px;
+                margin: 0 12px;
+                border-radius: 12px;
+            }
+
+            .crop-dialog-header {
+                padding: 16px 20px 12px;
+            }
+
+            .crop-dialog-footer {
+                padding: 16px 20px 20px;
+                flex-direction: column;
+            }
+
+            .crop-dialog-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Image Cropper Modal -->
+    <div class="crop-dialog-overlay" id="cropperModal">
+        <div class="crop-dialog">
+            <div class="crop-dialog-header">
+                <span class="crop-dialog-title" id="cropperTitle" data-i18n="char.crop_portrait">Porträt zuschneiden</span>
+                <button class="crop-dialog-close" onclick="closeCropper()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="crop-dialog-body">
+                <img id="cropperImage" src="" alt="Crop preview">
+            </div>
+            <div class="crop-dialog-footer">
+                <button class="crop-dialog-btn crop-dialog-btn-cancel" onclick="closeCropper()" data-i18n="common.cancel">Abbrechen</button>
+                <button class="crop-dialog-btn crop-dialog-btn-confirm" onclick="confirmCrop()" data-i18n="char.confirm_crop">Ausschnitt bestätigen</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <!-- RULESET BOX -->
         <div class="ruleset-box">
-            <span class="ruleset-label">Aktuelles Abenteuer:</span>
+            <span class="ruleset-label" data-i18n="char.current_adventure">Aktuelles Abenteuer:</span>
             <img src="assets/icons/icon_ruleset_rumundrache.svg" alt="Regelwerk" class="ruleset-icon" id="ruleset-icon">
             <span class="ruleset-name" id="ruleset-name">Rum & Rache</span>
         </div>
@@ -1752,19 +2002,19 @@
                 <div class="portrait-preview" id="portrait-preview" onclick="togglePortraitControls()">
                     <div class="portrait-placeholder" id="portrait-placeholder">
                         <img src="assets/icons/icon_fileupload.png" alt="Upload" style="width: 32px; height: 32px; opacity: 0.7;">
-                        <div>Portrait hochladen</div>
-                        <div style="font-size: 12px; margin-top: 8px;">Max. 400x400px</div>
+                        <div data-i18n="char.upload_portrait">Portrait hochladen</div>
+                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Max. 5 MB</div>
                     </div>
                 </div>
                 <div class="portrait-controls" id="portrait-controls">
-                    <button class="portrait-btn change" onclick="openFileDialog(event)" title="Bild ändern">
+                    <button class="portrait-btn change" onclick="openFileDialog(event)" data-i18n-title="char.change_image" title="Bild ändern">
                         <img src="assets/icons/icon_image.png" alt="Ändern">
                     </button>
-                    <button class="portrait-btn remove" id="portrait-remove" onclick="removePortrait(event)" title="Bild entfernen">
+                    <button class="portrait-btn remove" id="portrait-remove" onclick="removePortrait(event)" data-i18n-title="char.remove_image" title="Bild entfernen">
                         <img src="assets/icons/icon_delete.png" alt="Löschen">
                     </button>
                 </div>
-                <input type="file" id="portrait-input" class="portrait-upload-input" accept="image/*" onchange="handlePortraitUpload(event)">
+                <input type="file" id="portrait-input" class="portrait-upload-input" accept="image/jpeg,image/png,image/webp,image/gif" onchange="handlePortraitUpload(event)">
             </div>
             
             <!-- Trennlinie -->
@@ -1776,24 +2026,24 @@
                     <div class="jolly-preview" id="jolly-preview" onclick="toggleJollyControls()">
                         <div class="jolly-placeholder" id="jolly-placeholder">
                             <img src="assets/icons/icon_fileupload.png" alt="Upload" style="width: 24px; height: 24px; opacity: 0.7;">
-                            <div>Jolly Roger</div>
-                            <div style="font-size: 11px; margin-top: 4px;">Max. 400x230px</div>
+                            <div data-i18n="char.jolly_roger">Jolly Roger</div>
+                            <div style="font-size: 11px; margin-top: 4px; opacity: 0.7;">Max. 5 MB</div>
                         </div>
                     </div>
                     <div class="jolly-controls" id="jolly-controls">
-                        <button class="portrait-btn change" onclick="openJollyDialog(event)" title="Bild ändern">
+                        <button class="portrait-btn change" onclick="openJollyDialog(event)" data-i18n-title="char.change_image" title="Bild ändern">
                             <img src="assets/icons/icon_image.png" alt="Ändern">
                         </button>
-                        <button class="portrait-btn remove" id="jolly-remove" onclick="removeJolly(event)" title="Bild entfernen">
+                        <button class="portrait-btn remove" id="jolly-remove" onclick="removeJolly(event)" data-i18n-title="char.remove_image" title="Bild entfernen">
                             <img src="assets/icons/icon_delete.png" alt="Löschen">
                         </button>
                     </div>
-                    <input type="file" id="jolly-input" class="portrait-upload-input" accept="image/*" onchange="handleJollyUpload(event)">
+                    <input type="file" id="jolly-input" class="portrait-upload-input" accept="image/jpeg,image/png,image/webp,image/gif" onchange="handleJollyUpload(event)">
                 </div>
                 
                 <!-- Crew Input -->
                 <div class="crew-input-container">
-                    <input type="text" class="crew-input" id="char-crew" placeholder="Name der Piraten-Crew...">
+                    <input type="text" class="crew-input" id="char-crew" data-i18n-placeholder="char.crew_placeholder" placeholder="Name der Piraten-Crew...">
                 </div>
             </div>
         </div>
@@ -1803,27 +2053,27 @@
             <div class="header-grid">
                 <div class="input-row">
                     <div class="input-group">
-                        <label>Name</label>
-                        <input type="text" class="input-field" id="char-name" placeholder="Dein Charaktername...">
+                        <label data-i18n="char.name">Name</label>
+                        <input type="text" class="input-field" id="char-name" data-i18n-placeholder="char.name_placeholder" placeholder="Dein Charaktername...">
                     </div>
                     <div class="input-group">
-                        <label>Geschlecht</label>
-                        <input type="text" class="input-field" id="char-gender" placeholder="z.B. Männlich, Weiblich...">
+                        <label data-i18n="char.gender">Geschlecht</label>
+                        <input type="text" class="input-field" id="char-gender" data-i18n-placeholder="char.gender_placeholder" placeholder="z.B. Männlich, Weiblich...">
                     </div>
                 </div>
                 <div class="input-row">
                     <div class="input-group">
-                        <label>Alter</label>
-                        <input type="text" class="input-field" id="char-age" placeholder="z.B. 25 Jahre">
+                        <label data-i18n="char.age">Alter</label>
+                        <input type="text" class="input-field" id="char-age" data-i18n-placeholder="char.age_placeholder" placeholder="z.B. 25 Jahre">
                     </div>
                     <div class="input-group">
-                        <label>Rolle in der Crew</label>
-                        <input type="text" class="input-field" id="char-role" placeholder="z.B. Kapitän, Navigator...">
+                        <label data-i18n="char.role">Rolle in der Crew</label>
+                        <input type="text" class="input-field" id="char-role" data-i18n-placeholder="char.role_placeholder" placeholder="z.B. Kapitän, Navigator...">
                     </div>
                 </div>
                 <div class="input-group">
-                    <label>Aussehen</label>
-                    <input type="text" class="input-field" id="char-aussehen" placeholder="z.B. 1.80m, athletisch, blaue Augen...">
+                    <label data-i18n="char.appearance">Aussehen</label>
+                    <input type="text" class="input-field" id="char-aussehen" data-i18n-placeholder="char.appearance_placeholder" placeholder="z.B. 1.80m, athletisch, blaue Augen...">
                 </div>
             </div>
         </div>
@@ -1831,7 +2081,7 @@
         <!-- FOKUS SYSTEM -->
         <div class="fokus-section">
             <div class="fokus-header">
-                <label>Fokus</label>
+                <label data-i18n="char.focus">Fokus</label>
             </div>
             <div class="fokus-grid" id="fokusGrid">
                 <!-- Desktop: Icon card (hidden on mobile) -->
@@ -1849,14 +2099,14 @@
                 </div>
                 <div class="fokus-ability-card" id="fokusAbility1">
                     <div class="fokus-ability-content">
-                        <span class="fokus-ability-placeholder">Fähigkeit 1</span>
+                        <span class="fokus-ability-placeholder" data-i18n="char.ability_1">Fähigkeit 1</span>
                         <span class="fokus-ability-name"></span>
                         <span class="fokus-ability-desc-small"></span>
                     </div>
                 </div>
                 <div class="fokus-ability-card" id="fokusAbility2">
                     <div class="fokus-ability-content">
-                        <span class="fokus-ability-placeholder">Fähigkeit 2</span>
+                        <span class="fokus-ability-placeholder" data-i18n="char.ability_2">Fähigkeit 2</span>
                         <span class="fokus-ability-name"></span>
                         <span class="fokus-ability-desc-small"></span>
                     </div>
@@ -1874,7 +2124,7 @@
         <!-- STATS -->
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card leben" id="lebenCard">
-                <div class="stat-label">Lebenspunkte</div>
+                <div class="stat-label" data-i18n="char.health">Lebenspunkte</div>
                 <div class="stat-input-group">
                     <input type="number" class="stat-input" id="leben-current" value="100" min="0" max="100">
                     <span class="stat-separator">/</span>
@@ -1886,7 +2136,7 @@
             </div>
 
             <div class="stat-card moral" id="moralCard">
-                <div class="stat-label">Moral</div>
+                <div class="stat-label" data-i18n="char.morale">Moral</div>
                 <div class="stat-input-group">
                     <input type="number" class="stat-input" id="moral-current" value="100" min="0" max="100">
                     <span class="stat-separator">/</span>
@@ -1898,7 +2148,7 @@
             </div>
 
             <div class="stat-card resonanz" id="resonanzCard">
-                <div class="stat-label">Resonanz</div>
+                <div class="stat-label" data-i18n="char.resonance">Resonanz</div>
                 <div class="stat-input-group">
                     <input type="number" class="stat-input" id="resonanz-value" value="0" min="0" max="100">
                     <span class="stat-separator">%</span>
@@ -1911,13 +2161,13 @@
 
         <!-- GLOBAL POINTS COUNTER - SINGLE LINE -->
         <div class="global-points-header" id="global-points-header">
-            <div class="global-points-title">Punkteübersicht</div>
+            <div class="global-points-title" data-i18n="char.points_overview">Punkteübersicht</div>
             <div class="global-points-info">
                 <div class="global-counter">
-                    Vergeben: <strong id="global-used">0</strong>
+                    <span data-i18n="char.points_used">Vergeben:</span> <strong id="global-used">0</strong>
                 </div>
                 <div class="global-counter global-points-remaining" id="global-remaining-container">
-                    Verbleibend: <strong id="global-remaining">500</strong>
+                    <span data-i18n="char.points_remaining">Verbleibend:</span> <strong id="global-remaining">500</strong>
                 </div>
             </div>
         </div>
@@ -1925,9 +2175,9 @@
         <!-- TABS: BEGABUNGEN WERTE -->
         <div class="tabs-container">
             <div class="tabs-header">
-                <button class="tab-btn active" data-tab="handeln">Handeln</button>
-                <button class="tab-btn" data-tab="wissen">Wissen</button>
-                <button class="tab-btn" data-tab="soziales">Soziales</button>
+                <button class="tab-btn active" data-tab="handeln" data-i18n="char.tab_action">Handeln</button>
+                <button class="tab-btn" data-tab="wissen" data-i18n="char.tab_knowledge">Wissen</button>
+                <button class="tab-btn" data-tab="soziales" data-i18n="char.tab_social">Soziales</button>
             </div>
 
             <!-- HANDELN TAB -->
@@ -1936,7 +2186,7 @@
                     <div class="category-final-value" id="handeln-final">0</div>
                 </div>
                 <div class="skills-grid" id="skills-handeln"></div>
-                <button class="add-skill-btn" onclick="addSkillRow('handeln')" title="Weitere Begabung hinzufügen">
+                <button class="add-skill-btn" onclick="addSkillRow('handeln')" data-i18n-title="char.add_skill" title="Weitere Begabung hinzufügen">
                     <span>+</span>
                 </button>
             </div>
@@ -1958,7 +2208,7 @@
                     <div class="category-final-value" id="soziales-final">0</div>
                 </div>
                 <div class="skills-grid" id="skills-soziales"></div>
-                <button class="add-skill-btn" onclick="addSkillRow('soziales')" title="Weitere Begabung hinzufügen">
+                <button class="add-skill-btn" onclick="addSkillRow('soziales')" data-i18n-title="char.add_skill" title="Weitere Begabung hinzufügen">
                     <span>+</span>
                 </button>
             </div>
@@ -1966,15 +2216,15 @@
 
         <!-- HILFE BUTTON -->
         <div class="help-btn-container">
-            <button class="help-btn" onclick="toggleHelpDialog()" title="Begabungen-Hilfe">
+            <button class="help-btn" onclick="toggleHelpDialog()" data-i18n-title="char.skills_help" title="Begabungen-Hilfe">
                 <img src="assets/icons/icon_help.png" alt="Hilfe">
-                <span>Begabungen-Hilfe</span>
+                <span data-i18n="char.skills_help">Begabungen-Hilfe</span>
             </button>
         </div>
 
         <!-- ZWEITE CHANCE -->
         <div class="zweite-chance">
-            <h3>Zweite Chance</h3>
+            <h3 data-i18n="char.second_chance">Zweite Chance</h3>
             <div class="dice-checks">
                 <div class="dice-check">
                     <div class="dice-icon" data-dice="1">
@@ -1996,38 +2246,38 @@
 
         <!-- INVENTAR -->
         <div class="inventar-section">
-            <h3>Inventar</h3>
+            <h3 data-i18n="char.inventory">Inventar</h3>
             <div class="currency-field">
-                <label class="currency-label">Währung</label>
+                <label class="currency-label" data-i18n="char.currency">Währung</label>
                 <div class="currency-input-group">
-                    <input type="text" inputmode="numeric" pattern="[0-9.]*" class="input-field currency-input" id="char-currency" placeholder="Menge eingeben" oninput="formatCurrency(this)">
-                    <button class="currency-type-btn" id="currency-type-btn" onclick="rotateCurrencyType()" title="Währungstyp wechseln">
+                    <input type="text" inputmode="numeric" pattern="[0-9.]*" class="input-field currency-input" id="char-currency" data-i18n-placeholder="char.currency_placeholder" placeholder="Menge eingeben" oninput="formatCurrency(this)">
+                    <button class="currency-type-btn" id="currency-type-btn" onclick="rotateCurrencyType()" data-i18n-title="char.change_currency" title="Währungstyp wechseln">
                         <img src="assets/icons/icon_dollar.png" alt="Währung" id="currency-icon">
                     </button>
                 </div>
             </div>
-            <textarea class="input-field inventar-textarea" id="char-inventar" placeholder="Trage hier dein Inventar ein..."></textarea>
+            <textarea class="input-field inventar-textarea" id="char-inventar" data-i18n-placeholder="char.inventory_placeholder" placeholder="Trage hier dein Inventar ein..."></textarea>
         </div>
 
         <!-- CHARACTER FILE DOWNLOAD/UPLOAD -->
         <div class="character-file-actions">
-            <h3>Charakterbogen verwalten</h3>
+            <h3 data-i18n="char.manage">Charakterbogen verwalten</h3>
             <div class="file-action-buttons">
                 <button class="file-action-btn" onclick="downloadCharacter()">
                     <img src="assets/icons/icon_filedownload.png" alt="Download">
-                    <span>JSON herunterladen</span>
+                    <span data-i18n="char.download_json">JSON herunterladen</span>
                 </button>
                 <button class="file-action-btn" onclick="document.getElementById('char-upload-input').click()">
                     <img src="assets/icons/icon_fileupload.png" alt="Upload">
-                    <span>JSON hochladen</span>
+                    <span data-i18n="char.upload_json">JSON hochladen</span>
                 </button>
                 <button class="file-action-btn" onclick="exportAsPDF()">
                     <img src="assets/icons/icon_filedownload.png" alt="PDF">
-                    <span>Als PDF drucken</span>
+                    <span data-i18n="char.export_pdf">Als PDF drucken</span>
                 </button>
                 <button class="file-action-btn danger" onclick="resetCharacter()">
                     <img src="assets/icons/icon_delete.png" alt="Reset">
-                    <span>Zurücksetzen</span>
+                    <span data-i18n="char.reset">Zurücksetzen</span>
                 </button>
             </div>
             <input type="file" id="char-upload-input" class="char-upload-input" accept=".json" onchange="uploadCharacter(event)">
@@ -2044,21 +2294,21 @@
 
     <!-- SAVE INDICATOR -->
     <div class="save-indicator" id="save-indicator">
-        <img src="assets/icons/icon_save.png" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;filter:brightness(0) invert(1);"> Gespeichert
+        <img src="assets/icons/icon_save.png" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;filter:brightness(0) invert(1);"> <span data-i18n="char.saved">Gespeichert</span>
     </div>
 
     <!-- HELP DIALOG -->
     <div class="help-dialog-scrim" id="helpDialog" onclick="if(event.target === this) toggleHelpDialog()">
         <div class="help-dialog" onclick="event.stopPropagation()">
             <div class="help-dialog-head">
-                <h2 class="help-dialog-title">Begabungen - Beispiele</h2>
+                <h2 class="help-dialog-title" data-i18n="char.skills_examples">Begabungen - Beispiele</h2>
                 <button class="help-close-btn" onclick="toggleHelpDialog()">×</button>
             </div>
             <div class="help-dialog-content">
                 <div class="help-tabs">
-                    <button class="help-tab-btn active" data-help-tab="handeln">Handeln</button>
-                    <button class="help-tab-btn" data-help-tab="wissen">Wissen</button>
-                    <button class="help-tab-btn" data-help-tab="soziales">Soziales</button>
+                    <button class="help-tab-btn active" data-help-tab="handeln" data-i18n="char.tab_action">Handeln</button>
+                    <button class="help-tab-btn" data-help-tab="wissen" data-i18n="char.tab_knowledge">Wissen</button>
+                    <button class="help-tab-btn" data-help-tab="soziales" data-i18n="char.tab_social">Soziales</button>
                 </div>
 
                 <!-- HANDELN EXAMPLES -->
@@ -2088,8 +2338,11 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
     <!-- AUTH & NAVIGATION -->
+    <script src="assets/js/lang.js"></script>
+    <script src="assets/js/i18n.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/firebase-sync.js"></script>
     <script src="assets/js/nav.js"></script>
@@ -2099,8 +2352,168 @@
 
         requireAuth();
 
+        // ===== IMAGE CROPPER =====
+        let cropper = null;
+        let cropperTarget = null; // 'portrait' or 'jolly'
+        let cropperFile = null;
+
+        function openCropper(imageSrc, target, aspectRatio) {
+            // Prüfe ob Cropper.js verfügbar ist
+            if (typeof Cropper === 'undefined') {
+                console.error('[Cropper] Cropper.js nicht geladen - Bild wird direkt verwendet');
+                // Fallback: Bild direkt verwenden ohne Crop
+                processImageWithoutCropper(imageSrc, target);
+                return;
+            }
+            
+            cropperTarget = target;
+            const modal = document.getElementById('cropperModal');
+            const image = document.getElementById('cropperImage');
+            const title = document.getElementById('cropperTitle');
+            
+            // Set title based on target
+            title.textContent = target === 'portrait' ? t('char.crop_portrait') : t('char.crop_jolly');
+            
+            image.src = imageSrc;
+            modal.classList.add('active');
+            
+            // Initialize cropper after image loads
+            image.onload = function() {
+                if (cropper) {
+                    cropper.destroy();
+                }
+                try {
+                    cropper = new Cropper(image, {
+                        aspectRatio: aspectRatio,
+                        viewMode: 2,
+                        dragMode: 'move',
+                        autoCropArea: 0.9,
+                        restore: false,
+                        guides: true,
+                        center: true,
+                        highlight: false,
+                        cropBoxMovable: true,
+                        cropBoxResizable: true,
+                        toggleDragModeOnDblclick: false,
+                        background: false,
+                        modal: false,
+                        minContainerWidth: 250,
+                        minContainerHeight: 250
+                    });
+                } catch (err) {
+                    console.error('[Cropper] Fehler beim Initialisieren:', err);
+                    closeCropper();
+                    processImageWithoutCropper(imageSrc, target);
+                }
+            };
+        }
+        
+        // Fallback wenn Cropper.js nicht verfügbar
+        function processImageWithoutCropper(imageSrc, target) {
+            const img = new Image();
+            img.onload = function() {
+                const maxEdge = 768;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxEdge || height > maxEdge) {
+                    if (width > height) {
+                        height = Math.round(height * (maxEdge / width));
+                        width = maxEdge;
+                    } else {
+                        width = Math.round(width * (maxEdge / height));
+                        height = maxEdge;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const hasTransparency = cropperFile && (cropperFile.type === 'image/png' || cropperFile.type === 'image/webp');
+                const imageData = hasTransparency ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.85);
+
+                if (target === 'portrait') {
+                    characterData.portrait = imageData;
+                    displayPortrait(imageData);
+                } else if (target === 'jolly') {
+                    characterData.jollyRoger = imageData;
+                    displayJolly(imageData);
+                }
+                autoSave();
+            };
+            img.src = imageSrc;
+        }
+
+        function closeCropper() {
+            const modal = document.getElementById('cropperModal');
+            modal.classList.remove('active');
+            
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            cropperTarget = null;
+            cropperFile = null;
+            
+            // Reset file inputs
+            document.getElementById('portrait-input').value = '';
+            document.getElementById('jolly-input').value = '';
+        }
+
+        function confirmCrop() {
+            if (!cropper || !cropperTarget) return;
+            
+            // Check if file has transparency (PNG or WebP)
+            const hasTransparency = cropperFile && (cropperFile.type === 'image/png' || cropperFile.type === 'image/webp');
+            
+            // Get cropped canvas
+            const canvas = cropper.getCroppedCanvas({
+                maxWidth: 768,
+                maxHeight: 768,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
+            
+            let imageData;
+            if (hasTransparency) {
+                // PNG: Behalte Transparenz
+                imageData = canvas.toDataURL('image/png');
+            } else {
+                // JPEG für alles andere (bessere Kompression)
+                imageData = canvas.toDataURL('image/jpeg', 0.85);
+            }
+            
+            if (cropperTarget === 'portrait') {
+                characterData.portrait = imageData;
+                displayPortrait(imageData);
+            } else if (cropperTarget === 'jolly') {
+                characterData.jollyRoger = imageData;
+                displayJolly(imageData);
+            }
+            
+            autoSave();
+            closeCropper();
+        }
+
+        // Close modal on backdrop click
+        document.getElementById('cropperModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCropper();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('cropperModal').classList.contains('active')) {
+                closeCropper();
+            }
+        });
+
         const moduleTools = ``;
-        createNavigationBar('Charakterbogen', moduleTools);
+        createNavigationBar(t('module.character'), moduleTools);
         
         // ===== GM VIEW SYSTEM =====
         let isGM = false;
@@ -2152,7 +2565,7 @@
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                                     <circle cx="12" cy="12" r="3"/>
                                 </svg>
-                                Du siehst den Charakterbogen von <strong>${viewParam}</strong> (Nur Ansicht)
+                                ${t('char.viewing_character')} <strong>${viewParam}</strong> ${t('char.view_only')}
                             `;
                             const container = document.querySelector('.container');
                             const playerBar = document.getElementById('playerBar');
@@ -2197,7 +2610,7 @@
             bar.className = 'player-bar';
             bar.innerHTML = `
                 <div class="player-bar-inner" id="playerBarInner">
-                    <div class="player-bar-label">Spieler:</div>
+                    <div class="player-bar-label">${t('char.players')}:</div>
                 </div>
             `;
             
@@ -2318,14 +2731,14 @@
             const user = getCurrentUser();
             
             // Clear existing tabs (keep label)
-            container.innerHTML = `<div class="player-bar-label">Spieler:</div>`;
+            container.innerHTML = `<div class="player-bar-label">${t('char.players')}:</div>`;
             
             // Add "Eigener Charakter" tab
             const ownTab = document.createElement('button');
             ownTab.className = `player-tab own ${!viewingPlayer ? 'active' : ''}`;
             ownTab.innerHTML = `
                 <span class="player-tab-dot" style="background: ${user?.color || '#6750a4'}"></span>
-                Eigener Charakter
+                ${t('char.own_character')}
             `;
             ownTab.onclick = () => switchToPlayer(null);
             container.appendChild(ownTab);
@@ -2384,7 +2797,7 @@
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                         <circle cx="12" cy="12" r="3"/>
                     </svg>
-                    Du siehst den Charakterbogen von <strong>${playerName}</strong> (Nur Ansicht)
+                    ${t('char.viewing_character')} <strong>${playerName}</strong> ${t('char.view_only')}
                 `;
                 const container = document.querySelector('.container');
                 const playerBar = document.getElementById('playerBar');
@@ -2651,40 +3064,58 @@
         const TOTAL_POINTS = 500;
         const SKILLS_PER_CATEGORY = 10;
 
-        // Example Skills Database
-        const EXAMPLE_SKILLS = {
-            handeln: [
-                'Klettern', 'Akrobatik', 'Kraft', 'Ausdauer', 'Balance', 'Sprinten', 'Springen', 'Schwimmen', 
-                'Tauchen', 'Tragen', 'Ziehen', 'Drücken', 'Heben', 'Werfen', 'Fangen', 'Präzision', 
-                'Feinarbeit', 'Handwerk', 'Reparieren', 'Mechanik', 'Bauen', 'Abbauen', 'Sabotage', 
-                'Schlösser öffnen', 'Sicherungen umgehen', 'Werkzeuge nutzen', 'Waffenhandhabung', 
-                'Nahkampf', 'Fernkampf', 'Ausweichen', 'Blocken', 'Entwaffnen', 'Ringen', 'Festsetzen', 
-                'Sichern', 'Schleichen', 'Verbergen', 'Anschleichen', 'Spuren verwischen', 'Orientierung', 
-                'Navigation', 'Steuern', 'Segeln', 'Reiten', 'Fahren', 'Überleben', 'Jagen', 'Lagern', 
-                'Durchhalten', 'Erste Hilfe', 'Heilen'
-            ],
-            wissen: [
-                'Sprachen', 'Geschichte', 'Geographie', 'Politik', 'Religion', 'Philosophie', 'Mathematik', 
-                'Physik', 'Chemie', 'Biologie', 'Medizin', 'Anatomie', 'Technik', 'Mechanik', 'Architektur', 
-                'Bauwesen', 'Seefahrt', 'Navigation', 'Astronomie', 'Wetterkunde', 'Naturkunde', 'Flora', 
-                'Fauna', 'Landwirtschaft', 'Bergbau', 'Metallurgie', 'Recht', 'Verwaltung', 'Bürokratie', 
-                'Militärwesen', 'Taktik', 'Strategie', 'Handel', 'Wirtschaft', 'Buchhaltung', 'Logistik', 
-                'Literatur', 'Kunst', 'Musiktheorie', 'Symbolkunde', 'Mythenkunde', 'Kryptographie', 
-                'Codes & Zeichen', 'Spurenlesen', 'Kartographie', 'Informatik', 'Programmieren', 
-                'Datenanalyse', 'Psychologie', 'Soziologie', 'Wahrnehmung'
-            ],
-            soziales: [
-                'Überreden', 'Überzeugen', 'Verhandeln', 'Argumentieren', 'Diskutieren', 'Debattieren', 
-                'Schmeicheln', 'Einschmeicheln', 'Bitten', 'Betteln', 'Fordern', 'Befehlen', 'Einschüchtern', 
-                'Drohen', 'Provozieren', 'Beschwichtigen', 'Beruhigen', 'Trösten', 'Motivieren', 'Anführen', 
-                'Führen', 'Autorität zeigen', 'Respekt einfordern', 'Lügen', 'Täuschen', 'Bluffen', 
-                'Irreführen', 'Verschweigen', 'Manipulieren', 'Verunsichern', 'Verhören', 'Befragen', 
-                'Ausfragen', 'Zuhören', 'Beobachten (Sozial)', 'Menschenkenntnis', 'Stimmungen lesen', 
-                'Empathie zeigen', 'Vertrauen aufbauen', 'Vertrauen brechen', 'Kontakte knüpfen', 
-                'Netzwerken', 'Gerüchte streuen', 'Gerüchte nutzen', 'Auftreten', 'Reden halten', 
-                'Vermitteln', 'Schlichten', 'Überzeugen durch Beispiel', 'Loyalität einfordern'
-            ]
-        };
+        // Example Skills Database - now with translations
+        function getExampleSkills() {
+            const lang = currentLang || 'de';
+            return SKILL_EXAMPLES_TRANSLATIONS[lang] || SKILL_EXAMPLES_TRANSLATIONS.de;
+        }
+
+        // Translate a skill name to the current language
+        function translateSkillName(name, category) {
+            if (!name) return name;
+            
+            const deSkills = SKILL_EXAMPLES_TRANSLATIONS.de[category];
+            const enSkills = SKILL_EXAMPLES_TRANSLATIONS.en[category];
+            const currentSkills = getExampleSkills()[category];
+            
+            if (!deSkills || !enSkills || !currentSkills) return name;
+            
+            // Check if name is in German list
+            const deIndex = deSkills.indexOf(name);
+            if (deIndex !== -1) {
+                return currentSkills[deIndex] || name;
+            }
+            
+            // Check if name is in English list
+            const enIndex = enSkills.indexOf(name);
+            if (enIndex !== -1) {
+                return currentSkills[enIndex] || name;
+            }
+            
+            // Name not in translation list, return as-is
+            return name;
+        }
+
+        // Get the base (German) name for storage
+        function getBaseSkillName(name, category) {
+            if (!name) return name;
+            
+            const deSkills = SKILL_EXAMPLES_TRANSLATIONS.de[category];
+            const enSkills = SKILL_EXAMPLES_TRANSLATIONS.en[category];
+            
+            if (!deSkills || !enSkills) return name;
+            
+            // If already German, return as-is
+            if (deSkills.includes(name)) return name;
+            
+            // If English, translate to German for storage
+            const enIndex = enSkills.indexOf(name);
+            if (enIndex !== -1) {
+                return deSkills[enIndex] || name;
+            }
+            
+            return name;
+        }
 
         // Track transferred skills per category
         let transferredSkills = {
@@ -2698,23 +3129,26 @@
 
         // Initialize Help Dialog with skills
         function initializeHelpDialog() {
+            const EXAMPLE_SKILLS = getExampleSkills();
             Object.keys(EXAMPLE_SKILLS).forEach(category => {
                 const grid = document.getElementById(`help-${category}-grid`);
                 grid.innerHTML = '';
 
-                EXAMPLE_SKILLS[category].forEach(skill => {
+                EXAMPLE_SKILLS[category].forEach((skill, index) => {
                     const item = document.createElement('div');
                     item.className = 'help-skill-item';
                     item.dataset.skillName = skill;
                     item.dataset.category = category;
 
-                    const isTransferred = transferredSkills[category].has(skill);
+                    // Check if transferred using base (German) name
+                    const baseSkillName = SKILL_EXAMPLES_TRANSLATIONS.de[category][index];
+                    const isTransferred = transferredSkills[category].has(baseSkillName);
 
                     item.innerHTML = `
                         <span class="help-skill-name">${skill}</span>
                         <button class="help-transfer-btn ${isTransferred ? 'remove' : ''}" 
-                                onclick="handleSkillTransfer('${category}', '${skill}', this)">
-                            ${isTransferred ? 'Löschen' : 'Übertragen'}
+                                onclick="handleSkillTransfer('${category}', '${skill.replace(/'/g, "\\'")}', this)">
+                            ${isTransferred ? t('char.skill_remove') : t('char.skill_transfer')}
                         </button>
                     `;
                     grid.appendChild(item);
@@ -2723,34 +3157,37 @@
         }
 
         // Handle skill transfer or removal
-        function handleSkillTransfer(category, skillName, btnElement) {
+        function handleSkillTransfer(category, displaySkillName, btnElement) {
             const skills = characterData.skills[category];
-            const isCurrentlyTransferred = transferredSkills[category].has(skillName);
+            // Convert display name to base name for storage
+            const baseSkillName = getBaseSkillName(displaySkillName, category);
+            const isCurrentlyTransferred = transferredSkills[category].has(baseSkillName);
 
             if (isCurrentlyTransferred) {
                 // Remove skill
-                const skillIndex = skills.findIndex(s => s.name === skillName);
+                const skillIndex = skills.findIndex(s => s.name === baseSkillName);
                 if (skillIndex !== -1) {
                     skills[skillIndex].name = '';
                     skills[skillIndex].value = 0;
                 }
-                transferredSkills[category].delete(skillName);
+                transferredSkills[category].delete(baseSkillName);
 
-                btnElement.textContent = 'Übertragen';
+                btnElement.textContent = t('char.skill_transfer');
                 btnElement.classList.remove('remove');
             } else {
                 // Transfer skill
                 const emptyIndex = skills.findIndex(s => !s.name || s.name.trim() === '');
 
                 if (emptyIndex === -1) {
-                    alert('Keine freien Plätze in dieser Kategorie!');
+                    alert(t('char.no_empty_slots'));
                     return;
                 }
 
-                skills[emptyIndex].name = skillName;
-                transferredSkills[category].add(skillName);
+                // Store base name (German)
+                skills[emptyIndex].name = baseSkillName;
+                transferredSkills[category].add(baseSkillName);
 
-                btnElement.textContent = 'Löschen';
+                btnElement.textContent = t('char.skill_remove');
                 btnElement.classList.add('remove');
             }
 
@@ -2761,9 +3198,11 @@
 
         // Load transferred skills from character data
         function loadTransferredSkills() {
+            const DE_SKILLS = SKILL_EXAMPLES_TRANSLATIONS.de;
             Object.keys(characterData.skills).forEach(category => {
                 characterData.skills[category].forEach(skill => {
-                    if (skill.name && EXAMPLE_SKILLS[category].includes(skill.name)) {
+                    // Skills are stored with base (German) names
+                    if (skill.name && DE_SKILLS[category] && DE_SKILLS[category].includes(skill.name)) {
                         transferredSkills[category].add(skill.name);
                     }
                 });
@@ -2793,25 +3232,33 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            if (!file.type.startsWith('image/')) {
-                alert('Bitte wähle eine Bilddatei aus.');
+            // Erlaubte Formate prüfen
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                alert(t('char.invalid_format'));
+                return;
+            }
+
+            // Max 5 MB Dateigröße
+            const maxSize = 5 * 1024 * 1024; // 5 MB
+            if (file.size > maxSize) {
+                alert(t('char.file_too_large'));
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    if (this.width > 400 || this.height > 400) {
-                        alert('Bild ist zu groß! Maximal 400x400px erlaubt.');
-                        return;
-                    }
-
+                // GIFs: Direkt speichern um Animation zu erhalten (kein Cropper)
+                if (file.type === 'image/gif') {
                     characterData.portrait = e.target.result;
                     displayPortrait(e.target.result);
                     autoSave();
-                };
-                img.src = e.target.result;
+                    return;
+                }
+                
+                // Andere Formate: Cropper öffnen
+                cropperFile = file;
+                openCropper(e.target.result, 'portrait', 1);
             };
             reader.readAsDataURL(file);
         }
@@ -2864,25 +3311,33 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            if (!file.type.startsWith('image/')) {
-                alert('Bitte wähle eine Bilddatei aus.');
+            // Erlaubte Formate prüfen
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                alert(t('char.invalid_format'));
+                return;
+            }
+
+            // Max 5 MB Dateigröße
+            const maxSize = 5 * 1024 * 1024; // 5 MB
+            if (file.size > maxSize) {
+                alert(t('char.file_too_large'));
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    if (this.width > 400 || this.height > 230) {
-                        alert('Bild ist zu groß! Maximal 400x230px erlaubt.');
-                        return;
-                    }
-
+                // GIFs: Direkt speichern um Animation zu erhalten (kein Cropper)
+                if (file.type === 'image/gif') {
                     characterData.jollyRoger = e.target.result;
                     displayJolly(e.target.result);
                     autoSave();
-                };
-                img.src = e.target.result;
+                    return;
+                }
+                
+                // Andere Formate: Cropper öffnen
+                cropperFile = file;
+                openCropper(e.target.result, 'jolly', 5/3);
             };
             reader.readAsDataURL(file);
         }
@@ -2923,13 +3378,15 @@
                 skills.forEach((skill, index) => {
                     const row = document.createElement('div');
                     row.className = 'skill-row';
+                    // Translate skill name for display
+                    const displayName = translateSkillName(skill.name, category);
                     row.innerHTML = `
                         <input type="text" 
                                class="skill-name" 
-                               value="${skill.name}" 
+                               value="${displayName}" 
                                data-category="${category}" 
                                data-index="${index}" 
-                               placeholder="Begabung Name...">
+                               placeholder="${t('char.skill_name_placeholder')}">
                         <input type="number" 
                                class="skill-value" 
                                value="${skill.value}" 
@@ -2938,7 +3395,7 @@
                                placeholder="0" 
                                min="0" 
                                max="100">
-                        <button class="skill-delete-btn" onclick="deleteSkillRow('${category}', ${index})" title="Zeile löschen">✕</button>
+                        <button class="skill-delete-btn" onclick="deleteSkillRow('${category}', ${index})" title="${t('char.delete_row')}">✕</button>
                     `;
                     container.appendChild(row);
                 });
@@ -3041,7 +3498,7 @@
             if (!file) return;
 
             if (!file.name.endsWith('.json')) {
-                alert('Bitte wähle eine JSON-Datei aus.');
+                alert(t('char.json_required'));
                 return;
             }
 
@@ -3052,7 +3509,7 @@
 
                     // Validate structure
                     if (!uploadedData.skills || !uploadedData.leben || !uploadedData.moral) {
-                        throw new Error('Ungültiges Charakterbogen-Format');
+                        throw new Error(t('char.invalid_format'));
                     }
 
                     characterData = uploadedData;
@@ -3070,10 +3527,10 @@
                     initializeSkills();
                     initializeHelpDialog();
 
-                    alert('Charakterbogen erfolgreich geladen!');
+                    alert(t('char.load_success'));
                     showSaveIndicator();
                 } catch (error) {
-                    alert('Fehler beim Laden der Datei: ' + error.message);
+                    alert(t('char.load_error') + ' ' + error.message);
                 }
             };
             reader.readAsText(file);
@@ -3232,18 +3689,22 @@
             const isName = e.target.classList.contains('skill-name');
 
             if (isName) {
-                const oldName = characterData.skills[category][index].name;
-                const newName = e.target.value;
+                const oldBaseName = characterData.skills[category][index].name;
+                const newDisplayName = e.target.value;
+                // Store base name (German) for consistency
+                const newBaseName = getBaseSkillName(newDisplayName, category);
+                const EXAMPLE_SKILLS = getExampleSkills();
+                const DE_SKILLS = SKILL_EXAMPLES_TRANSLATIONS.de[category];
 
-                // Update transferred skills tracking
-                if (oldName && EXAMPLE_SKILLS[category].includes(oldName)) {
-                    transferredSkills[category].delete(oldName);
+                // Update transferred skills tracking (use base names)
+                if (oldBaseName && DE_SKILLS && DE_SKILLS.includes(oldBaseName)) {
+                    transferredSkills[category].delete(oldBaseName);
                 }
-                if (newName && EXAMPLE_SKILLS[category].includes(newName)) {
-                    transferredSkills[category].add(newName);
+                if (newBaseName && DE_SKILLS && DE_SKILLS.includes(newBaseName)) {
+                    transferredSkills[category].add(newBaseName);
                 }
 
-                characterData.skills[category][index].name = newName;
+                characterData.skills[category][index].name = newBaseName;
                 initializeHelpDialog(); // Update button states
             } else {
                 let value = e.target.value;
@@ -3275,7 +3736,7 @@
                        value="" 
                        data-category="${category}" 
                        data-index="${newIndex}" 
-                       placeholder="Begabung Name...">
+                       placeholder="${t('char.skill_name_placeholder')}">
                 <input type="number" 
                        class="skill-value" 
                        value="0" 
@@ -3284,7 +3745,7 @@
                        placeholder="0" 
                        min="0" 
                        max="100">
-                <button class="skill-delete-btn" onclick="deleteSkillRow('${category}', ${newIndex})" title="Zeile löschen">✕</button>
+                <button class="skill-delete-btn" onclick="deleteSkillRow('${category}', ${newIndex})" title="${t('char.delete_row')}">✕</button>
             `;
             container.appendChild(row);
             
@@ -3376,7 +3837,7 @@
         }
 
         function resetCharacter() {
-            if (confirm('Möchtest du wirklich alle Charakterdaten zurücksetzen?')) {
+            if (confirm(t('char.reset_confirm'))) {
                 localStorage.removeItem(getStorageKey());
                 // falls noch Altlasten existieren
                 localStorage.removeItem('rumRache_character');
@@ -3454,204 +3915,72 @@
         }
 
         // ===== FOKUS SYSTEM =====
-        const FOKUS_DATA = {
-            fire: {
-                name: 'Feuer',
-                icon: 'icon_focus_fire.png',
-                attacks: [
-                    { name: 'Feuerball', desc: 'Eine kompakte Flammenkugel explodiert beim Aufprall.' },
-                    { name: 'Flammenstrahl', desc: 'Dauerhafter Feuerstoß mit hoher Durchschlagskraft.' },
-                    { name: 'Explosionsschlag', desc: 'Ein Nahkampftreffer mit detonierender Hitze.' },
-                    { name: 'Feuerregen', desc: 'Mehrere Flammen fallen großflächig vom Himmel.' },
-                    { name: 'Hitzewelle', desc: 'Verbrennt alles in einem Bereich ohne direkten Treffer.' },
-                    { name: 'Flammenlanze', desc: 'Ein gebündelter Feuerstoß mit hoher Reichweite.' },
-                    { name: 'Lavaausbruch', desc: 'Der Boden bricht auf und speit Feuer.' },
-                    { name: 'Feuerwirbel', desc: 'Rotierende Flammen reißen Gegner mit.' },
-                    { name: 'Selbstentzündung', desc: 'Kurzzeitige massive Angriffsstärkung.' },
-                    { name: 'Brandmarke', desc: 'Gegner erleidet anhaltenden Feuerschaden.' }
-                ],
-                defenses: [
-                    { name: 'Flammenhülle', desc: 'Feuer umgibt den Körper und schreckt Angriffe ab.' },
-                    { name: 'Hitzeschild', desc: 'Verdampft Projektile durch extreme Hitze.' },
-                    { name: 'Explosionsstoß', desc: 'Gegner werden durch Druckwelle zurückgedrängt.' },
-                    { name: 'Feuerwand', desc: 'Eine brennende Barriere blockiert den Weg.' },
-                    { name: 'Aschevorhang', desc: 'Rauch erschwert Sicht und Zielerfassung.' },
-                    { name: 'Hitzeresistenz', desc: 'Stark verringerter Feuerschaden.' },
-                    { name: 'Feuerabsorption', desc: 'Eigene Flammen werden zur Energiequelle.' },
-                    { name: 'Flammenausbruch', desc: 'Defensiver Ausbruch bei Bedrohung.' },
-                    { name: 'Bodenverkohlung', desc: 'Gegner verlieren Halt.' },
-                    { name: 'Notzündung', desc: 'Schneller Flammenschub zum Ausweichen.' }
-                ]
-            },
-            water: {
-                name: 'Wasser',
-                icon: 'icon_focus_water.png',
-                attacks: [
-                    { name: 'Wasserstrahl', desc: 'Schneidender Hochdruckangriff.' },
-                    { name: 'Wasserpeitsche', desc: 'Flexibler Angriff auf mittlere Distanz.' },
-                    { name: 'Eislanze', desc: 'Gefrierender Durchstoßangriff.' },
-                    { name: 'Eisfläche', desc: 'Gegner rutschen unkontrolliert.' },
-                    { name: 'Druckstoß', desc: 'Wasserwelle schleudert Gegner zurück.' },
-                    { name: 'Wassergefängnis', desc: 'Gegner wird fest eingeschlossen.' },
-                    { name: 'Froststoß', desc: 'Friert getroffene Ziele ein.' },
-                    { name: 'Flutwelle', desc: 'Großflächiger Angriff mit Verdrängung.' },
-                    { name: 'Nebelstoß', desc: 'Angriff aus verdeckter Position.' },
-                    { name: 'Wasserprojektil', desc: 'Präziser Fernangriff.' }
-                ],
-                defenses: [
-                    { name: 'Wasserwand', desc: 'Massive flüssige Schutzbarriere.' },
-                    { name: 'Eisblock', desc: 'Kurzzeitige vollständige Abschirmung.' },
-                    { name: 'Nebelzone', desc: 'Starke Sichtbehinderung.' },
-                    { name: 'Strömungsumlenkung', desc: 'Lenkt Angriffe ab.' },
-                    { name: 'Gleiten', desc: 'Flüssige Ausweichbewegung.' },
-                    { name: 'Wasserhaut', desc: 'Reduziert physischen Schaden.' },
-                    { name: 'Eisrüstung', desc: 'Erhöhte Verteidigung.' },
-                    { name: 'Flusslauf', desc: 'Schnelle Positionsverlagerung.' },
-                    { name: 'Untertauchen', desc: 'Kurzzeitiges Entziehen aus Gefahren.' },
-                    { name: 'Druckentladung', desc: 'Gegner werden weggestoßen.' }
-                ]
-            },
-            wind: {
-                name: 'Wind',
-                icon: 'icon_focus_wind.png',
-                attacks: [
-                    { name: 'Windklinge', desc: 'Scharfer Luftschnitt.' },
-                    { name: 'Druckstoß', desc: 'Unsichtbarer Schlag aus der Distanz.' },
-                    { name: 'Tornado', desc: 'Gegner werden hochgerissen.' },
-                    { name: 'Luftschnitt-Serie', desc: 'Mehrere schnelle Schnitte.' },
-                    { name: 'Fallwind', desc: 'Gegner werden zu Boden gedrückt.' },
-                    { name: 'Wirbelwurf', desc: 'Gegner rotieren unkontrolliert.' },
-                    { name: 'Stoßfront', desc: 'Breiter Luftangriff.' },
-                    { name: 'Windlanze', desc: 'Gebündelter Durchstoß.' },
-                    { name: 'Luftschock', desc: 'Plötzlicher Druckimpuls.' },
-                    { name: 'Überschallstoß', desc: 'Extrem schneller Angriff.' }
-                ],
-                defenses: [
-                    { name: 'Luftschild', desc: 'Abprallende Luftbarriere.' },
-                    { name: 'Seitenstoß', desc: 'Umlenken von Angriffen.' },
-                    { name: 'Sprungverstärkung', desc: 'Schnelles Ausweichen.' },
-                    { name: 'Gleitbewegung', desc: 'Reduziert Fallschaden.' },
-                    { name: 'Rückstoß', desc: 'Gegner werden ferngehalten.' },
-                    { name: 'Windtunnel', desc: 'Projektile verlieren Kraft.' },
-                    { name: 'Luftpolster', desc: 'Sanftes Abfedern.' },
-                    { name: 'Richtungsbruch', desc: 'Sofortige Bewegungsänderung.' },
-                    { name: 'Druckneutralisierung', desc: 'Abschwächen von Einschlägen.' },
-                    { name: 'Schweben', desc: 'Entzug aus Bodengefahren.' }
-                ]
-            },
-            earth: {
-                name: 'Erde',
-                icon: 'icon_focus_earth.png',
-                attacks: [
-                    { name: 'Erdspieß', desc: 'Stein bricht aus dem Boden.' },
-                    { name: 'Felswurf', desc: 'Massive Projektilattacke.' },
-                    { name: 'Bodenbruch', desc: 'Gegner verlieren Halt.' },
-                    { name: 'Erdstampfer', desc: 'Stoßwelle aus dem Boden.' },
-                    { name: 'Steinschlag', desc: 'Herabfallende Brocken.' },
-                    { name: 'Metallfaust', desc: 'Verstärkter Nahkampfangriff.' },
-                    { name: 'Sandlawine', desc: 'Begräbt Gegner.' },
-                    { name: 'Felsramme', desc: 'Durchbruchangriff.' },
-                    { name: 'Erdgreifer', desc: 'Boden hält Gegner fest.' },
-                    { name: 'Bebenstoß', desc: 'Weiträumiger Erschütterungsangriff.' }
-                ],
-                defenses: [
-                    { name: 'Steinrüstung', desc: 'Stark erhöhte Abwehr.' },
-                    { name: 'Felswand', desc: 'Massive Deckung.' },
-                    { name: 'Bodenschild', desc: 'Schutz aus dem Untergrund.' },
-                    { name: 'Erdverankerung', desc: 'Immun gegen Wegstoßen.' },
-                    { name: 'Sandbarriere', desc: 'Dämpft Angriffe.' },
-                    { name: 'Metallhaut', desc: 'Kurzzeitige Unverwundbarkeit.' },
-                    { name: 'Erdabsorption', desc: 'Reduziert Schaden.' },
-                    { name: 'Schutzwall', desc: 'Halbkreisförmige Deckung.' },
-                    { name: 'Bodenerhöhung', desc: 'Höhenvorteil.' },
-                    { name: 'Erdpanzer', desc: 'Bewegliche Verteidigung.' }
-                ]
-            },
-            lightning: {
-                name: 'Blitz',
-                icon: 'icon_focus_lightning.png',
-                attacks: [
-                    { name: 'Blitzschlag', desc: 'Direkter Energiestoß.' },
-                    { name: 'Kettenblitz', desc: 'Springt zwischen Zielen.' },
-                    { name: 'Elektroschock', desc: 'Lähmt Gegner.' },
-                    { name: 'Energiehieb', desc: 'Verstärkter Nahkampf.' },
-                    { name: 'Überladung', desc: 'Erhöhter Schaden für kurze Zeit.' },
-                    { name: 'Blitzzone', desc: 'Elektrisiertes Gebiet.' },
-                    { name: 'Impulsstoß', desc: 'Schneller Energieschub.' },
-                    { name: 'Nervenstörung', desc: 'Verlangsamt Gegner.' },
-                    { name: 'Entladungswelle', desc: 'Rundumangriff.' },
-                    { name: 'Präzisionsblitz', desc: 'Zielgenauer Treffer.' }
-                ],
-                defenses: [
-                    { name: 'Blitztempo', desc: 'Extrem schnelles Ausweichen.' },
-                    { name: 'Energiehülle', desc: 'Elektrische Schutzschicht.' },
-                    { name: 'Reizunterdrückung', desc: 'Immun gegen Lähmung.' },
-                    { name: 'Stromableitung', desc: 'Leitet Angriffe ab.' },
-                    { name: 'Kurzteleport', desc: 'Blitzartige Bewegung.' },
-                    { name: 'Reaktionsboost', desc: 'Verbesserte Reflexe.' },
-                    { name: 'Energieschild', desc: 'Elektrische Barriere.' },
-                    { name: 'Überladungsstoß', desc: 'Gegner zurückdrängen.' },
-                    { name: 'Nervenschild', desc: 'Schutz vor Kontrollverlust.' },
-                    { name: 'Energieabsorption', desc: 'Blitz stärkt den Nutzer.' }
-                ]
-            },
-            room: {
-                name: 'Raum',
-                icon: 'icon_focus_room.png',
-                attacks: [
-                    { name: 'Kurzteleport-Schlag', desc: 'Angriff aus dem Nichts.' },
-                    { name: 'Positionswechsel', desc: 'Tauscht Plätze mit Gegner.' },
-                    { name: 'Raumschnitt', desc: 'Schneidet durch Distanz.' },
-                    { name: 'Distanzbruch', desc: 'Verkürzt oder verlängert Wege.' },
-                    { name: 'Raumstoß', desc: 'Unsichtbarer Druckangriff.' },
-                    { name: 'Fixierung', desc: 'Gegner kann sich nicht bewegen.' },
-                    { name: 'Umlenkung', desc: 'Angriffe treffen andere Ziele.' },
-                    { name: 'Miniportal', desc: 'Angriff aus ungewöhnlichem Winkel.' },
-                    { name: 'Fallverzerrung', desc: 'Gegner stürzt unkontrolliert.' },
-                    { name: 'Raumkompression', desc: 'Erhöhter Schaden im Nahbereich.' }
-                ],
-                defenses: [
-                    { name: 'Sofort-Teleport', desc: 'Ausweichen ohne Bewegung.' },
-                    { name: 'Distanzvergrößerung', desc: 'Gegner kommen nicht heran.' },
-                    { name: 'Positionsanker', desc: 'Eigene Position bleibt stabil.' },
-                    { name: 'Raumverschiebung', desc: 'Treffer gehen ins Leere.' },
-                    { name: 'Umlenkfeld', desc: 'Projektile ändern Richtung.' },
-                    { name: 'Phasenversatz', desc: 'Kurzzeitige Unangreifbarkeit.' },
-                    { name: 'Raumblockade', desc: 'Bereich ist unpassierbar.' },
-                    { name: 'Fallneutralisierung', desc: 'Kein Sturzschaden.' },
-                    { name: 'Schutzportal', desc: 'Angriffe verschwinden.' },
-                    { name: 'Eigenverzerrung', desc: 'Körper weicht Treffern aus.' }
-                ]
-            },
-            illusion: {
-                name: 'Illusion',
-                icon: 'icon_focus_illusion.png',
-                attacks: [
-                    { name: 'Trugbild', desc: 'Gegner greift falsches Ziel an.' },
-                    { name: 'Doppelgänger', desc: 'Verwirrt Gegner.' },
-                    { name: 'Blendillusion', desc: 'Sicht wird blockiert.' },
-                    { name: 'Geräuschfalle', desc: 'Falsche Positionshinweise.' },
-                    { name: 'Angriffsillusion', desc: 'Gegner reagiert zu früh.' },
-                    { name: 'Angstbild', desc: 'Gegner verliert Kontrolle.' },
-                    { name: 'Verzerrte Umgebung', desc: 'Orientierung bricht zusammen.' },
-                    { name: 'Unsichtbarer Schlag', desc: 'Angriff bleibt unbemerkt.' },
-                    { name: 'Phantomhieb', desc: 'Psychischer Schaden.' },
-                    { name: 'Scheinexplosion', desc: 'Gegner weicht falsch aus.' }
-                ],
-                defenses: [
-                    { name: 'Unsichtbarkeit', desc: 'Gegner verlieren Ziel.' },
-                    { name: 'Illusionsschild', desc: 'Treffer gehen ins Leere.' },
-                    { name: 'Mehrfachbilder', desc: 'Gegner verfehlt Angriffe.' },
-                    { name: 'Verhüllung', desc: 'Verbündete werden verborgen.' },
-                    { name: 'Täuschbewegung', desc: 'Schein-Ausweichen.' },
-                    { name: 'Wahrnehmungsbruch', desc: 'Gegner reagiert zu spät.' },
-                    { name: 'Falsche Trefferanzeige', desc: 'Gegner glaubt zu treffen.' },
-                    { name: 'Illusionszone', desc: 'Kontrolle über Sichtbereich.' },
-                    { name: 'Sinnesrauschen', desc: 'Gegner verliert Fokus.' },
-                    { name: 'Identitätsverschleierung', desc: 'Nutzer wird nicht erkannt.' }
-                ]
+        function getFokusData() {
+            const lang = currentLang || 'de';
+            const translations = FOKUS_TRANSLATIONS[lang] || FOKUS_TRANSLATIONS.de;
+            return {
+                fire: { ...translations.fire, icon: 'icon_focus_fire.png' },
+                water: { ...translations.water, icon: 'icon_focus_water.png' },
+                wind: { ...translations.wind, icon: 'icon_focus_wind.png' },
+                earth: { ...translations.earth, icon: 'icon_focus_earth.png' },
+                lightning: { ...translations.lightning, icon: 'icon_focus_lightning.png' },
+                room: { ...translations.room, icon: 'icon_focus_room.png' },
+                illusion: { ...translations.illusion, icon: 'icon_focus_illusion.png' }
+            };
+        }
+
+        // Translate a Fokus ability name to the current language
+        function translateFokusAbility(abilityName, fokusType) {
+            if (!abilityName || !fokusType) return abilityName;
+            
+            const deData = FOKUS_TRANSLATIONS.de[fokusType];
+            const currentData = (FOKUS_TRANSLATIONS[currentLang] || FOKUS_TRANSLATIONS.de)[fokusType];
+            
+            if (!deData || !currentData) return abilityName;
+            
+            // Check attacks
+            const deAttackIndex = deData.attacks.findIndex(a => a.name === abilityName);
+            if (deAttackIndex !== -1 && currentData.attacks[deAttackIndex]) {
+                return currentData.attacks[deAttackIndex].name;
             }
-        };
+            
+            // Check defenses
+            const deDefenseIndex = deData.defenses.findIndex(d => d.name === abilityName);
+            if (deDefenseIndex !== -1 && currentData.defenses[deDefenseIndex]) {
+                return currentData.defenses[deDefenseIndex].name;
+            }
+            
+            return abilityName;
+        }
+
+        // Get the base (German) name for storage
+        function getBaseFokusAbility(abilityName, fokusType) {
+            if (!abilityName || !fokusType) return abilityName;
+            
+            const deData = FOKUS_TRANSLATIONS.de[fokusType];
+            const enData = FOKUS_TRANSLATIONS.en[fokusType];
+            
+            if (!deData || !enData) return abilityName;
+            
+            // Already German?
+            if (deData.attacks.some(a => a.name === abilityName) || 
+                deData.defenses.some(d => d.name === abilityName)) {
+                return abilityName;
+            }
+            
+            // Find in English and return German equivalent
+            const enAttackIndex = enData.attacks.findIndex(a => a.name === abilityName);
+            if (enAttackIndex !== -1) {
+                return deData.attacks[enAttackIndex].name;
+            }
+            
+            const enDefenseIndex = enData.defenses.findIndex(d => d.name === abilityName);
+            if (enDefenseIndex !== -1) {
+                return deData.defenses[enDefenseIndex].name;
+            }
+            
+            return abilityName;
+        }
 
         let selectedFokusCategory = null;
         let selectedFokusAbilities = [];
@@ -3677,10 +4006,11 @@
 
             const maxAbilities = characterData.fokus?.slot3Unlocked ? 3 : 2;
 
+            const FOKUS_DATA = getFokusData();
             popup.innerHTML = `
                 <div class="fokus-popup">
                     <div class="fokus-popup-header">
-                        <span class="fokus-popup-title">Fokus wählen</span>
+                        <span class="fokus-popup-title">${t('char.focus_select')}</span>
                         <button class="fokus-popup-close" onclick="closeFokusPopup()">×</button>
                     </div>
                     
@@ -3695,16 +4025,16 @@
                     
                     <div class="fokus-popup-content" id="fokusAbilitiesContent">
                         <div style="text-align: center; color: var(--md-on-surface-variant); padding: 40px;">
-                            Wähle zuerst einen Fokus-Typ aus
+                            ${t('char.focus_select_type')}
                         </div>
                     </div>
                     
                     <div class="fokus-popup-footer">
                         <span class="fokus-selection-info" id="fokusSelectionInfo">
-                            ${selectedFokusAbilities.length}/${maxAbilities} Fähigkeiten gewählt
+                            ${t('char.focus_abilities_selected', { count: selectedFokusAbilities.length, max: maxAbilities })}
                         </span>
                         <button class="fokus-confirm-btn" onclick="confirmFokusSelection()" id="fokusConfirmBtn">
-                            Bestätigen
+                            ${t('gm.confirm_btn')}
                         </button>
                     </div>
                 </div>
@@ -3745,7 +4075,8 @@
             const content = document.getElementById('fokusAbilitiesContent');
             if (!selectedFokusCategory) return;
 
-            const data = FOKUS_DATA[selectedFokusCategory];
+            const data = getFokusData()[selectedFokusCategory];
+            const deData = FOKUS_TRANSLATIONS.de[selectedFokusCategory];
             const maxAbilities = characterData.fokus?.slot3Unlocked ? 3 : 2;
             const elementClass = selectedFokusCategory || '';
 
@@ -3753,14 +4084,16 @@
                 <div class="fokus-category-title">${data.name}</div>
                 
                 <div class="fokus-abilities-section">
-                    <div class="fokus-abilities-title">⚔️ Angriffe</div>
+                    <div class="fokus-abilities-title">⚔️ ${t('char.focus_attacks')}</div>
                     <div class="fokus-abilities-list">
-                        ${data.attacks.map(ability => {
-                            const isSelected = selectedFokusAbilities.includes(ability.name);
+                        ${data.attacks.map((ability, idx) => {
+                            // Use base (German) name for tracking
+                            const baseName = deData.attacks[idx].name;
+                            const isSelected = selectedFokusAbilities.includes(baseName);
                             const isDisabled = !isSelected && selectedFokusAbilities.length >= maxAbilities;
                             return `
                                 <div class="fokus-ability-row ${isSelected ? 'selected ' + elementClass : ''} ${isDisabled ? 'disabled' : ''}"
-                                     onclick="toggleFokusAbility('${ability.name}', ${isDisabled})">
+                                     onclick="toggleFokusAbility('${baseName}', ${isDisabled})">
                                     <span class="fokus-ability-name">${ability.name}</span>
                                     <span class="fokus-ability-desc">${ability.desc}</span>
                                 </div>
@@ -3770,14 +4103,17 @@
                 </div>
                 
                 <div class="fokus-abilities-section">
-                    <div class="fokus-abilities-title">🛡️ Verteidigungen</div>
+                    <div class="fokus-abilities-title">🛡️ ${t('char.focus_defenses')}</div>
                     <div class="fokus-abilities-list">
-                        ${data.defenses.map(ability => {
-                            const isSelected = selectedFokusAbilities.includes(ability.name);
+                        ${deData.defenses.map((deAbility, idx) => {
+                            const ability = data.defenses[idx];
+                            // Use base (German) name for tracking
+                            const baseName = deAbility.name;
+                            const isSelected = selectedFokusAbilities.includes(baseName);
                             const isDisabled = !isSelected && selectedFokusAbilities.length >= maxAbilities;
                             return `
                                 <div class="fokus-ability-row ${isSelected ? 'selected ' + elementClass : ''} ${isDisabled ? 'disabled' : ''}"
-                                     onclick="toggleFokusAbility('${ability.name}', ${isDisabled})">
+                                     onclick="toggleFokusAbility('${baseName}', ${isDisabled})">
                                     <span class="fokus-ability-name">${ability.name}</span>
                                     <span class="fokus-ability-desc">${ability.desc}</span>
                                 </div>
@@ -3809,7 +4145,7 @@
             const maxAbilities = characterData.fokus?.slot3Unlocked ? 3 : 2;
             const info = document.getElementById('fokusSelectionInfo');
             if (info) {
-                info.textContent = `${selectedFokusAbilities.length}/${maxAbilities} Fähigkeiten gewählt`;
+                info.textContent = t('char.focus_abilities_selected', { count: selectedFokusAbilities.length, max: maxAbilities });
             }
         }
 
@@ -3863,7 +4199,7 @@
             });
 
             if (characterData.fokus?.type) {
-                const data = FOKUS_DATA[characterData.fokus.type];
+                const data = getFokusData()[characterData.fokus.type];
                 
                 // Mobile
                 if (typeIcon) {
@@ -3899,7 +4235,7 @@
 
             // Get ability descriptions from FOKUS_DATA
             const fokusType = characterData.fokus?.type;
-            const fokusData = fokusType ? FOKUS_DATA[fokusType] : null;
+            const fokusData = fokusType ? getFokusData()[fokusType] : null;
 
             // Update ability cards
             for (let i = 1; i <= 3; i++) {
@@ -3907,13 +4243,16 @@
                 const placeholder = card.querySelector('.fokus-ability-placeholder');
                 const nameSpan = card.querySelector('.fokus-ability-name');
                 const descSpan = card.querySelector('.fokus-ability-desc-small');
-                const abilityName = characterData.fokus?.abilities?.[i - 1];
+                const baseAbilityName = characterData.fokus?.abilities?.[i - 1];
                 
-                // Find ability description
+                // Translate ability name for display
+                const displayAbilityName = translateFokusAbility(baseAbilityName, fokusType);
+                
+                // Find ability description using translated name
                 let abilityDesc = '';
-                if (abilityName && fokusData) {
-                    const foundAttack = fokusData.attacks.find(a => a.name === abilityName);
-                    const foundDefense = fokusData.defenses.find(d => d.name === abilityName);
+                if (displayAbilityName && fokusData) {
+                    const foundAttack = fokusData.attacks.find(a => a.name === displayAbilityName);
+                    const foundDefense = fokusData.defenses.find(d => d.name === displayAbilityName);
                     abilityDesc = foundAttack?.desc || foundDefense?.desc || '';
                 }
 
@@ -3956,9 +4295,9 @@
                 // Remove element classes first
                 gradientClasses.forEach(c => card.classList.remove(c));
 
-                if (abilityName) {
+                if (baseAbilityName) {
                     placeholder.style.display = 'none';
-                    nameSpan.textContent = abilityName;
+                    nameSpan.textContent = displayAbilityName;
                     nameSpan.style.display = 'block';
                     descSpan.textContent = abilityDesc;
                     descSpan.style.display = 'block';
@@ -3980,8 +4319,8 @@
         async function unlockFokusSlot3() {
             if (!isGM) return;
             
-            const targetName = viewingPlayer || 'dich selbst';
-            if (!confirm(`Slot 3 für ${targetName} freischalten?`)) return;
+            const targetName = viewingPlayer || t('char.yourself');
+            if (!confirm(t('char.unlock_slot3_confirm', { name: targetName }))) return;
             
             characterData.fokus = characterData.fokus || { type: null, abilities: [] };
             characterData.fokus.slot3Unlocked = true;
@@ -4013,8 +4352,8 @@
         async function lockFokusSlot3() {
             if (!isGM) return;
             
-            const targetName = viewingPlayer || 'dich selbst';
-            if (!confirm(`Slot 3 für ${targetName} wieder sperren? (Fähigkeit wird entfernt)`)) return;
+            const targetName = viewingPlayer || t('char.yourself');
+            if (!confirm(t('char.lock_slot3_confirm', { name: targetName }))) return;
             
             characterData.fokus = characterData.fokus || { type: null, abilities: [] };
             characterData.fokus.slot3Unlocked = false;
@@ -4118,6 +4457,33 @@
             initFirebase().then(() => {
                 listenForCatalogChanges();
             }).catch(() => {});
+        }
+        
+        // Wrap setLanguage to update skills on language change
+        const originalSetLanguage = window.setLanguage;
+        window.setLanguage = function(lang) {
+            originalSetLanguage(lang);
+            // Re-render skills with translated names
+            initializeSkills();
+            initializeHelpDialog();
+            // Also update Fokus display
+            updateFokusDisplay();
+            // Update viewing banner if exists
+            updateViewingBanner();
+        };
+        
+        // Update the GM viewing banner text
+        function updateViewingBanner() {
+            const banner = document.querySelector('.gm-viewing-banner');
+            if (banner && viewingPlayer) {
+                banner.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    ${t('char.viewing_character')} <strong>${viewingPlayer}</strong> ${t('char.view_only')}
+                `;
+            }
         }
     </script>
 </body>

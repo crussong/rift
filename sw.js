@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rift-v17';
+const CACHE_NAME = 'rift-v77';
 
 // Seiten und Assets die gecacht werden sollen
 const PRECACHE_URLS = [
@@ -16,6 +16,8 @@ const PRECACHE_URLS = [
   './manifest.json',
   './assets/css/design-tokens.css',
   './assets/css/global.css',
+  './assets/js/lang.js',
+  './assets/js/i18n.js',
   './assets/js/nav.js',
   './assets/js/firebase-sync.js',
   './assets/js/auth.js',
