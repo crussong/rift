@@ -1,13 +1,10 @@
+<div align="center">
+
 <p align="center">
   <img src="https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png" alt="RIFT Logo" width="300">
 </p>
 
-<h1 align="center">RIFT – Tabletop Companion</h1>
-
-<p align="center">
-  <strong>Skip the setup. Start playing.</strong><br>
-  A lightning-fast, browser-based companion for online or offline roleplay sessions.
-</p>
+**The ultimate companion app for your tabletop RPG sessions.**
 
 <p align="center">
   <a href="https://rift-app.com">
@@ -15,134 +12,394 @@
   </a>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/github/last-commit/crussong/rift?style=flat-square" alt="Last commit">
-  <img src="https://img.shields.io/github/repo-size/crussong/rift?style=flat-square" alt="Repo size">
-  <img src="https://img.shields.io/badge/status-active_development-brightgreen?style=flat-square" alt="Status">
-  <img src="https://img.shields.io/badge/language-German-blue?style=flat-square" alt="Language">
-</p>
+[![Version](https://img.shields.io/badge/Version-1.0-6750a4?style=for-the-badge)](/)
+[![PWA](https://img.shields.io/badge/PWA-Ready-4caf50?style=for-the-badge&logo=pwa)](/)
+[![Firebase](https://img.shields.io/badge/Firebase-Realtime-ff9800?style=for-the-badge&logo=firebase)](/)
+[![i18n](https://img.shields.io/badge/🌍-DE%20|%20EN-2196f3?style=for-the-badge)](/)
+
+[**Report Bug**](https://github.com/your/repo/issues) · [**Request Feature**](https://github.com/your/repo/issues)
 
 ---
 
-## ⚡ Why RIFT?
+</div>
 
-**Because your session shouldn't wait for your tools.**
+## 🌟 Why RIFT?
 
-Most tabletop apps want you to sign up, configure settings, watch tutorials, and sync accounts before you even roll your first die.
-RIFT takes a different approach:
+> *"Because your adventures deserve better than spreadsheets and Discord."*
 
-> **Open → Create Room → Play.** That's it.
+RIFT transforms how you play tabletop RPGs. No more juggling between apps, no more "wait, what was my HP again?", no more lost notes. Everything your party needs, synced in real-time, beautiful and free.
 
-No accounts. No installations. No friction. Just you, your party, and the adventure.
+<br>
+
+## ⚡ Features at a Glance
+
+<table>
+<tr>
+<td width="50%">
+
+### 🎭 **For Players**
+- 📋 Full character sheet management
+- 🎲 Beautiful 3D dice roller
+- 💬 Real-time party chat
+- 🗺️ Interactive shared map
+- 📝 Personal session notes
+- 🎨 Collaborative whiteboard
+
+</td>
+<td width="50%">
+
+### 👑 **For Game Masters**
+- 👥 Player management & overview
+- ⏱️ Global countdown timer
+- ⏸️ Session pause screen
+- 📊 View any character sheet
+- 🗺️ Upload & manage maps
+- 📜 Export session logs
+
+</td>
+</tr>
+</table>
+
+<br>
 
 ---
 
-## 🚀 Features
+## 🎮 Core Modules
 
-| Module | Description |
-|--------|-------------|
-| 🎭 **Character Sheets** | Quick-access character management designed for play, not paperwork |
-| 🎲 **Dice Roller** | Instant rolls from D4 to D100 – with satisfying animations and critical hit effects |
-| 💬 **Live Chat** | Real-time group chat with image sharing, reactions, and file uploads |
-| 🗺️ **Interactive Map** | Share and explore maps together with zoom, pan, and markers |
-| 📝 **Notes** | Capture session moments, plot hooks, and ideas on the fly |
-| 🎨 **Whiteboard** | Collaborative drawing space for sketches, tactics, and spontaneous creativity |
+<details>
+<summary><h3>📋 Character Sheet</h3></summary>
 
-### ✨ Highlights
+The heart of every RPG character, digitized.
 
-- **Instant Room Creation** – Generate a 5-digit code and share it. Done.
-- **Real-time Sync** – Everyone sees dice rolls, chat messages, and whiteboard changes live
-- **GM Tools** – Player management, session timer, module controls, and session logs
-- **Works Everywhere** – Desktop, tablet, mobile. No app install needed.
-- **Offline Capable** – Service Worker caching for blazing fast load times
-- **PWA Ready** – Add to homescreen for an app-like experience
+- **Attributes & Stats** - Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma
+- **Fokus System** - 3 customizable special ability slots
+- **Health Tracking** - HP and Stamina with visual bars
+- **Skills & Abilities** - Complete skill list with modifiers
+- **Equipment** - Weapons, armor, and inventory
+- **Backstory** - Character background and notes
+- **Live Sync** - Changes visible to GM instantly
+
+</details>
+
+<details>
+<summary><h3>🎲 Dice Roller</h3></summary>
+
+Roll with style.
+
+- **3D Animated Dice** - Satisfying physics-based rolls
+- **All Standard Dice** - d4, d6, d8, d10, d12, d20, d100
+- **Custom Formulas** - `2d6+5`, `4d8-2`, `d20+STR`
+- **Shared Results** - Everyone sees every roll
+- **Roll History** - Complete log with timestamps
+- **Quick Presets** - One-tap common rolls
+
+</details>
+
+<details>
+<summary><h3>💬 Real-Time Chat</h3></summary>
+
+Stay connected with your party.
+
+- **Instant Messaging** - Zero-latency communication
+- **Typing Indicators** - See who's writing
+- **Unread Counter** - Never miss a message
+- **Emoji Support** - Express yourself 🎉
+- **Persistent History** - Scroll back anytime
+
+</details>
+
+<details>
+<summary><h3>🗺️ Interactive Map</h3></summary>
+
+Your world, visualized.
+
+- **GM Uploads** - PNG, JPG, or WebP (up to 5MB)
+- **Pan & Zoom** - Mouse wheel or pinch gestures
+- **10 Marker Types:**
+  
+  | Color | Type | Use Case |
+  |-------|------|----------|
+  | 🟣 | City | Major settlements |
+  | 🟤 | Village | Small communities |
+  | ⚫ | Route | Travel paths |
+  | 🔴 | Danger Zone | Hazardous areas |
+  | 🟡 | Point of Interest | Notable locations |
+  | 🟠 | Quest | Active objectives |
+  | 🟣 | NPC | Important characters |
+  | ⚪ | Unknown | Unexplored areas |
+  | 🔴 | Important | Key locations |
+  | 🟢 | Item | Loot & treasures |
+
+- **Personal Notes** - Add private notes to any marker
+- **Grid Mode** - Empty canvas with grid overlay
+
+</details>
+
+<details>
+<summary><h3>🎨 Whiteboard</h3></summary>
+
+Draw, plan, strategize.
+
+- **Freehand Drawing** - Sketch battle plans
+- **Add Images** - Upload reference art
+- **Text Labels** - Annotate anything
+- **Real-Time Sync** - Everyone draws together
+- **GM Control** - Clear or manage content
+
+</details>
+
+<details>
+<summary><h3>📝 Notes</h3></summary>
+
+Remember everything.
+
+- **Personal Notes** - Private to each player
+- **Auto-Save** - Never lose your thoughts
+- **Rich Formatting** - Headers, lists, emphasis
+- **Session Organization** - Keep things tidy
+
+</details>
+
+<br>
 
 ---
 
-## 🎮 Getting Started
+## 👑 GM Features
+
+### 🎛️ Control Panel
+
+The GM Options panel gives you full control:
+
+| Feature | Description |
+|---------|-------------|
+| **Player Overview** | See all connected players with status |
+| **View Character Sheets** | Inspect any player's full sheet |
+| **Global Timer** | Countdown visible to all players |
+| **Pause Screen** | Overlay for breaks ("BRB!") |
+| **Manage Players** | Kick, change colors, transfer GM |
+| **Session Log** | Automatic activity tracking |
+| **Export Logs** | Download session history as text |
+
+### 🔄 GM Succession System
+
+What happens if the GM disconnects?
+
+1. **Grace Period** - 120 second countdown appears
+2. **Visual Alert** - Red banner warns all players
+3. **Auto-Transfer** - GM role passes to oldest player
+4. **Room Closure** - If no players remain, room closes
+
+No more abandoned sessions!
+
+<br>
+
+---
+
+## 🎨 Design Philosophy
+
+<table>
+<tr>
+<td align="center" width="25%">
+<h3>🌙</h3>
+<b>Dark Mode First</b><br>
+<sub>Easy on the eyes during long sessions</sub>
+</td>
+<td align="center" width="25%">
+<h3>📱</h3>
+<b>Mobile Ready</b><br>
+<sub>Works on any device, any screen</sub>
+</td>
+<td align="center" width="25%">
+<h3>⚡</h3>
+<b>Instant Sync</b><br>
+<sub>Real-time updates, no refresh needed</sub>
+</td>
+<td align="center" width="25%">
+<h3>🎯</h3>
+<b>Zero Clutter</b><br>
+<sub>Clean UI, focused experience</sub>
+</td>
+</tr>
+</table>
+
+- **Material Design 3** inspired components
+- **Smooth animations** throughout
+- **Theme toggle** - Dark/Light with system detection
+- **PWA support** - Install like a native app
+
+<br>
+
+---
+
+## 🌍 Languages
+
+<table>
+<tr>
+<td align="center">🇩🇪<br><b>Deutsch</b></td>
+<td align="center">🇬🇧<br><b>English</b></td>
+</tr>
+</table>
+
+Switch anytime via the settings menu. All 600+ text strings are fully translated.
+
+<br>
+
+---
+
+## 🚀 Quick Start
+
+### Join a Game
 
 ```
-1. Go to rift-app.com
-2. Create a room (you're the GM) or join with a code
-3. Pick a name and color
-4. Play!
+1. Open RIFT in your browser
+2. Enter your name & pick a color
+3. Enter the 5-letter room code
+4. You're in! 🎉
 ```
 
-That's not a simplified version. That's actually all there is to it.
+### Host a Game
+
+```
+1. Open RIFT in your browser
+2. Enter your name & pick a color
+3. Click "Create Room"
+4. Share the room code with your players
+5. You're the GM! 👑
+```
+
+<br>
 
 ---
 
-## 📸 Screenshots
+## 📱 Install as App
 
-### Desktop
-<p>
-  <img src="screenshots/desktop1.png" width="400">
-  <img src="screenshots/desktop2.png" width="400">
-</p>
-<p>
-  <img src="screenshots/desktop3.png" width="400">
-  <img src="screenshots/desktop4.png" width="400">
-</p>
+RIFT is a Progressive Web App - install it for the best experience!
 
-### Mobile
-<p>
-  <img src="screenshots/mobile1.png" width="200">
-  <img src="screenshots/mobile2.png" width="200">
-  <img src="screenshots/mobile3.png" width="200">
-  <img src="screenshots/mobile4.png" width="200">
-</p>
+| Platform | Instructions |
+|----------|--------------|
+| **Chrome/Edge** | Click install icon in address bar |
+| **Android** | Menu → "Add to Home Screen" |
+| **iOS** | Share → "Add to Home Screen" |
+
+Benefits: Fullscreen mode, offline access, faster loading.
+
+<br>
 
 ---
 
-## 🎯 Design Philosophy
+## 🛠️ Self-Hosting
 
-RIFT is built on three pillars:
+### Requirements
 
-### 1. Speed First
-Every interaction is optimized for minimal clicks and instant feedback. Hover-prefetching, service worker caching, and lightweight code ensure the app feels native-fast.
+- Any static web hosting (GitHub Pages, Netlify, Vercel, Apache, Nginx)
+- Firebase project (free tier works great)
 
-### 2. Zero Friction
-No sign-ups, no tutorials, no configuration wizards. If a feature needs explanation, it's redesigned until it doesn't.
+### Setup
 
-### 3. Focused Simplicity
-Each module does one thing well. No feature bloat, no hidden menus, no "pro tiers". Everything is available to everyone, immediately.
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/yourusername/rift.git
+   cd rift
+   ```
 
----
+2. **Create Firebase project**
+   - Go to [Firebase Console](https://console.firebase.google.com)
+   - Create new project
+   - Enable Realtime Database
+   - Copy your config
 
-## 🛠️ Technical Stack
+3. **Configure Firebase**
+   
+   Edit `assets/js/firebase-sync.js`:
+   ```javascript
+   const firebaseConfig = {
+       apiKey: "YOUR_API_KEY",
+       authDomain: "YOUR_PROJECT.firebaseapp.com",
+       databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+       projectId: "YOUR_PROJECT_ID",
+       storageBucket: "YOUR_PROJECT.appspot.com",
+       messagingSenderId: "YOUR_SENDER_ID",
+       appId: "YOUR_APP_ID"
+   };
+   ```
 
-RIFT runs entirely in the browser with no build step required:
+4. **Deploy**
+   
+   Upload all files to your web server. Done!
 
-- **Frontend:** Vanilla HTML, CSS, JavaScript
-- **Real-time Sync:** Firebase Realtime Database
-- **Hosting:** Netlify (with automatic pretty URLs)
-- **Domain & DNS:** Cloudflare
-- **PWA:** Service Worker + Web App Manifest
-
-No React. No Vue. No webpack. Just fast, maintainable code that works.
-
----
-
-## 🌍 Language
-
-RIFT is currently available in **German only**. The entire UI, all text, and documentation within the app are in German. International language support may be considered in the future.
-
----
-
-## 📋 Roadmap
-
-- [x] Core modules (Character, Dice, Chat, Map, Notes, Whiteboard)
-- [x] Real-time multiplayer sync
-- [x] GM tools and session management
-- [x] PWA support
-- [x] Pretty URLs
-- [ ] Multiple rulesets/systems support
-- [ ] Export/Import session data
-- [ ] English language option
+<br>
 
 ---
 
-## 🤝 Built With
+## 📁 Project Structure
+
+```
+rift/
+├── 📁 assets/
+│   ├── 📁 css/
+│   │   └── global.css         # Theme & shared styles
+│   ├── 📁 icons/              # App & UI icons
+│   ├── 📁 images/             # Backgrounds & assets
+│   └── 📁 js/
+│       ├── auth.js            # Login & session management
+│       ├── firebase-sync.js   # Real-time database sync
+│       ├── i18n.js            # Translation engine
+│       ├── lang.js            # 600+ translation strings
+│       └── nav.js             # Navigation & FAB menu
+│
+├── 📄 index.html              # Hub / Dashboard
+├── 📄 login.html              # Login & room join
+├── 📄 charakterbogen.html     # Character sheet
+├── 📄 wuerfel.html            # Dice roller
+├── 📄 chat.html               # Chat module
+├── 📄 karte.html              # Map module
+├── 📄 whiteboard.html         # Whiteboard
+├── 📄 notizen.html            # Notes
+├── 📄 gm-options.html         # GM control panel
+│
+├── 📄 manifest.json           # PWA manifest
+└── 📄 sw.js                   # Service Worker (v77)
+```
+
+<br>
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] ☁️ Cloud character backup
+- [ ] 🎨 Custom dice skins
+- [ ] 🌍 More languages (FR, ES, IT)
+
+<br>
+
+---
+
+## 🤝 Contributing
+
+Contributions make RIFT better for everyone!
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing`)
+5. Open a Pull Request
+
+<br>
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+Free to use, modify, and distribute. Attribution appreciated but not required.
+
+<br>
+
+---
+
+## 🤝 With help from
 
 <p>
   <img src="https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=white" alt="Claude">
@@ -153,19 +410,27 @@ RIFT is currently available in **German only**. The entire UI, all text, and doc
 
 ---
 
-## 📜 License
+<div align="center">
 
-This project is under active development. License details coming soon.
+## 💜 Support
+
+If RIFT helps your table, consider:
+
+⭐ **Starring this repo**
+
+🐛 **Reporting bugs**
+
+💡 **Suggesting features**
+
+☕ **Buying me a coffee**
 
 ---
 
-<p align="center">
-  <strong>Ready to roll?</strong><br><br>
-  <a href="https://rift-app.com">
-    <img src="https://img.shields.io/badge/🎲_Start_Playing-6750a4?style=for-the-badge&logoColor=white" alt="Start Playing">
-  </a>
-</p>
+<br>
 
-<p align="center">
-  <sub>Made with 🎲 for tabletop enthusiasts</sub>
-</p>
+**Made with 🎲 and ❤️ for the TTRPG community**
+
+<sub>*Roll initiative. Tell stories. Make memories.*</sub>
+
+</div>
+
