@@ -7,12 +7,9 @@
  */
 
 // ===== SERVICE WORKER REGISTRATION =====
-if ('serviceWorker' in navigator) {
-    // Versuche relativen Pfad zuerst, dann absolut
-    const swPath = location.hostname === 'localhost' || location.protocol === 'file:' 
-        ? './sw.js' 
-        : '/sw.js';
-    navigator.serviceWorker.register(swPath)
+// Nur auf Production (HTTPS), nicht lokal
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('/sw.js')
         .then(() => console.log('[SW] Registered'))
         .catch((err) => console.log('[SW] Registration failed:', err));
 }
@@ -131,12 +128,12 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
     const navbar = document.createElement('nav');
     navbar.id = 'pnp-navbar';
     navbar.setAttribute('role', 'navigation');
-    navbar.setAttribute('aria-label', 'Hauptnavigation');
+    navbar.setAttribute('aria-label', t('sidebar.main_nav'));
     
     navbar.innerHTML = `
         <div class="navbar-container">
             <div class="navbar-left">
-                <button class="nav-btn hamburger-btn" onclick="toggleSidebar()" title="Menü" aria-label="Menü öffnen">
+                <button class="nav-btn hamburger-btn" onclick="toggleSidebar()" title="${t('sidebar.menu')}" aria-label="${t('sidebar.open_menu')}">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -159,7 +156,7 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
                     <span class="user-name">${escapeHtml(username)}</span>
                 </div>
                 
-                <button class="nav-btn logout-btn-nav" onclick="handleLogout()" title="Ausloggen" aria-label="Ausloggen">
+                <button class="nav-btn logout-btn-nav" onclick="handleLogout()" title="${t('sidebar.logout')}" aria-label="${t('sidebar.logout')}">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                         <polyline points="16 17 21 12 16 7"></polyline>
@@ -174,13 +171,13 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
     const sidebar = document.createElement('aside');
     sidebar.id = 'pnp-sidebar';
     sidebar.setAttribute('role', 'navigation');
-    sidebar.setAttribute('aria-label', 'Seitennavigation');
+    sidebar.setAttribute('aria-label', t('sidebar.side_nav'));
     
     sidebar.innerHTML = `
         <div class="sidebar-header">
             <img src="assets/images/logo_rift_white_400px.png" alt="RIFT" class="sidebar-logo logo-white">
             <img src="assets/images/logo_rift_black_400px.png" alt="RIFT" class="sidebar-logo logo-black">
-            <button class="sidebar-close" onclick="closeSidebar()" aria-label="Menü schließen">
+            <button class="sidebar-close" onclick="closeSidebar()" aria-label="${t('close')}">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -190,14 +187,14 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
         
         <!-- Online Players Section -->
         <div class="sidebar-players-section">
-            <div class="sidebar-section-title">Im Raum</div>
+            <div class="sidebar-section-title">${t('sidebar.in_room')}</div>
             <div class="sidebar-players-list" id="sidebarPlayersList">
-                <div class="sidebar-players-loading">Lade...</div>
+                <div class="sidebar-players-loading">${t('sidebar.loading')}</div>
             </div>
         </div>
         
         <nav class="sidebar-nav">
-            <div class="sidebar-section-title">Module</div>
+            <div class="sidebar-section-title">${t('sidebar.modules')}</div>
             ${MODULES.map(m => `
                 <a href="${m.href}" class="sidebar-link${currentPage === m.href ? ' active' : ''}">
                     <img src="assets/icons/${m.icon}" alt="">
@@ -207,42 +204,67 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
         </nav>
         
         <div class="sidebar-footer">
-            <a href="index.html" class="sidebar-link">
-                <img src="assets/icons/icon_home.png" alt="">
-                <span>Zurück zum Hub</span>
-            </a>
-            <a href="gm-options.html" class="sidebar-link sidebar-gm-options" id="sidebarGmOptions">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+            <!-- Zurück zum Hub -->
+            <a href="index.html" class="sidebar-link sidebar-footer-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
                 </svg>
-                <span>GM Optionen</span>
+                <span>${t('sidebar.back_to_hub')}</span>
             </a>
-            <button class="sidebar-link sidebar-sound-toggle" id="sidebarSoundToggle" onclick="toggleSoundSetting()">
-                <svg id="soundIconOn" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            
+            <!-- Sound Toggle -->
+            <div class="sidebar-footer-item sidebar-toggle-row" id="sidebarSoundRow">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                     <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
                     <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
                 </svg>
-                <svg id="soundIconOff" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                    <line x1="23" y1="9" x2="17" y2="15"/>
-                    <line x1="17" y1="9" x2="23" y2="15"/>
+                <span>${t('sidebar.sound')}</span>
+                <div class="sidebar-toggle">
+                    <button class="sidebar-toggle-btn" id="soundToggleOn" onclick="setSoundSetting(true)">AN</button>
+                    <button class="sidebar-toggle-btn" id="soundToggleOff" onclick="setSoundSetting(false)">AUS</button>
+                </div>
+            </div>
+            
+            <!-- Sprache Toggle -->
+            <div class="sidebar-footer-item sidebar-toggle-row">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                <span id="soundToggleText">Sound an</span>
-            </button>
-            <button class="sidebar-link sidebar-logout" onclick="handleLogout()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                <span>${t('sidebar.language')}</span>
+                <div class="sidebar-toggle">
+                    <button class="sidebar-toggle-btn ${currentLang === 'de' ? 'active' : ''}" onclick="setLanguage('de')">DE</button>
+                    <button class="sidebar-toggle-btn ${currentLang === 'en' ? 'active' : ''}" onclick="setLanguage('en')">EN</button>
+                </div>
+            </div>
+            
+            <!-- Ausloggen -->
+            <button class="sidebar-link sidebar-footer-item sidebar-logout" onclick="handleLogout()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
                 </svg>
-                <span>Ausloggen</span>
+                <span>${t('sidebar.logout')}</span>
             </button>
+            
+            <!-- GM Optionen -->
+            <a href="gm-options.html" class="sidebar-link sidebar-footer-item sidebar-gm-options" id="sidebarGmOptions">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span>${t('sidebar.gm_options')}</span>
+            </a>
+            
+            <!-- Legal Links -->
             <div class="sidebar-legal">
-                <a href="impressum.html">Impressum</a>
+                <a href="impressum.html">${t('footer.imprint')}</a>
                 <span>·</span>
-                <a href="privacy.html">Datenschutz</a>
+                <a href="privacy.html">${t('footer.privacy')}</a>
             </div>
         </div>
     `;
@@ -507,28 +529,30 @@ function navigateToHub() {
 
 // ===== SOUND SETTINGS =====
 
-function toggleSoundSetting() {
-    const isMuted = localStorage.getItem('pnp_sound_muted') === 'true';
-    const newState = !isMuted;
-    localStorage.setItem('pnp_sound_muted', newState);
-    updateSoundToggleUI(newState);
+function setSoundSetting(enabled) {
+    const isMuted = !enabled;
+    localStorage.setItem('pnp_sound_muted', isMuted);
+    updateSoundToggleUI();
 }
 
-function updateSoundToggleUI(isMuted) {
-    const iconOn = document.getElementById('soundIconOn');
-    const iconOff = document.getElementById('soundIconOff');
-    const text = document.getElementById('soundToggleText');
+function toggleSoundSetting() {
+    const isMuted = localStorage.getItem('pnp_sound_muted') === 'true';
+    setSoundSetting(isMuted); // Toggle: wenn muted, dann enable
+}
+
+function updateSoundToggleUI() {
+    const isMuted = localStorage.getItem('pnp_sound_muted') === 'true';
+    const btnOn = document.getElementById('soundToggleOn');
+    const btnOff = document.getElementById('soundToggleOff');
     
-    if (iconOn && iconOff && text) {
-        iconOn.style.display = isMuted ? 'none' : 'block';
-        iconOff.style.display = isMuted ? 'block' : 'none';
-        text.textContent = isMuted ? 'Sound aus' : 'Sound an';
+    if (btnOn && btnOff) {
+        btnOn.classList.toggle('active', !isMuted);
+        btnOff.classList.toggle('active', isMuted);
     }
 }
 
 function initSoundToggle() {
-    const isMuted = localStorage.getItem('pnp_sound_muted') === 'true';
-    updateSoundToggleUI(isMuted);
+    updateSoundToggleUI();
 }
 
 function isSoundMuted() {
@@ -537,10 +561,11 @@ function isSoundMuted() {
 
 // Make available globally
 window.toggleSoundSetting = toggleSoundSetting;
+window.setSoundSetting = setSoundSetting;
 window.isSoundMuted = isSoundMuted;
 
 function handleLogout() {
-    if (confirm('Möchtest du dich wirklich ausloggen?')) {
+    if (confirm(t('logout_confirm'))) {
         if (typeof logout === 'function') {
             logout(true);
         } else {
@@ -990,22 +1015,96 @@ function injectNavStyles() {
         /* ===== SIDEBAR FOOTER ===== */
         .sidebar-footer {
             border-top: 1px solid var(--md-outline-variant, #49454f);
-            padding: 12px 0;
+            padding: 8px 0;
             margin-top: auto;
             flex-shrink: 0;
             background: var(--md-surface-container, #211f26);
         }
 
+        /* Einheitliches Footer Item */
+        .sidebar-footer-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: var(--md-on-surface-variant, #cac4d0);
+            font-size: 14px;
+            text-decoration: none;
+            border: none;
+            background: none;
+            width: 100%;
+            cursor: pointer;
+            transition: background 150ms ease;
+        }
+
+        .sidebar-footer-item:hover {
+            background: var(--md-surface-container-high, #2b2930);
+        }
+
+        .sidebar-footer-item svg {
+            flex-shrink: 0;
+            opacity: 0.8;
+        }
+
+        .sidebar-footer-item span {
+            flex: 1;
+            text-align: left;
+        }
+
+        /* Toggle Row (Sound & Sprache) */
+        .sidebar-toggle-row {
+            cursor: default;
+        }
+
+        .sidebar-toggle-row:hover {
+            background: transparent;
+        }
+
+        .sidebar-toggle {
+            display: flex;
+            background: var(--md-surface-container-high, #2b2930);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-left: auto;
+        }
+
+        .sidebar-toggle-btn {
+            padding: 6px 12px;
+            border: none;
+            background: transparent;
+            color: var(--md-on-surface-variant, #cac4d0);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 200ms ease;
+            font-family: inherit;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background: var(--md-surface-container-highest, #36343b);
+        }
+
+        .sidebar-toggle-btn.active {
+            background: var(--md-primary, #6750a4);
+            color: var(--md-on-primary, #fff);
+        }
+
+        /* Logout - rot */
         .sidebar-logout {
-            color: var(--md-error, #f2b8b5);
+            color: var(--md-error, #f2b8b5) !important;
         }
 
         .sidebar-logout:hover {
-            background: color-mix(in srgb, var(--md-error, #f2b8b5) 10%, transparent);
+            background: color-mix(in srgb, var(--md-error, #f2b8b5) 10%, transparent) !important;
         }
 
+        .sidebar-logout svg {
+            color: var(--md-error, #f2b8b5);
+        }
+
+        /* GM Options - grün */
         .sidebar-gm-options {
-            color: #4CAF50;
+            color: #4CAF50 !important;
             display: none;
         }
 
@@ -1014,13 +1113,15 @@ function injectNavStyles() {
         }
 
         .sidebar-gm-options:hover {
-            background: color-mix(in srgb, #4CAF50 15%, transparent);
+            background: color-mix(in srgb, #4CAF50 12%, transparent) !important;
         }
 
         .sidebar-gm-options svg {
             color: #4CAF50;
+            opacity: 1;
         }
 
+        /* Legal Links */
         .sidebar-legal {
             display: flex;
             justify-content: center;
@@ -1603,7 +1704,7 @@ async function gmRemovePlayerGM(username) {
 }
 
 async function gmKickPlayer(username) {
-    if (confirm(`${username} wirklich kicken?`)) {
+    if (confirm(t('gm.kick_confirm', { name: username }))) {
         if (typeof gmKickPlayerFromSession === 'function') {
             await gmKickPlayerFromSession(username);
             document.getElementById('playerManagePopup')?.remove();
@@ -1642,26 +1743,30 @@ function createFooter(containerId = null) {
         // Auf Login-Seite: fixed am unteren Rand (wegen fixed screens)
         const isLoginPage = window.location.pathname.includes('login');
         if (isLoginPage) {
-            footer.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; background: transparent;';
+            footer.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: transparent; opacity: 0; transition: opacity 0.5s ease;';
+            // Footer nach Splash einblenden (2.5s Splash + 0.5s buffer)
+            setTimeout(() => {
+                footer.style.opacity = '1';
+            }, 3000);
         }
         
         footer.innerHTML = `
             <div class="footer-divider"></div>
             <div class="footer-content">
                 <nav class="footer-primary">
-                    <a href="about.html">Über RIFT</a>
+                    <a href="about.html">${t('footer.about')}</a>
                     <span class="footer-dot">·</span>
-                    <a href="branding.html">Branding Guide</a>
+                    <a href="branding.html">${t('footer.branding')}</a>
                     <span class="footer-dot">·</span>
-                    <a href="contact.html">Kontakt</a>
+                    <a href="contact.html">${t('footer.contact')}</a>
                 </nav>
                 <nav class="footer-secondary">
-                    <a href="privacy.html">Datenschutz</a>
+                    <a href="privacy.html">${t('footer.privacy')}</a>
                     <span class="footer-dot">·</span>
-                    <a href="impressum.html">Impressum</a>
+                    <a href="impressum.html">${t('footer.imprint')}</a>
                 </nav>
                 <div class="footer-tertiary">
-                    <a href="donation.html">Spenden</a>
+                    <a href="donation.html">${t('footer.donate')}</a>
                 </div>
                 <p class="footer-copyright">© 2025 RIFT – Tabletop Companion</p>
             </div>

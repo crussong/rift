@@ -244,21 +244,21 @@ function getCurrentUserColor() {
  */
 function validateUsername(username) {
     if (!username || typeof username !== 'string') {
-        return { valid: false, error: 'Username ist erforderlich' };
+        return { valid: false, error: t('login.error.name_required') };
     }
     
     const trimmed = username.trim();
     
     if (trimmed.length < AUTH_CONFIG.MIN_USERNAME_LENGTH) {
-        return { valid: false, error: `Username muss mindestens ${AUTH_CONFIG.MIN_USERNAME_LENGTH} Zeichen haben` };
+        return { valid: false, error: t('login.error.name_too_short', { min: AUTH_CONFIG.MIN_USERNAME_LENGTH }) };
     }
     
     if (trimmed.length > AUTH_CONFIG.MAX_USERNAME_LENGTH) {
-        return { valid: false, error: `Username darf maximal ${AUTH_CONFIG.MAX_USERNAME_LENGTH} Zeichen haben` };
+        return { valid: false, error: t('login.error.name_too_long', { max: AUTH_CONFIG.MAX_USERNAME_LENGTH }) };
     }
     
-    if (!/^[\w\s\-äöüÄÖÜß]+$/i.test(trimmed)) {
-        return { valid: false, error: 'Username enthält ungültige Zeichen' };
+    if (!/^[\w\s\-äöüÄÖÜß#]+$/i.test(trimmed)) {
+        return { valid: false, error: t('login.error.invalid_chars') };
     }
     
     return { valid: true };
@@ -322,14 +322,51 @@ function isCurrentUserGM() {
 /**
  * Logout current user
  * @param {boolean} redirect - Whether to redirect to login page
+ * @param {boolean} skipGMCheck - Skip GM succession check (used after GM transfer)
  */
-function logout(redirect = true) {
+async function logout(redirect = true, skipGMCheck = false) {
     const user = getCurrentUser();
+    
+    // Check if user is GM and needs to handle succession
+    // Use Firebase verification if available, fall back to localStorage
+    if (!skipGMCheck && user?.isGM) {
+        // Check if verifyIsGM is available (firebase-sync.js loaded)
+        if (typeof verifyIsGM === 'function') {
+            const isActuallyGM = await verifyIsGM();
+            if (isActuallyGM && typeof showGMSuccessionDialog === 'function') {
+                showGMSuccessionDialog();
+                return; // Don't logout yet, wait for dialog
+            }
+        } else if (typeof showGMSuccessionDialog === 'function') {
+            // Fall back to localStorage check if Firebase not available
+            showGMSuccessionDialog();
+            return;
+        }
+    }
+    
     if (user) {
         console.log(`[Auth] User logged out: ${user.username}`);
     }
     
     safeRemoveItem(AUTH_CONFIG.STORAGE_KEY);
+    
+    if (redirect) {
+        window.location.href = 'login.html';
+    }
+}
+
+/**
+ * Force logout without GM check (used after GM transfer or room close)
+ */
+function forceLogout(redirect = true) {
+    const user = getCurrentUser();
+    if (user) {
+        console.log(`[Auth] User force logged out: ${user.username}`);
+    }
+    
+    // Clear all session data
+    safeRemoveItem(AUTH_CONFIG.STORAGE_KEY);
+    safeRemoveItem(AUTH_CONFIG.ROOM_STORAGE_KEY);
     
     if (redirect) {
         window.location.href = 'login.html';
@@ -610,3 +647,7 @@ applyRandomBackground();
     }
     console.log(`[Theme] Current: ${getCurrentTheme()}`);
 })();
+
+// Make auth functions globally available for GM succession
+window.logout = logout;
+window.forceLogout = forceLogout;

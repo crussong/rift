@@ -109,6 +109,9 @@ async function initFirebase() {
             
             // Create GM Options FAB for GMs
             createGMOptionsFAB();
+            
+            // Initialize GM succession system
+            initGMSuccession();
         } else {
             console.log('[Firebase] Skipping popup listeners (login page or no user)');
         }
@@ -324,16 +327,25 @@ function joinSession() {
     
     onlineStatusRef = getRef(`players/${sanitizeKey(user.username)}`);
     
-    // Set online status
-    onlineStatusRef.set(getPlayerData());
-    
-    // Remove on disconnect
-    onlineStatusRef.onDisconnect().remove();
-    
-    // Listen for changes to own player data (GM can change color, GM status, or kick)
-    listenForOwnPlayerChanges(user.username);
-    
-    console.log(`[Firebase] Player joined: ${user.username}`);
+    // Check if player already exists (to preserve joinedAt)
+    onlineStatusRef.once('value').then(snapshot => {
+        const existingData = snapshot.val();
+        const playerData = getPlayerData();
+        
+        // Preserve original joinedAt or set new one
+        playerData.joinedAt = existingData?.joinedAt || firebase.database.ServerValue.TIMESTAMP;
+        
+        // Set player data
+        onlineStatusRef.set(playerData);
+        
+        // Remove on disconnect
+        onlineStatusRef.onDisconnect().remove();
+        
+        // Listen for changes to own player data (GM can change color, GM status, or kick)
+        listenForOwnPlayerChanges(user.username);
+        
+        console.log(`[Firebase] Player joined: ${user.username}`);
+    });
 }
 
 /**
@@ -364,7 +376,7 @@ function listenForOwnPlayerChanges(username) {
         // Check if we've been kicked (kicked flag set)
         if (playerData && playerData.kicked === true) {
             console.log('[Firebase] Player was kicked from room!');
-            alert('Du wurdest aus dem Raum entfernt.');
+            alert(t('room.kicked'));
             localStorage.removeItem('pnp_companion_user');
             localStorage.removeItem('pnp_companion_room');
             window.location.href = 'login.html';
@@ -1232,13 +1244,13 @@ function createPauseOverlay() {
                 <div class="pause-ripple delay-2"></div>
                 <img src="assets/images/logo_rift_emblem_white.png" alt="RIFT" class="pause-logo">
             </div>
-            <div class="pause-text">Kurze Spielunterbrechung</div>
+            <div class="pause-text">${t('pause.message')}</div>
             <div class="pause-gm-controls">
                 <button class="pause-resume-btn" onclick="resumeGame()">
                     <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                         <path d="M8 5v14l11-7z"/>
                     </svg>
-                    Fortsetzen
+                    ${t('pause.resume')}
                 </button>
             </div>
         </div>
@@ -1577,7 +1589,7 @@ function showPlayerToast(username, color, type) {
         </div>
         <div class="player-toast-content">
             <span class="player-toast-name">${username}</span>
-            <span class="player-toast-action">${isJoin ? 'ist beigetreten' : 'hat den Raum verlassen'}</span>
+            <span class="player-toast-action">${isJoin ? t('toast.joined') : t('toast.left')}</span>
         </div>
         <div class="player-toast-icon">
             ${isJoin ? 
@@ -2825,7 +2837,7 @@ function initKickListener() {
         Object.values(players).forEach(player => {
             if (player.username === currentUser.username && player.kicked) {
                 // User has been kicked!
-                alert('Du wurdest vom GM aus dem Raum entfernt.');
+                alert(t('room.kicked_by_gm'));
                 if (typeof logout === 'function') {
                     logout(true);
                 } else {
@@ -3094,7 +3106,7 @@ async function gmChangePlayerColor(username) {
 }
 
 async function gmMakePlayerGM(username) {
-    if (confirm(`${username} zum GM machen? Der Spieler muss zustimmen.`)) {
+    if (confirm(t('gm.transfer_confirm', { name: username }))) {
         // Send GM request to player via Firebase
         const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
         if (!currentUser) return;
@@ -3105,20 +3117,20 @@ async function gmMakePlayerGM(username) {
             timestamp: Date.now()
         });
         
-        alert(`GM-Anfrage an ${username} gesendet!`);
+        alert(t('gm.transfer_sent', { name: username }));
         document.getElementById('playerManagePopup')?.remove();
     }
 }
 
 async function gmRemovePlayerGM(username) {
-    if (confirm(`GM-Rechte von ${username} entziehen?`)) {
+    if (confirm(t('gm.remove_gm_confirm', { name: username }))) {
         await gmUpdatePlayer(username, { isGM: false, isRoomCreator: false });
         document.getElementById('playerManagePopup')?.remove();
     }
 }
 
 async function gmKickPlayer(username) {
-    if (confirm(`${username} wirklich kicken?`)) {
+    if (confirm(t('gm.kick_confirm', { name: username }))) {
         await gmKickPlayerFromSession(username);
         document.getElementById('playerManagePopup')?.remove();
     }
@@ -3142,7 +3154,7 @@ function initGMRequestListener() {
             return;
         }
         
-        if (confirm(`${request.from} (GM) möchte dir GM-Rechte übertragen. Annehmen?`)) {
+        if (confirm(t('gm.transfer_request', { name: request.from }))) {
             // Accept - update player to GM
             currentUser.isGM = true;
             localStorage.setItem('pnpUser', JSON.stringify(currentUser));
@@ -3150,7 +3162,7 @@ function initGMRequestListener() {
             // Update in Firebase
             await gmUpdatePlayer(currentUser.username, { isGM: true });
             
-            alert('Du bist jetzt GM! Seite wird neu geladen.');
+            alert(t('gm.transfer_accepted'));
             window.location.reload();
         }
         
@@ -3233,6 +3245,734 @@ function initModuleAccessListener(moduleId) {
 // Make functions globally available
 window.checkModuleAccess = checkModuleAccess;
 window.initModuleAccessListener = initModuleAccessListener;
+
+
+// ===== GM SUCCESSION SYSTEM =====
+
+let gmGracePeriodTimer = null;
+const GM_GRACE_PERIOD_MS = 120000; // 120 seconds
+
+/**
+ * Verify if current user is actually GM according to Firebase
+ * This prevents localStorage manipulation attacks
+ */
+async function verifyIsGM() {
+    const user = getCurrentUser();
+    if (!user || !isFirebaseOnline()) return false;
+    
+    try {
+        const snapshot = await getRef(`players/${sanitizeKey(user.username)}`).once('value');
+        const playerData = snapshot.val();
+        
+        const isActuallyGM = playerData?.isGM === true;
+        console.log('[GM Verify] Firebase says isGM:', isActuallyGM, 'localStorage says:', user.isGM);
+        
+        return isActuallyGM;
+    } catch (error) {
+        console.error('[GM Verify] Failed to verify:', error);
+        return false;
+    }
+}
+
+/**
+ * Show GM succession dialog when GM tries to logout
+ */
+async function showGMSuccessionDialog() {
+    const currentUser = getCurrentUser();
+    
+    // Verify against Firebase - don't trust localStorage
+    const isActuallyGM = await verifyIsGM();
+    if (!isActuallyGM) {
+        console.log('[GM Succession] User is not actually GM, direct logout');
+        forceLogout(true);
+        return;
+    }
+    
+    const snapshot = await getRef('players').once('value');
+    const players = snapshot.val() || {};
+    const otherPlayers = Object.entries(players)
+        .filter(([key, player]) => player.username !== currentUser.username && player.online !== false)
+        .map(([key, player]) => ({ key, ...player }));
+    
+    // Create dialog
+    const overlay = document.createElement('div');
+    overlay.id = 'gmSuccessionOverlay';
+    overlay.className = 'gm-succession-overlay';
+    
+    let playerListHTML = '';
+    if (otherPlayers.length > 0) {
+        playerListHTML = `
+            <p class="gm-succession-text">${t('gm.succession_choose')}</p>
+            <div class="gm-succession-players">
+                ${otherPlayers.map(player => `
+                    <button class="gm-succession-player" onclick="transferGMAndLogout('${player.username.replace(/'/g, "\\'")}')">
+                        <span class="gm-succession-player-color" style="background: ${player.color}"></span>
+                        <span class="gm-succession-player-name">${player.username}</span>
+                        <span class="gm-succession-player-arrow">→ GM</span>
+                    </button>
+                `).join('')}
+            </div>
+            <div class="gm-succession-divider">${t('gm.succession_or')}</div>
+        `;
+    } else {
+        playerListHTML = `<p class="gm-succession-text">${t('gm.succession_no_players')}</p>`;
+    }
+    
+    overlay.innerHTML = `
+        <div class="gm-succession-dialog">
+            <div class="gm-succession-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+                <h2>${t('gm.succession_title')}</h2>
+            </div>
+            ${playerListHTML}
+            <button class="gm-succession-close-btn" onclick="closeRoomAndLogout()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                ${t('gm.succession_close_room')}
+            </button>
+            <button class="gm-succession-cancel-btn" onclick="closeGMSuccessionDialog()">
+                ${t('cancel')}
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Add styles if not already present
+    if (!document.getElementById('gmSuccessionStyles')) {
+        const style = document.createElement('style');
+        style.id = 'gmSuccessionStyles';
+        style.textContent = `
+            .gm-succession-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                padding: 1rem;
+            }
+            .gm-succession-dialog {
+                background: var(--md-surface, #1e1e1e);
+                border-radius: 16px;
+                padding: 1.5rem;
+                max-width: 400px;
+                width: 100%;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            }
+            .gm-succession-header {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+            }
+            .gm-succession-header svg {
+                width: 32px;
+                height: 32px;
+                color: var(--md-primary, #bb86fc);
+            }
+            .gm-succession-header h2 {
+                margin: 0;
+                font-size: 1.25rem;
+                color: var(--md-on-surface, #fff);
+            }
+            .gm-succession-text {
+                color: var(--md-on-surface-variant, #ccc);
+                margin-bottom: 1rem;
+                font-size: 0.9rem;
+            }
+            .gm-succession-players {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+            }
+            .gm-succession-player {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.75rem 1rem;
+                background: var(--md-surface-variant, #2d2d2d);
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s;
+                color: var(--md-on-surface, #fff);
+                font-size: 1rem;
+            }
+            .gm-succession-player:hover {
+                background: var(--md-primary, #bb86fc);
+                color: var(--md-on-primary, #000);
+            }
+            .gm-succession-player-color {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+            .gm-succession-player-name {
+                flex: 1;
+                text-align: left;
+            }
+            .gm-succession-player-arrow {
+                font-size: 0.85rem;
+                opacity: 0.7;
+            }
+            .gm-succession-divider {
+                text-align: center;
+                color: var(--md-on-surface-variant, #888);
+                font-size: 0.85rem;
+                margin: 1rem 0;
+                position: relative;
+            }
+            .gm-succession-divider::before,
+            .gm-succession-divider::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                width: 35%;
+                height: 1px;
+                background: var(--md-outline, #444);
+            }
+            .gm-succession-divider::before { left: 0; }
+            .gm-succession-divider::after { right: 0; }
+            .gm-succession-close-btn {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                padding: 0.75rem;
+                background: var(--md-error, #cf6679);
+                color: var(--md-on-error, #000);
+                border: none;
+                border-radius: 8px;
+                font-size: 1rem;
+                cursor: pointer;
+                transition: opacity 0.2s;
+            }
+            .gm-succession-close-btn:hover {
+                opacity: 0.9;
+            }
+            .gm-succession-close-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+            .gm-succession-cancel-btn {
+                width: 100%;
+                padding: 0.75rem;
+                margin-top: 0.5rem;
+                background: transparent;
+                color: var(--md-on-surface-variant, #888);
+                border: 1px solid var(--md-outline, #444);
+                border-radius: 8px;
+                font-size: 0.9rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .gm-succession-cancel-btn:hover {
+                background: var(--md-surface-variant, #2d2d2d);
+                color: var(--md-on-surface, #fff);
+            }
+            
+            /* GM Offline Banner for players */
+            .gm-offline-banner {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+                color: #fff;
+                padding: 1rem 1.5rem;
+                text-align: center;
+                z-index: 100000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.75rem;
+                font-weight: 600;
+                font-size: 1.1rem;
+                box-shadow: 0 4px 20px rgba(211, 47, 47, 0.5);
+                animation: gm-offline-pulse 2s ease-in-out infinite;
+            }
+            .gm-offline-banner svg {
+                flex-shrink: 0;
+            }
+            @keyframes gm-offline-pulse {
+                0%, 100% { background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); }
+                50% { background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); }
+            }
+            .gm-offline-banner .countdown {
+                font-variant-numeric: tabular-nums;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+/**
+ * Close the GM succession dialog
+ */
+function closeGMSuccessionDialog() {
+    const overlay = document.getElementById('gmSuccessionOverlay');
+    if (overlay) overlay.remove();
+}
+
+/**
+ * Transfer GM role to another player and logout
+ */
+async function transferGMAndLogout(newGMUsername) {
+    // Verify against Firebase before transfer
+    const isActuallyGM = await verifyIsGM();
+    if (!isActuallyGM) {
+        console.error('[GM Succession] Cannot transfer - not actually GM');
+        forceLogout(true);
+        return;
+    }
+    
+    const currentUser = getCurrentUser();
+    console.log('[GM Succession] Transferring GM to:', newGMUsername);
+    
+    try {
+        // Update new GM in Firebase
+        await getRef(`players/${sanitizeKey(newGMUsername)}`).update({
+            isGM: true,
+            isRoomCreator: true
+        });
+        
+        // Remove GM from current user in Firebase
+        await getRef(`players/${sanitizeKey(currentUser.username)}`).update({
+            isGM: false,
+            isRoomCreator: false
+        });
+        
+        // Clear GM grace period data
+        await getRef('gmPresence').remove();
+        
+        console.log('[GM Succession] Transfer complete');
+        
+        // Close dialog and logout immediately (no browser popup)
+        closeGMSuccessionDialog();
+        forceLogout(true);
+        
+    } catch (error) {
+        console.error('[GM Succession] Transfer failed:', error);
+        alert(t('gm.succession_error'));
+    }
+}
+
+/**
+ * Close room and kick all players
+ */
+async function closeRoomAndLogout() {
+    // Verify against Firebase before closing
+    const isActuallyGM = await verifyIsGM();
+    if (!isActuallyGM) {
+        console.error('[GM Succession] Cannot close room - not actually GM');
+        forceLogout(true);
+        return;
+    }
+    
+    console.log('[GM Succession] Closing room');
+    
+    try {
+        // Set room closing flag with message
+        await getRef('roomClosing').set({
+            timestamp: Date.now(),
+            reason: 'gm_left',
+            message: t('gm.succession_room_closed_message')
+        });
+        
+        // Clear GM grace period data
+        await getRef('gmPresence').remove();
+        
+        // Close dialog and logout immediately (no browser popup)
+        closeGMSuccessionDialog();
+        forceLogout(true);
+        
+    } catch (error) {
+        console.error('[GM Succession] Room close failed:', error);
+        forceLogout(true);
+    }
+}
+
+/**
+ * Update GM presence (heartbeat)
+ * @param {boolean} forceUpdate - Skip isGM check (used when verified via Firebase)
+ */
+async function updateGMPresence(forceUpdate = false) {
+    const currentUser = getCurrentUser();
+    if (!currentUser || !isFirebaseOnline()) return;
+    
+    // Skip localStorage check if forceUpdate is true (already verified via Firebase)
+    if (!forceUpdate && !currentUser.isGM) return;
+    
+    try {
+        const presenceRef = getRef('gmPresence');
+        
+        // Set current presence data
+        await presenceRef.set({
+            username: currentUser.username,
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            online: true
+        });
+        
+        // Set onDisconnect to mark GM as offline with timestamp
+        await presenceRef.child('online').onDisconnect().set(false);
+        await presenceRef.child('disconnectedAt').onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+        
+        console.log('[GM Presence] Heartbeat sent for:', currentUser.username);
+    } catch (error) {
+        console.error('[GM Presence] Failed to update:', error);
+    }
+}
+
+/**
+ * Start GM presence heartbeat
+ * @param {boolean} verified - Already verified as GM via Firebase
+ */
+function startGMPresenceHeartbeat(verified = false) {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return;
+    
+    // Skip localStorage check if already verified
+    if (!verified && !currentUser.isGM) return;
+    
+    console.log('[GM Presence] Starting heartbeat for:', currentUser.username);
+    
+    // Update immediately (with force flag since we're verified)
+    updateGMPresence(true);
+    
+    // Update every 30 seconds
+    setInterval(() => updateGMPresence(true), 30000);
+    
+    // Also update on page visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            updateGMPresence(true);
+        }
+    });
+}
+
+/**
+ * Monitor GM presence (for non-GM players)
+ * Note: This is only called for verified non-GMs by initGMSuccession
+ */
+function startGMPresenceMonitor() {
+    const currentUser = getCurrentUser();
+    if (!currentUser || !isFirebaseOnline()) {
+        console.log('[GM Monitor] Cannot start - no user or Firebase offline');
+        return;
+    }
+    
+    // Note: We don't check currentUser.isGM here because initGMSuccession already verified via Firebase
+    // This function is only called for verified non-GMs
+    
+    console.log('[GM Monitor] Starting for player:', currentUser.username);
+    
+    let offlineBanner = null;
+    let countdownInterval = null;
+    let gracePeriodEnd = null;
+    let lastKnownGMOnline = true;
+    
+    // Helper to create/update the banner
+    function showOfflineBanner() {
+        // Add CSS if not present
+        if (!document.getElementById('gmOfflineBannerStyles')) {
+            const style = document.createElement('style');
+            style.id = 'gmOfflineBannerStyles';
+            style.textContent = `
+                .gm-offline-banner {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+                    color: #fff;
+                    padding: 1rem 1.5rem;
+                    text-align: center;
+                    z-index: 100000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.75rem;
+                    font-weight: 600;
+                    font-size: 1.1rem;
+                    box-shadow: 0 4px 20px rgba(211, 47, 47, 0.5);
+                    animation: gm-offline-pulse 2s ease-in-out infinite;
+                }
+                .gm-offline-banner svg {
+                    flex-shrink: 0;
+                }
+                @keyframes gm-offline-pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.85; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        if (!offlineBanner) {
+            offlineBanner = document.createElement('div');
+            offlineBanner.className = 'gm-offline-banner';
+            offlineBanner.id = 'gmOfflineBanner';
+            document.body.prepend(offlineBanner);
+            
+            // Push down page content
+            document.body.style.paddingTop = '60px';
+        }
+        return offlineBanner;
+    }
+    
+    function hideOfflineBanner() {
+        if (offlineBanner) {
+            offlineBanner.remove();
+            offlineBanner = null;
+            document.body.style.paddingTop = '';
+        }
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        if (bannerDelayTimeout) {
+            clearTimeout(bannerDelayTimeout);
+            bannerDelayTimeout = null;
+        }
+    }
+    
+    // Delay before showing banner (to ignore page switches)
+    const BANNER_DELAY_MS = 5000; // 5 seconds
+    let bannerDelayTimeout = null;
+    
+    // Listen for GM presence changes
+    getRef('gmPresence').on('value', async (snapshot) => {
+        const presence = snapshot.val();
+        
+        // First check for room closing (higher priority)
+        const closingSnapshot = await getRef('roomClosing').once('value');
+        const closing = closingSnapshot.val();
+        if (closing) {
+            hideOfflineBanner();
+            handleRoomClosed(closing.message);
+            return;
+        }
+        
+        console.log('[GM Monitor] Presence update:', presence);
+        
+        // No presence data yet - GM might not have connected
+        if (!presence) {
+            console.log('[GM Monitor] No gmPresence data');
+            return;
+        }
+        
+        // GM explicitly marked as offline
+        if (presence.online === false) {
+            console.log('[GM Monitor] GM went offline, waiting 5s before showing banner...');
+            lastKnownGMOnline = false;
+            
+            // Calculate grace period end (from disconnect time, not from now)
+            const disconnectTime = presence.disconnectedAt || Date.now();
+            gracePeriodEnd = disconnectTime + GM_GRACE_PERIOD_MS;
+            
+            // Clear any existing delay timeout
+            if (bannerDelayTimeout) {
+                clearTimeout(bannerDelayTimeout);
+            }
+            
+            // Wait 5 seconds before showing banner (to ignore page switches)
+            bannerDelayTimeout = setTimeout(() => {
+                // Double-check GM is still offline
+                getRef('gmPresence/online').once('value').then(onlineSnap => {
+                    if (onlineSnap.val() === false) {
+                        console.log('[GM Monitor] GM still offline after 5s, showing banner');
+                        
+                        const banner = showOfflineBanner();
+                        
+                        // Update countdown every second
+                        const updateCountdown = async () => {
+                            const remaining = Math.max(0, gracePeriodEnd - Date.now());
+                            const seconds = Math.ceil(remaining / 1000);
+                            
+                            if (seconds <= 0) {
+                                // Grace period ended - trigger auto-transfer
+                                clearInterval(countdownInterval);
+                                countdownInterval = null;
+                                banner.innerHTML = `
+                                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                    ${t('gm.succession_transferring')}
+                                `;
+                                await triggerAutoGMTransfer();
+                            } else {
+                                banner.innerHTML = `
+                                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                    <span>${t('gm.succession_gm_offline', { seconds: '<strong style="font-size:1.3em">' + seconds + '</strong>' })}</span>
+                                `;
+                            }
+                        };
+                        
+                        // Clear any existing interval and start new one
+                        if (countdownInterval) clearInterval(countdownInterval);
+                        updateCountdown();
+                        countdownInterval = setInterval(updateCountdown, 1000);
+                    } else {
+                        console.log('[GM Monitor] GM came back online within 5s, no banner needed');
+                    }
+                });
+            }, BANNER_DELAY_MS);
+            
+        } else if (presence.online === true) {
+            // GM is online
+            console.log('[GM Monitor] GM is online');
+            lastKnownGMOnline = true;
+            hideOfflineBanner();
+        }
+    });
+    
+    console.log('[GM Monitor] Started monitoring GM presence');
+}
+
+/**
+ * Auto-transfer GM to oldest player after grace period
+ */
+async function triggerAutoGMTransfer() {
+    const currentUser = getCurrentUser();
+    if (currentUser?.isGM) return; // GM is back, don't transfer
+    
+    try {
+        const playersSnapshot = await getRef('players').once('value');
+        const players = playersSnapshot.val() || {};
+        
+        // Filter online non-GM players and sort by join time
+        const candidates = Object.entries(players)
+            .filter(([key, player]) => player.online !== false && !player.isGM)
+            .sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+        
+        if (candidates.length === 0) {
+            // No candidates - close room
+            handleRoomClosed(t('gm.succession_room_closed_message'));
+            return;
+        }
+        
+        const [oldestKey, oldestPlayer] = candidates[0];
+        
+        // Check if I am the oldest player
+        if (oldestPlayer.username === currentUser.username) {
+            console.log('[GM Succession] I am the oldest player, becoming GM');
+            
+            // Update myself as GM
+            await getRef(`players/${sanitizeKey(currentUser.username)}`).update({
+                isGM: true,
+                isRoomCreator: true
+            });
+            
+            // Update local user data
+            currentUser.isGM = true;
+            currentUser.isRoomCreator = true;
+            localStorage.setItem('pnp_companion_user', JSON.stringify(currentUser));
+            
+            // Clear grace period data
+            await getRef('gmPresence').set({
+                username: currentUser.username,
+                timestamp: Date.now(),
+                online: true
+            });
+            
+            // Remove offline banner
+            const banner = document.querySelector('.gm-offline-banner');
+            if (banner) banner.remove();
+            
+            // Show notification
+            alert(t('gm.succession_you_are_gm'));
+            
+            // Reload page to get GM UI
+            window.location.reload();
+        }
+        // If not oldest, wait for the oldest player to take over
+        
+    } catch (error) {
+        console.error('[GM Succession] Auto-transfer failed:', error);
+    }
+}
+
+/**
+ * Handle room closed by GM
+ */
+function handleRoomClosed(message) {
+    // Remove any existing banners
+    const banner = document.querySelector('.gm-offline-banner');
+    if (banner) banner.remove();
+    
+    alert(message || t('gm.succession_room_closed_message'));
+    forceLogout(true);
+}
+
+/**
+ * Initialize GM succession system
+ */
+async function initGMSuccession() {
+    const currentUser = getCurrentUser();
+    if (!isFirebaseOnline()) {
+        console.log('[GM Succession] Firebase not online, skipping');
+        return;
+    }
+    
+    // Wait a moment for player data to sync to Firebase
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Verify GM status against Firebase (with retry)
+    let isActuallyGM = await verifyIsGM();
+    
+    // Retry once if localStorage says GM but Firebase says no (race condition)
+    if (!isActuallyGM && currentUser?.isGM) {
+        console.log('[GM Succession] Retrying GM verification...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        isActuallyGM = await verifyIsGM();
+    }
+    
+    console.log('[GM Succession] User:', currentUser?.username, 'isActuallyGM:', isActuallyGM);
+    
+    if (isActuallyGM) {
+        // GM: Start presence heartbeat (pass verified=true to skip localStorage check)
+        startGMPresenceHeartbeat(true);
+        
+        console.log('[GM Succession] GM presence heartbeat started');
+    } else {
+        // Player: Monitor GM presence
+        startGMPresenceMonitor();
+        
+        // Also listen for room closing
+        getRef('roomClosing').on('value', (snapshot) => {
+            const closing = snapshot.val();
+            if (closing) {
+                handleRoomClosed(closing.message);
+            }
+        });
+        
+        console.log('[GM Succession] Player monitoring started');
+    }
+}
+
+// Make GM succession functions globally available
+window.showGMSuccessionDialog = showGMSuccessionDialog;
+window.closeGMSuccessionDialog = closeGMSuccessionDialog;
+window.transferGMAndLogout = transferGMAndLogout;
+window.closeRoomAndLogout = closeRoomAndLogout;
+window.initGMSuccession = initGMSuccession;
+window.verifyIsGM = verifyIsGM;
 
 
 // ===== EXPORTS =====
