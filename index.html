@@ -642,7 +642,7 @@
         /* Ruleset Dropdown */
         .ruleset-dropdown {
             position: absolute;
-            top: calc(100% + 4px);
+            top: calc(100% + 8px);
             left: 50%;
             transform: translateX(-50%);
             background: var(--md-surface-container);
@@ -654,7 +654,7 @@
             opacity: 0;
             visibility: hidden;
             transition: all 200ms ease;
-            z-index: 1000;
+            z-index: 9999;
         }
 
         .ruleset-dropdown.active {
@@ -662,16 +662,27 @@
             visibility: visible;
         }
 
+        /* Prevent clicks from bubbling to badge-content */
+        .ruleset-dropdown * {
+            pointer-events: auto;
+        }
+
         .ruleset-option {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 12px;
+            padding: 12px 16px;
             border-radius: var(--shape-sm);
             cursor: pointer;
             transition: background 150ms ease;
             color: var(--md-on-surface-variant);
             font-size: var(--label-small);
+            position: relative;
+            z-index: 1;
+        }
+
+        .ruleset-option:first-child {
+            margin-top: 4px;
         }
 
         .ruleset-option:hover {
@@ -1408,9 +1419,9 @@
             
             <!-- Legal -->
             <div class="sidebar-legal">
-                <a href="impressum.html" data-i18n="footer.imprint">Impressum</a>
+                <a href="pages/legal/impressum.html" data-i18n="footer.imprint">Impressum</a>
                 <span>·</span>
-                <a href="privacy.html" data-i18n="footer.privacy">Datenschutz</a>
+                <a href="pages/legal/privacy.html" data-i18n="footer.privacy">Datenschutz</a>
             </div>
         </div>
     </aside>
@@ -1469,15 +1480,14 @@
 
             <!-- Regelwerk Badge -->
             <div class="room-badge ruleset-badge" id="rulesetBadge">
-                <div class="ruleset-badge-content" onclick="toggleRulesetDropdown()">
-                    <img src="assets/icons/icon_ruleset_rumundrache.svg" alt="Regelwerk" id="rulesetIcon">
-                    <span id="rulesetName">Rum & Rache</span>
+                <div class="ruleset-badge-content" onclick="toggleRulesetDropdown(event)">
+                    <img src="assets/icons/icon_hub.png" alt="Regelwerk" id="rulesetIcon">
+                    <span id="rulesetName">Abenteuer auswählen</span>
                     <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">
                         <polyline points="6 9 12 15 18 9"/>
                     </svg>
                 </div>
                 <div class="ruleset-dropdown" id="rulesetDropdown">
-                    <div class="ruleset-gm-note" id="rulesetGmNote" style="display: none;">Nur GM kann ändern</div>
                     <!-- Options werden dynamisch geladen -->
                 </div>
             </div>
@@ -1533,9 +1543,9 @@
                     <a href="contact.html" data-i18n="footer.contact">Kontakt</a>
                 </nav>
                 <nav class="footer-secondary">
-                    <a href="privacy.html" data-i18n="footer.privacy">Datenschutz</a>
+                    <a href="pages/legal/privacy.html" data-i18n="footer.privacy">Datenschutz</a>
                     <span class="footer-dot">·</span>
-                    <a href="impressum.html" data-i18n="footer.imprint">Impressum</a>
+                    <a href="pages/legal/impressum.html" data-i18n="footer.imprint">Impressum</a>
                 </nav>
                 <div class="footer-tertiary">
                     <a href="donation.html" data-i18n="footer.donate">Spenden</a>
@@ -1848,7 +1858,7 @@
         // ===== PARTICLES =====
         function createParticles() {
             const container = document.getElementById('particlesContainer');
-            const particleCount = 25;
+            const particleCount = 35;
             
             for (let i = 0; i < particleCount; i++) {
                 const particle = document.createElement('div');
@@ -1994,13 +2004,18 @@
         // ===== CATALOG SELECTOR (DROPDOWN) =====
         const CATALOGS = [
             {
+                id: 'none',
+                name: 'Abenteuer auswählen',
+                icon: 'assets/icons/icon_hub.png'
+            },
+            {
                 id: 'rum-und-rache',
                 name: 'Rum & Rache',
                 icon: 'assets/icons/icon_ruleset_rumundrache.svg'
             },
             {
-                id: 'fantasy-classic',
-                name: 'Fantasy Classic',
+                id: '5e-2024',
+                name: '5e (2024) · SRD 5.2.1',
                 icon: 'assets/icons/icon_ruleset_fantasy.svg'
             },
             {
@@ -2015,9 +2030,15 @@
             }
         ];
 
-        let selectedCatalogId = 'rum-und-rache';
+        let selectedCatalogId = 'none';
 
-        function toggleRulesetDropdown() {
+        function toggleRulesetDropdown(event) {
+            // Ignore if click came from dropdown
+            if (event && event.target.closest('.ruleset-dropdown')) {
+                console.log('[Catalog] Ignoring toggle - click from dropdown');
+                return;
+            }
+            
             const user = getCurrentUser();
             const isGM = user?.isGM || false;
             
@@ -2052,39 +2073,66 @@
             const user = getCurrentUser();
             const isGM = user?.isGM || false;
             const dropdown = document.getElementById('rulesetDropdown');
-            const gmNote = document.getElementById('rulesetGmNote');
             
-            // Show/hide GM note
-            gmNote.style.display = isGM ? 'none' : 'block';
+            // Clear dropdown completely
+            dropdown.innerHTML = '';
             
-            // Clear existing options (keep gmNote)
-            dropdown.querySelectorAll('.ruleset-option').forEach(el => el.remove());
+            // Event delegation for clicks
+            dropdown.onclick = null;
+            if (isGM) {
+                dropdown.onclick = function(e) {
+                    const option = e.target.closest('.ruleset-option');
+                    if (option && option.dataset.catalogId) {
+                        e.stopPropagation();
+                        console.log('[Catalog] Dropdown click detected for:', option.dataset.catalogId);
+                        selectCatalog(option.dataset.catalogId);
+                    }
+                };
+            }
             
             CATALOGS.forEach(catalog => {
+                // Translate catalog names
+                let displayName = catalog.name;
+                if (catalog.id === 'none') displayName = t('gm.catalog_none') || 'Kein Abenteuer';
+                
                 const option = document.createElement('div');
                 option.className = `ruleset-option${catalog.id === selectedCatalogId ? ' active' : ''}${!isGM ? ' disabled' : ''}`;
-                option.innerHTML = `
-                    <img src="${catalog.icon}" alt="${catalog.name}" onerror="this.style.display='none'">
-                    <span>${catalog.name}</span>
-                `;
+                option.dataset.catalogId = catalog.id;
                 
-                if (isGM) {
-                    // Use addEventListener with captured catalogId
-                    const catId = catalog.id;
-                    option.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        selectCatalog(catId);
-                    });
-                }
+                option.innerHTML = `
+                    <img src="${catalog.icon}" alt="${displayName}" onerror="this.style.display='none'">
+                    <span>${displayName}</span>
+                `;
                 
                 dropdown.appendChild(option);
             });
+            
+            // Add GM note at the end for non-GMs
+            if (!isGM) {
+                const note = document.createElement('div');
+                note.className = 'ruleset-gm-note';
+                note.textContent = t('gm.only_gm_can_change') || 'Nur GM kann ändern';
+                dropdown.appendChild(note);
+            }
         }
 
         function selectCatalog(catalogId) {
+            console.log('[Catalog] selectCatalog called with:', catalogId);
             const user = getCurrentUser();
-            if (!user?.isGM) return;
+            if (!user?.isGM) {
+                console.log('[Catalog] Not GM, returning');
+                return;
+            }
+            
+            const oldCatalogId = selectedCatalogId;
+            console.log('[Catalog] Old:', oldCatalogId, 'New:', catalogId);
+            
+            // Warnung nur wenn von einem echten Abenteuer zu einem anderen echten Abenteuer gewechselt wird
+            if (oldCatalogId !== 'none' && catalogId !== 'none' && catalogId !== oldCatalogId) {
+                const confirmChange = confirm(t('gm.catalog_change_warning') || 
+                    'Ein Abenteuer ist bereits aktiv. Ein Wechsel kann Auswirkungen auf bestehende Charakterbogen-Einträge haben. Fortfahren?');
+                if (!confirmChange) return;
+            }
             
             selectedCatalogId = catalogId;
             updateRulesetBadge();
@@ -2094,7 +2142,12 @@
 
         function updateRulesetBadge() {
             const catalog = CATALOGS.find(c => c.id === selectedCatalogId) || CATALOGS[0];
-            document.getElementById('rulesetName').textContent = catalog.name;
+            
+            // Übersetzte Namen für Badge
+            let displayName = catalog.name;
+            if (catalog.id === 'none') displayName = t('gm.catalog_select') || 'Abenteuer auswählen';
+            
+            document.getElementById('rulesetName').textContent = displayName;
             document.getElementById('rulesetIcon').src = catalog.icon;
             
             // Store locally as well

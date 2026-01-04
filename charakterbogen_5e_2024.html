@@ -1,0 +1,4524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Sheet - RIFT</title>
+    <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+    <link rel="icon" type="image/png" href="assets/icons/icon_favicon.png">
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--md-background);
+            color: var(--md-on-background);
+            min-height: 100vh;
+            line-height: 1.4;
+            padding-top: 60px; /* Space for fixed nav */
+        }
+
+        .sheet {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+            padding-bottom: 140px; /* Space for FAB + Footer */
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding-top: 56px;
+            }
+            .sheet {
+                padding: 16px;
+                padding-bottom: 160px;
+            }
+        }
+
+        /* ===== SECTION STYLING ===== */
+        .section {
+            background: var(--md-surface-container);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            background: var(--md-surface-container-high);
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .section-header:active {
+            background: var(--md-surface-container-highest);
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--md-on-surface);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title svg {
+            width: 20px;
+            height: 20px;
+            opacity: 0.7;
+        }
+
+        .section-toggle {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--md-on-surface-variant);
+            transition: transform 0.2s;
+        }
+
+        .section.collapsed .section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            padding: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .section-content {
+                padding: 16px;
+            }
+        }
+
+        .section.collapsed .section-content {
+            display: none;
+        }
+
+        /* ===== HEADER SECTION ===== */
+        .header-section {
+            background: var(--md-surface-container);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        /* Desktop Layout */
+        .header-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        
+        .header-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .header-stats {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .header-stats .stat-box {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .portrait-box {
+            width: 120px;
+            height: 205px;
+            min-width: 120px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            background: var(--md-surface-container-high);
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Subtle animated mist effect - only visible when portrait has image */
+        .portrait-box.has-image::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                0deg,
+                rgba(138, 120, 180, 0.5) 0%,
+                rgba(138, 120, 180, 0.25) 25%,
+                transparent 50%
+            );
+            pointer-events: none;
+            animation: mist-drift 8s ease-in-out infinite;
+        }
+
+        @keyframes mist-drift {
+            0%, 100% {
+                opacity: 0.7;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        .portrait-box:hover .portrait-overlay {
+            opacity: 1;
+        }
+
+        .portrait-box svg {
+            width: 48px;
+            height: 48px;
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .portrait-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .portrait-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .portrait-overlay-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .portrait-overlay-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .portrait-overlay-btn img {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+        }
+
+        .portrait-overlay-btn.change {
+            background: var(--md-primary);
+        }
+
+        .portrait-overlay-btn.delete {
+            background: var(--md-error);
+        }
+
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .char-name-input {
+            width: 100%;
+            font-size: 28px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--md-on-surface);
+            padding: 0 0 8px 0;
+        }
+
+        .char-name-input:focus {
+            outline: none;
+        }
+
+        .char-name-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .header-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .header-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .meta-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--md-surface-container-high);
+            padding: 10px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            min-height: 40px;
+        }
+
+        .meta-chip label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--md-primary);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .meta-chip input {
+            background: transparent;
+            border: none;
+            color: var(--md-on-surface);
+            font-size: 13px;
+            font-weight: 500;
+            width: 90px;
+            padding: 0;
+            min-height: 24px;
+        }
+
+        .meta-chip input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .meta-chip input:focus {
+            outline: none;
+        }
+
+        .meta-chip input[type="number"] {
+            width: 45px;
+            text-align: center;
+        }
+
+        .meta-chip select {
+            background: transparent;
+            border: none;
+            color: var(--md-on-surface);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 0;
+            min-height: 24px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .meta-chip select:focus {
+            outline: none;
+        }
+
+        .meta-chip select option {
+            background: var(--md-surface-container);
+            color: var(--md-on-surface);
+        }
+
+        .meta-chip .custom-input {
+            width: 80px;
+            margin-left: 6px;
+            padding-left: 6px;
+            border-left: 1px solid var(--md-outline-variant);
+        }
+
+        @media (max-width: 600px) {
+            .header-meta {
+                gap: 6px;
+            }
+            .meta-chip {
+                padding: 8px 12px;
+                font-size: 12px;
+                min-height: 36px;
+            }
+            .meta-chip label {
+                font-size: 9px;
+            }
+            .meta-chip input,
+            .meta-chip select {
+                font-size: 12px;
+                width: 70px;
+            }
+            .meta-chip input[type="number"] {
+                width: 40px;
+            }
+        }
+
+        .subclass-chip {
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .subclass-chip select {
+            min-width: 100px;
+        }
+
+        @media (max-width: 800px) {
+            .header-layout {
+                gap: 16px;
+            }
+            
+            .portrait-box {
+                width: 140px;
+                height: 140px;
+            }
+            
+            .header-stats {
+                flex-wrap: wrap;
+            }
+            
+            .header-stats .stat-box {
+                min-width: 90px;
+            }
+        }
+
+        @media (max-width: 550px) {
+            /* Hauptcontainer: column statt row */
+            .header-layout {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            /* Portrait: zentriert, quadratisch */
+            .portrait-box {
+                width: 140px !important;
+                height: 140px !important;
+                margin-bottom: 8px;
+            }
+            
+            /* Rechte Spalte: volle Breite, zentriert */
+            .header-right {
+                width: 100%;
+                align-items: center;
+            }
+            
+            /* Character Name: zentriert, größer */
+            .char-name-input {
+                text-align: center;
+                font-size: 24px !important;
+            }
+            
+            /* Meta Chips: 2-Spalten Grid */
+            .header-meta {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                width: 100%;
+            }
+            
+            /* Alle Meta-Chips: Box-Style */
+            .header-meta .meta-chip {
+                width: 100%;
+                border-radius: 12px;
+                padding: 12px 14px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                box-sizing: border-box;
+            }
+            
+            .header-meta .meta-chip label {
+                font-size: 10px;
+            }
+            
+            .header-meta .meta-chip input,
+            .header-meta .meta-chip select {
+                width: 100%;
+                font-size: 14px;
+            }
+            
+            /* Reihenfolge: Species/Class, Background/Subclass, Level/XP */
+            .header-meta .meta-chip:nth-child(1) { order: 1; } /* Species */
+            .header-meta .meta-chip:nth-child(2) { order: 2; } /* Class */
+            .header-meta .meta-chip:nth-child(3) { order: 5; } /* Level */
+            .header-meta .meta-chip:nth-child(4) { order: 6; } /* XP */
+            .header-meta .meta-chip:nth-child(5) { order: 3; } /* Background */
+            .header-meta .meta-chip:nth-child(6) { order: 4; } /* Subclass */
+            
+            /* Level und XP: kompakte Pill-Form */
+            .header-meta .meta-chip:nth-child(3),
+            .header-meta .meta-chip:nth-child(4) {
+                flex-direction: row;
+                align-items: center;
+                padding: 10px 16px;
+                border-radius: 100px;
+                gap: 8px;
+                width: auto;
+            }
+            
+            .header-meta .meta-chip:nth-child(3) input,
+            .header-meta .meta-chip:nth-child(4) input {
+                width: 40px;
+                text-align: center;
+            }
+            
+            /* Stats: 2-Spalten Grid */
+            .header-stats {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                width: 100%;
+            }
+            
+            .header-stats .stat-box {
+                min-width: unset;
+                flex: unset;
+            }
+        }
+
+        .stat-box {
+            background: var(--md-surface-container-high);
+            border-radius: 12px;
+            padding: 12px 10px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            color: var(--md-on-surface);
+            width: 100%;
+            max-width: 80px;
+            text-align: center;
+            padding: 8px 4px;
+        }
+
+        .stat-value.stat-computed {
+            background: transparent;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .stat-value:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .stat-value::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .stat-hint {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--md-primary);
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        .heroic-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid var(--md-outline-variant);
+            background: transparent;
+            cursor: pointer;
+            margin: 8px auto 0 auto;
+            transition: all 0.2s;
+        }
+
+        .heroic-btn:hover,
+        .heroic-btn:active {
+            border-color: var(--md-primary);
+            transform: scale(1.1);
+        }
+
+        .heroic-btn.active {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+            animation: heroic-pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes heroic-pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(138, 120, 180, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 12px 4px rgba(138, 120, 180, 0.3);
+            }
+        }
+
+        /* ===== ABILITIES GRID ===== */
+        .abilities-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 12px;
+        }
+
+        .ability-card {
+            background: var(--md-surface-container-high);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        /* STR in erste Spalte, erste Reihe */
+        .ability-card[data-ability="str"] {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        /* CON in erste Spalte, zweite Reihe */
+        .ability-card[data-ability="con"] {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        /* WIS, CHA, INT, DEX in Spalten 2-5, spannen beide Reihen */
+        .ability-card[data-ability="wis"] {
+            grid-column: 2;
+            grid-row: 1 / 3;
+        }
+        .ability-card[data-ability="cha"] {
+            grid-column: 3;
+            grid-row: 1 / 3;
+        }
+        .ability-card[data-ability="int"] {
+            grid-column: 4;
+            grid-row: 1 / 3;
+        }
+        .ability-card[data-ability="dex"] {
+            grid-column: 5;
+            grid-row: 1 / 3;
+        }
+
+        @media (max-width: 1100px) {
+            .abilities-grid {
+                grid-template-columns: repeat(3, 1fr);
+                grid-template-rows: auto;
+            }
+            .ability-card[data-ability="str"],
+            .ability-card[data-ability="con"],
+            .ability-card[data-ability="wis"],
+            .ability-card[data-ability="cha"],
+            .ability-card[data-ability="int"],
+            .ability-card[data-ability="dex"] {
+                grid-column: auto;
+                grid-row: auto;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .abilities-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .abilities-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ability-top {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+
+        .ability-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--md-on-surface-variant);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .ability-mod-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ability-mod {
+            width: 56px;
+            height: 56px;
+            background: var(--md-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .ability-mod-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--md-on-primary);
+            text-align: center;
+        }
+
+        .ability-score-box {
+            background: var(--md-surface-container);
+            border-radius: 0 8px 8px 0;
+            padding: 6px 10px 6px 22px;
+            margin-left: -16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 1;
+        }
+
+        .ability-score-input {
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--md-surface-container-high);
+            border: none;
+            border-radius: 4px;
+            color: var(--md-on-surface);
+            width: 32px;
+            text-align: center;
+            padding: 4px 2px;
+            cursor: text;
+        }
+
+        .ability-score-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .ability-score-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.4;
+        }
+
+        .ability-score-label {
+            font-size: 7px;
+            color: var(--md-on-surface-variant);
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        .save-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            margin: 0 -12px 8px -12px;
+            min-height: 36px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 0;
+        }
+
+        .prof-check {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background: var(--md-surface-container);
+            border: 2px solid var(--md-outline-variant);
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .prof-check:checked {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+        }
+
+        .prof-check:checked::after {
+            content: '✓';
+            color: var(--md-on-primary);
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .prof-check:hover {
+            border-color: var(--md-primary);
+        }
+
+        .save-val {
+            font-size: 13px;
+            font-weight: 600;
+            width: 36px;
+            text-align: center;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            color: var(--md-on-surface);
+            min-height: 26px;
+            padding: 4px 2px;
+        }
+
+        .save-val.save-computed {
+            background: transparent;
+            display: inline-block;
+            line-height: 26px;
+        }
+
+        .save-val:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .save-val::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .save-label {
+            font-size: 11px;
+            color: var(--md-on-surface-variant);
+            white-space: nowrap;
+        }
+
+        .skills-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .skill-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 0;
+            min-height: 32px;
+        }
+
+        .skill-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background: var(--md-surface-container);
+            border: 2px solid var(--md-outline-variant);
+            border-radius: 4px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--md-on-surface-variant);
+            opacity: 0.4;
+        }
+
+        /* Proficiency Checkbox - shows P */
+        .skill-item input[type="checkbox"].prof-check-skill::after {
+            content: 'P';
+        }
+
+        .skill-item input[type="checkbox"].prof-check-skill:checked {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+            color: var(--md-on-primary);
+            opacity: 0.7;
+        }
+
+        .skill-item input[type="checkbox"]:hover {
+            border-color: var(--md-primary);
+            opacity: 0.6;
+        }
+
+        /* Expertise Checkbox - shows E, also purple */
+        .skill-item .expertise-check {
+            margin-left: -2px;
+        }
+
+        .skill-item .expertise-check::after {
+            content: 'E';
+        }
+
+        .skill-item .expertise-check:checked {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+            color: var(--md-on-primary);
+            opacity: 1;
+        }
+
+        .skill-item .expertise-check:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+
+        .skill-item .expertise-check:disabled:hover {
+            border-color: var(--md-outline-variant);
+            opacity: 0.2;
+        }
+
+        .skill-val {
+            font-size: 12px;
+            font-weight: 600;
+            width: 32px;
+            text-align: center;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            color: var(--md-on-surface);
+            min-height: 22px;
+            padding: 3px 2px;
+        }
+
+        .skill-val.skill-computed {
+            background: transparent;
+            display: inline-block;
+            line-height: 22px;
+        }
+
+        .skill-val:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .skill-val::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .skill-name {
+            font-size: 11px;
+            color: var(--md-on-surface-variant);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ===== COMBAT SECTION ===== */
+        .armor-hp-layout {
+            display: grid;
+            grid-template-columns: 140px 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Shield Shape for AC - spans 2 rows */
+        .ac-shield {
+            grid-row: 1 / 3;
+            position: relative;
+            background: var(--md-surface-container-high);
+            border-radius: 12px 12px 50% 50% / 12px 12px 30% 30%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 12px 28px;
+        }
+
+        .ac-shield::before {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            border-radius: 10px 10px 50% 50% / 10px 10px 28% 28%;
+            border: 2px solid var(--md-outline-variant);
+            pointer-events: none;
+        }
+
+        .ac-shield-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .ac-shield-value {
+            font-size: 48px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+            width: 90px;
+            text-align: center;
+            color: var(--md-on-surface);
+            line-height: 1;
+        }
+
+        .ac-shield-value:focus {
+            outline: none;
+        }
+
+        .ac-shield-value::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.4;
+        }
+
+        .ac-shield-sub {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            background: var(--md-surface-container);
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .ac-shield-sub-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+        }
+
+        .ac-shield-sub-input {
+            font-size: 16px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+            width: 32px;
+            text-align: center;
+            color: var(--md-on-surface);
+        }
+
+        .ac-shield-sub-input:focus {
+            outline: none;
+        }
+
+        /* Armor Stat Boxes - fill the grid */
+        .armor-stat-box {
+            background: var(--md-surface-container-high);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .armor-stat-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .armor-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 100px;
+            text-align: center;
+            padding: 8px;
+            color: var(--md-on-surface);
+        }
+
+        .armor-stat-value:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .armor-stat-value::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .armor-stat-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .armor-stat-input {
+            font-size: 20px;
+            font-weight: 600;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            width: 50px;
+            text-align: center;
+            padding: 8px;
+            color: var(--md-on-surface);
+        }
+
+        .armor-stat-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .armor-stat-slash {
+            color: var(--md-on-surface-variant);
+            font-size: 18px;
+        }
+
+        /* Death Saves */
+        .death-saves-box {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .death-row-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .death-row-box .death-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--md-on-surface-variant);
+            width: 14px;
+        }
+
+        /* Exhaustion */
+        .exhaustion-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .exhaustion-input-box {
+            font-size: 20px;
+            font-weight: 600;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            width: 50px;
+            text-align: center;
+            padding: 8px;
+            color: var(--md-on-surface);
+        }
+
+        .exhaustion-input-box:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .exhaustion-penalty-box {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--md-error);
+        }
+
+        .armor-stat-hint {
+            font-size: 8px;
+            color: var(--md-on-surface-variant);
+            margin-top: 6px;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 800px) {
+            .armor-hp-layout {
+                grid-template-columns: 120px 1fr 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            
+            .ac-shield {
+                grid-row: 1 / 3;
+            }
+        }
+
+        @media (max-width: 550px) {
+            .armor-hp-layout {
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto;
+                gap: 10px;
+            }
+            
+            .ac-shield {
+                grid-column: 1 / 3;
+                grid-row: auto;
+                max-width: 140px;
+                margin: 0 auto;
+                padding: 12px 10px 20px;
+            }
+            
+            .ac-shield-value {
+                font-size: 36px;
+            }
+        }
+
+        .defenses-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+            width: 100%;
+        }
+
+        @media (max-width: 600px) {
+            .defenses-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .defense-item {
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .defense-item input {
+            width: 100%;
+            box-sizing: border-box;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: var(--md-on-surface);
+            margin-top: 6px;
+        }
+
+        .defense-item input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .defense-item input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .defense-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .ac-block {
+            background: var(--md-surface-container-high);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .ac-main {
+            margin-bottom: 12px;
+        }
+
+        .ac-value {
+            font-size: 36px;
+            font-weight: 700;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 10px;
+            color: var(--md-on-surface);
+            width: 80px;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .ac-value:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .ac-value::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .ac-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .shield-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding-top: 12px;
+        }
+
+        .shield-input {
+            width: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            padding: 6px;
+            color: var(--md-on-surface);
+        }
+
+        .shield-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .hp-block {
+            background: var(--md-surface-container-high);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .hp-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .hp-item {
+            text-align: center;
+        }
+
+        .hp-input {
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+            text-align: center;
+            padding: 10px;
+            color: var(--md-on-surface);
+        }
+
+        .hp-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .hp-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .hp-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        .dice-death-block {
+            background: var(--md-surface-container-high);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .dice-section {
+            margin-bottom: 12px;
+        }
+
+        .mini-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .dice-inputs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dice-inputs span {
+            color: var(--md-on-surface-variant);
+            font-size: 14px;
+        }
+
+        .dice-input {
+            width: 40px;
+            height: 32px;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            color: var(--md-on-surface);
+        }
+
+        .dice-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .dice-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .death-section {
+            padding-top: 14px;
+            
+        }
+
+        .death-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .death-label {
+            font-size: 11px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .death-pips {
+            display: flex;
+            gap: 4px;
+        }
+
+        .death-pip {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--md-outline-variant);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .death-pip:hover,
+        .death-pip:active {
+            border-color: var(--md-primary);
+            transform: scale(1.1);
+        }
+
+        .death-pip.success.active {
+            background: #4caf50;
+            border-color: #4caf50;
+        }
+
+        .death-pip.fail.active {
+            background: #f44336;
+            border-color: #f44336;
+        }
+
+        .exhaustion-section {
+            padding-top: 14px;
+            
+            margin-top: 8px;
+        }
+
+        .exhaustion-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .exhaustion-input {
+            width: 50px;
+            height: 36px;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+            color: var(--md-on-surface);
+        }
+
+        .exhaustion-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .exhaustion-penalty {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--md-error);
+            min-width: 40px;
+        }
+
+        .exhaustion-hint {
+            font-size: 9px;
+            color: var(--md-on-surface-variant);
+            margin-top: 4px;
+        }
+
+        /* ===== WEAPONS TABLE ===== */
+        .weapons-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .weapon-row {
+            display: grid;
+            grid-template-columns: 2fr 80px 1fr 1fr 40px;
+            gap: 10px;
+            align-items: center;
+        }
+
+        @media (max-width: 600px) {
+            .weapon-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            .weapon-row > *:nth-child(5) {
+                grid-column: 2;
+                justify-self: end;
+            }
+        }
+
+        .weapon-input {
+            background: var(--md-surface-container-high);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--md-on-surface);
+        }
+
+        .weapon-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .weapon-delete {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: var(--md-error);
+            cursor: pointer;
+            font-size: 20px;
+            opacity: 0.3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .weapon-delete:hover,
+        .weapon-delete:active {
+            opacity: 1;
+            background: var(--md-error-container);
+        }
+
+        /* ===== CLASS RESOURCES ===== */
+        .resources-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .resource-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .resource-name {
+            flex: 1;
+            min-width: 100px;
+            background: transparent;
+            border: none;
+            color: var(--md-on-surface);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .resource-name::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .resource-name:focus {
+            outline: none;
+        }
+
+        .resource-tracker {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .resource-input {
+            width: 40px;
+            height: 32px;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--md-on-surface);
+        }
+
+        .resource-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .resource-slash {
+            color: var(--md-on-surface-variant);
+            font-size: 14px;
+        }
+
+        .resource-delete {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--md-error);
+            cursor: pointer;
+            opacity: 0.3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .resource-delete:hover {
+            opacity: 1;
+            background: var(--md-error-container);
+        }
+
+        .add-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 16px;
+            min-height: 48px; /* Touch-friendly */
+            background: transparent;
+            border: 2px dashed var(--md-outline-variant);
+            border-radius: 12px;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+
+        .add-btn:hover,
+        .add-btn:active {
+            border-color: var(--md-primary);
+            color: var(--md-primary);
+            background: var(--md-primary-container);
+        }
+
+        /* ===== LARGE TEXT AREAS ===== */
+        .text-area {
+            width: 100%;
+            min-height: 120px;
+            background: var(--md-surface-container-high);
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 13px;
+            color: var(--md-on-surface);
+            resize: vertical;
+            font-family: inherit;
+            line-height: 1.6;
+            box-sizing: border-box;
+        }
+
+        .text-area:focus {
+            outline: 2px solid var(--md-primary);
+            outline-offset: -2px;
+        }
+
+        .text-area::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        /* ===== TRAINING CHECKBOXES ===== */
+        .training-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 500px) {
+            .training-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .training-group {
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .training-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .training-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .training-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--md-on-surface);
+            cursor: pointer;
+        }
+
+        .training-item input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            /* Custom checkbox styling */
+            appearance: none;
+            -webkit-appearance: none;
+            background: var(--md-surface-container);
+            border: 2px solid var(--md-outline-variant);
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .training-item input:checked {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+        }
+
+        .training-item input:checked::after {
+            content: '✓';
+            color: var(--md-on-primary);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .training-item input:hover {
+            border-color: var(--md-primary);
+        }
+
+        /* ===== SPELLCASTING ===== */
+        .spell-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .spell-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .spell-stat {
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .spell-stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .spell-stat-select {
+            font-size: 16px;
+            font-weight: 700;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            color: var(--md-on-surface);
+            padding: 8px 12px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .spell-stat-select:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .spell-stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--md-on-surface);
+            display: block;
+        }
+
+        .spell-stat-input {
+            font-size: 18px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+            color: var(--md-on-surface);
+            width: 100%;
+            text-align: center;
+        }
+
+        .spell-stat-input:focus {
+            outline: none;
+        }
+
+        .spell-stat-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .pact-slots-section {
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            transition: opacity 0.3s;
+        }
+
+        .pact-slots-section.dimmed {
+            opacity: 0.35;
+        }
+
+        .pact-slots-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .pact-slot-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pact-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+        }
+
+        .pact-input {
+            width: 50px;
+            height: 36px;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            color: var(--md-on-surface);
+        }
+
+        .pact-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .pact-hint {
+            font-size: 9px;
+            color: var(--md-on-surface-variant);
+            margin-top: 6px;
+        }
+
+        .slots-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .slots-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .slot-card {
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 12px;
+            transition: opacity 0.2s;
+        }
+
+        .slot-card.slot-empty {
+            opacity: 0.4;
+        }
+
+        .slot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .slot-level {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--md-on-surface);
+        }
+
+        .slot-counts {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .slot-num {
+            width: 44px;
+            height: 32px;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--md-on-surface);
+        }
+
+        .slot-num:focus {
+            outline: none;
+            border-color: var(--md-primary);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-primary) 30%, transparent);
+        }
+
+        .slot-pips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .slot-pip {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 2px solid var(--md-outline-variant);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .slot-pip:hover,
+        .slot-pip:active {
+            border-color: var(--md-primary);
+            transform: scale(1.05);
+        }
+
+        .slot-pip.active {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+        }
+
+        /* Spells Table */
+        .spells-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .spell-row {
+            display: grid;
+            grid-template-columns: 50px 1fr 100px 36px 36px 36px minmax(80px, 1fr) 40px;
+            gap: 10px;
+            align-items: center;
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        @media (max-width: 800px) {
+            .spell-row {
+                display: grid;
+                grid-template-columns: 50px 1fr 36px 36px 36px 40px;
+                grid-template-rows: auto auto auto;
+                gap: 8px;
+                padding: 12px;
+            }
+            .spell-row > input:first-child { grid-column: 1; grid-row: 1; }
+            .spell-row > input:nth-child(2) { grid-column: 2 / 7; grid-row: 1; }
+            .spell-row > select { grid-column: 1 / 3; grid-row: 2; }
+            .spell-row > .spell-check:nth-of-type(1) { grid-column: 3; grid-row: 2; }
+            .spell-row > .spell-check:nth-of-type(2) { grid-column: 4; grid-row: 2; }
+            .spell-row > .spell-check:nth-of-type(3) { grid-column: 5; grid-row: 2; }
+            .spell-row > input:nth-child(7) { grid-column: 1 / 6; grid-row: 3; }
+            .spell-row > button:last-child { grid-column: 6; grid-row: 3; justify-self: end; }
+        }
+
+        .spell-input {
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 12px;
+            color: var(--md-on-surface);
+            min-width: 0; /* Prevent overflow */
+        }
+
+        .spell-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .spell-time-select {
+            cursor: pointer;
+        }
+
+        .spell-time-select option {
+            background: var(--md-surface-container);
+            color: var(--md-on-surface);
+        }
+
+        .spell-check {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--md-surface-container);
+            border-radius: 8px;
+            position: relative;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .spell-check input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--md-primary);
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background: var(--md-surface-container-highest);
+            border: 2px solid var(--md-outline-variant);
+            border-radius: 4px;
+        }
+
+        .spell-check input:checked {
+            background: var(--md-primary);
+            border-color: var(--md-primary);
+        }
+
+        .spell-check input:checked::after {
+            content: '✓';
+            color: var(--md-on-primary);
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spell-check-label {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--md-on-surface-variant);
+            margin-top: 2px;
+            opacity: 0.7;
+        }
+
+        /* ===== NARRATIVE / EQUIPMENT ===== */
+        .narrative-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .narrative-grid > div,
+        .equip-col {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .physical-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 500px) {
+            .physical-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .phys-input {
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--md-on-surface);
+            box-sizing: border-box;
+        }
+
+        .phys-input.phys-dimmed {
+            opacity: 0.5;
+        }
+
+        .phys-input.phys-dimmed:focus {
+            opacity: 1;
+        }
+
+        .phys-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .phys-input:focus {
+            outline: 2px solid var(--md-primary);
+            outline-offset: -2px;
+        }
+
+        .equip-area {
+            min-height: 150px;
+            height: 150px;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 600px) {
+            .narrative-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .coins-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .coin {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--md-surface-container-high);
+            padding: 10px 14px;
+            border-radius: 12px;
+        }
+
+        /* GP hervorgehoben */
+        .coin.coin-primary {
+            background: var(--md-surface-container-highest);
+            padding: 12px 16px;
+        }
+
+        .coin.coin-primary .coin-label {
+            font-size: 14px;
+            color: #e2c984;
+        }
+
+        .coin.coin-primary .coin-input {
+            width: 70px;
+            height: 40px;
+            font-size: 16px;
+        }
+
+        .coin-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--md-on-surface-variant);
+        }
+
+        .coin-input {
+            width: 60px;
+            height: 36px;
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--md-on-surface);
+            text-align: center;
+        }
+
+        .coin-input:focus {
+            outline: 2px solid var(--md-primary);
+        }
+
+        .coin-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        .field-group {
+            margin-bottom: 14px;
+        }
+
+        .field-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--md-on-surface-variant);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .field-input {
+            width: 100%;
+            background: var(--md-surface-container-high);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--md-on-surface);
+            box-sizing: border-box;
+        }
+
+        .field-input:focus {
+            outline: 2px solid var(--md-primary);
+            outline-offset: -2px;
+        }
+
+        .field-input::placeholder {
+            color: var(--md-on-surface-variant);
+            opacity: 0.3;
+        }
+
+        /* Magic Item Attunement */
+        .attunement-slots {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            background: var(--md-surface-container-high);
+            border-radius: 10px;
+            padding: 12px;
+            min-height: 60px;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .attunement-slot {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 8px;
+            border: 2px solid #666;
+            background: #2a2a2a;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .attunement-slot:hover,
+        .attunement-slot:active {
+            border-color: var(--md-primary);
+            transform: scale(1.05);
+        }
+
+        .attunement-slot.active {
+            background: var(--md-tertiary);
+            border-color: var(--md-tertiary);
+        }
+
+        /* ===== QUICK REFERENCE ===== */
+        .reference-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .reference-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ref-card {
+            background: var(--md-surface-container-high);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .ref-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--md-primary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .ref-formula {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+            margin-bottom: 10px;
+            padding: 6px 10px;
+            background: var(--md-surface-container);
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .ref-table {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .ref-table span {
+            font-size: 11px;
+            color: var(--md-on-surface-variant);
+            background: var(--md-surface-container);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .ref-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .ref-list div {
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .ref-label {
+            font-weight: 600;
+            color: var(--md-on-surface);
+        }
+
+        /* ===== MANAGE SECTION ===== */
+        .manage-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .manage-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 24px;
+            min-height: 48px;
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .manage-btn:hover,
+        .manage-btn:active {
+            background: #7c70a0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .manage-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .manage-btn.danger {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .manage-btn.danger:hover,
+        .manage-btn.danger:active {
+            background: #b71c1c;
+        }
+
+        @media (max-width: 600px) {
+            .manage-btns {
+                gap: 8px;
+            }
+            .manage-btn {
+                flex: 1 1 calc(50% - 8px);
+                min-width: 140px;
+                justify-content: center;
+                padding: 12px 16px;
+            }
+        }
+
+        /* ===== RULES NOTICE ===== */
+        .rules-notice {
+            background: var(--md-surface-container);
+            border: none;
+            border-radius: 12px;
+            padding: 16px 20px;
+        }
+
+        .rules-notice p {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--md-on-surface-variant);
+            margin: 0 0 12px 0;
+        }
+
+        .rules-notice p:last-child {
+            margin-bottom: 0;
+        }
+
+        .rules-notice a {
+            color: var(--md-primary);
+            text-decoration: none;
+        }
+
+        .rules-notice a:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== CROP MODAL ===== */
+        .crop-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .crop-overlay.active {
+            display: flex;
+        }
+
+        .crop-modal {
+            background: var(--md-surface-container);
+            border-radius: 16px;
+            max-width: 450px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .crop-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            
+        }
+
+        .crop-title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .crop-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--md-on-surface-variant);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .crop-body {
+            padding: 16px;
+            max-height: 50vh;
+            overflow: hidden;
+        }
+
+        .crop-body img {
+            max-width: 100%;
+        }
+
+        .crop-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 16px 20px;
+            
+        }
+
+        .crop-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .crop-btn-cancel {
+            background: var(--md-surface-container-high);
+            border: none;
+            color: var(--md-on-surface);
+        }
+
+        .crop-btn-ok {
+            background: var(--md-primary);
+            border: none;
+            color: var(--md-on-primary);
+        }
+
+        /* GM Player Bar - nicht fixed, scrollt mit */
+        .player-bar {
+            background: var(--md-surface-container);
+            border-radius: 16px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .gm-banner {
+            background: color-mix(in srgb, var(--md-primary) 10%, var(--md-surface-container));
+            border: 1px solid var(--md-primary);
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: var(--md-on-surface);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gm-banner svg {
+            width: 18px;
+            height: 18px;
+            color: var(--md-primary);
+        }
+
+        @media (max-width: 600px) {
+            .player-bar {
+                padding: 8px 12px;
+            }
+        }
+
+        .player-bar-label {
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .player-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--md-surface-container-high);
+            border: 2px solid transparent;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .player-tab:hover {
+            background: var(--md-surface-container-highest);
+        }
+
+        .player-tab.active {
+            border-color: var(--md-primary);
+            background: color-mix(in srgb, var(--md-primary) 15%, var(--md-surface-container));
+        }
+
+        .player-tab.own {
+            font-style: italic;
+        }
+
+        .player-tab-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        @media print {
+            body { background: white !important; color: black !important; }
+            .nav-container, .fly-btn-container, .player-bar, .gm-banner, .section:last-child { display: none !important; }
+            .section.collapsed .section-content { display: block !important; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Crop Modal -->
+    <div class="crop-overlay" id="cropModal">
+        <div class="crop-modal">
+            <div class="crop-header"><span class="crop-title">Crop Portrait</span><button class="crop-close" onclick="closeCrop()">×</button></div>
+            <div class="crop-body"><img id="cropImage" src=""></div>
+            <div class="crop-footer"><button class="crop-btn crop-btn-cancel" onclick="closeCrop()">Cancel</button><button class="crop-btn crop-btn-ok" onclick="confirmCrop()">OK</button></div>
+        </div>
+    </div>
+
+    <div class="sheet">
+        <!-- HEADER -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Your Character</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <!-- ZWEI-SPALTEN LAYOUT: Portrait links, Rest rechts -->
+                <div class="header-layout">
+                    
+                    <!-- LINKE SPALTE: Portrait -->
+                    <div class="portrait-box" id="portraitBox" onclick="document.getElementById('portraitInput').click()">
+                        <svg id="portraitPlaceholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 36px; height: 36px; color: var(--md-on-surface-variant); opacity: 0.3;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <img id="portraitImage" src="" style="display:none;">
+                        <div class="portrait-overlay" id="portraitOverlay">
+                            <button class="portrait-overlay-btn change" onclick="event.stopPropagation(); document.getElementById('portraitInput').click();" title="Change"><img src="assets/icons/icon_image.png" alt="Change"></button>
+                            <button class="portrait-overlay-btn delete" onclick="event.stopPropagation(); deletePortrait();" title="Delete"><img src="assets/icons/icon_delete.png" alt="Delete"></button>
+                        </div>
+                        <input type="file" id="portraitInput" accept="image/*" style="display:none;" onchange="handlePortrait(event)">
+                    </div>
+                    
+                    <!-- RECHTE SPALTE: Name + Meta + Stats -->
+                    <div class="header-right">
+                        <!-- Character Name -->
+                        <input type="text" class="char-name-input" id="charName" placeholder="Character Name" oninput="autoSave()">
+                        
+                        <!-- Meta Chips -->
+                        <div class="header-meta">
+                            <div class="meta-chip">
+                                <label>Species</label>
+                                <select id="species" onchange="handleSpeciesChange(); autoSave()">
+                                    <option value="" disabled selected>Select</option>
+                                    <option value="Human">Human</option>
+                                    <option value="Elf">Elf</option>
+                                    <option value="Dwarf">Dwarf</option>
+                                    <option value="Halfling">Halfling</option>
+                                    <option value="Gnome">Gnome</option>
+                                    <option value="Half-Elf">Half-Elf</option>
+                                    <option value="Half-Orc">Half-Orc</option>
+                                    <option value="Dragonborn">Dragonborn</option>
+                                    <option value="Tiefling">Tiefling</option>
+                                    <option value="custom">Custom / Other</option>
+                                </select>
+                                <input type="text" id="speciesCustom" class="custom-input" placeholder="Enter species..." style="display:none;" oninput="autoSave()">
+                            </div>
+                            <div class="meta-chip">
+                                <label>Class</label>
+                                <select id="charClass" onchange="handleClassChange(); autoSave()">
+                                    <option value="" disabled selected>Select</option>
+                                    <option value="Artificer">Artificer</option>
+                                    <option value="Barbarian">Barbarian</option>
+                                    <option value="Bard">Bard</option>
+                                    <option value="Cleric">Cleric</option>
+                                    <option value="Druid">Druid</option>
+                                    <option value="Fighter">Fighter</option>
+                                    <option value="Monk">Monk</option>
+                                    <option value="Paladin">Paladin</option>
+                                    <option value="Ranger">Ranger</option>
+                                    <option value="Rogue">Rogue</option>
+                                    <option value="Sorcerer">Sorcerer</option>
+                                    <option value="Warlock">Warlock</option>
+                                    <option value="Wizard">Wizard</option>
+                                    <option value="custom">Custom / Homebrew</option>
+                                </select>
+                                <input type="text" id="classCustom" class="custom-input" placeholder="Enter class..." style="display:none;" oninput="autoSave()">
+                            </div>
+                            <div class="meta-chip">
+                                <label>Level</label>
+                                <input type="number" id="level" value="1" min="1" max="20" step="1" oninput="updateProfBonus(); autoSave()">
+                            </div>
+                            <div class="meta-chip">
+                                <label>XP</label>
+                                <input type="number" id="xp" placeholder="0" min="0" oninput="autoSave()">
+                            </div>
+                            <div class="meta-chip">
+                                <label>Background</label>
+                                <select id="background" onchange="handleBackgroundChange(); autoSave()">
+                                    <option value="" disabled selected>Select</option>
+                                    <option value="Acolyte">Acolyte</option>
+                                    <option value="Charlatan">Charlatan</option>
+                                    <option value="Criminal">Criminal</option>
+                                    <option value="Entertainer">Entertainer</option>
+                                    <option value="Folk Hero">Folk Hero</option>
+                                    <option value="Hermit">Hermit</option>
+                                    <option value="Noble">Noble</option>
+                                    <option value="Outlander">Outlander</option>
+                                    <option value="Sage">Sage</option>
+                                    <option value="Sailor">Sailor</option>
+                                    <option value="Soldier">Soldier</option>
+                                    <option value="Urchin">Urchin</option>
+                                    <option value="custom">Custom / Other</option>
+                                </select>
+                                <input type="text" id="backgroundCustom" class="custom-input" placeholder="Enter background..." style="display:none;" oninput="autoSave()">
+                            </div>
+                            <div class="meta-chip subclass-chip" id="subclassChip" style="display:none;">
+                                <label>Subclass</label>
+                                <select id="subclass" onchange="handleSubclassChange(); autoSave()">
+                                    <option value="" disabled selected>Select</option>
+                                </select>
+                                <input type="text" id="subclassCustom" class="custom-input" placeholder="Enter subclass..." style="display:none;" oninput="autoSave()">
+                            </div>
+                        </div>
+                        
+                        <!-- Stats: alle in einer Reihe -->
+                        <div class="header-stats">
+                            <div class="stat-box"><div class="stat-label">Heroic Insp.</div><div class="heroic-btn" id="heroicBtn" onclick="toggleHeroic()"></div></div>
+                            <div class="stat-box"><div class="stat-label">Prof. Bonus</div><span class="stat-value stat-computed" id="profBonus">+2</span><div class="stat-hint">from Level</div></div>
+                            <div class="stat-box"><div class="stat-label">Initiative</div><span class="stat-value stat-computed" id="initiative">+0</span><div class="stat-hint">DEX Mod</div></div>
+                            <div class="stat-box"><div class="stat-label">Speed</div><input type="text" class="stat-value" id="speed" placeholder="–" oninput="autoSave()"><div class="stat-hint">Species</div></div>
+                            <div class="stat-box"><div class="stat-label">Size</div><input type="text" class="stat-value" id="size" placeholder="–" oninput="autoSave()"><div class="stat-hint">Species</div></div>
+                            <div class="stat-box"><div class="stat-label">Passive Perc.</div><span class="stat-value stat-computed" id="passivePerc">10</span><div class="stat-hint">10 + WIS + Prof</div></div>
+                            <div class="stat-box"><div class="stat-label">Passive Inv.</div><span class="stat-value stat-computed" id="passiveInv">10</span><div class="stat-hint">10 + INT + Prof</div></div>
+                            <div class="stat-box"><div class="stat-label">Passive Ins.</div><span class="stat-value stat-computed" id="passiveIns">10</span><div class="stat-hint">10 + WIS + Prof</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMBAT -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Armor & Hit Points</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="armor-hp-layout">
+                    <!-- AC Shield - spans 2 rows -->
+                    <div class="ac-shield">
+                        <div class="ac-shield-label">Armor Class</div>
+                        <input type="text" class="ac-shield-value" id="ac" placeholder="–" oninput="autoSave()">
+                        <div class="ac-shield-sub">
+                            <span class="ac-shield-sub-label">Shield</span>
+                            <input type="text" class="ac-shield-sub-input" id="shield" placeholder="–" oninput="autoSave()">
+                        </div>
+                    </div>
+                    <!-- Row 1: HP -->
+                    <div class="armor-stat-box">
+                        <div class="armor-stat-label">Current HP</div>
+                        <input type="number" class="armor-stat-value" id="hpCurrent" placeholder="–" oninput="autoSave()">
+                    </div>
+                    <div class="armor-stat-box">
+                        <div class="armor-stat-label">Maximum HP</div>
+                        <input type="number" class="armor-stat-value" id="hpMax" placeholder="–" oninput="autoSave()">
+                    </div>
+                    <div class="armor-stat-box">
+                        <div class="armor-stat-label">Temp HP</div>
+                        <input type="number" class="armor-stat-value" id="hpTemp" placeholder="0" value="0" oninput="autoSave()">
+                    </div>
+                    <!-- Row 2: Secondary -->
+                    <div class="armor-stat-box">
+                        <div class="armor-stat-label">Hit Dice</div>
+                        <div class="armor-stat-row">
+                            <input type="text" class="armor-stat-input" id="hdCurrent" placeholder="–" oninput="autoSave()">
+                            <span class="armor-stat-slash">/</span>
+                            <input type="text" class="armor-stat-input" id="hdMax" placeholder="–" oninput="autoSave()">
+                        </div>
+                    </div>
+                    <div class="armor-stat-box">
+                        <div class="armor-stat-label">Death Saves</div>
+                        <div class="death-saves-box">
+                            <div class="death-row-box"><span class="death-label">S</span><div class="death-pips" id="deathSuccess"></div></div>
+                            <div class="death-row-box"><span class="death-label">F</span><div class="death-pips" id="deathFail"></div></div>
+                        </div>
+                    </div>
+                    <div class="armor-stat-box">
+                        <div class="armor-stat-label">Exhaustion</div>
+                        <div class="exhaustion-box">
+                            <input type="number" class="exhaustion-input-box" id="exhaustion" value="0" min="0" max="10" oninput="updateExhaustion(); autoSave()">
+                            <span class="exhaustion-penalty-box" id="exhaustionPenalty">−0</span>
+                        </div>
+                        <div class="armor-stat-hint">−2 per level</div>
+                    </div>
+                </div>
+                <div class="defenses-row">
+                    <div class="defense-item"><div class="defense-label">Resistances</div><input type="text" id="resistances" placeholder="Fire, Poison, ..." oninput="autoSave()" style="width:100%;box-sizing:border-box;"></div>
+                    <div class="defense-item"><div class="defense-label">Immunities</div><input type="text" id="immunities" placeholder="Poison, Disease, ..." oninput="autoSave()" style="width:100%;box-sizing:border-box;"></div>
+                    <div class="defense-item"><div class="defense-label">Vulnerabilities</div><input type="text" id="vulnerabilities" placeholder="Radiant, ..." oninput="autoSave()" style="width:100%;box-sizing:border-box;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABILITIES -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Abilities & Skills</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="abilities-grid" id="abilitiesGrid"></div>
+            </div>
+        </div>
+
+        <!-- WEAPONS -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/></svg>Weapons & Cantrips</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="weapons-list" id="weaponsList"></div>
+                <button class="add-btn" onclick="addWeapon()">+ Add Weapon / Cantrip</button>
+            </div>
+        </div>
+
+        <!-- FEATURES -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Class Features</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <textarea class="text-area" id="classFeatures" placeholder="Class features, abilities, actions..." oninput="autoSave()"></textarea>
+                <div class="field-label" style="margin-top:16px;">Class Resources</div>
+                <div class="resources-list" id="resourcesList"></div>
+                <button class="add-btn" onclick="addResource()">+ Add Resource</button>
+            </div>
+        </div>
+
+        <!-- TRAINING -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Training & Proficiencies</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="training-grid">
+                    <div class="training-group"><div class="training-label">Armor</div><div class="training-checks"><label class="training-item"><input type="checkbox" id="armorLight" onchange="autoSave()">Light</label><label class="training-item"><input type="checkbox" id="armorMedium" onchange="autoSave()">Medium</label><label class="training-item"><input type="checkbox" id="armorHeavy" onchange="autoSave()">Heavy</label><label class="training-item"><input type="checkbox" id="armorShields" onchange="autoSave()">Shields</label></div></div>
+                    <div class="training-group"><div class="training-label">Weapons</div><div class="training-checks"><label class="training-item"><input type="checkbox" id="weaponSimple" onchange="autoSave()">Simple</label><label class="training-item"><input type="checkbox" id="weaponMartial" onchange="autoSave()">Martial</label><label class="training-item"><input type="checkbox" id="weaponFirearms" onchange="autoSave()">Firearms</label></div></div>
+                </div>
+                <div class="field-group" style="margin-top:14px;"><div class="field-label">Weapons</div><textarea class="text-area" id="weaponsText" style="min-height:60px;" placeholder="Specific weapons (e.g. Longsword, Rapier, Hand Crossbow)" oninput="autoSave()"></textarea></div>
+                <div class="field-group" style="margin-top:14px;"><div class="field-label">Tools & Other Training</div><textarea class="text-area" id="tools" style="min-height:80px;" oninput="autoSave()"></textarea></div>
+            </div>
+        </div>
+
+        <!-- SPECIES & FEATS -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Species Traits & Feats</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="field-group"><div class="field-label">Senses</div><input type="text" class="field-input" id="senses" placeholder="Darkvision 60 ft., ..." oninput="autoSave()"></div>
+                <div class="narrative-grid">
+                    <div><div class="field-label">Species Traits</div><textarea class="text-area" id="speciesTraits" placeholder="Racial abilities, features..." oninput="autoSave()"></textarea></div>
+                    <div><div class="field-label">Feats</div><textarea class="text-area" id="feats" placeholder="Selected feats..." oninput="autoSave()"></textarea></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SPELLCASTING -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Spellcasting</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="spell-stats">
+                    <div class="spell-stat">
+                        <div class="spell-stat-label">Spellcasting Ability</div>
+                        <select class="spell-stat-select" id="spellAbility" onchange="updateSpellStats(); autoSave()">
+                            <option value="" disabled selected>Select</option>
+                            <option value="int">INT</option>
+                            <option value="wis">WIS</option>
+                            <option value="cha">CHA</option>
+                        </select>
+                    </div>
+                    <div class="spell-stat">
+                        <div class="spell-stat-label">Spellcasting Modifier</div>
+                        <span class="spell-stat-value" id="spellMod">+0</span>
+                        <div class="stat-hint">Ability Modifier</div>
+                    </div>
+                    <div class="spell-stat" title="8 + Proficiency Bonus + Spellcasting Modifier">
+                        <div class="spell-stat-label">Spell Save DC</div>
+                        <span class="spell-stat-value" id="spellDC">10</span>
+                        <div class="stat-hint" id="spellDCHint">8 + Prof + Mod</div>
+                    </div>
+                    <div class="spell-stat" title="Proficiency Bonus + Spellcasting Modifier">
+                        <div class="spell-stat-label">Spell Attack</div>
+                        <span class="spell-stat-value" id="spellAttack">+2</span>
+                        <div class="stat-hint" id="spellAttackHint">Prof + Mod</div>
+                    </div>
+                </div>
+                <div class="pact-slots-section" id="pactSlotsSection">
+                    <div class="field-label">Pact Slots (Warlock)</div>
+                    <div class="pact-slots-row">
+                        <div class="pact-slot-item">
+                            <span class="pact-label" title="Spell Slot Level for Pact Magic">Slot Level</span>
+                            <input type="number" class="pact-input" id="pactLevel" min="1" max="5" placeholder="–" oninput="autoSave()">
+                        </div>
+                        <div class="pact-slot-item">
+                            <span class="pact-label">Total</span>
+                            <input type="number" class="pact-input" id="pactTotal" min="0" max="4" placeholder="–" oninput="autoSave()">
+                        </div>
+                        <div class="pact-slot-item">
+                            <span class="pact-label">Expended</span>
+                            <input type="number" class="pact-input" id="pactExpended" min="0" max="4" placeholder="0" oninput="autoSave()">
+                        </div>
+                    </div>
+                    <div class="pact-hint">Short Rest Recovery • Slot Level = spell level when casting</div>
+                </div>
+                <div class="field-label">Spell Slots</div>
+                <div class="slots-grid" id="slotsGrid"></div>
+                <div class="field-label">Prepared Spells</div>
+                <div class="spells-list" id="spellsList"></div>
+                <button class="add-btn" onclick="addSpell()">+ Add Spell</button>
+            </div>
+        </div>
+
+        <!-- EQUIPMENT & BACKSTORY -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Equipment & Notes</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="field-label" style="margin-bottom:8px;">Coins</div>
+                <div class="coins-row">
+                    <div class="coin"><span class="coin-label">CP</span><input type="number" class="coin-input" id="cp" placeholder="0" oninput="autoSave()"></div>
+                    <div class="coin"><span class="coin-label">SP</span><input type="number" class="coin-input" id="sp" placeholder="0" oninput="autoSave()"></div>
+                    <div class="coin coin-primary"><span class="coin-label">GP</span><input type="number" class="coin-input" id="gp" placeholder="0" oninput="autoSave()"></div>
+                    <div class="coin"><span class="coin-label">EP</span><input type="number" class="coin-input" id="ep" placeholder="0" oninput="autoSave()"></div>
+                    <div class="coin"><span class="coin-label">PP</span><input type="number" class="coin-input" id="pp" placeholder="0" oninput="autoSave()"></div>
+                </div>
+                <div class="narrative-grid equip-grid">
+                    <div class="equip-col">
+                        <div class="field-group"><div class="field-label">Languages</div><input type="text" class="field-input" id="languages" placeholder="Common, Elvish, ..." oninput="autoSave()"></div>
+                        <div class="field-group"><div class="field-label">Equipment</div><textarea class="text-area equip-area" id="equipment" placeholder="Items, gear, supplies..." oninput="autoSave()"></textarea></div>
+                        <div class="field-group">
+                            <div class="field-label">Magic Item Attunement (0-3)</div>
+                            <div class="attunement-slots" id="attunementSlots">
+                                <div class="attunement-slot" id="attune0" onclick="toggleAttunement(0)"></div>
+                                <div class="attunement-slot" id="attune1" onclick="toggleAttunement(1)"></div>
+                                <div class="attunement-slot" id="attune2" onclick="toggleAttunement(2)"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="equip-col">
+                        <div class="field-group"><div class="field-label">Alignment</div><input type="text" class="field-input" id="alignment" oninput="autoSave()"></div>
+                        <div class="field-group"><div class="field-label">Physical Traits</div><div class="physical-grid"><input type="text" class="phys-input" id="physAge" placeholder="Age" oninput="autoSave()"><input type="text" class="phys-input" id="physHeight" placeholder="Height" oninput="autoSave()"><input type="text" class="phys-input phys-dimmed" id="physWeight" placeholder="Weight" oninput="autoSave()"><input type="text" class="phys-input" id="physEyes" placeholder="Eyes" oninput="autoSave()"><input type="text" class="phys-input" id="physHair" placeholder="Hair" oninput="autoSave()"><input type="text" class="phys-input" id="physSkin" placeholder="Skin" oninput="autoSave()"></div></div>
+                        <div class="field-group"><div class="field-label">Appearance</div><textarea class="text-area equip-area" id="appearance" placeholder="Physical description..." oninput="autoSave()"></textarea></div>
+                        <div class="field-group"><div class="field-label">Backstory & Personality</div><textarea class="text-area" id="backstory" placeholder="History, traits, ideals, bonds, flaws..." oninput="autoSave()"></textarea></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUICK REFERENCE -->
+        <div class="section collapsed">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Quick Reference</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="reference-grid" id="quickRefGrid"></div>
+            </div>
+        </div>
+
+        <!-- MANAGE -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Manage Sheet</div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="manage-btns">
+                    <button class="manage-btn" onclick="downloadJSON()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download JSON</button>
+                    <button class="manage-btn" onclick="document.getElementById('jsonUpload').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload JSON</button>
+                    <input type="file" id="jsonUpload" accept=".json" style="display:none;" onchange="uploadJSON(event)">
+                    <button class="manage-btn" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Print / PDF</button>
+                    <button class="manage-btn danger" onclick="resetSheet()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RULES COMPATIBILITY NOTICE -->
+        <div class="section collapsed">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span id="rulesNoticeTitle">Rules Compatibility & Licensing</span></div>
+                <div class="section-toggle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+            <div class="section-content">
+                <div class="rules-notice" id="rulesNoticeContent">
+                    <p><strong>Rules Compatibility & Licensing Notice</strong></p>
+                    <p>This character sheet makes use of game mechanics, rules terminology, and other content derived from the System Reference Document 5.2.1 (SRD), published by Wizards of the Coast LLC and licensed under the Creative Commons Attribution 4.0 International License (CC-BY-4.0).</p>
+                    <p>The System Reference Document is made available by Wizards of the Coast under an open license to allow the use, modification, and redistribution of the covered material, provided that proper attribution is given. This application complies with the attribution requirements of the CC-BY-4.0 license.</p>
+                    <p>Dungeons & Dragons, D&D, and all related trademarks, product names, and brand identifiers are trademarks or registered trademarks of Wizards of the Coast LLC.</p>
+                    <p>RIFT is an independent project and is not affiliated with, endorsed by, sponsored by, or approved by Wizards of the Coast LLC in any way. The use of SRD content does not imply any partnership, endorsement, or official status.</p>
+                    <p>Any content not explicitly derived from the System Reference Document remains the intellectual property of its respective creators.</p>
+                    <p><a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener">System Reference Document (SRD 5.2.1) ↗</a><br>
+                    <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International License ↗</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="assets/js/lang.js"></script>
+    <script src="assets/js/i18n.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/firebase-sync.js"></script>
+    <script src="assets/js/nav.js"></script>
+
+    <script>
+        'use strict';
+
+        // Official SRD 5E 2024 Terminology (DE)
+        // RULE: Only SRD terms get translated. Everything else stays English.
+        const SRD_TERMS_DE = {
+            // Ability Scores
+            'Strength': 'Stärke', 'Dexterity': 'Geschicklichkeit', 'Constitution': 'Konstitution',
+            'Intelligence': 'Intelligenz', 'Wisdom': 'Weisheit', 'Charisma': 'Charisma',
+            'STR': 'STÄ', 'DEX': 'GES', 'CON': 'KON', 'INT': 'INT', 'WIS': 'WEI', 'CHA': 'CHA',
+            // Ability Terms
+            'Ability Score': 'Attributswert', 'Ability Modifier': 'Attributsmodifikator',
+            'Modifier': 'Modifikator',
+            // Saving Throws
+            'Saving Throw': 'Rettungswurf', 'Save': 'Rettungswurf',
+            // Skills
+            'Acrobatics': 'Akrobatik', 'Animal Handling': 'Umgang mit Tieren', 'Arcana': 'Arkane Kunde',
+            'Athletics': 'Athletik', 'Deception': 'Täuschung', 'History': 'Geschichte',
+            'Insight': 'Motiv erkennen', 'Intimidation': 'Einschüchtern', 'Investigation': 'Nachforschungen',
+            'Medicine': 'Heilkunde', 'Nature': 'Naturkunde', 'Perception': 'Wahrnehmung',
+            'Performance': 'Auftreten', 'Persuasion': 'Überreden', 'Religion': 'Religion',
+            'Sleight of Hand': 'Fingerfertigkeit', 'Stealth': 'Heimlichkeit', 'Survival': 'Überleben',
+            // Proficiency
+            'Proficiency': 'Übung', 'Proficiency Bonus': 'Übungsbonus', 'Prof. Bonus': 'Übungsbonus',
+            // Combat
+            'Hit Points': 'Trefferpunkte', 'HP': 'TP', 'Current': 'Aktuell', 'Maximum': 'Maximum', 'Temp': 'Temp',
+            'Temporary Hit Points': 'Temporäre Trefferpunkte',
+            'Armor Class': 'Rüstungsklasse', 'AC': 'RK',
+            'Initiative': 'Initiative', 'Speed': 'Bewegungsrate', 'Size': 'Größe',
+            'Hit Dice': 'Trefferwürfel', 'Death Saves': 'Todesrettungswürfe',
+            'Successes': 'Erfolge', 'Failures': 'Fehlschläge',
+            // Perception
+            'Passive Perception': 'Passive Wahrnehmung', 'Passive Perc.': 'Passive Wahrn.',
+            // Spellcasting
+            'Spell': 'Zauber', 'Spellcasting': 'Zauberwirken', 'Spell Slot': 'Zauberplatz',
+            'Spell Slots': 'Zauberplätze', 'Cantrip': 'Zaubertrick', 'Cantrips': 'Zaubertricks',
+            'Spell Save DC': 'Zauber-SG', 'Spell Attack': 'Zauberangriff',
+            'Spellcasting Ability': 'Zauberattribut', 'Spell Modifier': 'Zaubermodifikator',
+            'Concentration': 'Konzentration', 'Ritual': 'Ritual',
+            'Prepared Spells': 'Vorbereitete Zauber',
+            // Equipment
+            'Equipment': 'Ausrüstung', 'Weapon': 'Waffe', 'Weapons': 'Waffen',
+            'Armor': 'Rüstung', 'Shield': 'Schild', 'Tool': 'Werkzeug', 'Tools': 'Werkzeuge',
+            'Magic Item': 'Magischer Gegenstand', 'Attunement': 'Einstimmung',
+            // Currency (keep abbreviations)
+            'CP': 'KM', 'SP': 'SM', 'EP': 'EM', 'GP': 'GM', 'PP': 'PM',
+            // Character
+            'Character': 'Charakter', 'Level': 'Stufe', 'Experience Points': 'Erfahrungspunkte', 'XP': 'EP',
+            'Class': 'Klasse', 'Background': 'Hintergrund', 'Alignment': 'Gesinnung',
+            'Feature': 'Merkmal', 'Features': 'Merkmale', 'Trait': 'Eigenschaft', 'Traits': 'Eigenschaften',
+            'Feat': 'Talent', 'Feats': 'Talente',
+            // New fields
+            'Exhaustion': 'Erschöpfung', 'Senses': 'Sinne',
+            'Resistances': 'Resistenzen', 'Immunities': 'Immunitäten', 'Vulnerabilities': 'Verwundbarkeiten',
+            'Expertise': 'Expertise',
+            'Class Resources': 'Klassenressourcen',
+            'Pact Slots (Warlock)': 'Paktplätze (Warlock)',
+            'Passive Inv.': 'Passive Untersch.', 'Passive Ins.': 'Passive Einsicht',
+            'Physical Traits': 'Körperliche Merkmale',
+            // UI Labels
+            'Class Features': 'Klassenmerkmale', 'Species Traits': 'Species Traits',
+            'Training & Proficiencies': 'Training & Übung',
+            'Abilities & Skills': 'Attribute & Fertigkeiten',
+            'Combat': 'Kampf', 'Quick Reference': 'Kurzreferenz',
+            'Manage Sheet': 'Bogen verwalten', 'Equipment & Notes': 'Ausrüstung & Notizen',
+            'Languages': 'Sprachen', 'Appearance': 'Erscheinung', 'Backstory': 'Hintergrundgeschichte',
+            'Subclass': 'Unterklasse', 'Species': 'Species', // Species stays EN (not in SRD)
+            // Actions
+            'Download': 'Herunterladen', 'Upload': 'Hochladen', 'Reset': 'Zurücksetzen', 'Print': 'Drucken',
+            // Hints stay English (formulas are universal)
+            'by Level': 'nach Stufe', 'Select': 'Wählen', 'Select Subclass': 'Unterklasse wählen',
+            // Rules Notice
+            'Rules Compatibility & Licensing': 'Regelkompatibilität & Lizenzierung'
+        };
+
+        // Get current language
+        function getLang() {
+            return localStorage.getItem('pnp_language') || 'en';
+        }
+
+        // Translate term (only if in SRD, otherwise keep English)
+        function term(en) {
+            if (getLang() === 'de' && SRD_TERMS_DE[en]) {
+                return SRD_TERMS_DE[en];
+            }
+            return en; // Keep English if not in SRD or language is EN
+        }
+
+        // Ability definitions - NO automatic calculations
+        const ABILITIES = [
+            { id: 'str', name: 'Strength', abbr: 'STR', skills: ['athletics'] },
+            { id: 'dex', name: 'Dexterity', abbr: 'DEX', skills: ['acrobatics', 'sleight', 'stealth'] },
+            { id: 'con', name: 'Constitution', abbr: 'CON', skills: [] },
+            { id: 'int', name: 'Intelligence', abbr: 'INT', skills: ['arcana', 'history', 'investigation', 'nature', 'religion'] },
+            { id: 'wis', name: 'Wisdom', abbr: 'WIS', skills: ['animal', 'insight', 'medicine', 'perception', 'survival'] },
+            { id: 'cha', name: 'Charisma', abbr: 'CHA', skills: ['deception', 'intimidation', 'performance', 'persuasion'] }
+        ];
+        const SKILL_NAMES = { athletics: 'Athletics', acrobatics: 'Acrobatics', sleight: 'Sleight of Hand', stealth: 'Stealth', arcana: 'Arcana', history: 'History', investigation: 'Investigation', nature: 'Nature', religion: 'Religion', animal: 'Animal Handling', insight: 'Insight', medicine: 'Medicine', perception: 'Perception', survival: 'Survival', deception: 'Deception', intimidation: 'Intimidation', performance: 'Performance', persuasion: 'Persuasion' };
+
+        // Subclass options per class (2024 5E) - MUST BE BEFORE FUNCTIONS
+        const SUBCLASSES = {
+            'Artificer': ['Alchemist', 'Armorer', 'Artillerist', 'Battle Smith'],
+            'Barbarian': ['Path of the Berserker', 'Path of the Wild Heart', 'Path of the World Tree', 'Path of the Zealot'],
+            'Bard': ['College of Dance', 'College of Glamour', 'College of Lore', 'College of the Moon', 'College of Valor'],
+            'Cleric': ['Knowledge Domain', 'Life Domain', 'Light Domain', 'Trickery Domain', 'War Domain'],
+            'Druid': ['Circle of the Land', 'Circle of the Moon', 'Circle of the Sea', 'Circle of Stars'],
+            'Fighter': ['Banneret', 'Battle Master', 'Champion', 'Eldritch Knight', 'Psi Warrior'],
+            'Monk': ['Warrior of Mercy', 'Warrior of Shadow', 'Warrior of the Elements', 'Warrior of the Open Hand'],
+            'Paladin': ['Oath of Devotion', 'Oath of Glory', 'Oath of Redemption', 'Oath of the Ancients', 'Oath of Vengeance'],
+            'Ranger': ['Beast Master', 'Fey Wanderer', 'Gloom Stalker', 'Hunter'],
+            'Rogue': ['Arcane Trickster', 'Assassin', 'Mastermind', 'Swashbuckler', 'Thief'],
+            'Sorcerer': ['Aberrant Mind', 'Clockwork Soul', 'Draconic Bloodline', 'Wild Magic'],
+            'Warlock': ['The Archfey', 'The Celestial', 'The Fiend', 'The Great Old One'],
+            'Wizard': ['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation']
+        };
+
+        // Character data - starts EMPTY
+        let char = {
+            header: {},
+            stats: { heroicInsp: false },
+            abilities: {},
+            saves: {},
+            savesProf: {},
+            skills: {},
+            skillsProf: {},
+            skillsExp: {},
+            combat: { exhaustion: 0 },
+            deathSaves: { success: [false,false,false], fail: [false,false,false] },
+            weapons: [{ name: '', bonus: '', damage: '', notes: '' }],
+            classFeatures: '',
+            classResources: [{ name: '', current: '', max: '' }],
+            training: {},
+            speciesTraits: '',
+            feats: '',
+            senses: '',
+            spellcasting: {},
+            spellSlots: {},
+            pactSlots: { total: 0, expended: 0 },
+            spells: [{ name: '', level: '', prepared: false, notes: '' }],
+            narrative: {},
+            coins: {},
+            attunement: [false, false, false]
+        };
+
+        let cropper = null, isGM = false, viewingPlayer = null;
+        let saveTimeout = null;
+
+        // Debounce helper - MUST BE BEFORE autoSave
+        function debounce(fn, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        // AutoSave function - MUST BE EARLY for onchange handlers
+        function autoSave() {
+            if (viewingPlayer) return;
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                collectData();
+                localStorage.setItem('rift_char_5e_2024', JSON.stringify(char));
+                syncToFirebase();
+            }, 500);
+        }
+
+        function syncToFirebase() {
+            if (typeof isFirebaseOnline === 'function' && isFirebaseOnline()) {
+                const u = getCurrentUser();
+                if (u && !u.isGM) getRef(`characters/${sanitizeKey(u.username)}`).set({ ...char, updatedAt: Date.now() });
+            }
+        }
+
+        // Spell slot maximums per level (based on official 5e character sheet)
+        const SLOT_MAX = { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1 };
+
+        // Skill to Ability mapping (must be defined before initialization calls)
+        const SKILL_ABILITY = {
+            athletics: 'str',
+            acrobatics: 'dex', sleight: 'dex', stealth: 'dex',
+            arcana: 'int', history: 'int', investigation: 'int', nature: 'int', religion: 'int',
+            animal: 'wis', insight: 'wis', medicine: 'wis', perception: 'wis', survival: 'wis',
+            deception: 'cha', intimidation: 'cha', performance: 'cha', persuasion: 'cha'
+        };
+
+        // Initialize after DOM ready
+        createNavigationBar(t('module.character'), '');
+        buildAbilitiesGrid();
+        initDeathSaves();
+        initSpellSlots();
+        initAttunement();
+        loadChar();
+        initModifiers();
+        updateProfBonus();
+        updateSpellStats();
+        initSkillExpertise();
+        updateAllSkillBonuses();
+        updateAllSaveBonuses();
+        updateInitiative();
+        updatePassiveScores();
+        updatePactSlotsVisibility(document.getElementById('charClass')?.value || '');
+        translateUI();
+        buildQuickReference();
+
+        // Build Quick Reference with translations
+        function buildQuickReference() {
+            const grid = document.getElementById('quickRefGrid');
+            const lang = getLang();
+            
+            grid.innerHTML = `
+                <div class="ref-card">
+                    <div class="ref-title">${term('Ability Modifier')}</div>
+                    <div class="ref-formula">(${term('Ability Score')} − 10) ÷ 2</div>
+                    <div class="ref-table">
+                        <span>8-9: −1</span>
+                        <span>10-11: +0</span>
+                        <span>12-13: +1</span>
+                        <span>14-15: +2</span>
+                        <span>16-17: +3</span>
+                        <span>18-19: +4</span>
+                        <span>20: +5</span>
+                    </div>
+                </div>
+                <div class="ref-card">
+                    <div class="ref-title">${term('Proficiency Bonus')}</div>
+                    <div class="ref-formula">${lang === 'de' ? 'Nach' : 'Based on'} ${term('Level')}</div>
+                    <div class="ref-table">
+                        <span>${term('Level')} 1-4: +2</span>
+                        <span>${term('Level')} 5-8: +3</span>
+                        <span>${term('Level')} 9-12: +4</span>
+                        <span>${term('Level')} 13-16: +5</span>
+                        <span>${term('Level')} 17-20: +6</span>
+                    </div>
+                </div>
+                <div class="ref-card">
+                    <div class="ref-title">${lang === 'de' ? 'Formeln' : 'Common Formulas'}</div>
+                    <div class="ref-list">
+                        <div><span class="ref-label">${term('Saving Throw')}/Skill:</span> Mod + Prof</div>
+                        <div><span class="ref-label">${term('Initiative')}:</span> ${term('DEX')} Mod</div>
+                        <div><span class="ref-label">${term('Passive Perception')}:</span> 10 + ${term('WIS')} Mod + Prof</div>
+                        <div><span class="ref-label">${term('Spell Save DC')}:</span> 8 + Prof + Mod</div>
+                        <div><span class="ref-label">${term('Spell Attack')}:</span> Prof + Mod</div>
+                        <div><span class="ref-label">${term('Weapon')} Atk:</span> ${term('STR')}/${term('DEX')} Mod + Prof</div>
+                    </div>
+                </div>
+                <div class="ref-card">
+                    <div class="ref-title">${term('Hit Dice')} ${lang === 'de' ? 'nach' : 'by'} ${term('Class')}</div>
+                    <div class="ref-list">
+                        <div><span class="ref-label">d12:</span> Barbarian</div>
+                        <div><span class="ref-label">d10:</span> Fighter, Paladin, Ranger</div>
+                        <div><span class="ref-label">d8:</span> Bard, Cleric, Druid, Monk, Rogue, Warlock</div>
+                        <div><span class="ref-label">d6:</span> Sorcerer, Wizard</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Translate all static UI labels based on language
+        function translateUI() {
+            const lang = getLang();
+            if (lang !== 'de') return; // Only translate if German
+
+            // Meta Chip Labels (Header)
+            document.querySelectorAll('.meta-chip label').forEach(el => {
+                const text = el.textContent.trim();
+                const labels = {
+                    'Species': 'Species', // Stays EN - not in SRD
+                    'Class': term('Class'),
+                    'Level': term('Level'),
+                    'Background': term('Background'),
+                    'Subclass': term('Subclass')
+                };
+                if (labels[text]) el.textContent = labels[text];
+            });
+
+            // Dropdown Placeholders
+            document.querySelectorAll('.meta-chip select option').forEach(el => {
+                if (el.textContent === 'Select') el.textContent = term('Select');
+            });
+
+            // Section Headers
+            document.querySelectorAll('.section-title').forEach(el => {
+                const text = el.textContent.trim();
+                // Map section titles
+                const titles = {
+                    'Abilities & Skills': term('Abilities & Skills'),
+                    'Combat': term('Combat'),
+                    'Weapons & Cantrips': term('Weapons') + ' & ' + term('Cantrips'),
+                    'Class Features': term('Class Features'),
+                    'Training & Proficiencies': term('Training & Proficiencies'),
+                    'Species Traits & Feats': term('Species Traits') + ' & ' + term('Feats'),
+                    'Spellcasting': term('Spellcasting'),
+                    'Equipment & Notes': term('Equipment & Notes'),
+                    'Quick Reference': term('Quick Reference'),
+                    'Manage Sheet': term('Manage Sheet'),
+                    'Rules Compatibility & Licensing': term('Rules Compatibility & Licensing')
+                };
+                if (titles[text]) {
+                    // Keep the SVG, replace text
+                    const svg = el.querySelector('svg');
+                    if (svg) {
+                        el.innerHTML = '';
+                        el.appendChild(svg);
+                        el.appendChild(document.createTextNode(titles[text]));
+                    }
+                }
+            });
+
+            // Stats Row Labels
+            const statLabels = {
+                'Heroic Insp.': 'Heroic Insp.', // Not in SRD, stays English
+                'Prof. Bonus': term('Prof. Bonus'),
+                'Initiative': term('Initiative'),
+                'Speed': term('Speed'),
+                'Size': term('Size'),
+                'Passive Perc.': term('Passive Perc.'),
+                'Passive Inv.': term('Passive Inv.'),
+                'Passive Ins.': term('Passive Ins.')
+            };
+            document.querySelectorAll('.stat-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (statLabels[text]) el.textContent = statLabels[text];
+            });
+
+            // Stat Hints
+            const statHints = {
+                'by Level': term('by Level'),
+                'DEX': term('DEX'),
+                'Species': 'Species', // Not in SRD
+                '10 + WIS': '10 + ' + term('WIS')
+            };
+            document.querySelectorAll('.stat-hint').forEach(el => {
+                const text = el.textContent.trim();
+                if (statHints[text]) el.textContent = statHints[text];
+            });
+
+            // Combat Labels
+            const acLabel = document.querySelector('.ac-label');
+            if (acLabel && acLabel.textContent === 'Armor Class') {
+                acLabel.textContent = term('Armor Class');
+            }
+            document.querySelectorAll('.ac-label').forEach(el => {
+                if (el.textContent === 'Shield') el.textContent = term('Shield');
+            });
+
+            // HP Labels
+            document.querySelectorAll('.hp-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (text === 'Current') el.textContent = term('Current');
+                if (text === 'Maximum') el.textContent = term('Maximum');
+                if (text === 'Temp') el.textContent = term('Temp');
+            });
+
+            // Mini Labels
+            document.querySelectorAll('.mini-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (text === 'Hit Dice') el.textContent = term('Hit Dice');
+                if (text === 'Death Saves') el.textContent = term('Death Saves');
+                if (text === 'Exhaustion') el.textContent = term('Exhaustion');
+            });
+
+            // Defense Labels
+            document.querySelectorAll('.defense-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (text === 'Resistances') el.textContent = term('Resistances');
+                if (text === 'Immunities') el.textContent = term('Immunities');
+                if (text === 'Vulnerabilities') el.textContent = term('Vulnerabilities');
+            });
+
+            // Death Labels
+            document.querySelectorAll('.death-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (text === 'Successes') el.textContent = term('Successes');
+                if (text === 'Failures') el.textContent = term('Failures');
+            });
+
+            // Spell Stats
+            document.querySelectorAll('.spell-stat-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (text === 'Spellcasting Ability') el.textContent = term('Spellcasting Ability');
+                if (text === 'Spell Modifier') el.textContent = term('Spell Modifier');
+                if (text === 'Spell Save DC') el.textContent = term('Spell Save DC');
+                if (text === 'Spell Attack') el.textContent = term('Spell Attack');
+            });
+
+            // Field Labels
+            document.querySelectorAll('.field-label').forEach(el => {
+                const text = el.textContent.trim();
+                const labels = {
+                    'Tools & Other Training': term('Tools') + ' & Other Training',
+                    'Weapons': term('Weapons'),
+                    'Senses': term('Senses'),
+                    'Species Traits': term('Species Traits'),
+                    'Feats': term('Feats'),
+                    'Class Resources': term('Class Resources'),
+                    'Pact Slots (Warlock)': term('Pact Slots (Warlock)'),
+                    'Physical Traits': term('Physical Traits'),
+                    'Spell Slots': term('Spell Slots'),
+                    'Prepared Spells': term('Prepared Spells'),
+                    'Languages': term('Languages'),
+                    'Equipment': term('Equipment'),
+                    'Magic Item Attunement (0-3)': term('Magic Item') + ' ' + term('Attunement') + ' (0-3)',
+                    'Alignment': term('Alignment'),
+                    'Appearance': term('Appearance'),
+                    'Backstory & Personality': term('Backstory') + ' & Personality'
+                };
+                if (labels[text]) el.textContent = labels[text];
+            });
+
+            // Training Labels
+            document.querySelectorAll('.training-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (text === 'Armor') el.textContent = term('Armor');
+                if (text === 'Weapons') el.textContent = term('Weapons');
+            });
+
+            // Coin Labels
+            document.querySelectorAll('.coin-label').forEach(el => {
+                const text = el.textContent.trim();
+                if (SRD_TERMS_DE[text]) el.textContent = term(text);
+            });
+
+            // Add Buttons
+            document.querySelectorAll('.add-btn').forEach(el => {
+                const text = el.textContent.trim();
+                if (text.includes('Weapon') && lang === 'de') {
+                    el.textContent = '+ ' + term('Weapon') + ' / ' + term('Cantrip') + ' hinzufügen';
+                }
+                if (text.includes('Spell') && !text.includes('Weapon') && lang === 'de') {
+                    el.textContent = '+ ' + term('Spell') + ' hinzufügen';
+                }
+            });
+
+            // Rules Notice Content
+            const rulesNotice = document.getElementById('rulesNoticeContent');
+            if (rulesNotice) {
+                if (lang === 'de') {
+                    rulesNotice.innerHTML = `
+                        <p><strong>Hinweis zur Regelkompatibilität und Lizenzierung</strong></p>
+                        <p>Dieser Charakterbogen verwendet Spielmechaniken, Regelbegriffe und weitere Inhalte aus dem Systemreferenzdokument 5.2.1 (SRD), das von Wizards of the Coast LLC veröffentlicht und unter der Creative Commons Namensnennung 4.0 International Lizenz (CC-BY-4.0) zur Verfügung gestellt wird.</p>
+                        <p>Das Systemreferenzdokument wurde von Wizards of the Coast unter einer offenen Lizenz veröffentlicht, um die Nutzung, Anpassung und Weiterverbreitung der darin enthaltenen Inhalte zu ermöglichen, sofern eine ordnungsgemäße Namensnennung erfolgt. Diese Anwendung erfüllt die Anforderungen der Creative-Commons-Lizenz CC-BY-4.0.</p>
+                        <p>Dungeons & Dragons, D&D sowie alle damit verbundenen Marken, Produktnamen und Kennzeichen sind Marken oder eingetragene Marken der Wizards of the Coast LLC.</p>
+                        <p>RIFT ist ein unabhängiges Projekt und steht in keiner Verbindung zu Wizards of the Coast LLC. RIFT wird weder von Wizards of the Coast unterstützt, empfohlen, gesponsert noch genehmigt. Die Verwendung von Inhalten aus dem Systemreferenzdokument begründet keinerlei Partnerschaft, Zusammenarbeit oder offiziellen Status.</p>
+                        <p>Inhalte, die nicht ausdrücklich aus dem Systemreferenzdokument stammen, verbleiben im geistigen Eigentum ihrer jeweiligen Urheberinnen und Urheber.</p>
+                        <p><a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener">Systemreferenzdokument (SRD 5.2.1) ↗</a><br>
+                        <a href="https://creativecommons.org/licenses/by/4.0/legalcode.de" target="_blank" rel="noopener">Creative Commons Namensnennung 4.0 International (CC-BY-4.0) ↗</a></p>
+                    `;
+                } else {
+                    rulesNotice.innerHTML = `
+                        <p><strong>Rules Compatibility & Licensing Notice</strong></p>
+                        <p>This character sheet makes use of game mechanics, rules terminology, and other content derived from the System Reference Document 5.2.1 (SRD), published by Wizards of the Coast LLC and licensed under the Creative Commons Attribution 4.0 International License (CC-BY-4.0).</p>
+                        <p>The System Reference Document is made available by Wizards of the Coast under an open license to allow the use, modification, and redistribution of the covered material, provided that proper attribution is given. This application complies with the attribution requirements of the CC-BY-4.0 license.</p>
+                        <p>Dungeons & Dragons, D&D, and all related trademarks, product names, and brand identifiers are trademarks or registered trademarks of Wizards of the Coast LLC.</p>
+                        <p>RIFT is an independent project and is not affiliated with, endorsed by, sponsored by, or approved by Wizards of the Coast LLC in any way. The use of SRD content does not imply any partnership, endorsement, or official status.</p>
+                        <p>Any content not explicitly derived from the System Reference Document remains the intellectual property of its respective creators.</p>
+                        <p><a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener">System Reference Document (SRD 5.2.1) ↗</a><br>
+                        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International License ↗</a></p>
+                    `;
+                }
+            }
+        }
+
+        function toggleSection(header) { header.parentElement.classList.toggle('collapsed'); }
+
+        // Custom dropdown handlers
+        function handleSpeciesChange() {
+            const sel = document.getElementById('species');
+            const custom = document.getElementById('speciesCustom');
+            if (sel.value === 'custom') {
+                custom.style.display = 'block';
+                custom.focus();
+            } else {
+                custom.style.display = 'none';
+                custom.value = '';
+            }
+        }
+
+        function handleClassChange() {
+            const sel = document.getElementById('charClass');
+            const custom = document.getElementById('classCustom');
+            const subclassChip = document.getElementById('subclassChip');
+            const subclassSel = document.getElementById('subclass');
+            const subclassCustom = document.getElementById('subclassCustom');
+            
+            const selectedClass = sel.value;
+            
+            if (selectedClass === 'custom') {
+                custom.style.display = 'block';
+                custom.focus();
+                // Hide subclass for custom class
+                subclassChip.style.display = 'none';
+            } else if (selectedClass && selectedClass !== '' && SUBCLASSES[selectedClass]) {
+                custom.style.display = 'none';
+                custom.value = '';
+                // Show and populate subclass dropdown
+                subclassChip.style.display = 'flex';
+                populateSubclassDropdown(selectedClass);
+            } else {
+                custom.style.display = 'none';
+                custom.value = '';
+                subclassChip.style.display = 'none';
+            }
+            
+            // Dim Pact Slots if not Warlock
+            updatePactSlotsVisibility(selectedClass);
+        }
+
+        function updatePactSlotsVisibility(selectedClass) {
+            const pactSection = document.getElementById('pactSlotsSection');
+            if (pactSection) {
+                const isWarlock = selectedClass === 'Warlock';
+                pactSection.classList.toggle('dimmed', !isWarlock);
+            }
+        }
+
+        function populateSubclassDropdown(className) {
+            const subclassSel = document.getElementById('subclass');
+            const subclasses = SUBCLASSES[className] || [];
+            
+            // Remove all existing options
+            while (subclassSel.firstChild) {
+                subclassSel.removeChild(subclassSel.firstChild);
+            }
+            
+            // Add placeholder
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            placeholder.textContent = term('Select Subclass');
+            subclassSel.appendChild(placeholder);
+            
+            // Add subclass options
+            subclasses.forEach(sc => {
+                const opt = document.createElement('option');
+                opt.value = sc;
+                opt.textContent = sc;
+                subclassSel.appendChild(opt);
+            });
+            
+            // Add custom option
+            const customOpt = document.createElement('option');
+            customOpt.value = 'custom';
+            customOpt.textContent = 'Custom / Other';
+            subclassSel.appendChild(customOpt);
+            
+            // Reset custom input
+            const subclassCustom = document.getElementById('subclassCustom');
+            subclassCustom.style.display = 'none';
+            subclassCustom.value = '';
+        }
+
+        function handleSubclassChange() {
+            const sel = document.getElementById('subclass');
+            const custom = document.getElementById('subclassCustom');
+            if (sel.value === 'custom') {
+                custom.style.display = 'block';
+                custom.focus();
+            } else {
+                custom.style.display = 'none';
+                custom.value = '';
+            }
+        }
+
+        function handleBackgroundChange() {
+            const sel = document.getElementById('background');
+            const custom = document.getElementById('backgroundCustom');
+            if (sel.value === 'custom') {
+                custom.style.display = 'block';
+                custom.focus();
+            } else {
+                custom.style.display = 'none';
+                custom.value = '';
+            }
+        }
+
+        function getSpeciesValue() {
+            const sel = document.getElementById('species');
+            const custom = document.getElementById('speciesCustom');
+            return sel.value === 'custom' ? custom.value : sel.value;
+        }
+
+        function getClassValue() {
+            const sel = document.getElementById('charClass');
+            const custom = document.getElementById('classCustom');
+            return sel.value === 'custom' ? custom.value : sel.value;
+        }
+
+        function getSubclassValue() {
+            const sel = document.getElementById('subclass');
+            const custom = document.getElementById('subclassCustom');
+            if (!sel || sel.style.display === 'none') return '';
+            return sel.value === 'custom' ? custom.value : sel.value;
+        }
+
+        function getBackgroundValue() {
+            const sel = document.getElementById('background');
+            const custom = document.getElementById('backgroundCustom');
+            return sel.value === 'custom' ? custom.value : sel.value;
+        }
+
+        function setDropdownValue(selectId, customId, value) {
+            const sel = document.getElementById(selectId);
+            const custom = document.getElementById(customId);
+            const options = Array.from(sel.options).map(o => o.value);
+            
+            if (!value) {
+                sel.selectedIndex = 0;
+                custom.style.display = 'none';
+                custom.value = '';
+            } else if (options.includes(value)) {
+                sel.value = value;
+                custom.style.display = 'none';
+                custom.value = '';
+            } else {
+                sel.value = 'custom';
+                custom.style.display = 'block';
+                custom.value = value;
+            }
+        }
+
+        function setSubclassValue(className, subclassValue) {
+            const subclassChip = document.getElementById('subclassChip');
+            const subclassSel = document.getElementById('subclass');
+            const subclassCustom = document.getElementById('subclassCustom');
+            
+            if (!className || className === '' || className === 'custom' || !SUBCLASSES[className]) {
+                subclassChip.style.display = 'none';
+                return;
+            }
+            
+            // Show and populate
+            subclassChip.style.display = 'flex';
+            populateSubclassDropdown(className);
+            
+            if (!subclassValue || subclassValue === '') {
+                subclassSel.selectedIndex = 0;
+                subclassCustom.style.display = 'none';
+                subclassCustom.value = '';
+            } else {
+                const subclasses = SUBCLASSES[className] || [];
+                if (subclasses.includes(subclassValue)) {
+                    subclassSel.value = subclassValue;
+                    subclassCustom.style.display = 'none';
+                    subclassCustom.value = '';
+                } else {
+                    subclassSel.value = 'custom';
+                    subclassCustom.style.display = 'block';
+                    subclassCustom.value = subclassValue;
+                }
+            }
+        }
+
+        // Build abilities grid - all fields EDITABLE, no automatic values
+        // Order: STR, WIS, CHA, INT, DEX, CON (STR+CON left column stacked, rest spans both rows)
+        function buildAbilitiesGrid() {
+            const grid = document.getElementById('abilitiesGrid');
+            const order = ['str', 'wis', 'cha', 'int', 'dex', 'con'];
+            const orderedAbilities = order.map(id => ABILITIES.find(a => a.id === id));
+            
+            grid.innerHTML = orderedAbilities.map(ab => `
+                <div class="ability-card" data-ability="${ab.id}">
+                    <div class="ability-top">
+                        <span class="ability-name">${term(ab.name)}</span>
+                        <div class="ability-mod-wrapper">
+                            <div class="ability-mod">
+                                <span class="ability-mod-value" id="${ab.id}Mod">+0</span>
+                            </div>
+                            <div class="ability-score-box">
+                                <input type="text" class="ability-score-input" id="${ab.id}" placeholder="10" oninput="updateModifier('${ab.id}'); autoSave()">
+                                <span class="ability-score-label">Score</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="save-row">
+                        <input type="checkbox" class="prof-check" id="${ab.id}SaveProf" onchange="handleSaveProfChange('${ab.id}'); autoSave()" title="${term('Proficiency')}">
+                        <span class="save-val save-computed" id="${ab.id}SaveValue">+0</span>
+                        <span class="save-label">${term('Saving Throw')}</span>
+                    </div>
+                    ${ab.skills.length ? `<div class="skills-list">${ab.skills.map(sk => `
+                        <div class="skill-item">
+                            <input type="checkbox" class="prof-check-skill" id="${sk}Prof" onchange="handleSkillProfChange('${sk}'); autoSave()" title="${term('Proficiency')}">
+                            <input type="checkbox" class="expertise-check" id="${sk}Exp" onchange="handleSkillExpChange('${sk}'); autoSave()" title="${term('Expertise')}" disabled>
+                            <span class="skill-val skill-computed" id="${sk}Value">+0</span>
+                            <span class="skill-name">${term(SKILL_NAMES[sk])}</span>
+                        </div>
+                    `).join('')}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Calculate and display modifier from score (always with sign)
+        function updateModifier(abilityId) {
+            const scoreInput = document.getElementById(abilityId);
+            const modSpan = document.getElementById(abilityId + 'Mod');
+            if (!scoreInput || !modSpan) return;
+            
+            const score = parseInt(scoreInput.value) || 10;
+            const mod = Math.floor((score - 10) / 2);
+            modSpan.textContent = mod >= 0 ? `+${mod}` : `${mod}`;
+            
+            // Update spell stats if this ability is the spellcasting ability
+            updateSpellStats();
+            
+            // Cascade updates for derived stats
+            if (abilityId === 'dex') updateInitiative();
+            if (abilityId === 'wis' || abilityId === 'int') updatePassiveScores();
+            
+            // Update skills that depend on this ability
+            Object.entries(SKILL_ABILITY).forEach(([skillId, abId]) => {
+                if (abId === abilityId) updateSkillBonus(skillId);
+            });
+            
+            // Update saving throw for this ability
+            updateSaveBonus(abilityId);
+        }
+
+        // Update Spellcasting stats based on selected ability
+        function updateSpellStats() {
+            const abilitySelect = document.getElementById('spellAbility');
+            const modSpan = document.getElementById('spellMod');
+            const dcSpan = document.getElementById('spellDC');
+            const attackSpan = document.getElementById('spellAttack');
+            const dcHint = document.getElementById('spellDCHint');
+            const attackHint = document.getElementById('spellAttackHint');
+            
+            const ability = abilitySelect ? abilitySelect.value : '';
+            const profBonus = parseInt(document.getElementById('profBonus')?.textContent) || 2;
+            
+            let abilityMod = 0;
+            let abilityName = '–';
+            
+            if (ability && ['int', 'wis', 'cha'].includes(ability)) {
+                const scoreEl = document.getElementById(ability);
+                const score = parseInt(scoreEl?.value) || 10;
+                abilityMod = Math.floor((score - 10) / 2);
+                abilityName = ability.toUpperCase();
+            }
+            
+            const dc = 8 + profBonus + abilityMod;
+            const attack = profBonus + abilityMod;
+            
+            if (modSpan) modSpan.textContent = abilityMod >= 0 ? `+${abilityMod}` : `${abilityMod}`;
+            if (dcSpan) dcSpan.textContent = dc;
+            if (attackSpan) attackSpan.textContent = attack >= 0 ? `+${attack}` : `${attack}`;
+            
+            // Update hints with breakdown
+            if (dcHint && ability) {
+                dcHint.textContent = `8 + ${profBonus} + ${abilityMod >= 0 ? '+' : ''}${abilityMod} (${abilityName})`;
+            }
+            if (attackHint && ability) {
+                attackHint.textContent = `${profBonus} + ${abilityMod >= 0 ? '+' : ''}${abilityMod} (${abilityName})`;
+            }
+        }
+
+        // Calculate Proficiency Bonus from Level (D&D 5e rule)
+        function updateProfBonus() {
+            const level = parseInt(document.getElementById('level')?.value) || 1;
+            const profBonus = Math.floor((level - 1) / 4) + 2; // +2 at L1-4, +3 at L5-8, etc.
+            const profSpan = document.getElementById('profBonus');
+            if (profSpan) {
+                profSpan.textContent = `+${profBonus}`;
+            }
+            // Cascade updates
+            updateSpellStats();
+            updateInitiative();
+            updatePassiveScores();
+            updateAllSkillBonuses();
+            updateAllSaveBonuses();
+        }
+
+        // Calculate Initiative from DEX Modifier
+        function updateInitiative() {
+            const dexScore = parseInt(document.getElementById('dex')?.value) || 10;
+            const dexMod = Math.floor((dexScore - 10) / 2);
+            const initSpan = document.getElementById('initiative');
+            if (initSpan) {
+                initSpan.textContent = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
+            }
+        }
+
+        // Calculate Passive Scores (Perception, Investigation, Insight)
+        function updatePassiveScores() {
+            const profBonus = parseInt(document.getElementById('profBonus')?.textContent) || 2;
+            
+            // Passive Perception = 10 + WIS mod + Prof (if proficient in Perception)
+            const wisScore = parseInt(document.getElementById('wis')?.value) || 10;
+            const wisMod = Math.floor((wisScore - 10) / 2);
+            const percProf = document.getElementById('perceptionProf')?.checked ? profBonus : 0;
+            const percExp = document.getElementById('perceptionExp')?.checked ? profBonus : 0; // Expertise adds prof again
+            const passivePerc = 10 + wisMod + percProf + percExp;
+            const percSpan = document.getElementById('passivePerc');
+            if (percSpan) percSpan.textContent = passivePerc;
+            
+            // Passive Investigation = 10 + INT mod + Prof (if proficient in Investigation)
+            const intScore = parseInt(document.getElementById('int')?.value) || 10;
+            const intMod = Math.floor((intScore - 10) / 2);
+            const invProf = document.getElementById('investigationProf')?.checked ? profBonus : 0;
+            const invExp = document.getElementById('investigationExp')?.checked ? profBonus : 0;
+            const passiveInv = 10 + intMod + invProf + invExp;
+            const invSpan = document.getElementById('passiveInv');
+            if (invSpan) invSpan.textContent = passiveInv;
+            
+            // Passive Insight = 10 + WIS mod + Prof (if proficient in Insight)
+            const insProf = document.getElementById('insightProf')?.checked ? profBonus : 0;
+            const insExp = document.getElementById('insightExp')?.checked ? profBonus : 0;
+            const passiveIns = 10 + wisMod + insProf + insExp;
+            const insSpan = document.getElementById('passiveIns');
+            if (insSpan) insSpan.textContent = passiveIns;
+        }
+
+        // Calculate single skill bonus
+        function updateSkillBonus(skillId) {
+            const abilityId = SKILL_ABILITY[skillId];
+            if (!abilityId) return;
+            
+            const abilityScore = parseInt(document.getElementById(abilityId)?.value) || 10;
+            const abilityMod = Math.floor((abilityScore - 10) / 2);
+            const profBonus = parseInt(document.getElementById('profBonus')?.textContent) || 2;
+            
+            const isProficient = document.getElementById(skillId + 'Prof')?.checked || false;
+            const hasExpertise = document.getElementById(skillId + 'Exp')?.checked || false;
+            
+            let bonus = abilityMod;
+            if (isProficient) bonus += profBonus;
+            if (hasExpertise) bonus += profBonus; // Expertise doubles proficiency
+            
+            const valueSpan = document.getElementById(skillId + 'Value');
+            if (valueSpan) {
+                valueSpan.textContent = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+            }
+        }
+
+        // Update all skill bonuses
+        function updateAllSkillBonuses() {
+            Object.keys(SKILL_ABILITY).forEach(skillId => updateSkillBonus(skillId));
+        }
+
+        // Calculate single saving throw bonus
+        function updateSaveBonus(abilityId) {
+            const abilityScore = parseInt(document.getElementById(abilityId)?.value) || 10;
+            const abilityMod = Math.floor((abilityScore - 10) / 2);
+            const profBonus = parseInt(document.getElementById('profBonus')?.textContent) || 2;
+            
+            const isProficient = document.getElementById(abilityId + 'SaveProf')?.checked || false;
+            
+            let bonus = abilityMod;
+            if (isProficient) bonus += profBonus;
+            
+            const valueSpan = document.getElementById(abilityId + 'SaveValue');
+            if (valueSpan) {
+                valueSpan.textContent = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+            }
+        }
+
+        // Update all saving throw bonuses
+        function updateAllSaveBonuses() {
+            ABILITIES.forEach(ab => updateSaveBonus(ab.id));
+        }
+
+        // Initialize all modifiers on load
+        function initModifiers() {
+            ABILITIES.forEach(ab => {
+                updateModifier(ab.id);
+            });
+        }
+
+        // Handle Proficiency change - enable/disable Expertise
+        function handleSkillProfChange(skillId) {
+            const profCheck = document.getElementById(skillId + 'Prof');
+            const expCheck = document.getElementById(skillId + 'Exp');
+            if (profCheck && expCheck) {
+                if (profCheck.checked) {
+                    expCheck.disabled = false;
+                } else {
+                    expCheck.checked = false;
+                    expCheck.disabled = true;
+                }
+            }
+            // Update computed bonus
+            updateSkillBonus(skillId);
+            // Update passive scores if relevant skill
+            if (['perception', 'investigation', 'insight'].includes(skillId)) {
+                updatePassiveScores();
+            }
+        }
+
+        // Handle Expertise checkbox change
+        function handleSkillExpChange(skillId) {
+            updateSkillBonus(skillId);
+            if (['perception', 'investigation', 'insight'].includes(skillId)) {
+                updatePassiveScores();
+            }
+        }
+
+        // Handle Save Proficiency checkbox change
+        function handleSaveProfChange(abilityId) {
+            updateSaveBonus(abilityId);
+        }
+
+        // Initialize all skill expertise checkboxes based on proficiency state
+        function initSkillExpertise() {
+            ABILITIES.forEach(ab => {
+                ab.skills.forEach(sk => {
+                    const profCheck = document.getElementById(sk + 'Prof');
+                    const expCheck = document.getElementById(sk + 'Exp');
+                    if (profCheck && expCheck) {
+                        expCheck.disabled = !profCheck.checked;
+                    }
+                });
+            });
+        }
+
+        function toggleHeroic() {
+            char.stats.heroicInsp = !char.stats.heroicInsp;
+            document.getElementById('heroicBtn').classList.toggle('active', char.stats.heroicInsp);
+            autoSave();
+        }
+
+        // Exhaustion Tracker (5e 2024: -2 per level to d20 rolls)
+        function updateExhaustion() {
+            const val = parseInt(document.getElementById('exhaustion').value) || 0;
+            const penalty = val * 2;
+            const penaltyEl = document.getElementById('exhaustionPenalty');
+            penaltyEl.textContent = penalty > 0 ? `−${penalty}` : '−0';
+            penaltyEl.style.color = val >= 10 ? '#f44336' : val > 0 ? 'var(--md-error)' : 'var(--md-on-surface-variant)';
+            if (val >= 10) {
+                penaltyEl.textContent = '☠ DEAD';
+            }
+            char.combat.exhaustion = val;
+        }
+
+        // Death Saves Tracker
+        function initDeathSaves() {
+            ['Success', 'Fail'].forEach(type => {
+                const div = document.getElementById(`death${type === 'Success' ? 'Success' : 'Fail'}`);
+                const key = type === 'Success' ? 'success' : 'fail';
+                div.innerHTML = '';
+                for (let i = 0; i < 3; i++) {
+                    const pip = document.createElement('div');
+                    pip.className = `death-pip ${key}${char.deathSaves[key][i] ? ' active' : ''}`;
+                    pip.onclick = () => { char.deathSaves[key][i] = !char.deathSaves[key][i]; initDeathSaves(); autoSave(); };
+                    div.appendChild(pip);
+                }
+            });
+        }
+
+        // Spell Slots Tracker
+        function initSpellSlots() {
+            const grid = document.getElementById('slotsGrid');
+            grid.innerHTML = '';
+            for (let lvl = 1; lvl <= 9; lvl++) {
+                const slot = char.spellSlots[lvl] || { total: 0, expended: 0 };
+                const maxSlots = SLOT_MAX[lvl];
+                const isEmpty = !slot.total || slot.total === 0;
+                const card = document.createElement('div');
+                card.className = 'slot-card' + (isEmpty ? ' slot-empty' : '');
+                card.id = `slotCard${lvl}`;
+                card.innerHTML = `
+                    <div class="slot-header">
+                        <span class="slot-level">Level ${lvl}</span>
+                        <div class="slot-counts">
+                            <input type="number" class="slot-num" id="slot${lvl}Total" value="${slot.total || ''}" placeholder="0" min="0" max="${maxSlots}" oninput="updateSlotPips(${lvl});updateSlotCardState(${lvl});autoSave()">
+                            <span>/</span>
+                            <input type="number" class="slot-num" id="slot${lvl}Exp" value="${slot.expended || ''}" placeholder="0" min="0" max="${maxSlots}" oninput="autoSave()">
+                        </div>
+                    </div>
+                    <div class="slot-pips" id="slotPips${lvl}"></div>
+                `;
+                grid.appendChild(card);
+                setTimeout(() => updateSlotPips(lvl), 0);
+            }
+        }
+
+        function updateSlotCardState(lvl) {
+            const card = document.getElementById(`slotCard${lvl}`);
+            const total = parseInt(document.getElementById(`slot${lvl}Total`).value) || 0;
+            if (card) {
+                card.classList.toggle('slot-empty', total === 0);
+            }
+        }
+
+        function updateSlotPips(lvl) {
+            const maxSlots = SLOT_MAX[lvl];
+            let total = parseInt(document.getElementById(`slot${lvl}Total`).value) || 0;
+            total = Math.min(total, maxSlots);
+            const exp = Math.min(parseInt(document.getElementById(`slot${lvl}Exp`).value) || 0, total);
+            const div = document.getElementById(`slotPips${lvl}`);
+            if (!div) return;
+            div.innerHTML = '';
+            for (let i = 0; i < total; i++) {
+                const pip = document.createElement('div');
+                pip.className = 'slot-pip' + (i < exp ? ' active' : '');
+                pip.onclick = () => {
+                    document.getElementById(`slot${lvl}Exp`).value = i < exp ? i : i + 1;
+                    updateSlotPips(lvl);
+                    autoSave();
+                };
+                div.appendChild(pip);
+            }
+        }
+
+        // Attunement Tracker
+        function toggleAttunement(i) {
+            char.attunement[i] = !char.attunement[i];
+            document.getElementById('attune' + i).classList.toggle('active', char.attunement[i]);
+            autoSave();
+        }
+
+        function initAttunement() {
+            for (let i = 0; i < 3; i++) {
+                const el = document.getElementById('attune' + i);
+                if (el) el.classList.toggle('active', char.attunement[i]);
+            }
+        }
+
+        // Weapons
+        function renderWeapons() {
+            if (!char.weapons) char.weapons = [];
+            const div = document.getElementById('weaponsList');
+            div.innerHTML = char.weapons.map((w, i) => `
+                <div class="weapon-row">
+                    <input type="text" class="weapon-input" placeholder="Name" value="${w.name||''}" oninput="char.weapons[${i}].name=this.value;autoSave()">
+                    <input type="text" class="weapon-input" placeholder="Atk/DC" value="${w.bonus||''}" oninput="char.weapons[${i}].bonus=this.value;autoSave()">
+                    <input type="text" class="weapon-input" placeholder="Damage" value="${w.damage||''}" oninput="char.weapons[${i}].damage=this.value;autoSave()">
+                    <input type="text" class="weapon-input" placeholder="Notes" value="${w.notes||''}" oninput="char.weapons[${i}].notes=this.value;autoSave()">
+                    <button class="weapon-delete" onclick="char.weapons.splice(${i},1);renderWeapons();autoSave()">×</button>
+                </div>
+            `).join('');
+        }
+        function addWeapon() { char.weapons.push({}); renderWeapons(); autoSave(); }
+
+        // Class Resources (Ki, Rage, Sorcery Points, etc.)
+        function renderResources() {
+            const div = document.getElementById('resourcesList');
+            if (!char.classResources) char.classResources = [];
+            div.innerHTML = char.classResources.map((r, i) => `
+                <div class="resource-row">
+                    <input type="text" class="resource-name" placeholder="Ki, Rage, ..." value="${r.name || ''}" oninput="char.classResources[${i}].name=this.value;autoSave()">
+                    <div class="resource-tracker">
+                        <input type="number" class="resource-input" placeholder="–" value="${r.current || ''}" min="0" oninput="char.classResources[${i}].current=this.value;autoSave()">
+                        <span class="resource-slash">/</span>
+                        <input type="number" class="resource-input" placeholder="–" value="${r.max || ''}" min="0" oninput="char.classResources[${i}].max=this.value;autoSave()">
+                    </div>
+                    <button class="resource-delete" onclick="char.classResources.splice(${i},1);renderResources();autoSave()">×</button>
+                </div>
+            `).join('');
+        }
+        function addResource() { 
+            if (!char.classResources) char.classResources = [];
+            char.classResources.push({ name: '', current: '', max: '' }); 
+            renderResources(); 
+            autoSave(); 
+        }
+
+        // Spells
+        function renderSpells() {
+            const div = document.getElementById('spellsList');
+            div.innerHTML = char.spells.map((s, i) => `
+                <div class="spell-row">
+                    <input type="text" class="spell-input" style="width:50px;text-align:center;" placeholder="Lvl" value="${s.level||''}" oninput="char.spells[${i}].level=this.value;autoSave()">
+                    <input type="text" class="spell-input" placeholder="Spell Name" value="${s.name||''}" oninput="char.spells[${i}].name=this.value;autoSave()">
+                    <select class="spell-input spell-time-select" onchange="char.spells[${i}].time=this.value;autoSave()">
+                        <option value="" ${!s.time?'selected':''}>Cast Time</option>
+                        <option value="Action" ${s.time==='Action'?'selected':''}>Action</option>
+                        <option value="Bonus Action" ${s.time==='Bonus Action'?'selected':''}>Bonus Action</option>
+                        <option value="Reaction" ${s.time==='Reaction'?'selected':''}>Reaction</option>
+                        <option value="1 Minute" ${s.time==='1 Minute'?'selected':''}>1 Minute</option>
+                        <option value="10 Minutes" ${s.time==='10 Minutes'?'selected':''}>10 Minutes</option>
+                        <option value="1 Hour" ${s.time==='1 Hour'?'selected':''}>1 Hour</option>
+                    </select>
+                    <div class="spell-check" title="Concentration - Requires concentration to maintain"><input type="checkbox" ${s.conc?'checked':''} onchange="char.spells[${i}].conc=this.checked;autoSave()"><span class="spell-check-label">C</span></div>
+                    <div class="spell-check" title="Ritual - Can be cast as a ritual (extra 10 min)"><input type="checkbox" ${s.ritual?'checked':''} onchange="char.spells[${i}].ritual=this.checked;autoSave()"><span class="spell-check-label">R</span></div>
+                    <div class="spell-check" title="Material - Requires material components"><input type="checkbox" ${s.mat?'checked':''} onchange="char.spells[${i}].mat=this.checked;autoSave()"><span class="spell-check-label">M</span></div>
+                    <input type="text" class="spell-input" placeholder="Notes" value="${s.notes||''}" oninput="char.spells[${i}].notes=this.value;autoSave()">
+                    <button class="weapon-delete" onclick="char.spells.splice(${i},1);renderSpells();autoSave()">×</button>
+                </div>
+            `).join('');
+        }
+        function addSpell() { char.spells.push({}); renderSpells(); autoSave(); }
+
+        // Portrait
+        function handlePortrait(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = ev => {
+                document.getElementById('cropImage').src = ev.target.result;
+                document.getElementById('cropModal').classList.add('active');
+                setTimeout(() => {
+                    if (cropper) cropper.destroy();
+                    cropper = new Cropper(document.getElementById('cropImage'), { aspectRatio: 120/205, viewMode: 1 });
+                }, 100);
+            };
+            r.readAsDataURL(f);
+        }
+        function closeCrop() {
+            document.getElementById('cropModal').classList.remove('active');
+            if (cropper) { cropper.destroy(); cropper = null; }
+        }
+        function confirmCrop() {
+            if (!cropper) return;
+            const cv = cropper.getCroppedCanvas({ width: 200, height: 200 });
+            char.narrative.portrait = cv.toDataURL('image/jpeg', 0.8);
+            document.getElementById('portraitImage').src = char.narrative.portrait;
+            document.getElementById('portraitImage').style.display = 'block';
+            document.getElementById('portraitPlaceholder').style.display = 'none';
+            document.getElementById('portraitBox').classList.add('has-image');
+            closeCrop();
+            autoSave();
+        }
+
+        function deletePortrait() {
+            if (!confirm('Portrait löschen?')) return;
+            char.narrative.portrait = '';
+            document.getElementById('portraitImage').src = '';
+            document.getElementById('portraitImage').style.display = 'none';
+            document.getElementById('portraitPlaceholder').style.display = 'block';
+            document.getElementById('portraitBox').classList.remove('has-image');
+            autoSave();
+        }
+
+        // Collect all data
+        function collectData() {
+            char.header = {
+                name: document.getElementById('charName').value,
+                species: getSpeciesValue(),
+                charClass: getClassValue(),
+                level: document.getElementById('level').value,
+                xp: document.getElementById('xp').value,
+                background: getBackgroundValue(),
+                subclass: getSubclassValue()
+            };
+            char.stats = {
+                // These are now computed, but we store level for recalculation
+                speed: document.getElementById('speed').value,
+                size: document.getElementById('size').value,
+                heroicInsp: char.stats.heroicInsp
+            };
+            
+            ABILITIES.forEach(ab => {
+                char.abilities[ab.id] = document.getElementById(ab.id).value;
+                // Mod is computed, no need to store
+                // Save value is computed, just store proficiency checkbox
+                char.savesProf[ab.id] = document.getElementById(ab.id + 'SaveProf')?.checked || false;
+                ab.skills.forEach(sk => {
+                    // Skill value is computed, just store P/E checkboxes
+                    char.skillsProf[sk] = document.getElementById(sk + 'Prof')?.checked || false;
+                    char.skillsExp[sk] = document.getElementById(sk + 'Exp')?.checked || false;
+                });
+            });
+
+            char.combat = {
+                ac: document.getElementById('ac').value,
+                shield: document.getElementById('shield').value,
+                hpCurrent: document.getElementById('hpCurrent').value,
+                hpMax: document.getElementById('hpMax').value,
+                hpTemp: document.getElementById('hpTemp').value,
+                hdCurrent: document.getElementById('hdCurrent').value,
+                hdMax: document.getElementById('hdMax').value,
+                exhaustion: document.getElementById('exhaustion').value,
+                resistances: document.getElementById('resistances').value,
+                immunities: document.getElementById('immunities').value,
+                vulnerabilities: document.getElementById('vulnerabilities').value
+            };
+
+            char.classFeatures = document.getElementById('classFeatures').value;
+            char.training = {
+                armorLight: document.getElementById('armorLight').checked,
+                armorMedium: document.getElementById('armorMedium').checked,
+                armorHeavy: document.getElementById('armorHeavy').checked,
+                armorShields: document.getElementById('armorShields').checked,
+                weaponSimple: document.getElementById('weaponSimple').checked,
+                weaponMartial: document.getElementById('weaponMartial').checked,
+                weaponFirearms: document.getElementById('weaponFirearms').checked,
+                weaponsText: document.getElementById('weaponsText').value,
+                tools: document.getElementById('tools').value
+            };
+            char.speciesTraits = document.getElementById('speciesTraits').value;
+            char.feats = document.getElementById('feats').value;
+            char.senses = document.getElementById('senses').value;
+            char.spellcasting = {
+                ability: document.getElementById('spellAbility').value
+            };
+            for (let i = 1; i <= 9; i++) {
+                char.spellSlots[i] = {
+                    total: parseInt(document.getElementById(`slot${i}Total`).value) || 0,
+                    expended: parseInt(document.getElementById(`slot${i}Exp`).value) || 0
+                };
+            }
+            char.pactSlots = {
+                level: document.getElementById('pactLevel').value,
+                total: document.getElementById('pactTotal').value,
+                expended: document.getElementById('pactExpended').value
+            };
+            char.narrative = {
+                alignment: document.getElementById('alignment').value,
+                physAge: document.getElementById('physAge').value,
+                physHeight: document.getElementById('physHeight').value,
+                physWeight: document.getElementById('physWeight').value,
+                physEyes: document.getElementById('physEyes').value,
+                physHair: document.getElementById('physHair').value,
+                physSkin: document.getElementById('physSkin').value,
+                appearance: document.getElementById('appearance').value,
+                backstory: document.getElementById('backstory').value,
+                languages: document.getElementById('languages').value,
+                equipment: document.getElementById('equipment').value,
+                portrait: char.narrative.portrait
+            };
+            char.coins = {
+                cp: document.getElementById('cp').value,
+                sp: document.getElementById('sp').value,
+                ep: document.getElementById('ep').value,
+                gp: document.getElementById('gp').value,
+                pp: document.getElementById('pp').value
+            };
+        }
+
+        // Populate all fields
+        function populateFields() {
+            document.getElementById('charName').value = char.header.name || '';
+            setDropdownValue('species', 'speciesCustom', char.header.species || '');
+            setDropdownValue('charClass', 'classCustom', char.header.charClass || '');
+            document.getElementById('level').value = char.header.level || 1;
+            document.getElementById('xp').value = char.header.xp || '';
+            setDropdownValue('background', 'backgroundCustom', char.header.background || '');
+            
+            // Handle subclass based on class
+            const classVal = char.header.charClass || '';
+            const classSel = document.getElementById('charClass');
+            const classOptions = Array.from(classSel.options).map(o => o.value);
+            const isStandardClass = classOptions.includes(classVal) && classVal !== 'custom' && classVal !== '';
+            
+            if (isStandardClass) {
+                setSubclassValue(classVal, char.header.subclass || '');
+            } else {
+                document.getElementById('subclassChip').style.display = 'none';
+            }
+
+            document.getElementById('speed').value = char.stats.speed || '';
+            document.getElementById('size').value = char.stats.size || '';
+            // profBonus, initiative, passivePerc/Inv/Ins sind computed
+            document.getElementById('heroicBtn').classList.toggle('active', char.stats.heroicInsp);
+
+            ABILITIES.forEach(ab => {
+                document.getElementById(ab.id).value = (char.abilities && char.abilities[ab.id]) || '';
+                // Mod und Save sind computed, nur Checkbox laden
+                const saveProf = document.getElementById(ab.id + 'SaveProf');
+                if (saveProf) saveProf.checked = (char.savesProf && char.savesProf[ab.id]) || false;
+                ab.skills.forEach(sk => {
+                    // Skill Value ist computed, nur Checkboxen laden
+                    const prof = document.getElementById(sk + 'Prof');
+                    if (prof) prof.checked = (char.skillsProf && char.skillsProf[sk]) || false;
+                    const exp = document.getElementById(sk + 'Exp');
+                    if (exp) exp.checked = (char.skillsExp && char.skillsExp[sk]) || false;
+                });
+            });
+
+            document.getElementById('ac').value = char.combat.ac || '';
+            document.getElementById('shield').value = char.combat.shield || '';
+            document.getElementById('hpCurrent').value = char.combat.hpCurrent || '';
+            document.getElementById('hpMax').value = char.combat.hpMax || '';
+            document.getElementById('hpTemp').value = char.combat.hpTemp || '0';
+            document.getElementById('hdCurrent').value = char.combat.hdCurrent || '';
+            document.getElementById('hdMax').value = char.combat.hdMax || '';
+            document.getElementById('exhaustion').value = char.combat.exhaustion || 0;
+            updateExhaustion();
+            document.getElementById('resistances').value = char.combat.resistances || '';
+            document.getElementById('immunities').value = char.combat.immunities || '';
+            document.getElementById('vulnerabilities').value = char.combat.vulnerabilities || '';
+
+            document.getElementById('classFeatures').value = char.classFeatures || '';
+            document.getElementById('armorLight').checked = char.training.armorLight || false;
+            document.getElementById('armorMedium').checked = char.training.armorMedium || false;
+            document.getElementById('armorHeavy').checked = char.training.armorHeavy || false;
+            document.getElementById('armorShields').checked = char.training.armorShields || false;
+            document.getElementById('weaponSimple').checked = char.training.weaponSimple || false;
+            document.getElementById('weaponMartial').checked = char.training.weaponMartial || false;
+            document.getElementById('weaponFirearms').checked = char.training.weaponFirearms || false;
+            document.getElementById('weaponsText').value = char.training.weaponsText || '';
+            document.getElementById('tools').value = char.training.tools || '';
+            document.getElementById('speciesTraits').value = char.speciesTraits || '';
+            document.getElementById('feats').value = char.feats || '';
+            document.getElementById('senses').value = char.senses || '';
+
+            document.getElementById('spellAbility').value = char.spellcasting.ability || '';
+            // spellMod, spellDC, spellAttack werden automatisch berechnet via updateSpellStats()
+
+            // Pact Slots
+            if (char.pactSlots) {
+                document.getElementById('pactLevel').value = char.pactSlots.level || '';
+                document.getElementById('pactTotal').value = char.pactSlots.total || '';
+                document.getElementById('pactExpended').value = char.pactSlots.expended || '';
+            }
+
+            document.getElementById('alignment').value = char.narrative.alignment || '';
+            document.getElementById('physAge').value = char.narrative.physAge || '';
+            document.getElementById('physHeight').value = char.narrative.physHeight || '';
+            document.getElementById('physWeight').value = char.narrative.physWeight || '';
+            document.getElementById('physEyes').value = char.narrative.physEyes || '';
+            document.getElementById('physHair').value = char.narrative.physHair || '';
+            document.getElementById('physSkin').value = char.narrative.physSkin || '';
+            document.getElementById('appearance').value = char.narrative.appearance || '';
+            document.getElementById('backstory').value = char.narrative.backstory || '';
+            document.getElementById('languages').value = char.narrative.languages || '';
+            document.getElementById('equipment').value = char.narrative.equipment || '';
+
+            document.getElementById('cp').value = char.coins.cp || '';
+            document.getElementById('sp').value = char.coins.sp || '';
+            document.getElementById('ep').value = char.coins.ep || '';
+            document.getElementById('gp').value = char.coins.gp || '';
+            document.getElementById('pp').value = char.coins.pp || '';
+
+            if (char.narrative.portrait) {
+                document.getElementById('portraitImage').src = char.narrative.portrait;
+                document.getElementById('portraitImage').style.display = 'block';
+                document.getElementById('portraitPlaceholder').style.display = 'none';
+                document.getElementById('portraitBox').classList.add('has-image');
+            }
+
+            initDeathSaves();
+            initSpellSlots();
+            initAttunement();
+            renderWeapons();
+            renderSpells();
+            renderResources();
+        }
+
+        function loadChar() {
+            try {
+                const s = localStorage.getItem('rift_char_5e_2024');
+                if (s) {
+                    const loaded = JSON.parse(s);
+                    // Merge with default structure to ensure all properties exist
+                    char = {
+                        header: loaded.header || {},
+                        stats: { heroicInsp: false, ...loaded.stats },
+                        abilities: loaded.abilities || {},
+                        saves: loaded.saves || {},
+                        savesProf: loaded.savesProf || {},
+                        skills: loaded.skills || {},
+                        skillsProf: loaded.skillsProf || {},
+                        skillsExp: loaded.skillsExp || {},
+                        combat: loaded.combat || {},
+                        deathSaves: loaded.deathSaves || { success: [false,false,false], fail: [false,false,false] },
+                        weapons: loaded.weapons && loaded.weapons.length > 0 ? loaded.weapons : [{ name: '', bonus: '', damage: '', notes: '' }],
+                        classResources: loaded.classResources && loaded.classResources.length > 0 ? loaded.classResources : [{ name: '', current: '', max: '' }],
+                        classFeatures: loaded.classFeatures || '',
+                        training: loaded.training || {},
+                        speciesTraits: loaded.speciesTraits || '',
+                        feats: loaded.feats || '',
+                        spellcasting: loaded.spellcasting || {},
+                        spellSlots: loaded.spellSlots || {},
+                        spells: loaded.spells && loaded.spells.length > 0 ? loaded.spells : [{ name: '', level: '', prepared: false, notes: '' }],
+                        narrative: loaded.narrative || {},
+                        coins: loaded.coins || {},
+                        attunement: loaded.attunement || [false, false, false]
+                    };
+                }
+            } catch(e) {
+                console.warn('Error loading character:', e);
+            }
+            populateFields();
+        }
+
+        function downloadJSON() {
+            collectData();
+            const b = new Blob([JSON.stringify(char, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(b);
+            a.download = `${char.header.name || 'Character'}.json`;
+            a.click();
+        }
+
+        function uploadJSON(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = ev => {
+                try {
+                    char = JSON.parse(ev.target.result);
+                    populateFields();
+                    autoSave();
+                } catch(err) {
+                    alert('Error loading file.');
+                }
+            };
+            r.readAsText(f);
+        }
+
+        function resetSheet() {
+            if (!confirm('Reset character sheet? All data will be lost.')) return;
+            localStorage.removeItem('rift_char_5e_2024');
+            location.reload();
+        }
+
+        // GM View
+        async function initGMView() {
+            const u = getCurrentUser();
+            isGM = u?.isGM || false;
+            if (typeof initFirebase === 'function') await initFirebase();
+            if (isGM && typeof isFirebaseOnline === 'function' && isFirebaseOnline()) {
+                createPlayerBar();
+                loadPlayers();
+            }
+        }
+
+        function createPlayerBar() {
+            if (document.querySelector('.player-bar')) return;
+            const b = document.createElement('div');
+            b.className = 'player-bar';
+            b.innerHTML = `<span class="player-bar-label">Players:</span>`;
+            // Insert at start of sheet, not body
+            const sheet = document.querySelector('.sheet');
+            sheet.insertBefore(b, sheet.firstChild);
+        }
+
+        async function loadPlayers() {
+            getRef('players').on('value', snap => {
+                const ps = snap.val() || {};
+                const b = document.querySelector('.player-bar');
+                if (!b) return;
+                
+                const currentUser = getCurrentUser();
+                const userColor = currentUser?.color || '#6750a4';
+                
+                b.innerHTML = `<span class="player-bar-label">Players:</span>`;
+                
+                // Own character button
+                const ob = document.createElement('button');
+                ob.className = 'player-tab own' + (!viewingPlayer ? ' active' : '');
+                ob.innerHTML = `<span class="player-tab-dot" style="background: ${userColor}"></span> Eigener Charakter`;
+                ob.onclick = () => { viewingPlayer = null; loadChar(); enableEdit(); updatePB(); removeGMBanner(); };
+                b.appendChild(ob);
+                
+                // Other players
+                Object.entries(ps).forEach(([n, d]) => {
+                    if (d.isGM) return;
+                    if (n === currentUser?.username) return; // Skip self
+                    
+                    const btn = document.createElement('button');
+                    btn.className = 'player-tab' + (viewingPlayer === n ? ' active' : '');
+                    btn.innerHTML = `<span class="player-tab-dot" style="background: ${d.color || '#888'}"></span> ${n}`;
+                    btn.onclick = () => viewPlayer(n);
+                    b.appendChild(btn);
+                });
+            });
+        }
+
+        function updatePB() {
+            document.querySelectorAll('.player-tab').forEach(b => {
+                const isOwn = b.classList.contains('own');
+                const isActive = (!viewingPlayer && isOwn) || b.textContent.includes(viewingPlayer);
+                b.classList.toggle('active', isActive);
+            });
+        }
+
+        async function viewPlayer(n) {
+            viewingPlayer = n;
+            updatePB();
+            showGMBanner(n);
+            const snap = await getRef(`characters/${sanitizeKey(n)}`).once('value');
+            if (snap.val()) { char = snap.val(); populateFields(); }
+            disableEdit();
+        }
+
+        function showGMBanner(n) {
+            removeGMBanner();
+            const b = document.createElement('div');
+            b.className = 'gm-banner';
+            b.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Viewing: <strong>${n}</strong> (read-only)`;
+            // Insert after player-bar in sheet
+            const playerBar = document.querySelector('.player-bar');
+            if (playerBar) {
+                playerBar.after(b);
+            } else {
+                const sheet = document.querySelector('.sheet');
+                sheet.insertBefore(b, sheet.firstChild);
+            }
+        }
+
+        function removeGMBanner() { document.querySelector('.gm-banner')?.remove(); }
+        function enableEdit() { document.querySelectorAll('input, textarea, select').forEach(el => el.disabled = false); }
+        function disableEdit() { document.querySelectorAll('input, textarea, select').forEach(el => el.disabled = true); }
+
+        function listenForCatalogChanges() {
+            if (typeof getRef === 'function' && typeof isFirebaseOnline === 'function' && isFirebaseOnline()) {
+                getRef('settings/catalog').on('value', snap => {
+                    const c = snap.val();
+                    if (c) {
+                        const cur = localStorage.getItem('rift_active_catalog');
+                        localStorage.setItem('rift_active_catalog', c);
+                        if (cur && cur !== c) {
+                            const sh = {
+                                'none': 'charakterbogen.html',
+                                'rum-und-rache': 'charakterbogen_rumundrache.html',
+                                '5e-2024': 'charakterbogen_5e_2024.html',
+                                'neon-abyss': 'charakterbogen.html',
+                                'basis': 'charakterbogen_basis.html'
+                            };
+                            window.location.href = sh[c] || 'charakterbogen.html';
+                        }
+                    }
+                });
+            }
+        }
+
+        setTimeout(initGMView, 100);
+        createFooter();
+        if (typeof initFirebase === 'function') initFirebase().then(() => listenForCatalogChanges()).catch(() => {});
+    </script>
+</body>
+</html>

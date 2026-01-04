@@ -1,23 +1,19 @@
 <div align="center">
 
-<p align="center">
-  <img src="https://github.com/crussong/rift/blob/main/assets/images/logo_rift_white_400px.png" alt="RIFT Logo" width="300">
-</p>
+# 🎲 RIFT
+
+### *Real-time Interactive Fiction Tabletop*
+
+<img src="assets/icons/icon_512.png" alt="RIFT Logo" width="180">
 
 **The ultimate companion app for your tabletop RPG sessions.**
 
-<p align="center">
-  <a href="https://rift-app.com">
-    <img src="https://img.shields.io/badge/🎲_Try_RIFT_Now-6750a4?style=for-the-badge" alt="Try RIFT">
-  </a>
-</p>
+[![Version](https://img.shields.io/badge/Version-1.0-6750a4?style=for-the-badge)](/)]
+[![PWA](https://img.shields.io/badge/PWA-Ready-4caf50?style=for-the-badge&logo=pwa)](/)]
+[![Firebase](https://img.shields.io/badge/Firebase-Realtime-ff9800?style=for-the-badge&logo=firebase)](/)]
+[![i18n](https://img.shields.io/badge/🌍-DE%20|%20EN-2196f3?style=for-the-badge)](/)]
 
-[![Version](https://img.shields.io/badge/Version-1.0-6750a4?style=for-the-badge)](/)
-[![PWA](https://img.shields.io/badge/PWA-Ready-4caf50?style=for-the-badge&logo=pwa)](/)
-[![Firebase](https://img.shields.io/badge/Firebase-Realtime-ff9800?style=for-the-badge&logo=firebase)](/)
-[![i18n](https://img.shields.io/badge/🌍-DE%20|%20EN-2196f3?style=for-the-badge)](/)
-
-[**Report Bug**](https://github.com/your/repo/issues) · [**Request Feature**](https://github.com/your/repo/issues)
+[**Live Demo**](https://your-url.com) · [**Report Bug**](https://github.com/your/repo/issues) · [**Request Feature**](https://github.com/your/repo/issues)
 
 ---
 
@@ -367,9 +363,14 @@ rift/
 
 ## 🗺️ Roadmap
 
+- [ ] 🎙️ Voice chat integration
+- [ ] ⚔️ Combat tracker with initiative
+- [ ] 📚 Bestiary / Monster database  
+- [ ] 🏰 Campaign management
 - [ ] ☁️ Cloud character backup
 - [ ] 🎨 Custom dice skins
 - [ ] 🌍 More languages (FR, ES, IT)
+- [ ] 🔌 Plugin system
 
 <br>
 
@@ -399,17 +400,6 @@ Free to use, modify, and distribute. Attribution appreciated but not required.
 
 ---
 
-## 🤝 With help from
-
-<p>
-  <img src="https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=white" alt="Claude">
-  <img src="https://img.shields.io/badge/Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white" alt="Netlify">
-  <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase">
-  <img src="https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare">
-</p>
-
----
-
 <div align="center">
 
 ## 💜 Support
@@ -433,4 +423,3 @@ If RIFT helps your table, consider:
 <sub>*Roll initiative. Tell stories. Make memories.*</sub>
 
 </div>
-
