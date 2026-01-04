@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rift-v167';
+const CACHE_NAME = 'rift-v174';
 
 // Seiten und Assets die gecacht werden sollen
 const PRECACHE_URLS = [
