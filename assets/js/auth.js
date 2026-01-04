@@ -586,7 +586,7 @@ function toggleLightDark() {
 
 // ===== BACKGROUND IMAGE =====
 
-const BG_IMAGE_COUNT = 12;
+const BG_IMAGE_COUNT = 11;
 
 /**
  * Apply random background image
@@ -596,9 +596,9 @@ function applyRandomBackground() {
     // Generate random index 1-12 (new each page load)
     const bgIndex = Math.floor(Math.random() * BG_IMAGE_COUNT) + 1;
     
-    // Format: bg_001.jpg, bg_002.jpg, etc.
+    // Format: bg_001.webp, bg_002.webp, etc.
     const bgNumber = String(bgIndex).padStart(3, '0');
-    const bgPath = `assets/bg/bg_${bgNumber}.jpg`;
+    const bgPath = `assets/bg/bg_${bgNumber}.webp`;
     
     // Create background element if not exists
     let bgEl = document.getElementById('pnp-background');

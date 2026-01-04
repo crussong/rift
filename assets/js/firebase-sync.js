@@ -104,6 +104,7 @@ async function initFirebase() {
             initGlobalDiceClearListener();
             initGlobalTimerListener();
             initPauseListener();
+            initAtmosphereListener();
             initPlayerToastListener();
             initAutoModuleAccessCheck();
             
@@ -938,12 +939,7 @@ function createGlobalTimerBox() {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 52px;
-            height: 52px;
             padding: 4px;
-            background: var(--md-surface-container-high, #2b2930);
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             font-family: 'Roboto Mono', 'Roboto', sans-serif;
         }
         
@@ -952,12 +948,14 @@ function createGlobalTimerBox() {
             height: 14px;
             color: var(--md-primary, #6750a4);
             margin-bottom: 2px;
+            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
         }
         
         .global-timer-value {
             font-size: 11px;
             font-weight: 600;
             color: var(--md-on-surface, #e6e1e5);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.4);
         }
         
         #globalTimerBox.running svg {
@@ -997,8 +995,6 @@ function createGlobalTimerBox() {
             #globalTimerBox {
                 bottom: ${isChat ? '180px' : '122px'};
                 right: 16px;
-                width: 48px;
-                height: 48px;
             }
             
             #globalTimerBox svg {
@@ -1210,16 +1206,27 @@ function updatePauseOverlay(pause) {
         return;
     }
     
+    // GM Bypass active - don't show overlay for GM
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const gmBypassActive = localStorage.getItem('gmPauseBypass') === 'true';
+    
+    if (user?.isGM && gmBypassActive) {
+        if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 300);
+        }
+        return;
+    }
+    
     // Paused - create overlay if not exists
     if (!overlay) {
         overlay = createPauseOverlay();
     }
     
     // Update GM controls visibility
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     const gmControls = overlay.querySelector('.pause-gm-controls');
     if (gmControls) {
-        gmControls.style.display = user?.isGM ? 'block' : 'none';
+        gmControls.style.display = user?.isGM ? 'flex' : 'none';
     }
     
     overlay.style.display = 'flex';
@@ -1251,6 +1258,12 @@ function createPauseOverlay() {
                         <path d="M8 5v14l11-7z"/>
                     </svg>
                     ${t('pause.resume')}
+                </button>
+                <button class="pause-bypass-btn" onclick="bypassPause()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    ${t('gm.bypass_pause')}
                 </button>
             </div>
         </div>
@@ -1377,6 +1390,8 @@ function createPauseOverlay() {
             
             .pause-gm-controls {
                 display: none;
+                flex-direction: column;
+                align-items: center;
             }
             
             .pause-resume-btn {
@@ -1400,6 +1415,32 @@ function createPauseOverlay() {
             }
             
             .pause-resume-btn svg {
+                width: 24px;
+                height: 24px;
+            }
+            
+            .pause-bypass-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                padding: 14px 32px;
+                margin-top: 12px;
+                background: #FF9800;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 18px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 200ms ease;
+            }
+            
+            .pause-bypass-btn:hover {
+                background: #F57C00;
+                transform: scale(1.05);
+            }
+            
+            .pause-bypass-btn svg {
                 width: 24px;
                 height: 24px;
             }
@@ -1481,7 +1522,27 @@ window.resumeGame = async function() {
     if (!user?.isGM) return;
     
     await getRef('pause').remove();
+    localStorage.removeItem('gmPauseBypass');
     console.log('[Pause] Game resumed by GM');
+};
+
+/**
+ * Bypass pause overlay (GM only) - keeps pause active but allows GM to navigate
+ */
+window.bypassPause = function() {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user?.isGM) return;
+    
+    localStorage.setItem('gmPauseBypass', 'true');
+    
+    // Remove overlay
+    const overlay = document.getElementById('pauseOverlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 300);
+    }
+    
+    console.log('[Pause] GM bypass activated - can navigate while paused');
 };
 
 /**
@@ -1499,6 +1560,998 @@ window.pauseGame = async function() {
         pausedAt: firebase.database.ServerValue.TIMESTAMP
     });
     console.log('[Pause] Game paused by GM');
+};
+
+
+// ===== ATMOSPHERE SYSTEM =====
+
+let currentAtmosphere = 'off';
+let atmosphereParticleInterval = null;
+let atmosphereStartTime = 0;
+let atmosphereListenerInitialized = false;
+
+const ATMOSPHERE_CONFIG = {
+    off: null,
+    danger: {
+        color: '#f44336',
+        colorAlt: '#ff1744',
+        particles: 'embers',
+        particleCount: 15
+    },
+    creepy: {
+        color: '#9c27b0',
+        colorAlt: '#7b1fa2',
+        particles: 'fog',
+        particleCount: 12
+    },
+    safe: {
+        color: '#4CAF50',
+        colorAlt: '#66BB6A',
+        particles: 'embers',
+        particleCount: 15
+    },
+    rest: {
+        color: '#FFB300',
+        colorAlt: '#FFA000',
+        particles: 'sparks',
+        particleCount: 25
+    },
+    cold: {
+        color: '#00BCD4',
+        colorAlt: '#0288D1',
+        particles: 'snow',
+        particleCount: 25
+    },
+    mystic: {
+        color: '#7C4DFF',
+        colorAlt: '#536DFE',
+        particles: 'runes',
+        particleCount: 10
+    },
+    holy: {
+        color: '#FFF8E1',
+        colorAlt: '#FFD54F',
+        particles: 'light',
+        particleCount: 18
+    },
+    heat: {
+        color: '#FF5722',
+        colorAlt: '#FF9800',
+        particles: 'heat',
+        particleCount: 18
+    }
+};
+
+/**
+ * Initialize atmosphere listener
+ */
+function initAtmosphereListener() {
+    if (!database) return;
+    
+    // Prevent double initialization (important for SPA)
+    if (atmosphereListenerInitialized) {
+        console.log('[Atmosphere] Listener already initialized, skipping');
+        return;
+    }
+    atmosphereListenerInitialized = true;
+    
+    getRef('atmosphere').on('value', (snapshot) => {
+        const data = snapshot.val();
+        let atmo = 'off';
+        let startTime = Date.now();
+        
+        if (typeof data === 'object' && data !== null) {
+            atmo = data.type || 'off';
+            startTime = data.startedAt || Date.now();
+        } else if (typeof data === 'string') {
+            atmo = data;
+        }
+        
+        const previousAtmo = currentAtmosphere;
+        currentAtmosphere = atmo;
+        atmosphereStartTime = startTime;
+        updateAtmosphereOverlay(atmo, previousAtmo, startTime);
+    });
+}
+
+/**
+ * Update atmosphere overlay
+ */
+function updateAtmosphereOverlay(atmo, previousAtmo, startTime) {
+    let overlay = document.getElementById('atmosphereOverlay');
+    const config = ATMOSPHERE_CONFIG[atmo];
+    
+    // Clear existing particles
+    if (atmosphereParticleInterval) {
+        clearInterval(atmosphereParticleInterval);
+        atmosphereParticleInterval = null;
+    }
+    
+    // Remove if off
+    if (!config) {
+        if (overlay) {
+            overlay.classList.add('fading-out');
+            setTimeout(() => overlay.remove(), 150);
+        }
+        return;
+    }
+    
+    // Create if doesn't exist
+    if (!overlay) {
+        overlay = createAtmosphereOverlay();
+    }
+    
+    // Clear previous classes and particles
+    overlay.className = 'atmosphere-overlay';
+    const particleContainer = overlay.querySelector('.atmo-particles');
+    if (particleContainer) particleContainer.innerHTML = '';
+    
+    // Calculate animation offset for sync across page loads
+    const elapsed = (Date.now() - startTime) / 1000;
+    const animOffset = `-${elapsed}s`;
+    
+    // Apply new atmosphere
+    requestAnimationFrame(() => {
+        overlay.classList.add(`atmo-${atmo}`);
+        overlay.style.setProperty('--atmo-color', config.color);
+        overlay.style.setProperty('--atmo-color-alt', config.colorAlt);
+        overlay.style.setProperty('--atmo-offset', animOffset);
+        
+        // Start particles
+        startAtmosphereParticles(atmo, config);
+    });
+}
+
+/**
+ * Create atmosphere overlay element
+ */
+function createAtmosphereOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'atmosphereOverlay';
+    overlay.className = 'atmosphere-overlay';
+    
+    overlay.innerHTML = `
+        <div class="atmo-vignette"></div>
+        <div class="atmo-frost"></div>
+        <div class="atmo-fog-layer"></div>
+        <div class="atmo-shimmer"></div>
+        <div class="atmo-particles"></div>
+        <div class="atmo-breath"></div>
+    `;
+    
+    // Inject styles
+    if (!document.getElementById('atmosphereStyles')) {
+        const style = document.createElement('style');
+        style.id = 'atmosphereStyles';
+        style.textContent = `
+            /* ===== BASE OVERLAY ===== */
+            .atmosphere-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 99990;
+                pointer-events: none;
+                transition: opacity 150ms ease;
+            }
+            
+            .atmosphere-overlay * {
+                pointer-events: none;
+            }
+            
+            .atmosphere-overlay.fading-out {
+                opacity: 0;
+            }
+            
+            /* ===== VIGNETTE ===== */
+            .atmo-vignette {
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(ellipse at center, transparent 40%, var(--atmo-color) 150%);
+                opacity: 0;
+                transition: opacity 600ms ease;
+            }
+            
+            /* ===== FROST EFFECT (Cold) ===== */
+            .atmo-frost {
+                position: absolute;
+                inset: 0;
+                opacity: 0;
+                display: none;
+                background: 
+                    linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%),
+                    linear-gradient(225deg, rgba(255,255,255,0.1) 0%, transparent 50%),
+                    linear-gradient(45deg, rgba(255,255,255,0.05) 0%, transparent 30%),
+                    linear-gradient(315deg, rgba(255,255,255,0.05) 0%, transparent 30%);
+                mask-image: linear-gradient(to bottom, black 0%, transparent 15%, transparent 85%, black 100%),
+                            linear-gradient(to right, black 0%, transparent 10%, transparent 90%, black 100%);
+                mask-composite: intersect;
+                -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 15%, transparent 85%, black 100%),
+                                    linear-gradient(to right, black 0%, transparent 10%, transparent 90%, black 100%);
+                -webkit-mask-composite: source-in;
+            }
+            
+            /* ===== FOG LAYER (Creepy) ===== */
+            .atmo-fog-layer {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 40%;
+                opacity: 0;
+                display: none;
+                background: linear-gradient(to top, var(--atmo-color), transparent);
+            }
+            
+            /* ===== PARTICLES CONTAINER ===== */
+            .atmo-particles {
+                position: absolute;
+                inset: 0;
+                overflow: hidden;
+            }
+            
+            /* ===== BREATH EFFECT (Cold) ===== */
+            .atmo-breath {
+                position: absolute;
+                bottom: 20%;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 100px;
+                height: 60px;
+                background: radial-gradient(ellipse, rgba(255,255,255,0.3) 0%, transparent 70%);
+                opacity: 0;
+                display: none;
+                filter: blur(8px);
+            }
+            
+            /* ========================================
+               DANGER ATMOSPHERE
+            ======================================== */
+            .atmo-danger .atmo-vignette {
+                opacity: 0.2;
+                animation: dangerVignette 0.8s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-danger .atmo-fog-layer {
+                display: block;
+                background: linear-gradient(to top, rgba(244, 67, 54, 0.15), transparent);
+                animation: ambientFog 10s ease-in-out infinite;
+            }
+            
+            @keyframes dangerVignette {
+                0%, 100% { opacity: 0.15; }
+                50% { opacity: 0.25; }
+            }
+            
+            /* Ember particles */
+            .particle-ember {
+                position: absolute;
+                width: 4px;
+                height: 4px;
+                background: var(--atmo-color);
+                border-radius: 50%;
+                box-shadow: 0 0 6px var(--atmo-color), 0 0 10px var(--atmo-color-alt);
+                animation: emberFloat linear forwards;
+            }
+            
+            @keyframes emberFloat {
+                0% { opacity: 0; transform: translateY(0) translateX(0) scale(1); }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { opacity: 0; transform: translateY(-100vh) translateX(var(--drift)) scale(0.5); }
+            }
+            
+            /* ========================================
+               CREEPY ATMOSPHERE
+            ======================================== */
+            .atmo-creepy .atmo-vignette {
+                opacity: 0.15;
+                animation: creepyVignette 4s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-creepy .atmo-fog-layer {
+                display: block;
+                animation: creepyFog 8s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            @keyframes creepyVignette {
+                0%, 100% { opacity: 0.12; transform: scale(1); }
+                30% { opacity: 0.2; transform: scale(1.03); }
+                70% { opacity: 0.15; transform: scale(0.97); }
+            }
+            
+            @keyframes creepyFog {
+                0%, 100% { opacity: 0.2; transform: translateY(0); }
+                50% { opacity: 0.35; transform: translateY(-10px); }
+            }
+            
+            /* Ambient fog for all atmospheres */
+            @keyframes ambientFog {
+                0%, 100% { opacity: 0.12; transform: translateY(0); }
+                50% { opacity: 0.2; transform: translateY(-5px); }
+            }
+            
+            /* Fog particles */
+            .particle-fog {
+                position: absolute;
+                bottom: 0;
+                width: 250px;
+                height: 120px;
+                background: radial-gradient(ellipse, var(--atmo-color) 0%, transparent 70%);
+                opacity: 0;
+                filter: blur(25px);
+                animation: fogDrift linear forwards;
+            }
+            
+            @keyframes fogDrift {
+                0% { opacity: 0; transform: translateX(-50px) translateY(20px); }
+                20% { opacity: 0.4; }
+                80% { opacity: 0.4; }
+                100% { opacity: 0; transform: translateX(50px) translateY(-40px); }
+            }
+            
+            /* ========================================
+               SAFE ATMOSPHERE
+            ======================================== */
+            .atmo-safe .atmo-vignette {
+                opacity: 0.1;
+                animation: safeVignette 5s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-safe .atmo-fog-layer {
+                display: block;
+                background: linear-gradient(to top, rgba(76, 175, 80, 0.12), transparent);
+                animation: ambientFog 12s ease-in-out infinite;
+            }
+            
+            @keyframes safeVignette {
+                0%, 100% { opacity: 0.08; }
+                50% { opacity: 0.12; }
+            }
+            
+            /* Safe ember particles (slower than danger) */
+            .particle-safe-ember {
+                position: absolute;
+                width: 4px;
+                height: 4px;
+                background: var(--atmo-color);
+                border-radius: 50%;
+                box-shadow: 0 0 6px var(--atmo-color), 0 0 12px var(--atmo-color);
+                animation: safeEmberFloat linear forwards;
+            }
+            
+            @keyframes safeEmberFloat {
+                0% { opacity: 0; transform: translateY(0) translateX(0) scale(1); }
+                10% { opacity: 0.8; }
+                90% { opacity: 0.6; }
+                100% { opacity: 0; transform: translateY(-100vh) translateX(var(--drift)) scale(0.3); }
+            }
+            
+            /* ========================================
+               REST ATMOSPHERE
+            ======================================== */
+            .atmo-rest .atmo-vignette {
+                opacity: 0.1;
+                background: radial-gradient(ellipse at bottom center, var(--atmo-color) 0%, transparent 60%);
+            }
+            
+            .atmo-rest .atmo-fog-layer {
+                display: block;
+                background: linear-gradient(to top, rgba(255, 179, 0, 0.1), transparent);
+                animation: ambientFog 8s ease-in-out infinite;
+            }
+            
+            .atmo-rest .atmo-shimmer {
+                display: block;
+                background: linear-gradient(to top, rgba(255, 179, 0, 0.06), transparent);
+                height: 35%;
+                animation: shimmerWave 0.15s linear infinite;
+            }
+            
+            /* Spark particles */
+            .particle-spark {
+                position: absolute;
+                bottom: 0;
+                width: 3px;
+                height: 3px;
+                background: var(--atmo-color);
+                border-radius: 50%;
+                box-shadow: 0 0 4px var(--atmo-color), 0 0 8px var(--atmo-color-alt);
+                animation: sparkRise linear forwards;
+            }
+            
+            @keyframes sparkRise {
+                0% { opacity: 1; transform: translateY(0) translateX(0) scale(1); }
+                60% { opacity: 0.8; }
+                100% { opacity: 0; transform: translateY(var(--rise-height)) translateX(var(--drift)) scale(0.3); }
+            }
+            
+            /* ========================================
+               COLD ATMOSPHERE
+            ======================================== */
+            .atmo-cold .atmo-vignette {
+                opacity: 0.18;
+                background: radial-gradient(ellipse at center, transparent 30%, var(--atmo-color) 150%);
+                animation: coldVignette 4s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-cold .atmo-fog-layer {
+                display: block;
+                background: linear-gradient(to top, rgba(0, 188, 212, 0.12), transparent);
+                animation: ambientFog 10s ease-in-out infinite;
+            }
+            
+            .atmo-cold .atmo-frost {
+                display: block;
+                animation: frostPulse 6s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-cold .atmo-breath {
+                display: block;
+                animation: breathCloud 4s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            @keyframes coldVignette {
+                0%, 100% { opacity: 0.15; }
+                50% { opacity: 0.22; }
+            }
+            
+            @keyframes frostPulse {
+                0%, 100% { opacity: 0.15; }
+                50% { opacity: 0.25; }
+            }
+            
+            @keyframes breathCloud {
+                0%, 100% { opacity: 0; transform: translateX(-50%) scale(0.5); }
+                15% { opacity: 0.4; transform: translateX(-50%) scale(1); }
+                40% { opacity: 0.2; transform: translateX(-50%) translateY(-20px) scale(1.3); }
+                60%, 100% { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(1.5); }
+            }
+            
+            /* Snow particles */
+            .particle-snow {
+                position: absolute;
+                top: -10px;
+                background: white;
+                border-radius: 50%;
+                opacity: 0.8;
+                box-shadow: 0 0 3px rgba(255,255,255,0.8);
+                animation: snowFall linear forwards;
+            }
+            
+            @keyframes snowFall {
+                0% { transform: translateY(0) translateX(0) rotate(0deg); }
+                100% { transform: translateY(calc(100vh + 20px)) translateX(var(--drift)) rotate(360deg); }
+            }
+            
+            /* ========================================
+               MYSTIC ATMOSPHERE
+            ======================================== */
+            .atmo-mystic .atmo-vignette {
+                opacity: 0.15;
+                background: radial-gradient(ellipse at center, transparent 20%, var(--atmo-color) 150%);
+                animation: mysticVignette 4s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-mystic .atmo-fog-layer {
+                display: block;
+                background: linear-gradient(to top, rgba(124, 77, 255, 0.15), transparent);
+                animation: ambientFog 12s ease-in-out infinite;
+            }
+            
+            @keyframes mysticVignette {
+                0%, 100% { opacity: 0.12; }
+                50% { opacity: 0.2; }
+            }
+            
+            /* Rune particles - base style */
+            .particle-rune {
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                opacity: 0;
+                box-shadow: 0 0 10px var(--atmo-color), 0 0 20px var(--atmo-color-alt);
+                animation: runeFloat ease-in-out infinite, runeGlow 2s ease-in-out infinite;
+            }
+            
+            /* Rune variant 1: Diamond with cross */
+            .particle-rune.rune-diamond {
+                border: 2px solid var(--atmo-color);
+                border-radius: 2px;
+                transform: rotate(45deg);
+            }
+            .particle-rune.rune-diamond::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 60%;
+                height: 2px;
+                background: var(--atmo-color);
+                transform: translate(-50%, -50%);
+                box-shadow: 0 0 5px var(--atmo-color);
+            }
+            .particle-rune.rune-diamond::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 2px;
+                height: 60%;
+                background: var(--atmo-color);
+                transform: translate(-50%, -50%);
+                box-shadow: 0 0 5px var(--atmo-color);
+            }
+            
+            /* Rune variant 2: Circle with dot */
+            .particle-rune.rune-circle {
+                border: 2px solid var(--atmo-color);
+                border-radius: 50%;
+            }
+            .particle-rune.rune-circle::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 6px;
+                height: 6px;
+                background: var(--atmo-color);
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                box-shadow: 0 0 8px var(--atmo-color);
+            }
+            
+            /* Rune variant 3: Triangle */
+            .particle-rune.rune-triangle {
+                width: 0;
+                height: 0;
+                border-left: 10px solid transparent;
+                border-right: 10px solid transparent;
+                border-bottom: 18px solid var(--atmo-color);
+                background: transparent;
+                box-shadow: none;
+                filter: drop-shadow(0 0 8px var(--atmo-color));
+            }
+            
+            /* Rune variant 4: Star (asterisk) */
+            .particle-rune.rune-star {
+                border: none;
+                background: transparent;
+            }
+            .particle-rune.rune-star::before {
+                content: '✦';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 20px;
+                color: var(--atmo-color);
+                text-shadow: 0 0 10px var(--atmo-color);
+            }
+            
+            /* Rune variant 5: Eye */
+            .particle-rune.rune-eye {
+                border: 2px solid var(--atmo-color);
+                border-radius: 50% 10%;
+                transform: rotate(0deg);
+            }
+            .particle-rune.rune-eye::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 8px;
+                height: 8px;
+                background: var(--atmo-color);
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+            }
+            
+            /* Rune variant 6: Crescent */
+            .particle-rune.rune-crescent {
+                border: 3px solid var(--atmo-color);
+                border-radius: 50%;
+                border-right-color: transparent;
+                border-bottom-color: transparent;
+                background: transparent;
+                transform: rotate(-45deg);
+            }
+            
+            @keyframes runeFloat {
+                0%, 100% { transform: translateY(0) translateX(0); }
+                25% { transform: translateY(var(--drift-y)) translateX(calc(var(--drift-x) * 0.5)); }
+                50% { transform: translateY(calc(var(--drift-y) * 0.5)) translateX(var(--drift-x)); }
+                75% { transform: translateY(calc(var(--drift-y) * 0.7)) translateX(calc(var(--drift-x) * 0.3)); }
+            }
+            
+            @keyframes runeGlow {
+                0%, 100% { opacity: 0.3; }
+                50% { opacity: 0.7; }
+            }
+            
+            /* ========================================
+               HOLY ATMOSPHERE
+            ======================================== */
+            .atmo-holy .atmo-vignette {
+                opacity: 0.1;
+                background: radial-gradient(ellipse at top center, var(--atmo-color-alt) 0%, transparent 60%);
+                animation: holyVignette 3s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-holy .atmo-fog-layer {
+                display: block;
+                background: linear-gradient(to top, rgba(255, 248, 225, 0.1), transparent);
+                animation: ambientFog 10s ease-in-out infinite;
+            }
+            
+            @keyframes holyVignette {
+                0%, 100% { opacity: 0.08; }
+                50% { opacity: 0.15; }
+            }
+            
+            /* Light particles */
+            .particle-light {
+                position: absolute;
+                top: -20px;
+                width: 4px;
+                height: 15px;
+                background: linear-gradient(to bottom, var(--atmo-color), transparent);
+                border-radius: 2px;
+                opacity: 0;
+                box-shadow: 0 0 10px var(--atmo-color), 0 0 20px var(--atmo-color-alt);
+                animation: lightFall linear forwards;
+            }
+            
+            @keyframes lightFall {
+                0% { opacity: 0; transform: translateY(0) translateX(0); }
+                10% { opacity: 0.9; }
+                70% { opacity: 0.7; }
+                100% { opacity: 0; transform: translateY(calc(100vh + 50px)) translateX(var(--drift)); }
+            }
+            
+            /* ========================================
+               HEAT ATMOSPHERE
+            ======================================== */
+            .atmo-heat .atmo-vignette {
+                opacity: 0.12;
+                background: radial-gradient(ellipse at bottom center, var(--atmo-color) 0%, transparent 50%);
+                animation: heatVignette 2s ease-in-out infinite;
+                animation-delay: var(--atmo-offset, 0s);
+            }
+            
+            .atmo-heat .atmo-fog-layer {
+                display: block;
+                background: linear-gradient(to top, rgba(255, 87, 34, 0.12), transparent);
+                animation: ambientFog 6s ease-in-out infinite;
+            }
+            
+            @keyframes heatVignette {
+                0%, 100% { opacity: 0.1; }
+                50% { opacity: 0.18; }
+            }
+            
+            /* Heat spark particles */
+            .particle-heat {
+                position: absolute;
+                bottom: 0;
+                width: 3px;
+                height: 3px;
+                background: var(--atmo-color);
+                border-radius: 50%;
+                box-shadow: 0 0 4px var(--atmo-color), 0 0 8px var(--atmo-color-alt);
+                animation: heatRise linear forwards;
+            }
+            
+            @keyframes heatRise {
+                0% { opacity: 1; transform: translateY(0) translateX(0) scale(1); }
+                60% { opacity: 0.7; }
+                100% { opacity: 0; transform: translateY(var(--rise-height)) translateX(var(--drift)) scale(0.3); }
+            }
+            
+            /* Heat shimmer effect */
+            .atmo-heat .atmo-shimmer {
+                display: block;
+            }
+            
+            .atmo-shimmer {
+                display: none;
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 40%;
+                background: linear-gradient(to top, rgba(255,87,34,0.08), transparent);
+                animation: shimmerWave 0.15s linear infinite;
+                pointer-events: none;
+            }
+            
+            @keyframes shimmerWave {
+                0%, 100% { transform: translateX(0) scaleY(1); }
+                25% { transform: translateX(2px) scaleY(1.01); }
+                50% { transform: translateX(-1px) scaleY(0.99); }
+                75% { transform: translateX(1px) scaleY(1.02); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+/**
+ * Start atmosphere particles
+ */
+function startAtmosphereParticles(atmo, config) {
+    const overlay = document.getElementById('atmosphereOverlay');
+    if (!overlay) return;
+    
+    const container = overlay.querySelector('.atmo-particles');
+    if (!container) return;
+    
+    // Create initial batch immediately (no stagger)
+    for (let i = 0; i < config.particleCount; i++) {
+        createParticle(atmo, container);
+    }
+    
+    // Continue creating particles
+    const interval = getParticleInterval(atmo);
+    atmosphereParticleInterval = setInterval(() => {
+        createParticle(atmo, container);
+    }, interval);
+    
+    // Creepy: Add random flicker
+    if (atmo === 'creepy') {
+        startCreepyFlicker(overlay);
+    }
+}
+
+/**
+ * Get particle spawn interval based on atmosphere
+ */
+function getParticleInterval(atmo) {
+    switch(atmo) {
+        case 'danger': return 400;
+        case 'creepy': return 1500;    // Mehr Nebel
+        case 'safe': return 600;
+        case 'rest': return 250;
+        case 'cold': return 300;
+        case 'mystic': return 2500;
+        case 'holy': return 250;
+        case 'heat': return 300;
+        default: return 500;
+    }
+}
+
+/**
+ * Create a single particle based on atmosphere type
+ */
+function createParticle(atmo, container) {
+    const particle = document.createElement('div');
+    
+    switch(atmo) {
+        case 'danger':
+            createEmberParticle(particle);
+            break;
+        case 'creepy':
+            createFogParticle(particle);
+            break;
+        case 'safe':
+            createSafeEmberParticle(particle);
+            break;
+        case 'rest':
+            createSparkParticle(particle);
+            break;
+        case 'cold':
+            createSnowParticle(particle);
+            break;
+        case 'mystic':
+            createRuneParticle(particle);
+            break;
+        case 'holy':
+            createLightParticle(particle);
+            break;
+        case 'heat':
+            createHeatParticle(particle);
+            break;
+    }
+    
+    container.appendChild(particle);
+    
+    // Remove after animation
+    let duration;
+    if (atmo === 'mystic') {
+        duration = 20000 + Math.random() * 10000; // 20-30 seconds for runes
+    } else if (atmo === 'safe') {
+        duration = 8000 + Math.random() * 4000; // 8-12 seconds for slow embers
+    } else {
+        duration = parseFloat(particle.style.animationDuration) * 1000 || 5000;
+    }
+    setTimeout(() => particle.remove(), duration);
+}
+
+/**
+ * Create ember particle (Danger)
+ */
+function createEmberParticle(particle) {
+    particle.className = 'particle-ember';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.bottom = '0';
+    particle.style.setProperty('--drift', (Math.random() - 0.5) * 100 + 'px');
+    particle.style.animationDuration = (3 + Math.random() * 2) + 's';
+    particle.style.width = (3 + Math.random() * 3) + 'px';
+    particle.style.height = particle.style.width;
+}
+
+/**
+ * Create fog particle (Creepy)
+ */
+function createFogParticle(particle) {
+    particle.className = 'particle-fog';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.animationDuration = (5 + Math.random() * 4) + 's';
+    particle.style.width = (180 + Math.random() * 180) + 'px';
+    particle.style.height = (100 + Math.random() * 80) + 'px';
+}
+
+/**
+ * Create safe ember particle (Safe) - slower rising embers
+ */
+function createSafeEmberParticle(particle) {
+    particle.className = 'particle-safe-ember';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.bottom = '0';
+    particle.style.setProperty('--drift', (Math.random() - 0.5) * 80 + 'px');
+    particle.style.animationDuration = (6 + Math.random() * 4) + 's'; // Langsamer als danger (3-5s)
+    const size = 3 + Math.random() * 3;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+}
+
+/**
+ * Create spark particle (Rest) - full width, much denser towards center
+ */
+function createSparkParticle(particle) {
+    particle.className = 'particle-spark';
+    
+    // Strong center bias using multiple random values (Box-Muller-like)
+    // More randoms = stronger bell curve towards center
+    const r1 = Math.random();
+    const r2 = Math.random();
+    const r3 = Math.random();
+    const r4 = Math.random();
+    const centerBias = (r1 + r2 + r3 + r4) / 4; // Strong bias towards 0.5
+    
+    // Map to 10-90% range so particles stay visible, heavily centered
+    const leftPos = 10 + centerBias * 80;
+    
+    particle.style.left = leftPos + '%';
+    particle.style.setProperty('--drift', (Math.random() - 0.5) * 60 + 'px');
+    particle.style.setProperty('--rise-height', -(200 + Math.random() * 400) + 'px'); // 200-600px hoch
+    particle.style.animationDuration = (2 + Math.random() * 2.5) + 's';
+    const size = 2 + Math.random() * 3;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+}
+
+/**
+ * Create snow particle (Cold)
+ */
+function createSnowParticle(particle) {
+    particle.className = 'particle-snow';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.setProperty('--drift', (Math.random() - 0.5) * 100 + 'px');
+    particle.style.animationDuration = (5 + Math.random() * 5) + 's';
+    const size = 2 + Math.random() * 4;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+    particle.style.opacity = 0.4 + Math.random() * 0.4;
+}
+
+/**
+ * Create rune particle (Mystic) - various rune symbols
+ */
+function createRuneParticle(particle) {
+    // Random rune variant
+    const runeTypes = ['rune-diamond', 'rune-circle', 'rune-triangle', 'rune-star', 'rune-eye', 'rune-crescent'];
+    const runeType = runeTypes[Math.floor(Math.random() * runeTypes.length)];
+    
+    particle.className = 'particle-rune ' + runeType;
+    particle.style.left = 10 + Math.random() * 80 + '%';
+    particle.style.top = 10 + Math.random() * 70 + '%';
+    particle.style.setProperty('--drift-x', (Math.random() - 0.5) * 60 + 'px');
+    particle.style.setProperty('--drift-y', (Math.random() - 0.5) * 60 + 'px');
+    particle.style.animationDuration = (8 + Math.random() * 4) + 's, ' + (2 + Math.random() * 2) + 's';
+    particle.style.animationDelay = Math.random() * 2 + 's';
+    const size = 15 + Math.random() * 15;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+}
+
+/**
+ * Create light particle (Holy)
+ */
+function createLightParticle(particle) {
+    particle.className = 'particle-light';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.setProperty('--drift', (Math.random() - 0.5) * 30 + 'px');
+    particle.style.animationDuration = (2 + Math.random() * 2) + 's';
+    const width = 2 + Math.random() * 4;
+    const height = 10 + Math.random() * 20;
+    particle.style.width = width + 'px';
+    particle.style.height = height + 'px';
+}
+
+/**
+ * Create heat particle (Heat) - similar to rest sparks
+ */
+function createHeatParticle(particle) {
+    particle.className = 'particle-heat';
+    
+    // Gaussian-like distribution: more particles towards center
+    const r1 = Math.random();
+    const r2 = Math.random();
+    const centerBias = (r1 + r2) / 2;
+    const leftPos = centerBias * 100;
+    
+    particle.style.left = leftPos + '%';
+    particle.style.setProperty('--drift', (Math.random() - 0.5) * 100 + 'px');
+    particle.style.setProperty('--rise-height', -(150 + Math.random() * 300) + 'px');
+    particle.style.animationDuration = (2 + Math.random() * 2) + 's';
+    const size = 2 + Math.random() * 3;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+}
+
+/**
+ * Start creepy flicker effect
+ */
+function startCreepyFlicker(overlay) {
+    const flicker = () => {
+        if (currentAtmosphere !== 'creepy') return;
+        
+        const vignette = overlay.querySelector('.atmo-vignette');
+        
+        if (vignette) {
+            // Quick flicker
+            vignette.style.opacity = '0.3';
+            
+            setTimeout(() => {
+                vignette.style.opacity = '';
+            }, 100);
+        }
+        
+        // Schedule next flicker (random 3-8 seconds)
+        setTimeout(flicker, 3000 + Math.random() * 5000);
+    };
+    
+    // Start after delay
+    setTimeout(flicker, 2000 + Math.random() * 3000);
+}
+
+// Export for use
+window.setAtmosphere = async function(atmo) {
+    if (!database) return;
+    
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user?.isGM) return;
+    
+    if (atmo === 'off') {
+        await getRef('atmosphere').remove();
+    } else {
+        await getRef('atmosphere').set({
+            type: atmo,
+            startedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+    }
+    console.log('[Atmosphere] Set to:', atmo);
 };
 
 

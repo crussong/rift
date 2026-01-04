@@ -333,6 +333,18 @@ function addFlyButtons(currentPage) {
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
             { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
         ],
+        'charakterbogen_rumundrache': [
+            { href: 'chat.html', icon: 'chat', title: 'Chat' },
+            { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
+        ],
+        'charakterbogen_basis': [
+            { href: 'chat.html', icon: 'chat', title: 'Chat' },
+            { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
+        ],
+        'charakterbogen_5e_2024': [
+            { href: 'chat.html', icon: 'chat', title: 'Chat' },
+            { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
+        ],
         'chat': [
             { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' },
             { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
@@ -1740,15 +1752,18 @@ function createFooter(containerId = null) {
         const footer = document.createElement('footer');
         footer.className = 'site-footer';
         
-        // Auf Login-Seite: fixed am unteren Rand (wegen fixed screens)
+        // Auf Login-Seite: fixed am unteren Rand
         const isLoginPage = window.location.pathname.includes('login');
         if (isLoginPage) {
-            footer.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: transparent; opacity: 0; transition: opacity 0.5s ease;';
+            footer.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: linear-gradient(to top, var(--md-background) 60%, transparent); padding-top: 20px; opacity: 0; transition: opacity 0.5s ease;';
             // Footer nach Splash einblenden (2.5s Splash + 0.5s buffer)
             setTimeout(() => {
                 footer.style.opacity = '1';
             }, 3000);
         }
+        
+        // Get current language for display
+        const langDisplay = (typeof currentLang !== 'undefined' ? currentLang : 'de').toUpperCase();
         
         footer.innerHTML = `
             <div class="footer-divider"></div>
@@ -1769,8 +1784,53 @@ function createFooter(containerId = null) {
                     <a href="donation.html">${t('footer.donate')}</a>
                 </div>
                 <p class="footer-copyright">© 2025 RIFT – Tabletop Companion</p>
+                <button class="footer-lang-btn" onclick="setLanguage(currentLang === 'de' ? 'en' : 'de');">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                    <span class="footer-lang-code">${langDisplay}</span>
+                </button>
             </div>
         `;
+        
+        // Add footer lang button styles if not exists
+        if (!document.getElementById('footerLangStyles')) {
+            const style = document.createElement('style');
+            style.id = 'footerLangStyles';
+            style.textContent = `
+                .footer-lang-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    margin-top: 16px;
+                    padding: 8px 16px;
+                    background: var(--md-surface-container-high, #2b2930);
+                    border: 1px solid var(--md-outline-variant, #49454f);
+                    border-radius: 20px;
+                    color: var(--md-on-surface-variant, #cac4d0);
+                    font-size: 13px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 200ms ease;
+                    align-self: center;
+                }
+                .footer-lang-btn:hover {
+                    background: var(--md-surface-container-highest, #36343b);
+                    border-color: var(--md-primary, #6750a4);
+                    color: var(--md-on-surface, #e6e1e5);
+                }
+                .footer-lang-btn svg {
+                    opacity: 0.8;
+                }
+                .footer-lang-code {
+                    font-weight: 600;
+                }
+            `;
+            document.head.appendChild(style);
+        }
         
         if (containerId) {
             const container = document.getElementById(containerId);
