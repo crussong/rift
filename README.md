@@ -4,7 +4,7 @@
 
 ### *Real-time Interactive Fiction Tabletop*
 
-<img src="assets/icons/icon_512.png" alt="RIFT Logo" width="180">
+<img src="assets/images/logo_rift_white_400px.png" alt="RIFT Logo" width="180">
 
 **The ultimate companion app for your tabletop RPG sessions.**
 
