@@ -606,6 +606,42 @@ async function saveWhiteboardState(state) {
 }
 
 /**
+ * Save only whiteboard positions (fast sync, no images)
+ * @param {Object} positions - Position data only
+ */
+async function saveWhiteboardPositions(positions) {
+    if (!database) return;
+    
+    await getRef('whiteboard/positions').set({
+        ...positions,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+}
+
+/**
+ * Save a single image to separate storage
+ * @param {string} imageId - Image element ID
+ * @param {string} src - Base64 image data
+ */
+async function saveWhiteboardImage(imageId, src) {
+    if (!database) return;
+    
+    await getRef(`whiteboard/images/${imageId}`).set(src);
+}
+
+/**
+ * Get a single image from storage
+ * @param {string} imageId - Image element ID
+ * @returns {Promise<string|null>} Base64 image data
+ */
+async function getWhiteboardImage(imageId) {
+    if (!database) return null;
+    
+    const snapshot = await getRef(`whiteboard/images/${imageId}`).once('value');
+    return snapshot.val();
+}
+
+/**
  * Listen for whiteboard changes
  * @param {Function} callback - Called with whiteboard state
  * @returns {Function} Unsubscribe function
@@ -619,6 +655,73 @@ function onWhiteboardChange(callback) {
         const state = snapshot.val();
         if (state) {
             callback(state);
+        }
+    });
+    
+    return () => ref.off('value', handler);
+}
+
+// ===== WHITEBOARD CURSORS =====
+
+/**
+ * Save cursor position
+ * @param {Object} cursor - Cursor data {x, y, name, color, timestamp}
+ */
+async function saveCursorPosition(cursor) {
+    if (!database) return;
+    
+    const userData = getCurrentUser();
+    if (!userData) return;
+    
+    // Use username as unique identifier
+    const odotuserId = userData.username || 'anonymous';
+    await getRef(`whiteboard/cursors/${odotuserId}`).set(cursor);
+}
+
+/**
+ * Listen for cursor changes
+ * @param {Function} callback - Called with cursors object
+ * @returns {Function} Unsubscribe function
+ */
+function onCursorsChange(callback) {
+    if (!database) return () => {};
+    
+    const ref = getRef('whiteboard/cursors');
+    
+    const handler = ref.on('value', (snapshot) => {
+        const cursors = snapshot.val();
+        callback(cursors || {});
+    });
+    
+    return () => ref.off('value', handler);
+}
+
+// ===== WHITEBOARD PING =====
+
+/**
+ * Save ping event
+ * @param {Object} ping - Ping data {x, y, name, color, timestamp}
+ */
+async function savePing(ping) {
+    if (!database) return;
+    
+    await getRef('whiteboard/ping').set(ping);
+}
+
+/**
+ * Listen for ping events
+ * @param {Function} callback - Called with ping data
+ * @returns {Function} Unsubscribe function
+ */
+function onPingChange(callback) {
+    if (!database) return () => {};
+    
+    const ref = getRef('whiteboard/ping');
+    
+    const handler = ref.on('value', (snapshot) => {
+        const ping = snapshot.val();
+        if (ping) {
+            callback(ping);
         }
     });
     

@@ -24,6 +24,9 @@ const NAV_CONFIG = {
     SWIPE_THRESHOLD: 50
 };
 
+// Base path for assets (can be set via window.RIFT_BASE_PATH for subfolders)
+const BASE_PATH = window.RIFT_BASE_PATH || '';
+
 // Module definitions for sidebar
 const MODULES = [
     { id: 'charakterbogen', title: 'Charakter-Bogen', icon: 'icon_character.png', href: 'charakterbogen.html' },
@@ -143,9 +146,9 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
                 <h1 class="module-name">${escapeHtml(moduleName)}</h1>
             </div>
             
-            <a href="index.html" class="navbar-logo" title="RIFT Home">
-                <img src="assets/images/logo_rift_white_400px.png" alt="RIFT" class="logo-white">
-                <img src="assets/images/logo_rift_black_400px.png" alt="RIFT" class="logo-black">
+            <a href="${BASE_PATH}index.html" class="navbar-logo" title="RIFT Home">
+                <img src="${BASE_PATH}assets/images/logo_rift_white_400px.png" alt="RIFT" class="logo-white">
+                <img src="${BASE_PATH}assets/images/logo_rift_black_400px.png" alt="RIFT" class="logo-black">
             </a>
             
             <div class="navbar-right">
@@ -175,8 +178,8 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
     
     sidebar.innerHTML = `
         <div class="sidebar-header">
-            <img src="assets/images/logo_rift_white_400px.png" alt="RIFT" class="sidebar-logo logo-white">
-            <img src="assets/images/logo_rift_black_400px.png" alt="RIFT" class="sidebar-logo logo-black">
+            <img src="${BASE_PATH}assets/images/logo_rift_white_400px.png" alt="RIFT" class="sidebar-logo logo-white">
+            <img src="${BASE_PATH}assets/images/logo_rift_black_400px.png" alt="RIFT" class="sidebar-logo logo-black">
             <button class="sidebar-close" onclick="closeSidebar()" aria-label="${t('close')}">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -196,8 +199,8 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
         <nav class="sidebar-nav">
             <div class="sidebar-section-title">${t('sidebar.modules')}</div>
             ${MODULES.map(m => `
-                <a href="${m.href}" class="sidebar-link${currentPage === m.href ? ' active' : ''}">
-                    <img src="assets/icons/${m.icon}" alt="">
+                <a href="${BASE_PATH}${m.href}" class="sidebar-link${currentPage === m.href ? ' active' : ''}">
+                    <img src="${BASE_PATH}assets/icons/${m.icon}" alt="">
                     <span>${m.title}</span>
                 </a>
             `).join('')}
@@ -205,7 +208,7 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
         
         <div class="sidebar-footer">
             <!-- Zurück zum Hub -->
-            <a href="index.html" class="sidebar-link sidebar-footer-item">
+            <a href="${BASE_PATH}index.html" class="sidebar-link sidebar-footer-item">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                     <polyline points="9 22 9 12 15 12 15 22"/>
@@ -252,7 +255,7 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
             </button>
             
             <!-- GM Optionen -->
-            <a href="gm-options.html" class="sidebar-link sidebar-footer-item sidebar-gm-options" id="sidebarGmOptions">
+            <a href="${BASE_PATH}gm-options.html" class="sidebar-link sidebar-footer-item sidebar-gm-options" id="sidebarGmOptions">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -372,20 +375,20 @@ function addFlyButtons(currentPage) {
     
     buttons.forEach((btn, index) => {
         const link = document.createElement('a');
-        link.href = btn.href;
+        link.href = BASE_PATH + btn.href;
         link.className = 'fly-btn' + (index === buttons.length - 1 ? ' primary' : '');
         link.title = btn.title;
         
         if (btn.icon === 'chat') {
             link.id = 'fly-btn-chat';
             link.innerHTML = `
-                <img src="assets/icons/icon_chat.png" alt="Chat" style="width: 24px; height: 24px;">
+                <img src="${BASE_PATH}assets/icons/icon_chat.png" alt="Chat" style="width: 24px; height: 24px;">
                 <span class="fly-btn-badge" id="chatUnreadBadge"></span>
             `;
         } else if (btn.icon === 'dice') {
-            link.innerHTML = `<img src="assets/icons/icon_dice.png" alt="Würfel">`;
+            link.innerHTML = `<img src="${BASE_PATH}assets/icons/icon_dice.png" alt="Würfel">`;
         } else if (btn.icon === 'character') {
-            link.innerHTML = `<img src="assets/icons/icon_character.png" alt="Charakter">`;
+            link.innerHTML = `<img src="${BASE_PATH}assets/icons/icon_character.png" alt="Charakter">`;
         }
         
         container.appendChild(link);
@@ -536,7 +539,7 @@ function setupTouchEvents() {
 // ===== NAVIGATION ACTIONS =====
 
 function navigateToHub() {
-    window.location.href = 'index.html';
+    window.location.href = BASE_PATH + 'index.html';
 }
 
 // ===== SOUND SETTINGS =====
@@ -582,7 +585,7 @@ function handleLogout() {
             logout(true);
         } else {
             localStorage.removeItem('pnp_companion_user');
-            window.location.href = 'login.html';
+            window.location.href = BASE_PATH + 'login.html';
         }
     }
 }
