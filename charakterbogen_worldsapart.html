@@ -1,0 +1,3534 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worlds Apart - Charakterbogen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+    <style>
+        :root {
+            /* Dark Theme */
+            --bg-darkest: #0d0d0f;
+            --bg-dark: #131316;
+            --bg-card: #1a1a1e;
+            --bg-card-hover: #222226;
+            --bg-elevated: #2a2a2f;
+            --bg-input: #16161a;
+            
+            /* Primary Accent - Crimson/Red */
+            --accent-primary: #c73e3e;
+            --accent-primary-light: #e05555;
+            --accent-primary-dim: rgba(199, 62, 62, 0.15);
+            --accent-primary-glow: rgba(199, 62, 62, 0.4);
+            
+            /* Gold for special elements */
+            --accent-gold: #c9a227;
+            --accent-gold-dim: rgba(201, 162, 39, 0.15);
+            
+            /* Status Colors */
+            --color-health: #c73e3e;
+            --color-moral: #3b82f6;
+            --color-resonanz: #8b5cf6;
+            --color-green: #22c55e;
+            
+            /* Text */
+            --text-primary: #f5f5f7;
+            --text-secondary: #a1a1aa;
+            --text-muted: #5f5f6b;
+            
+            /* Borders */
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.1);
+            
+            /* Spacing */
+            --gap-xs: 4px;
+            --gap-sm: 8px;
+            --gap-md: 12px;
+            --gap-lg: 16px;
+            --gap-xl: 24px;
+            
+            /* Radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-darkest);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        /* ===== LAYOUT ===== */
+        .sheet-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--gap-lg);
+        }
+
+        /* 2x2 Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-lg);
+            margin-bottom: var(--gap-lg);
+        }
+
+        .grid-section {
+            position: relative;
+        }
+
+        .grid-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 100%;
+            pointer-events: none;
+            background: 
+                /* Top line */
+                linear-gradient(to bottom, rgba(120, 120, 130, 0.6) 0%, rgba(120, 120, 130, 0.6) 100%) center top / 2px calc(50% - 60px) no-repeat,
+                /* Bottom line */
+                linear-gradient(to bottom, rgba(120, 120, 130, 0.6) 0%, rgba(120, 120, 130, 0.6) 100%) center bottom / 2px calc(50% - 60px) no-repeat;
+        }
+
+        .grid-section::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 120px;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 120'%3E%3C!-- Top circle --%3E%3Ccircle cx='20' cy='12' r='5' fill='none' stroke='rgba(140,140,150,0.7)' stroke-width='1.5'/%3E%3Ccircle cx='20' cy='12' r='2' fill='rgba(140,140,150,0.7)'/%3E%3C!-- Top connector --%3E%3Cline x1='20' y1='18' x2='20' y2='30' stroke='rgba(140,140,150,0.7)' stroke-width='1.5'/%3E%3C!-- Center double line --%3E%3Crect x='17' y='30' width='6' height='60' rx='1' fill='none' stroke='rgba(140,140,150,0.7)' stroke-width='1'/%3E%3Cline x1='20' y1='35' x2='20' y2='85' stroke='rgba(140,140,150,0.7)' stroke-width='1.5'/%3E%3C!-- Bottom connector --%3E%3Cline x1='20' y1='90' x2='20' y2='102' stroke='rgba(140,140,150,0.7)' stroke-width='1.5'/%3E%3C!-- Bottom circle --%3E%3Ccircle cx='20' cy='108' r='5' fill='none' stroke='rgba(140,140,150,0.7)' stroke-width='1.5'/%3E%3Ccircle cx='20' cy='108' r='2' fill='rgba(140,140,150,0.7)'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--gap-md) var(--gap-lg);
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-elevated);
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: var(--gap-sm);
+        }
+
+        .card-title-icon {
+            font-family: 'Material Symbols Rounded';
+            font-size: 20px;
+            font-weight: normal;
+            font-style: normal;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: var(--gap-sm);
+        }
+
+        .card-action-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-elevated);
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .card-action-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-secondary);
+        }
+
+        .card-action-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .card-body {
+            padding: var(--gap-lg);
+        }
+
+        /* ===== CHARACTER CARD ===== */
+        .character-layout {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: var(--gap-xl);
+        }
+
+        .character-visual {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-sm);
+            align-items: center;
+        }
+
+        .portrait-container {
+            position: relative;
+        }
+
+        .portrait {
+            width: 140px;
+            height: 140px;
+            border-radius: var(--radius-md);
+            background: var(--bg-elevated);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: all 0.2s;
+            border: 1px solid var(--border-subtle);
+            position: relative;
+        }
+
+        .portrait:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .portrait-placeholder {
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .portrait-health-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 3;
+            border-radius: var(--radius-md);
+            transition: all 0.3s;
+        }
+
+        .portrait-health-overlay.critical {
+            box-shadow: inset 0 0 25px rgba(220, 38, 38, 0.6);
+            animation: pulse-critical 2s infinite;
+        }
+
+        .portrait-health-overlay.low {
+            box-shadow: inset 0 0 20px rgba(245, 158, 11, 0.5);
+        }
+
+        .portrait-health-overlay.dead {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        @keyframes pulse-critical {
+            0%, 100% { box-shadow: inset 0 0 25px rgba(220, 38, 38, 0.6); }
+            50% { box-shadow: inset 0 0 35px rgba(220, 38, 38, 0.8); }
+        }
+
+        .portrait-controls, .crew-flag-controls {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            display: none;
+            gap: 4px;
+            z-index: 10;
+        }
+
+        .portrait-container:hover .portrait-controls,
+        .crew-flag-container:hover .crew-flag-controls {
+            display: flex;
+        }
+
+        .img-control-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--radius-sm);
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .img-control-btn .card-title-icon {
+            font-size: 14px;
+            color: white;
+        }
+
+        .img-control-btn:hover {
+            background: var(--accent-primary);
+        }
+
+        .img-control-btn.delete:hover {
+            background: #dc2626;
+        }
+
+        .img-control-btn.small {
+            width: 20px;
+            height: 20px;
+        }
+
+        .img-control-btn.small .card-title-icon {
+            font-size: 12px;
+        }
+
+        .level-badge {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-primary);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid var(--bg-card);
+            cursor: pointer;
+            z-index: 15;
+        }
+
+        .crew-flag-container {
+            position: relative;
+            margin-top: var(--gap-sm);
+        }
+
+        .crew-flag {
+            width: 140px;
+            height: 80px; /* ~7:4 ratio for crew flags */
+            border-radius: var(--radius-sm);
+            background: var(--bg-elevated);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+            transition: all 0.2s;
+        }
+
+        .crew-flag:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .crew-flag img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .crew-flag-placeholder {
+            color: var(--text-muted);
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .character-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-md);
+            height: 100%;
+        }
+
+        .character-name {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            outline: none;
+            padding: 0;
+            width: 100%;
+            padding-bottom: var(--gap-sm);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .character-name::placeholder {
+            color: var(--text-muted);
+        }
+
+        .character-meta {
+            display: flex;
+            gap: var(--gap-md);
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .character-meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-xs);
+        }
+
+        .character-meta-item input {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 13px;
+            outline: none;
+            width: 80px;
+        }
+
+        .character-fields {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: var(--gap-sm);
+            flex: 1;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-xs);
+        }
+
+        .field-label {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .field-input {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: var(--gap-sm) var(--gap-md);
+            font-size: 13px;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .field-input:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .field-textarea {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: var(--gap-sm) var(--gap-md);
+            font-size: 12px;
+            color: var(--text-primary);
+            outline: none;
+            resize: none;
+            min-height: 88px;
+            font-family: inherit;
+            grid-column: 1 / -1;
+            align-self: stretch;
+        }
+
+        .field-textarea:focus {
+            border-color: var(--accent-primary);
+        }
+
+        /* ===== ATTRIBUTES CARD ===== */
+        .attributes-top-row {
+            display: flex;
+            justify-content: center;
+            gap: var(--gap-md);
+        }
+
+        .attributes-bottom-row {
+            display: flex;
+            justify-content: center;
+            gap: var(--gap-md);
+            margin-top: var(--gap-md);
+        }
+
+        .attribute-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .attribute-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .attribute-item:hover .attribute-box {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--accent-primary-dim);
+        }
+
+        .attribute-box {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: var(--gap-md) var(--gap-lg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            min-width: 75px;
+            transition: all 0.2s;
+        }
+
+        .attribute-modifier {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+            text-align: center;
+            width: 100%;
+        }
+
+        .attribute-modifier.positive {
+            color: var(--color-green);
+        }
+
+        .attribute-modifier.negative {
+            color: var(--color-health);
+        }
+
+        .attribute-modifier input {
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: center;
+            font-size: 26px;
+            font-weight: 700;
+            color: inherit;
+            outline: none;
+            -moz-appearance: textfield;
+            padding: 0;
+            margin: 0;
+        }
+
+        .attribute-modifier input::-webkit-outer-spin-button,
+        .attribute-modifier input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .attribute-name {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .attribute-base {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .attr-points-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: var(--gap-md);
+        }
+
+        .attr-points-badge {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-green);
+            padding: 6px 14px;
+            background: rgba(34, 197, 94, 0.15);
+            border-radius: 20px;
+            transition: all 0.2s;
+        }
+
+        /* ===== STATUS CARD ===== */
+        .status-layout {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-md);
+        }
+
+        .status-bars {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-md);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-md);
+        }
+
+        .status-values {
+            display: flex;
+            align-items: baseline;
+            gap: 2px;
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+
+        .status-current {
+            font-size: 24px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            width: 55px;
+            outline: none;
+            text-align: right;
+            -moz-appearance: textfield;
+        }
+
+        .status-current::-webkit-outer-spin-button,
+        .status-current::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .status-current-display {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            width: 55px;
+            text-align: right;
+            display: inline-block;
+        }
+
+        .status-separator {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .status-max {
+            font-size: 14px;
+            color: var(--text-muted);
+            width: 30px;
+        }
+
+        .status-bar-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-label {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .status-bar {
+            height: 8px;
+            background: var(--bg-input);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .status-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            background-size: 200% 100%;
+            animation: gradient-shift 8s ease infinite;
+        }
+
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .status-bar-fill.health { background: linear-gradient(90deg, #166534, #22c55e, #166534); background-size: 200% 100%; }
+        .status-bar-fill.moral { background: linear-gradient(90deg, #1d4ed8, #60a5fa, #1d4ed8); background-size: 200% 100%; }
+        .status-bar-fill.resonanz { background: linear-gradient(90deg, #6d28d9, #a78bfa, #6d28d9); background-size: 200% 100%; }
+
+        .status-info-box {
+            margin-top: var(--gap-md);
+            padding-top: var(--gap-md);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-xs);
+        }
+
+        .status-info-item {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-sm);
+        }
+
+        .status-info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--gap-sm);
+        }
+
+        .status-info-icon {
+            font-size: 6px;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .status-info-text {
+            font-size: 9px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .status-extras {
+            display: none;
+        }
+
+        /* Dice / Second Chance */
+        .dice-section {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            padding: var(--gap-md);
+        }
+
+        .dice-section-title {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: var(--gap-sm);
+        }
+
+        .dice-row {
+            display: flex;
+            gap: var(--gap-sm);
+        }
+
+        .dice-row-large {
+            display: flex;
+            gap: var(--gap-md);
+            justify-content: center;
+            padding: var(--gap-sm) 0;
+        }
+
+        .dice-check {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .dice-check-large {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-elevated);
+            border: 2px solid var(--border-default);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .dice-check:hover, .dice-check-large:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .dice-check.used, .dice-check-large.used {
+            background: var(--accent-primary-dim);
+            border-color: var(--accent-primary);
+            opacity: 0.4;
+        }
+
+        .dice-check svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-secondary);
+        }
+
+        .dice-check-large svg {
+            width: 26px;
+            height: 26px;
+            fill: var(--text-secondary);
+        }
+
+        /* Currency - inline in inventory */
+        .currency-row-inline {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-sm);
+            padding: var(--gap-sm) var(--gap-md);
+            background: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--gap-md);
+        }
+
+        .currency-label {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            min-width: 55px;
+        }
+
+        .currency-icon {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.15s;
+        }
+
+        .currency-icon:hover {
+            opacity: 1;
+        }
+
+        .currency-input-inline {
+            flex: 1;
+            max-width: 120px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 6px var(--gap-sm);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-gold);
+            outline: none;
+            -moz-appearance: textfield;
+        }
+
+        .currency-input-inline::-webkit-outer-spin-button,
+        .currency-input-inline::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .weapon-icon {
+            font-size: 24px;
+            width: 24px;
+            height: 24px;
+            color: var(--text-muted);
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .weapon-input {
+            max-width: none;
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Text areas row */
+        .text-areas-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-md);
+        }
+
+        /* Currency Section - old styles kept for compatibility */
+        .currency-section {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            padding: var(--gap-md);
+        }
+
+        .currency-row {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-sm);
+        }
+
+        .currency-input {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 6px var(--gap-sm);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-gold);
+            outline: none;
+        }
+
+        /* ===== FOKUS CARD ===== */
+
+        .fokus-layout {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-md);
+            position: relative;
+            overflow: hidden;
+            padding-top: 80px;
+            margin-top: -80px;
+        }
+
+        .fokus-header {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--gap-md);
+            cursor: pointer;
+            padding: var(--gap-sm);
+            border-radius: var(--radius-md);
+            transition: background 0.15s;
+            position: relative;
+            z-index: 2;
+        }
+
+        .fokus-header:hover {
+            background: var(--bg-elevated);
+        }
+
+        .fokus-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-md);
+            background: var(--bg-elevated);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--border-default);
+            flex-shrink: 0;
+            transition: all 0.3s;
+            margin-top: 2px;
+            position: relative;
+        }
+
+        .fokus-icon img {
+            width: 36px;
+            height: 36px;
+        }
+
+        .fokus-particles {
+            position: absolute;
+            top: 0;
+            left: 8px;
+            width: 56px;
+            height: 80px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .fokus-particle {
+            position: absolute;
+            bottom: 0;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            opacity: 0;
+            animation: particle-float 4s infinite ease-out;
+        }
+
+        .fokus-particle:nth-child(1) { left: 10%; animation-delay: 0s; }
+        .fokus-particle:nth-child(2) { left: 30%; animation-delay: 0.6s; }
+        .fokus-particle:nth-child(3) { left: 50%; animation-delay: 1.2s; }
+        .fokus-particle:nth-child(4) { left: 70%; animation-delay: 1.8s; }
+        .fokus-particle:nth-child(5) { left: 90%; animation-delay: 2.4s; }
+        .fokus-particle:nth-child(6) { left: 20%; animation-delay: 3s; }
+        .fokus-particle:nth-child(7) { left: 60%; animation-delay: 3.3s; }
+        .fokus-particle:nth-child(8) { left: 40%; animation-delay: 0.3s; }
+
+        @keyframes particle-float {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(1);
+            }
+            10% {
+                opacity: 0.9;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-70px) scale(0.3);
+            }
+        }
+
+        .fokus-info {
+            flex: 1;
+        }
+
+        .fokus-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .fokus-attr {
+            font-size: 12px;
+            color: var(--accent-primary);
+            margin-top: 2px;
+        }
+
+        .fokus-dice {
+            text-align: right;
+        }
+
+        .fokus-dice-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .fokus-dice-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .fokus-abilities {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-sm);
+        }
+
+        .fokus-ability {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            padding: var(--gap-md);
+            border: 1px solid var(--border-subtle);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .fokus-ability:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .fokus-ability.empty {
+            border-style: dashed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 70px;
+        }
+
+        .fokus-ability.empty span {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .fokus-ability.no-fokus-message {
+            grid-column: 1 / -1;
+            background: var(--bg-input);
+            border-style: dashed;
+            text-align: center;
+            padding: var(--gap-lg);
+        }
+
+        .no-fokus-text {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .fokus-ability-type {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--accent-primary);
+            margin-bottom: 2px;
+        }
+
+        .fokus-ability-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .fokus-ability-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* ===== SCHWÄCHE & RAST ===== */
+        .schwaeche-rast-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-lg);
+            margin-bottom: var(--gap-lg);
+        }
+
+        .schwaeche-display {
+            cursor: pointer;
+            padding: var(--gap-sm);
+            border-radius: var(--radius-md);
+            transition: background 0.15s;
+        }
+
+        .schwaeche-display:hover {
+            background: var(--bg-elevated);
+        }
+
+        .schwaeche-empty {
+            color: var(--text-muted);
+            font-size: 13px;
+            text-align: center;
+            padding: var(--gap-md);
+            border: 1px dashed var(--border-subtle);
+            border-radius: var(--radius-md);
+        }
+
+        .schwaeche-selected {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-xs);
+        }
+
+        .schwaeche-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .schwaeche-bedeutung {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .schwaeche-wuerfel {
+            font-size: 10px;
+            color: #f59e0b;
+            font-style: italic;
+        }
+
+        .schwaeche-trigger {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .rast-buttons {
+            display: flex;
+            gap: var(--gap-md);
+        }
+
+        .rast-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--gap-xs);
+            padding: var(--gap-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .rast-btn:hover {
+            border-color: var(--accent-primary);
+            background: var(--accent-primary-dim);
+        }
+
+        .rast-btn.lange:hover {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.15);
+        }
+
+        .rast-btn.kurze:hover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .rast-btn-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .rast-btn-info {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .rast-btn.lange:hover .rast-btn-info {
+            color: #22c55e;
+        }
+
+        .rast-btn.kurze:hover .rast-btn-info {
+            color: #3b82f6;
+        }
+
+        /* Schwäche Popup */
+        .schwaeche-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--gap-sm);
+        }
+
+        .schwaeche-option {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: var(--gap-md);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .schwaeche-option:hover {
+            border-color: #f59e0b;
+        }
+
+        .schwaeche-option.selected {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.15);
+        }
+
+        .schwaeche-option-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .schwaeche-option-bedeutung {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .schwaeche-option-wuerfel {
+            font-size: 9px;
+            color: #f59e0b;
+            font-style: italic;
+            margin-bottom: 2px;
+        }
+
+        .schwaeche-option-trigger {
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        /* Skills */
+        .skill-points-badge {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-green);
+            padding: 4px 12px;
+            background: rgba(34, 197, 94, 0.15);
+            border-radius: 20px;
+            transition: all 0.2s;
+        }
+
+        .skills-tabs {
+            display: flex;
+            background: var(--bg-dark);
+            overflow: hidden;
+        }
+
+        .skill-tab {
+            flex: 1;
+            padding: var(--gap-md);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .skill-tab::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+        }
+
+        .skill-tab:hover {
+            background: var(--bg-elevated);
+        }
+
+        .skill-tab.active {
+            background: var(--bg-card);
+        }
+
+        /* Handeln - Rot */
+        .skill-tab[data-category="handeln"].active::after {
+            background: #dc2626;
+        }
+        .skill-tab[data-category="handeln"].active .skill-tab-name {
+            color: #dc2626;
+        }
+
+        /* Wissen - Blau */
+        .skill-tab[data-category="wissen"].active::after {
+            background: #2563eb;
+        }
+        .skill-tab[data-category="wissen"].active .skill-tab-name {
+            color: #2563eb;
+        }
+
+        /* Soziales - Grün */
+        .skill-tab[data-category="soziales"].active::after {
+            background: #16a34a;
+        }
+        .skill-tab[data-category="soziales"].active .skill-tab-name {
+            color: #16a34a;
+        }
+
+        .skill-tab-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .skill-tab-attrs {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .skill-panel {
+            display: none;
+        }
+
+        .skill-panel.active {
+            display: block;
+        }
+
+        .skills-list-header {
+            display: grid;
+            grid-template-columns: 24px 1fr 60px 50px 30px;
+            gap: var(--gap-sm);
+            padding: var(--gap-sm) var(--gap-md);
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            background: var(--bg-elevated);
+        }
+
+        .skill-row {
+            display: grid;
+            grid-template-columns: 24px 1fr 60px 50px 30px;
+            gap: var(--gap-sm);
+            padding: var(--gap-sm) var(--gap-md);
+            align-items: center;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .skill-row:hover {
+            background: var(--bg-elevated);
+        }
+
+        .skill-delete-btn {
+            width: 24px;
+            height: 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .skill-delete-btn:hover {
+            background: var(--accent-primary-dim);
+            color: var(--accent-primary);
+        }
+
+        .skill-prof {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--text-muted);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .skill-prof:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .skill-prof.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        /* Category-specific colors */
+        #panel-handeln .skill-prof.active {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
+        #panel-handeln .skill-bonus {
+            color: #dc2626;
+        }
+
+        #panel-wissen .skill-prof.active {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+        #panel-wissen .skill-bonus {
+            color: #2563eb;
+        }
+
+        #panel-soziales .skill-prof.active {
+            background: #16a34a;
+            border-color: #16a34a;
+        }
+        #panel-soziales .skill-bonus {
+            color: #16a34a;
+        }
+
+        .skill-name-input {
+            background: transparent;
+            border: none;
+            font-size: 12px;
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .skill-value-input {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+            outline: none;
+            width: 100%;
+        }
+
+        .skill-bonus {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-align: center;
+        }
+
+        .add-skill-btn {
+            flex: 1;
+            padding: var(--gap-sm);
+            background: transparent;
+            border: 1px dashed var(--border-default);
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .add-skill-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .skill-btn-row {
+            display: flex;
+            gap: var(--gap-sm);
+            padding: var(--gap-sm) var(--gap-md);
+        }
+
+        .catalog-skill-btn {
+            padding: var(--gap-sm) var(--gap-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .catalog-skill-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .skill-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--gap-sm) var(--gap-md);
+            background: var(--bg-elevated);
+        }
+
+        .skill-footer-label {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .skill-footer-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .skill-footer-bonus {
+            color: var(--accent-primary);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Bottom Section - Skills full width, side by side boxes */
+        .bottom-section {
+            margin-top: var(--gap-lg);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--gap-lg);
+        }
+
+        .bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-lg);
+        }
+
+        /* Inventory & Notes */
+        .side-card {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-md);
+        }
+
+        .inventory-textarea, .notes-textarea {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: var(--gap-md);
+            font-size: 12px;
+            color: var(--text-primary);
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .inventory-textarea:focus, .notes-textarea:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: var(--gap-sm);
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: var(--gap-sm);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .action-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-secondary);
+        }
+
+        .action-btn.danger:hover {
+            background: var(--accent-primary-dim);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .action-btn svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* Skills */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .popup-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .popup {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--accent-primary);
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.25s ease;
+        }
+
+        .popup.popup-wide {
+            max-width: 800px;
+        }
+
+        .popup-overlay.active .popup {
+            transform: scale(1);
+        }
+
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--gap-xs);
+        }
+
+        .catalog-item {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: var(--gap-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: var(--gap-xs);
+        }
+
+        .catalog-item.added {
+            border-color: var(--color-green);
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .catalog-item-name {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .catalog-item-btn {
+            padding: 3px 6px;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .catalog-item-btn.add {
+            background: var(--color-green);
+            color: white;
+        }
+
+        .catalog-item-btn.add:hover {
+            background: #16a34a;
+        }
+
+        .catalog-item-btn.remove {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .catalog-item-btn.remove:hover {
+            background: #b91c1c;
+        }
+
+        @media (max-width: 700px) {
+            .catalog-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 500px) {
+            .catalog-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .popup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--gap-lg);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .popup-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .popup-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .popup-close:hover {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .popup-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--gap-lg);
+        }
+
+        .popup-footer {
+            padding: var(--gap-lg);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .fokus-type-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--gap-sm);
+            margin-bottom: var(--gap-lg);
+        }
+
+        .fokus-type-btn {
+            aspect-ratio: 1;
+            background: var(--bg-elevated);
+            border: 2px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--gap-xs);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .fokus-type-btn:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .fokus-type-btn.active {
+            /* Colors set via inline styles for element-specific colors */
+        }
+
+        .fokus-type-btn img {
+            width: 36px;
+            height: 36px;
+        }
+
+        .fokus-type-btn span {
+            font-size: 9px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .fokus-type-btn.active span {
+            /* Color set via inline styles for element-specific colors */
+        }
+
+        .fokus-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin: var(--gap-md) 0 var(--gap-sm);
+            text-transform: uppercase;
+        }
+
+        .fokus-ability-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--gap-xs);
+            margin-bottom: var(--gap-md);
+        }
+
+        .fokus-ability-option {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: var(--gap-sm);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .fokus-ability-option:hover:not(.disabled) {
+            border-color: var(--text-secondary);
+        }
+
+        .fokus-ability-option.selected {
+            /* Colors set via inline styles for element-specific colors */
+        }
+
+        .fokus-ability-option.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .fokus-ability-option-name {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .fokus-ability-option-desc {
+            font-size: 10px;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .fokus-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: var(--gap-sm);
+            margin-top: var(--gap-sm);
+        }
+
+        .fokus-attr-info + .fokus-section-title {
+            margin-top: 0;
+        }
+
+        .fokus-attr-info {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: var(--gap-sm) var(--gap-md);
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--gap-md);
+        }
+
+        .fokus-attr-info strong {
+            color: var(--accent-primary);
+        }
+
+        .popup-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .popup-btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .popup-btn-primary:hover:not(:disabled) {
+            background: var(--accent-primary-light);
+        }
+
+        .popup-btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .popup-info {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Save Indicator */
+        .save-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--color-green);
+            color: white;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .hidden-input {
+            display: none;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1100px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .bottom-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .character-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .character-visual {
+                flex-direction: row;
+                justify-content: center;
+            }
+            
+            .text-areas-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 650px) {
+            .attributes-top-row,
+            .attributes-bottom-row {
+                gap: var(--gap-xs);
+            }
+            
+            .attribute-box {
+                min-width: 60px;
+                padding: var(--gap-sm);
+            }
+            
+            .attribute-modifier {
+                font-size: 20px;
+            }
+            
+            .fokus-abilities {
+                grid-template-columns: 1fr;
+            }
+            
+            .character-fields {
+                grid-template-columns: 1fr;
+            }
+            
+            .dice-row-large {
+                gap: var(--gap-sm);
+            }
+            
+            .dice-check-large {
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet-container">
+        <!-- GRID SECTION WITH VERTICAL DIVIDER -->
+        <div class="grid-section">
+            <!-- 2x2 MAIN GRID -->
+            <div class="main-grid">
+            <!-- CHARACTER -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title"><span class="card-title-icon">person</span> Charakter</span>
+                    <div class="card-actions">
+                        <button class="card-action-btn" onclick="document.getElementById('import-file').click()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                        </button>
+                        <button class="card-action-btn" onclick="exportCharacter()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="character-layout">
+                        <div class="character-visual">
+                            <div class="portrait-container">
+                                <div class="portrait" id="portrait-box" onclick="document.getElementById('portrait-upload').click()">
+                                    <div class="portrait-health-overlay" id="portrait-health-overlay"></div>
+                                    <span class="portrait-placeholder" id="portrait-placeholder">Portrait</span>
+                                    <img id="portrait-img" style="display: none;">
+                                </div>
+                                <div class="portrait-controls" id="portrait-controls">
+                                    <button class="img-control-btn" onclick="document.getElementById('portrait-upload').click()" title="Bild ändern">
+                                        <span class="card-title-icon">edit</span>
+                                    </button>
+                                    <button class="img-control-btn delete" onclick="removePortrait()" title="Bild löschen">
+                                        <span class="card-title-icon">delete</span>
+                                    </button>
+                                </div>
+                                <div class="level-badge" title="Level">1</div>
+                            </div>
+                            <div class="crew-flag-container">
+                                <div class="crew-flag" onclick="document.getElementById('jolly-upload').click()">
+                                    <span class="crew-flag-placeholder" id="crew-flag-placeholder">Crew Flagge</span>
+                                    <img id="crew-flag-img" style="display: none;">
+                                </div>
+                                <div class="crew-flag-controls" id="crew-flag-controls">
+                                    <button class="img-control-btn small" onclick="document.getElementById('jolly-upload').click()" title="Bild ändern">
+                                        <span class="card-title-icon">edit</span>
+                                    </button>
+                                    <button class="img-control-btn small delete" onclick="removeCrewFlag()" title="Bild löschen">
+                                        <span class="card-title-icon">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="character-info">
+                            <input type="text" class="character-name" id="char-name" placeholder="Charaktername">
+                            <div class="character-meta">
+                                <div class="character-meta-item">
+                                    <input type="text" id="char-age" placeholder="Alter">
+                                </div>
+                                <div class="character-meta-item">
+                                    <input type="text" id="char-gender" placeholder="Geschlecht">
+                                </div>
+                            </div>
+                            <div class="character-fields">
+                                <div class="field-group">
+                                    <label class="field-label">Crew</label>
+                                    <input type="text" class="field-input" id="char-crew" placeholder="Name der Crew">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Rolle</label>
+                                    <input type="text" class="field-input" id="char-role" placeholder="z.B. Kapitän, Navigator...">
+                                </div>
+                                <textarea class="field-textarea" id="char-appearance" placeholder="Kurze Charakterbeschreibung..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ATTRIBUTES -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title"><span class="card-title-icon">fitness_center</span> Attribute</span>
+                </div>
+                <div class="card-body">
+                    <div class="attr-points-row">
+                        <div class="attr-points-badge" id="attr-points">
+                            <span id="attr-points-text">10 / 10 Attributs-Punkte zu verteilen</span>
+                        </div>
+                    </div>
+                    <div class="attributes-top-row">
+                        <div class="attribute-item" title="Kraft - Feuer, Blitz">
+                            <div class="attribute-box">
+                                <div class="attribute-modifier">
+                                    <input type="number" id="attr-power" value="0" min="0" max="10" onfocus="this.select()">
+                                </div>
+                                <div class="attribute-name">Kraft</div>
+                            </div>
+                            <div class="attribute-base">KRF</div>
+                        </div>
+                        <div class="attribute-item" title="Geschick - Wasser, Wind">
+                            <div class="attribute-box">
+                                <div class="attribute-modifier">
+                                    <input type="number" id="attr-agility" value="0" min="0" max="10" onfocus="this.select()">
+                                </div>
+                                <div class="attribute-name">Geschick</div>
+                            </div>
+                            <div class="attribute-base">GES</div>
+                        </div>
+                        <div class="attribute-item" title="Zähigkeit - Erde">
+                            <div class="attribute-box">
+                                <div class="attribute-modifier">
+                                    <input type="number" id="attr-endurance" value="0" min="0" max="10" onfocus="this.select()">
+                                </div>
+                                <div class="attribute-name">Zähigkeit</div>
+                            </div>
+                            <div class="attribute-base">ZÄH</div>
+                        </div>
+                    </div>
+                    <div class="attributes-bottom-row">
+                        <div class="attribute-item" title="Verstand - Raum">
+                            <div class="attribute-box">
+                                <div class="attribute-modifier">
+                                    <input type="number" id="attr-mind" value="0" min="0" max="10" onfocus="this.select()">
+                                </div>
+                                <div class="attribute-name">Verstand</div>
+                            </div>
+                            <div class="attribute-base">VER</div>
+                        </div>
+                        <div class="attribute-item" title="Präsenz - Illusion">
+                            <div class="attribute-box">
+                                <div class="attribute-modifier">
+                                    <input type="number" id="attr-presence" value="0" min="0" max="10" onfocus="this.select()">
+                                </div>
+                                <div class="attribute-name">Präsenz</div>
+                            </div>
+                            <div class="attribute-base">PRÄ</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STATUS -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title"><span class="card-title-icon">favorite</span> Status</span>
+                </div>
+                <div class="card-body">
+                    <div class="status-layout">
+                        <div class="status-bars">
+                            <div class="status-item">
+                                <div class="status-values">
+                                    <input type="number" class="status-current" id="health-current" value="100" min="0" onfocus="this.select()">
+                                    <span class="status-separator">/</span>
+                                    <span class="status-max">100</span>
+                                </div>
+                                <div class="status-bar-container">
+                                    <span class="status-label">Lebenspunkte</span>
+                                    <div class="status-bar">
+                                        <div class="status-bar-fill health" id="health-bar" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-values">
+                                    <input type="number" class="status-current" id="moral-current" value="100" min="0" onfocus="this.select()">
+                                    <span class="status-separator">/</span>
+                                    <span class="status-max">100</span>
+                                </div>
+                                <div class="status-bar-container">
+                                    <span class="status-label">Moral</span>
+                                    <div class="status-bar">
+                                        <div class="status-bar-fill moral" id="moral-bar" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-values">
+                                    <span class="status-current-display" id="resonanz-display">10</span>
+                                    <span class="status-separator">/</span>
+                                    <span class="status-max">100</span>
+                                </div>
+                                <div class="status-bar-container">
+                                    <span class="status-label">Resonanz (10 + KRF × PRÄ)</span>
+                                    <div class="status-bar">
+                                        <div class="status-bar-fill resonanz" id="resonanz-bar" style="width: 10%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="status-info-box">
+                            <div class="status-info-row">
+                                <span class="status-info-icon" style="color: var(--color-health);">●</span>
+                                <span class="status-info-text">0 → Tot | 5 und weniger → Bewusstlos | 20 und weniger → Stark handlungseingeschränkt</span>
+                            </div>
+                            <div class="status-info-row">
+                                <span class="status-info-icon" style="color: var(--color-moral);">●</span>
+                                <span class="status-info-text">0 → Handlungsunfähig | 20 und weniger → Würfelproben massiv erschwert | 50 und weniger → Würfelproben leicht erschwert</span>
+                            </div>
+                            <div class="status-info-row">
+                                <span class="status-info-icon" style="color: var(--color-resonanz);">●</span>
+                                <span class="status-info-text">Bestimmt Bonus für Fokus-Fähigkeiten Würfelproben</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOKUS -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title"><span class="card-title-icon">auto_awesome</span> Fokus</span>
+                </div>
+                <div class="card-body">
+                    <div class="fokus-layout">
+                        <div class="fokus-header" onclick="openFokusPopup()">
+                            <div class="fokus-icon" id="fokus-icon">
+                                <span style="color: var(--text-muted); font-size: 24px;">?</span>
+                            </div>
+                            <div class="fokus-info">
+                                <div class="fokus-name" id="fokus-name">Kein Fokus gewählt</div>
+                                <div class="fokus-attr" id="fokus-attr">Klicke um zu wählen</div>
+                            </div>
+                            <div class="fokus-dice" id="fokus-dice" style="display: none;">
+                                <div class="fokus-dice-label">Würfel</div>
+                                <div class="fokus-dice-value" id="fokus-formula">W20</div>
+                            </div>
+                        </div>
+                        <div class="fokus-abilities" id="fokus-abilities">
+                            <div class="fokus-ability empty" onclick="openFokusPopup()">
+                                <span>Fähigkeit 1</span>
+                            </div>
+                            <div class="fokus-ability empty" onclick="openFokusPopup()">
+                                <span>Fähigkeit 2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            <!-- SCHWÄCHE & RAST ROW -->
+            <div class="schwaeche-rast-row">
+                <!-- SCHWÄCHE -->
+                <div class="card">
+                <div class="card-header">
+                    <span class="card-title"><span class="card-title-icon">warning</span> Schwäche</span>
+                </div>
+                <div class="card-body">
+                    <div class="schwaeche-display" id="schwaeche-display" onclick="openSchwaechePopup()">
+                        <div class="schwaeche-empty">Keine Schwäche gewählt</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAST -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title"><span class="card-title-icon">hotel</span> Rast</span>
+                </div>
+                <div class="card-body">
+                    <div class="rast-buttons">
+                        <button class="rast-btn lange" onclick="langeRast()">
+                            <span class="rast-btn-title">Lange Rast</span>
+                            <span class="rast-btn-info">+20 LP, +10 Moral</span>
+                        </button>
+                        <button class="rast-btn kurze" onclick="kurzeRast()">
+                            <span class="rast-btn-title">Kurze Rast</span>
+                            <span class="rast-btn-info">+10 LP, +5 Moral</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        <!-- END GRID SECTION -->
+
+        <!-- BOTTOM SECTION -->
+        <div class="bottom-section">
+            <!-- SKILLS - Full Width -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title"><span class="card-title-icon">menu_book</span> Fähigkeiten</span>
+                    <div class="skill-points-badge" id="skill-points">
+                        <span id="skill-points-text">500 / 500 Punkte verfügbar</span>
+                    </div>
+                </div>
+                <div class="skills-tabs">
+                    <button class="skill-tab active" data-category="handeln" onclick="switchSkillTab('handeln')">
+                        <div class="skill-tab-name">Handeln</div>
+                        <div class="skill-tab-attrs">KRF + GES + ZÄH</div>
+                    </button>
+                    <button class="skill-tab" data-category="wissen" onclick="switchSkillTab('wissen')">
+                        <div class="skill-tab-name">Wissen</div>
+                        <div class="skill-tab-attrs">VER + ZÄH</div>
+                    </button>
+                    <button class="skill-tab" data-category="soziales" onclick="switchSkillTab('soziales')">
+                        <div class="skill-tab-name">Soziales</div>
+                        <div class="skill-tab-attrs">PRÄ + VER</div>
+                    </button>
+                </div>
+                
+                <div class="skill-panel active" id="panel-handeln">
+                    <div class="skills-list-header">
+                        <span></span><span>Fähigkeit</span><span>Pkt</span><span>Bonus</span><span></span>
+                    </div>
+                    <div id="skills-handeln"></div>
+                    <div class="skill-btn-row">
+                        <button class="add-skill-btn" onclick="addSkill('handeln')">+ Hinzufügen</button>
+                        <button class="catalog-skill-btn" onclick="openSkillCatalog('handeln')">📖 Katalog</button>
+                    </div>
+                    <div class="skill-footer">
+                        <span class="skill-footer-label">Klassen-Fallback</span>
+                        <div>
+                            <span class="skill-footer-value" id="handeln-total">0</span>
+                            <span class="skill-footer-bonus" id="handeln-bonus">+0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="skill-panel" id="panel-wissen">
+                    <div class="skills-list-header">
+                        <span></span><span>Fähigkeit</span><span>Pkt</span><span>Bonus</span><span></span>
+                    </div>
+                    <div id="skills-wissen"></div>
+                    <div class="skill-btn-row">
+                        <button class="add-skill-btn" onclick="addSkill('wissen')">+ Hinzufügen</button>
+                        <button class="catalog-skill-btn" onclick="openSkillCatalog('wissen')">📖 Katalog</button>
+                    </div>
+                    <div class="skill-footer">
+                        <span class="skill-footer-label">Klassen-Fallback</span>
+                        <div>
+                            <span class="skill-footer-value" id="wissen-total">0</span>
+                            <span class="skill-footer-bonus" id="wissen-bonus">+0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="skill-panel" id="panel-soziales">
+                    <div class="skills-list-header">
+                        <span></span><span>Fähigkeit</span><span>Pkt</span><span>Bonus</span><span></span>
+                    </div>
+                    <div id="skills-soziales"></div>
+                    <div class="skill-btn-row">
+                        <button class="add-skill-btn" onclick="addSkill('soziales')">+ Hinzufügen</button>
+                        <button class="catalog-skill-btn" onclick="openSkillCatalog('soziales')">📖 Katalog</button>
+                    </div>
+                    <div class="skill-footer">
+                        <span class="skill-footer-label">Klassen-Fallback</span>
+                        <div>
+                            <span class="skill-footer-value" id="soziales-total">0</span>
+                            <span class="skill-footer-bonus" id="soziales-bonus">+0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Zweite Chance + Inventar/Notizen -->
+            <div class="bottom-row">
+                <!-- ZWEITE CHANCE -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="card-title-icon">casino</span> Zweite Chance</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="dice-row-large">
+                            <div class="dice-check-large" id="dice-1" onclick="toggleDice(0)">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="16" r="1.5"/></svg>
+                            </div>
+                            <div class="dice-check-large" id="dice-2" onclick="toggleDice(1)">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="16" r="1.5"/></svg>
+                            </div>
+                            <div class="dice-check-large" id="dice-3" onclick="toggleDice(2)">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="16" r="1.5"/></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INVENTORY & NOTES -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="card-title-icon">backpack</span> Inventar & Notizen</span>
+                    </div>
+                    <div class="card-body side-card">
+                        <div class="currency-row-inline">
+                            <span class="currency-label">Währung</span>
+                            <img src="assets/icons/icon_dollar.png" alt="Currency" class="currency-icon" id="currency-icon" onclick="rotateCurrency()">
+                            <input type="text" class="currency-input-inline" id="char-currency" placeholder="0" oninput="formatCurrency(this)">
+                        </div>
+                        <div class="currency-row-inline">
+                            <span class="currency-label">Waffe</span>
+                            <span class="card-title-icon weapon-icon">swords</span>
+                            <input type="text" class="currency-input-inline weapon-input" id="char-weapon" placeholder="z.B. Schwert, Pistole...">
+                        </div>
+                        <div class="text-areas-row">
+                            <textarea class="inventory-textarea" id="char-inventory" placeholder="Inventar..."></textarea>
+                            <textarea class="notes-textarea" id="char-notes" placeholder="Notizen..."></textarea>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="action-btn danger" onclick="resetCharacter()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fokus Popup -->
+    <div class="popup-overlay" id="fokus-popup">
+        <div class="popup">
+            <div class="popup-header">
+                <span class="popup-title">Fokus wählen</span>
+                <button class="popup-close" onclick="closeFokusPopup()">×</button>
+            </div>
+            <div class="popup-body">
+                <div class="fokus-type-grid" id="fokus-type-grid"></div>
+                <div id="fokus-abilities-container"></div>
+            </div>
+            <div class="popup-footer">
+                <span class="popup-info" id="fokus-selection-info">Wähle einen Fokus-Typ</span>
+                <button class="popup-btn popup-btn-primary" id="fokus-confirm-btn" onclick="confirmFokusSelection()" disabled>Bestätigen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schwäche Popup -->
+    <div class="popup-overlay" id="schwaeche-popup">
+        <div class="popup">
+            <div class="popup-header">
+                <span class="popup-title">Schwäche wählen</span>
+                <button class="popup-close" onclick="closeSchwaechePopup()">×</button>
+            </div>
+            <div class="popup-body">
+                <div class="schwaeche-grid" id="schwaeche-grid"></div>
+            </div>
+            <div class="popup-footer">
+                <button class="popup-btn" onclick="clearSchwaeche()">Keine Schwäche</button>
+                <button class="popup-btn popup-btn-primary" id="schwaeche-confirm-btn" onclick="confirmSchwaecheSelection()">Bestätigen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skill Catalog Popup -->
+    <div class="popup-overlay" id="skill-catalog-popup">
+        <div class="popup popup-wide">
+            <div class="popup-header">
+                <span class="popup-title">Fähigkeiten-Katalog</span>
+                <button class="popup-close" onclick="closeSkillCatalog()">×</button>
+            </div>
+            <div class="popup-body">
+                <div class="catalog-grid" id="catalog-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Inputs -->
+    <input type="file" id="portrait-upload" class="hidden-input" accept="image/*" onchange="uploadPortrait(event)">
+    <input type="file" id="jolly-upload" class="hidden-input" accept="image/*" onchange="uploadJolly(event)">
+    <input type="file" id="import-file" class="hidden-input" accept=".json" onchange="importCharacter(event)">
+
+    <!-- Save Indicator -->
+    <div class="save-indicator" id="save-indicator">✓ Gespeichert</div>
+
+    <script>
+        // ===== CONSTANTS =====
+        const STORAGE_KEY = 'worldsapart_character_v5';
+        const ATTR_TOTAL = 10;
+        const SKILL_TOTAL = 500;
+        
+        // Skill Catalog with example skills
+        const SKILL_CATALOG = {
+            handeln: [
+                'Klettern', 'Akrobatik', 'Kraft', 'Ausdauer', 'Balance', 'Sprinten', 'Springen', 'Schwimmen', 'Tauchen',
+                'Tragen', 'Ziehen', 'Drücken', 'Heben', 'Werfen', 'Fangen', 'Präzision', 'Feinarbeit', 'Handwerk',
+                'Reparieren', 'Mechanik', 'Bauen', 'Abbauen', 'Sabotage', 'Schlösser öffnen', 'Sicherungen umgehen',
+                'Werkzeuge nutzen', 'Waffenhandhabung', 'Nahkampf', 'Fernkampf', 'Ausweichen', 'Blocken', 'Entwaffnen',
+                'Ringen', 'Festsetzen', 'Sichern', 'Schleichen', 'Verbergen', 'Anschleichen', 'Spuren verwischen',
+                'Orientierung', 'Navigation', 'Steuern', 'Segeln', 'Reiten', 'Fahren', 'Überleben', 'Jagen', 'Lagern',
+                'Durchhalten', 'Erste Hilfe', 'Heilen'
+            ],
+            wissen: [
+                'Sprachen', 'Geschichte', 'Geographie', 'Politik', 'Religion', 'Philosophie', 'Mathematik', 'Physik',
+                'Chemie', 'Biologie', 'Medizin', 'Anatomie', 'Technik', 'Mechanik', 'Architektur', 'Bauwesen',
+                'Seefahrt', 'Navigation', 'Astronomie', 'Wetterkunde', 'Naturkunde', 'Flora', 'Fauna', 'Landwirtschaft',
+                'Bergbau', 'Metallurgie', 'Recht', 'Verwaltung', 'Bürokratie', 'Militärwesen', 'Taktik', 'Strategie',
+                'Handel', 'Wirtschaft', 'Buchhaltung', 'Logistik', 'Literatur', 'Kunst', 'Musiktheorie', 'Symbolkunde',
+                'Mythenkunde', 'Kryptographie', 'Codes & Zeichen', 'Spurenlesen', 'Kartographie', 'Informatik',
+                'Programmieren', 'Datenanalyse', 'Psychologie', 'Soziologie', 'Wahrnehmung'
+            ],
+            soziales: [
+                'Überreden', 'Überzeugen', 'Verhandeln', 'Argumentieren', 'Diskutieren', 'Debattieren', 'Schmeicheln',
+                'Einschmeicheln', 'Bitten', 'Betteln', 'Fordern', 'Befehlen', 'Einschüchtern', 'Drohen', 'Provozieren',
+                'Beschwichtigen', 'Beruhigen', 'Trösten', 'Motivieren', 'Anführen', 'Führen', 'Autorität zeigen',
+                'Respekt einfordern', 'Lügen', 'Täuschen', 'Bluffen', 'Irreführen', 'Verschweigen', 'Manipulieren',
+                'Verunsichern', 'Verhören', 'Befragen', 'Ausfragen', 'Zuhören', 'Beobachten (sozial)', 'Menschen einschätzen',
+                'Stimmungen lesen', 'Empathie zeigen', 'Vertrauen aufbauen', 'Vertrauen brechen', 'Kontakte knüpfen',
+                'Netzwerken', 'Gerüchte streuen', 'Gerüchte nutzen', 'Auftreten', 'Reden halten', 'Vermitteln',
+                'Schlichten', 'Überzeugen durch Beispiel', 'Loyalität einfordern'
+            ]
+        };
+        const ATTRIBUTES = ['power', 'agility', 'endurance', 'mind', 'presence'];
+        const CURRENCY_TYPES = ['dollar', 'euro', 'yen', 'berry'];
+        
+        const CLASS_ATTRIBUTE_MAP = {
+            handeln: ['power', 'agility', 'endurance'],
+            wissen: ['mind', 'endurance'],
+            soziales: ['presence', 'mind']
+        };
+        
+        const FOKUS_DATA = {
+            fire: { 
+                name: 'Feuer', 
+                icon: 'icon_focus_fire.png', 
+                attr: 'KRF',
+                color: '#ff6b35',
+                attacks: [
+                    { name: 'Feuerball', desc: 'Eine kompakte Flammenkugel explodiert beim Aufprall.' },
+                    { name: 'Flammenstrahl', desc: 'Dauerhafter Feuerstoß mit hoher Durchschlagskraft.' },
+                    { name: 'Explosionsschlag', desc: 'Ein Nahkampftreffer mit detonierender Hitze.' },
+                    { name: 'Feuerregen', desc: 'Mehrere Flammen fallen großflächig vom Himmel.' },
+                    { name: 'Hitzewelle', desc: 'Verbrennt alles in einem Bereich ohne direkten Treffer.' },
+                    { name: 'Flammenlanze', desc: 'Ein gebündelter Feuerstoß mit hoher Reichweite.' },
+                    { name: 'Lavaausbruch', desc: 'Der Boden bricht auf und speit Feuer.' },
+                    { name: 'Feuerwirbel', desc: 'Rotierende Flammen reißen Gegner mit.' },
+                    { name: 'Selbstentzündung', desc: 'Kurzzeitige massive Angriffsstärkung.' },
+                    { name: 'Brandmarke', desc: 'Gegner erleidet anhaltenden Feuerschaden.' }
+                ], 
+                defenses: [
+                    { name: 'Flammenhülle', desc: 'Feuer umgibt den Körper und schreckt Angriffe ab.' },
+                    { name: 'Hitzeschild', desc: 'Verdampft Projektile durch extreme Hitze.' },
+                    { name: 'Explosionsstoß', desc: 'Gegner werden durch Druckwelle zurückgedrängt.' },
+                    { name: 'Feuerwand', desc: 'Eine brennende Barriere blockiert den Weg.' },
+                    { name: 'Aschevorhang', desc: 'Rauch erschwert Sicht und Zielerfassung.' },
+                    { name: 'Hitzeresistenz', desc: 'Stark verringerter Feuerschaden.' },
+                    { name: 'Feuerabsorption', desc: 'Eigene Flammen werden zur Energiequelle.' },
+                    { name: 'Flammenausbruch', desc: 'Defensiver Ausbruch bei Bedrohung.' },
+                    { name: 'Bodenverkohlung', desc: 'Gegner verlieren Halt.' },
+                    { name: 'Notzündung', desc: 'Schneller Flammenschub zum Ausweichen.' }
+                ]
+            },
+            water: { 
+                name: 'Wasser', 
+                icon: 'icon_focus_water.png', 
+                attr: 'GES',
+                color: '#4dabf7',
+                attacks: [
+                    { name: 'Wasserstrahl', desc: 'Schneidender Hochdruckangriff.' },
+                    { name: 'Wasserpeitsche', desc: 'Flexibler Angriff auf mittlere Distanz.' },
+                    { name: 'Eislanze', desc: 'Gefrierender Durchstoßangriff.' },
+                    { name: 'Eisfläche', desc: 'Gegner rutschen unkontrolliert.' },
+                    { name: 'Druckstoß', desc: 'Wasserwelle schleudert Gegner zurück.' },
+                    { name: 'Wassergefängnis', desc: 'Gegner wird fest eingeschlossen.' },
+                    { name: 'Froststoß', desc: 'Friert getroffene Ziele ein.' },
+                    { name: 'Flutwelle', desc: 'Großflächiger Angriff mit Verdrängung.' },
+                    { name: 'Nebelstoß', desc: 'Angriff aus verdeckter Position.' },
+                    { name: 'Wasserprojektil', desc: 'Präziser Fernangriff.' }
+                ], 
+                defenses: [
+                    { name: 'Wasserwand', desc: 'Massive flüssige Schutzbarriere.' },
+                    { name: 'Eisblock', desc: 'Kurzzeitige vollständige Abschirmung.' },
+                    { name: 'Nebelzone', desc: 'Starke Sichtbehinderung.' },
+                    { name: 'Strömungsumlenkung', desc: 'Lenkt Angriffe ab.' },
+                    { name: 'Gleiten', desc: 'Flüssige Ausweichbewegung.' },
+                    { name: 'Wasserhaut', desc: 'Reduziert physischen Schaden.' },
+                    { name: 'Eisrüstung', desc: 'Erhöhte Verteidigung.' },
+                    { name: 'Flusslauf', desc: 'Schnelle Positionsverlagerung.' },
+                    { name: 'Untertauchen', desc: 'Kurzzeitiges Entziehen aus Gefahren.' },
+                    { name: 'Druckentladung', desc: 'Gegner werden weggestoßen.' }
+                ]
+            },
+            wind: { 
+                name: 'Wind', 
+                icon: 'icon_focus_wind.png', 
+                attr: 'GES',
+                color: '#69db7c',
+                attacks: [
+                    { name: 'Windklinge', desc: 'Scharfer Luftschnitt.' },
+                    { name: 'Druckstoß', desc: 'Unsichtbarer Schlag aus der Distanz.' },
+                    { name: 'Tornado', desc: 'Gegner werden hochgerissen.' },
+                    { name: 'Luftschnitt-Serie', desc: 'Mehrere schnelle Schnitte.' },
+                    { name: 'Fallwind', desc: 'Gegner werden zu Boden gedrückt.' },
+                    { name: 'Wirbelwurf', desc: 'Gegner rotieren unkontrolliert.' },
+                    { name: 'Stoßfront', desc: 'Breiter Luftangriff.' },
+                    { name: 'Windlanze', desc: 'Gebündelter Durchstoß.' },
+                    { name: 'Luftschock', desc: 'Plötzlicher Druckimpuls.' },
+                    { name: 'Überschallstoß', desc: 'Extrem schneller Angriff.' }
+                ], 
+                defenses: [
+                    { name: 'Luftschild', desc: 'Abprallende Luftbarriere.' },
+                    { name: 'Seitenstoß', desc: 'Umlenken von Angriffen.' },
+                    { name: 'Sprungverstärkung', desc: 'Schnelles Ausweichen.' },
+                    { name: 'Gleitbewegung', desc: 'Reduziert Fallschaden.' },
+                    { name: 'Rückstoß', desc: 'Gegner werden ferngehalten.' },
+                    { name: 'Windtunnel', desc: 'Projektile verlieren Kraft.' },
+                    { name: 'Luftpolster', desc: 'Sanftes Abfedern.' },
+                    { name: 'Richtungsbruch', desc: 'Sofortige Bewegungsänderung.' },
+                    { name: 'Druckneutralisierung', desc: 'Abschwächen von Einschlägen.' },
+                    { name: 'Schweben', desc: 'Entzug aus Bodengefahren.' }
+                ]
+            },
+            earth: { 
+                name: 'Erde', 
+                icon: 'icon_focus_earth.png', 
+                attr: 'ZÄH',
+                color: '#a9845b',
+                attacks: [
+                    { name: 'Erdspieß', desc: 'Stein bricht aus dem Boden.' },
+                    { name: 'Felswurf', desc: 'Massive Projektilattacke.' },
+                    { name: 'Bodenbruch', desc: 'Gegner verlieren Halt.' },
+                    { name: 'Erdstampfer', desc: 'Stoßwelle aus dem Boden.' },
+                    { name: 'Steinschlag', desc: 'Herabfallende Brocken.' },
+                    { name: 'Metallfaust', desc: 'Verstärkter Nahkampfangriff.' },
+                    { name: 'Sandlawine', desc: 'Begräbt Gegner.' },
+                    { name: 'Felsramme', desc: 'Durchbruchangriff.' },
+                    { name: 'Erdgreifer', desc: 'Boden hält Gegner fest.' },
+                    { name: 'Bebenstoß', desc: 'Weiträumiger Erschütterungsangriff.' }
+                ], 
+                defenses: [
+                    { name: 'Steinrüstung', desc: 'Stark erhöhte Abwehr.' },
+                    { name: 'Felswand', desc: 'Massive Deckung.' },
+                    { name: 'Bodenschild', desc: 'Schutz aus dem Untergrund.' },
+                    { name: 'Erdverankerung', desc: 'Immun gegen Wegstoßen.' },
+                    { name: 'Sandbarriere', desc: 'Dämpft Angriffe.' },
+                    { name: 'Metallhaut', desc: 'Kurzzeitige Unverwundbarkeit.' },
+                    { name: 'Erdabsorption', desc: 'Reduziert Schaden.' },
+                    { name: 'Schutzwall', desc: 'Halbkreisförmige Deckung.' },
+                    { name: 'Bodenerhöhung', desc: 'Höhenvorteil.' },
+                    { name: 'Erdpanzer', desc: 'Bewegliche Verteidigung.' }
+                ]
+            },
+            lightning: { 
+                name: 'Blitz', 
+                icon: 'icon_focus_lightning.png', 
+                attr: 'KRF',
+                color: '#ffd93d',
+                attacks: [
+                    { name: 'Blitzschlag', desc: 'Direkter Energiestoß.' },
+                    { name: 'Kettenblitz', desc: 'Springt zwischen Zielen.' },
+                    { name: 'Elektroschock', desc: 'Lähmt Gegner.' },
+                    { name: 'Energiehieb', desc: 'Verstärkter Nahkampf.' },
+                    { name: 'Überladung', desc: 'Erhöhter Schaden für kurze Zeit.' },
+                    { name: 'Blitzzone', desc: 'Elektrisiertes Gebiet.' },
+                    { name: 'Impulsstoß', desc: 'Schneller Energieschub.' },
+                    { name: 'Nervenstörung', desc: 'Verlangsamt Gegner.' },
+                    { name: 'Entladungswelle', desc: 'Rundumangriff.' },
+                    { name: 'Präzisionsblitz', desc: 'Zielgenauer Treffer.' }
+                ], 
+                defenses: [
+                    { name: 'Blitztempo', desc: 'Extrem schnelles Ausweichen.' },
+                    { name: 'Energiehülle', desc: 'Elektrische Schutzschicht.' },
+                    { name: 'Reizunterdrückung', desc: 'Immun gegen Lähmung.' },
+                    { name: 'Stromableitung', desc: 'Leitet Angriffe ab.' },
+                    { name: 'Kurzteleport', desc: 'Blitzartige Bewegung.' },
+                    { name: 'Reaktionsboost', desc: 'Verbesserte Reflexe.' },
+                    { name: 'Energieschild', desc: 'Elektrische Barriere.' },
+                    { name: 'Überladungsstoß', desc: 'Gegner zurückdrängen.' },
+                    { name: 'Nervenschild', desc: 'Schutz vor Kontrollverlust.' },
+                    { name: 'Energieabsorption', desc: 'Blitz stärkt den Nutzer.' }
+                ]
+            },
+            room: { 
+                name: 'Raum', 
+                icon: 'icon_focus_room.png', 
+                attr: 'VER',
+                color: '#9775fa',
+                attacks: [
+                    { name: 'Kurzteleport-Schlag', desc: 'Angriff aus dem Nichts.' },
+                    { name: 'Positionswechsel', desc: 'Tauscht Plätze mit Gegner.' },
+                    { name: 'Raumschnitt', desc: 'Schneidet durch Distanz.' },
+                    { name: 'Distanzbruch', desc: 'Verkürzt oder verlängert Wege.' },
+                    { name: 'Raumstoß', desc: 'Unsichtbarer Druckangriff.' },
+                    { name: 'Fixierung', desc: 'Gegner kann sich nicht bewegen.' },
+                    { name: 'Umlenkung', desc: 'Angriffe treffen andere Ziele.' },
+                    { name: 'Miniportal', desc: 'Angriff aus ungewöhnlichem Winkel.' },
+                    { name: 'Fallverzerrung', desc: 'Gegner stürzt unkontrolliert.' },
+                    { name: 'Raumkompression', desc: 'Erhöhter Schaden im Nahbereich.' }
+                ], 
+                defenses: [
+                    { name: 'Sofort-Teleport', desc: 'Ausweichen ohne Bewegung.' },
+                    { name: 'Distanzvergrößerung', desc: 'Gegner kommen nicht heran.' },
+                    { name: 'Positionsanker', desc: 'Eigene Position bleibt stabil.' },
+                    { name: 'Raumverschiebung', desc: 'Treffer gehen ins Leere.' },
+                    { name: 'Umlenkfeld', desc: 'Projektile ändern Richtung.' },
+                    { name: 'Phasenversatz', desc: 'Kurzzeitige Unangreifbarkeit.' },
+                    { name: 'Raumblockade', desc: 'Bereich ist unpassierbar.' },
+                    { name: 'Fallneutralisierung', desc: 'Kein Sturzschaden.' },
+                    { name: 'Schutzportal', desc: 'Angriffe verschwinden.' },
+                    { name: 'Eigenverzerrung', desc: 'Körper weicht Treffern aus.' }
+                ]
+            },
+            illusion: { 
+                name: 'Illusion', 
+                icon: 'icon_focus_illusion.png', 
+                attr: 'PRÄ',
+                color: '#f06595',
+                attacks: [
+                    { name: 'Trugbild', desc: 'Gegner greift falsches Ziel an.' },
+                    { name: 'Doppelgänger', desc: 'Verwirrt Gegner.' },
+                    { name: 'Blendillusion', desc: 'Sicht wird blockiert.' },
+                    { name: 'Geräuschfalle', desc: 'Falsche Positionshinweise.' },
+                    { name: 'Angriffsillusion', desc: 'Gegner reagiert zu früh.' },
+                    { name: 'Angstbild', desc: 'Gegner verliert Kontrolle.' },
+                    { name: 'Verzerrte Umgebung', desc: 'Orientierung bricht zusammen.' },
+                    { name: 'Unsichtbarer Schlag', desc: 'Angriff bleibt unbemerkt.' },
+                    { name: 'Phantomhieb', desc: 'Psychischer Schaden.' },
+                    { name: 'Scheinexplosion', desc: 'Gegner weicht falsch aus.' }
+                ], 
+                defenses: [
+                    { name: 'Unsichtbarkeit', desc: 'Gegner verlieren Ziel.' },
+                    { name: 'Illusionsschild', desc: 'Treffer gehen ins Leere.' },
+                    { name: 'Mehrfachbilder', desc: 'Gegner verfehlt Angriffe.' },
+                    { name: 'Verhüllung', desc: 'Verbündete werden verborgen.' },
+                    { name: 'Täuschbewegung', desc: 'Schein-Ausweichen.' },
+                    { name: 'Wahrnehmungsbruch', desc: 'Gegner reagiert zu spät.' },
+                    { name: 'Falsche Trefferanzeige', desc: 'Gegner glaubt zu treffen.' },
+                    { name: 'Illusionszone', desc: 'Kontrolle über Sichtbereich.' },
+                    { name: 'Sinnesrauschen', desc: 'Gegner verliert Fokus.' },
+                    { name: 'Identitätsverschleierung', desc: 'Nutzer wird nicht erkannt.' }
+                ]
+            },
+            none: { name: 'Ohne Fokus', icon: 'icon_nofocus.png', attr: '', color: '#6c757d', attacks: [], defenses: [] }
+        };
+        
+        const FOKUS_ATTRIBUTE_MAP = {
+            fire: 'power', lightning: 'power', water: 'agility', wind: 'agility',
+            earth: 'endurance', room: 'mind', illusion: 'presence'
+        };
+
+        const SCHWAECHE_DATA = [
+            { id: 'hoehenangst', name: 'Höhenangst', bedeutung: 'Probleme mit exponierten Höhen, Abgründen, Seilwegen.', wuerfel: 'Erschwerte Proben bei Klettern, Balancieren, Abseilen.', trigger: 'Brücken, Masten, Klippen, Luftschiffe, Dächer.' },
+            { id: 'platzangst', name: 'Platzangst', bedeutung: 'Enge, schlecht einsehbare Räume beeinträchtigen Handlungen.', wuerfel: 'Erschwerte Proben in Schächten, Tunneln, Wracks.', trigger: 'Höhlen, Gefängnisse, Geheimgänge, Trümmer.' },
+            { id: 'seekrank', name: 'Seekrank', bedeutung: 'Instabil auf schwankendem Untergrund.', wuerfel: 'Erschwerte Proben auf Schiffen oder Plattformen bei Wellengang.', trigger: 'Seereisen, Sturm, Gefechte auf Deck.' },
+            { id: 'schlechte-sicht', name: 'Schlechte Sicht', bedeutung: 'Eingeschränkte Wahrnehmung von Details und Entfernungen.', wuerfel: 'Erschwertes Zielen, Entdecken, präzise Aktionen.', trigger: 'Dämmerung, Rauch, Nebel, Regen, Dunkelheit.' },
+            { id: 'gleichgewicht', name: 'Schlechter Gleichgewichtssinn', bedeutung: 'Instabil auf unebenem oder schmalem Untergrund.', wuerfel: 'Erschwerte Balance- und Akrobatikproben.', trigger: 'Seile, schmale Stege, vereiste Flächen, Decks.' },
+            { id: 'ausdauer', name: 'Geringe Ausdauer', bedeutung: 'Erschöpfung tritt schneller ein als bei anderen.', wuerfel: 'Nach längeren Aktionen zusätzliche Erschwernisse.', trigger: 'Verfolgungen, Märsche, Dauerbelastung, Hitze.' },
+            { id: 'reaktion', name: 'Langsame Reaktion', bedeutung: 'Verzögertes Handeln in plötzlichen Situationen.', wuerfel: 'Nachteil bei Reaktionen auf überraschende Ereignisse.', trigger: 'Hinterhalte, einstürzende Gebäude, plötzliche Angriffe.' },
+            { id: 'feinmotorik', name: 'Ungeschickte Feinmotorik', bedeutung: 'Probleme bei sehr präzisen, filigranen Tätigkeiten.', wuerfel: 'Erschwerte Proben bei Schlössern, Fallen, Mechanik.', trigger: 'Zeitkritische Infiltration, Sabotage, Entschärfen.' },
+            { id: 'zittrig', name: 'Zittrige Hände unter Stress', bedeutung: 'Präzision leidet bei Gefahr oder Zeitdruck.', wuerfel: 'Erschwertes Zielen oder Arbeiten unter Bedrohung.', trigger: 'Gefechte, Tickende Fallen, Countdown-Situationen.' },
+            { id: 'verletzungen', name: 'Anfällig für Verletzungen', bedeutung: 'Treffer oder Stürze haben stärkere Folgen.', wuerfel: 'Zusätzliche Konsequenzen bei Fehlschlägen.', trigger: 'Kämpfe, Stürze, Explosionen, schwere Treffer.' },
+            { id: 'hitze', name: 'Hitzeempfindlich', bedeutung: 'Leistung sinkt bei hohen Temperaturen.', wuerfel: 'Erschwerte körperliche Proben bei Hitze.', trigger: 'Wüsten, Maschinenräume, Feuer, Tropen.' },
+            { id: 'kaelte', name: 'Kälteempfindlich', bedeutung: 'Steife Bewegungen und schnellere Erschöpfung.', wuerfel: 'Erschwerte Proben bei Kälte oder Nässe.', trigger: 'Schnee, Eis, Regen, Nachtwachen.' },
+            { id: 'reizueberflutung', name: 'Reizüberflutung', bedeutung: 'Viele Eindrücke gleichzeitig überfordern.', wuerfel: 'Erschwerte Wahrnehmungs- und Reaktionsproben bei Chaos.', trigger: 'Schlachten, Märkte, Explosionen, Panik.' },
+            { id: 'orientierung', name: 'Schlechte Orientierung', bedeutung: 'Schwierigkeiten, Wege und Richtungen zu behalten.', wuerfel: 'Erschwerte Orientierung und Navigation.', trigger: 'Dschungel, Städte, Nebel, unbekanntes Terrain.' },
+            { id: 'geraeusch', name: 'Geräuschempfindlich', bedeutung: 'Lärm stört Konzentration massiv.', wuerfel: 'Erschwerte Proben bei Krach oder Echo.', trigger: 'Maschinen, Schlachten/Kämpfe, Gewitter, Werkstätten.' },
+            { id: 'griff', name: 'Schwacher Griff', bedeutung: 'Probleme, Halt zu bewahren oder etwas festzuhalten.', wuerfel: 'Erschwerte Proben bei Klettern, Festhalten, Abfangen.', trigger: 'Stürze, Seilaktionen, Kämpfe an Abgründen.' }
+        ];
+
+        // ===== STATE =====
+        let characterData = {};
+        let currencyIndex = 0;
+        let selectedFokusType = null;
+        let selectedFokusAbilities = [];
+        let selectedSchwaeche = null;
+        let saveTimeout = null;
+
+        // ===== INIT =====
+        const EMPTY_SKILL = () => ({ name: '', value: 0, proficient: true });
+        const DEFAULT_SKILLS_COUNT = 8;
+        
+        function getDefaultCharacter() {
+            return {
+                name: '', age: '', gender: '', role: '', crew: '',
+                portrait: null, jollyRoger: null,
+                attributes: { power: 0, agility: 0, endurance: 0, mind: 0, presence: 0 },
+                health: { current: 100, max: 100 },
+                moral: { current: 100, max: 100 },
+                secondChance: [false, false, false],
+                skills: { 
+                    handeln: Array(DEFAULT_SKILLS_COUNT).fill(null).map(EMPTY_SKILL),
+                    wissen: Array(DEFAULT_SKILLS_COUNT).fill(null).map(EMPTY_SKILL),
+                    soziales: Array(DEFAULT_SKILLS_COUNT).fill(null).map(EMPTY_SKILL)
+                },
+                fokus: { type: null, abilities: [] },
+                schwaeche: null,
+                appearance: '', inventory: '', currency: '', currencyType: 'dollar', weapon: '', notes: ''
+            };
+        }
+
+        function init() {
+            loadCharacter();
+            populateFields();
+            initializeSkills();
+            updateAllCalculations();
+        }
+
+        function loadCharacter() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            characterData = saved ? { ...getDefaultCharacter(), ...JSON.parse(saved) } : getDefaultCharacter();
+            
+            // Ensure minimum skills exist
+            ['handeln', 'wissen', 'soziales'].forEach(cat => {
+                if (!characterData.skills[cat]) characterData.skills[cat] = [];
+                while (characterData.skills[cat].length < DEFAULT_SKILLS_COUNT) {
+                    characterData.skills[cat].push(EMPTY_SKILL());
+                }
+            });
+        }
+
+        function saveCharacter() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(characterData));
+        }
+
+        function autoSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveCharacter();
+                showSaveIndicator();
+            }, 500);
+        }
+
+        function showSaveIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            indicator.classList.add('show');
+            setTimeout(() => indicator.classList.remove('show'), 1500);
+        }
+
+        function populateFields() {
+            document.getElementById('char-name').value = characterData.name || '';
+            document.getElementById('char-age').value = characterData.age || '';
+            document.getElementById('char-gender').value = characterData.gender || '';
+            document.getElementById('char-role').value = characterData.role || '';
+            document.getElementById('char-crew').value = characterData.crew || '';
+            document.getElementById('char-appearance').value = characterData.appearance || '';
+            document.getElementById('char-inventory').value = characterData.inventory || '';
+            document.getElementById('char-currency').value = characterData.currency || '';
+            document.getElementById('char-weapon').value = characterData.weapon || '';
+            document.getElementById('char-notes').value = characterData.notes || '';
+            
+            ATTRIBUTES.forEach(attr => {
+                document.getElementById(`attr-${attr}`).value = characterData.attributes[attr] || 0;
+            });
+            
+            document.getElementById('health-current').value = characterData.health.current;
+            document.getElementById('moral-current').value = characterData.moral.current;
+            
+            characterData.secondChance.forEach((used, i) => {
+                if (used) document.getElementById(`dice-${i+1}`).classList.add('used');
+            });
+            
+            if (characterData.portrait) {
+                document.getElementById('portrait-img').src = characterData.portrait;
+                document.getElementById('portrait-img').style.display = 'block';
+                document.getElementById('portrait-placeholder').style.display = 'none';
+            }
+            
+            if (characterData.jollyRoger) {
+                document.getElementById('crew-flag-img').src = characterData.jollyRoger;
+                document.getElementById('crew-flag-img').style.display = 'block';
+                document.getElementById('crew-flag-placeholder').style.display = 'none';
+            }
+            
+            updateFokusDisplay();
+            updateSchwaecheDisplay();
+            
+            if (characterData.currencyType) {
+                currencyIndex = CURRENCY_TYPES.indexOf(characterData.currencyType);
+                if (currencyIndex === -1) currencyIndex = 0;
+                document.getElementById('currency-icon').src = `assets/icons/icon_${CURRENCY_TYPES[currencyIndex]}.png`;
+            }
+        }
+
+        // ===== EVENT LISTENERS =====
+        document.addEventListener('DOMContentLoaded', init);
+        
+        ['char-name', 'char-age', 'char-gender', 'char-role', 'char-crew', 'char-appearance', 'char-inventory', 'char-weapon', 'char-notes'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                const key = id.replace('char-', '');
+                characterData[key] = e.target.value;
+                autoSave();
+            });
+        });
+        
+        ATTRIBUTES.forEach(attr => {
+            document.getElementById(`attr-${attr}`).addEventListener('input', (e) => {
+                let value = parseInt(e.target.value) || 0;
+                value = Math.max(0, Math.min(10, value));
+                e.target.value = value;
+                characterData.attributes[attr] = value;
+                updateAllCalculations();
+                autoSave();
+            });
+        });
+        
+        document.getElementById('health-current').addEventListener('input', (e) => {
+            let value = parseInt(e.target.value) || 0;
+            value = Math.max(0, Math.min(100, value));
+            e.target.value = value;
+            characterData.health.current = value;
+            updateStatBars();
+            autoSave();
+        });
+        
+        document.getElementById('moral-current').addEventListener('input', (e) => {
+            let value = parseInt(e.target.value) || 0;
+            value = Math.max(0, Math.min(100, value));
+            e.target.value = value;
+            characterData.moral.current = value;
+            updateStatBars();
+            autoSave();
+        });
+
+        // ===== CALCULATIONS =====
+        function updateAllCalculations() {
+            updateAttributePoints();
+            updateResonanz();
+            updateStatBars();
+            updateSkillBonuses();
+            updateFokusDice();
+        }
+        
+        function updateAttributePoints() {
+            let total = ATTRIBUTES.reduce((sum, attr) => sum + (characterData.attributes[attr] || 0), 0);
+            const remaining = ATTR_TOTAL - total;
+            const el = document.getElementById('attr-points');
+            const textEl = document.getElementById('attr-points-text');
+            
+            if (remaining === 0) {
+                textEl.textContent = 'Alle Attributs-Punkte verteilt';
+                el.style.background = 'var(--accent-primary-dim)';
+                el.style.color = 'var(--accent-primary)';
+            } else if (remaining < 0) {
+                textEl.textContent = `${Math.abs(remaining)} Punkte zu viel vergeben!`;
+                el.style.background = 'var(--accent-primary-dim)';
+                el.style.color = 'var(--accent-primary)';
+            } else {
+                textEl.textContent = `${remaining} / ${ATTR_TOTAL} Attributs-Punkte zu verteilen`;
+                el.style.background = 'rgba(34, 197, 94, 0.15)';
+                el.style.color = 'var(--color-green)';
+            }
+        }
+        
+        function updateResonanz() {
+            const resonanz = 10 + ((characterData.attributes.power || 0) * (characterData.attributes.presence || 0));
+            document.getElementById('resonanz-display').textContent = resonanz;
+            document.getElementById('resonanz-bar').style.width = `${Math.min(resonanz, 100)}%`;
+        }
+        
+        function updateStatBars() {
+            const healthPercent = characterData.health.current;
+            const healthBar = document.getElementById('health-bar');
+            healthBar.style.width = `${healthPercent}%`;
+            
+            // Dynamic health bar color: 100-51 Green, 50-21 Orange, 20-1 Red, 0 Black
+            if (healthPercent === 0) {
+                healthBar.style.background = '#1a1a1a';
+                healthBar.style.backgroundSize = '100% 100%';
+            } else if (healthPercent <= 20) {
+                healthBar.style.background = 'linear-gradient(90deg, #8b0000, #dc2626, #8b0000)';
+                healthBar.style.backgroundSize = '200% 100%';
+            } else if (healthPercent <= 50) {
+                healthBar.style.background = 'linear-gradient(90deg, #b45309, #f59e0b, #b45309)';
+                healthBar.style.backgroundSize = '200% 100%';
+            } else {
+                healthBar.style.background = 'linear-gradient(90deg, #166534, #22c55e, #166534)';
+                healthBar.style.backgroundSize = '200% 100%';
+            }
+            
+            // Update portrait health overlay
+            const overlay = document.getElementById('portrait-health-overlay');
+            overlay.classList.remove('dead', 'critical', 'low');
+            if (healthPercent === 0) {
+                overlay.classList.add('dead');
+            } else if (healthPercent <= 20) {
+                overlay.classList.add('critical');
+            } else if (healthPercent <= 50) {
+                overlay.classList.add('low');
+            }
+            
+            document.getElementById('moral-bar').style.width = `${characterData.moral.current}%`;
+        }
+        
+        function calculateClassBonus(category) {
+            return (CLASS_ATTRIBUTE_MAP[category] || []).reduce((sum, attr) => sum + (characterData.attributes[attr] || 0), 0);
+        }
+        
+        function updateSkillBonuses() {
+            let totalSkillPoints = 0;
+            
+            ['handeln', 'wissen', 'soziales'].forEach(category => {
+                const skills = characterData.skills[category] || [];
+                const categorySpent = skills.reduce((sum, s) => sum + (parseInt(s.value) || 0), 0);
+                totalSkillPoints += categorySpent;
+                const classBonus = calculateClassBonus(category);
+                const classTotal = Math.min(Math.floor(categorySpent / 10) + classBonus, 95);
+                
+                document.getElementById(`${category}-total`).textContent = classTotal;
+                document.getElementById(`${category}-bonus`).textContent = `+${classBonus}`;
+                
+                document.querySelectorAll(`#skills-${category} .skill-bonus`).forEach(el => {
+                    el.textContent = `+${classBonus}`;
+                });
+            });
+            
+            // Update total skill points display
+            const remaining = SKILL_TOTAL - totalSkillPoints;
+            const el = document.getElementById('skill-points');
+            const textEl = document.getElementById('skill-points-text');
+            
+            if (remaining <= 0) {
+                textEl.textContent = remaining === 0 ? 'Alle Punkte verteilt' : `${Math.abs(remaining)} Punkte zu viel!`;
+                el.style.background = 'var(--accent-primary-dim)';
+                el.style.color = 'var(--accent-primary)';
+            } else {
+                textEl.textContent = `${remaining} / ${SKILL_TOTAL} Punkte verfügbar`;
+                el.style.background = 'rgba(34, 197, 94, 0.15)';
+                el.style.color = 'var(--color-green)';
+            }
+        }
+
+        // ===== SKILLS =====
+        function initializeSkills() {
+            ['handeln', 'wissen', 'soziales'].forEach(renderSkills);
+        }
+        
+        function renderSkills(category) {
+            const container = document.getElementById(`skills-${category}`);
+            const skills = characterData.skills[category] || [];
+            const bonus = calculateClassBonus(category);
+            
+            container.innerHTML = skills.map((skill, i) => `
+                <div class="skill-row">
+                    <div class="skill-prof ${skill.proficient ? 'active' : ''}" onclick="toggleSkillProf('${category}', ${i})"></div>
+                    <input type="text" class="skill-name-input" value="${skill.name}" placeholder="Fähigkeit..." onchange="updateSkillName('${category}', ${i}, this.value)">
+                    <input type="number" class="skill-value-input" value="${skill.value}" min="0" max="100" onchange="updateSkillValue('${category}', ${i}, this.value)" onfocus="this.select()">
+                    <span class="skill-bonus">+${bonus}</span>
+                    <button class="skill-delete-btn" onclick="deleteSkill('${category}', ${i})" title="Löschen">×</button>
+                </div>
+            `).join('');
+        }
+        
+        function deleteSkill(category, index) {
+            characterData.skills[category].splice(index, 1);
+            renderSkills(category);
+            updateSkillBonuses();
+            autoSave();
+        }
+        
+        function toggleSkillProf(category, index) {
+            characterData.skills[category][index].proficient = !characterData.skills[category][index].proficient;
+            renderSkills(category);
+            autoSave();
+        }
+        
+        function addSkill(category) {
+            characterData.skills[category].push({ name: '', value: 0, proficient: true });
+            renderSkills(category);
+            autoSave();
+        }
+        
+        // Skill Catalog Functions
+        let currentCatalogCategory = null;
+        
+        function openSkillCatalog(category) {
+            currentCatalogCategory = category;
+            renderSkillCatalog();
+            document.getElementById('skill-catalog-popup').classList.add('active');
+        }
+        
+        function closeSkillCatalog() {
+            document.getElementById('skill-catalog-popup').classList.remove('active');
+            currentCatalogCategory = null;
+        }
+        
+        function renderSkillCatalog() {
+            const container = document.getElementById('catalog-grid');
+            const catalogSkills = SKILL_CATALOG[currentCatalogCategory] || [];
+            const existingSkills = characterData.skills[currentCatalogCategory].map(s => s.name);
+            
+            container.innerHTML = catalogSkills.map(skill => {
+                const isAdded = existingSkills.includes(skill);
+                return `
+                    <div class="catalog-item ${isAdded ? 'added' : ''}">
+                        <span class="catalog-item-name">${skill}</span>
+                        ${isAdded 
+                            ? `<button class="catalog-item-btn remove" onclick="removeSkillFromCatalog('${skill}')">Entfernen</button>`
+                            : `<button class="catalog-item-btn add" onclick="addSkillFromCatalog('${skill}')">Übernehmen</button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function addSkillFromCatalog(skillName) {
+            characterData.skills[currentCatalogCategory].push({ name: skillName, value: 0, proficient: true });
+            renderSkills(currentCatalogCategory);
+            renderSkillCatalog();
+            updateSkillBonuses();
+            autoSave();
+        }
+        
+        function removeSkillFromCatalog(skillName) {
+            const index = characterData.skills[currentCatalogCategory].findIndex(s => s.name === skillName);
+            if (index !== -1) {
+                characterData.skills[currentCatalogCategory].splice(index, 1);
+                renderSkills(currentCatalogCategory);
+                renderSkillCatalog();
+                updateSkillBonuses();
+                autoSave();
+            }
+        }
+        
+        function updateSkillName(category, index, value) {
+            characterData.skills[category][index].name = value;
+            autoSave();
+        }
+        
+        function updateSkillValue(category, index, value) {
+            let val = parseInt(value) || 0;
+            val = Math.max(0, Math.min(100, val)); // Cap at 100
+            characterData.skills[category][index].value = val;
+            // Update input if capped
+            const inputs = document.querySelectorAll(`#skills-${category} .skill-value-input`);
+            if (inputs[index]) inputs[index].value = val;
+            updateSkillBonuses();
+            autoSave();
+        }
+        
+        function switchSkillTab(category) {
+            document.querySelectorAll('.skill-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.skill-panel').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.skill-tab[data-category="${category}"]`).classList.add('active');
+            document.getElementById(`panel-${category}`).classList.add('active');
+        }
+
+        // ===== FOKUS =====
+        function updateFokusDisplay() {
+            const fokusType = characterData.fokus?.type;
+            const iconEl = document.getElementById('fokus-icon');
+            const nameEl = document.getElementById('fokus-name');
+            const attrEl = document.getElementById('fokus-attr');
+            const diceEl = document.getElementById('fokus-dice');
+            const abilitiesEl = document.getElementById('fokus-abilities');
+            const layoutEl = document.querySelector('.fokus-layout');
+            
+            // Remove existing particles
+            const existingParticles = layoutEl.querySelector('.fokus-particles');
+            if (existingParticles) existingParticles.remove();
+            
+            if (fokusType && fokusType !== 'none' && FOKUS_DATA[fokusType]) {
+                const data = FOKUS_DATA[fokusType];
+                // Colored icon based on element
+                const iconColor = data.color || 'var(--text-secondary)';
+                iconEl.innerHTML = `<img src="assets/icons/${data.icon}" alt="${data.name}" style="filter: drop-shadow(0 0 6px ${iconColor});">`;
+                iconEl.style.borderColor = iconColor;
+                iconEl.style.boxShadow = `0 0 12px ${iconColor}40`;
+                
+                // Add particles to layout
+                const particlesHtml = `<div class="fokus-particles">
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                    <div class="fokus-particle" style="background: ${iconColor}; box-shadow: 0 0 6px ${iconColor};"></div>
+                </div>`;
+                layoutEl.insertAdjacentHTML('afterbegin', particlesHtml);
+                
+                nameEl.textContent = data.name;
+                attrEl.textContent = `Basiert auf ${data.attr}`;
+                diceEl.style.display = 'block';
+                updateFokusDice();
+                
+                const abilities = characterData.fokus.abilities || [];
+                const allAbilities = [...data.attacks, ...data.defenses];
+                
+                abilitiesEl.innerHTML = abilities.length > 0 
+                    ? abilities.map(name => {
+                        const ab = allAbilities.find(a => a.name === name);
+                        const isAttack = data.attacks.some(a => a.name === name);
+                        return `<div class="fokus-ability" onclick="openFokusPopup()">
+                            <div class="fokus-ability-type">${isAttack ? '⚔️ Angriff' : '🛡️ Verteidigung'}</div>
+                            <div class="fokus-ability-name">${name}</div>
+                            <div class="fokus-ability-desc">${ab?.desc || ''}</div>
+                        </div>`;
+                    }).join('') + (abilities.length < 2 ? `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>+ Fähigkeit</span></div>` : '')
+                    : `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 1</span></div><div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 2</span></div>`;
+            } else if (fokusType === 'none') {
+                iconEl.innerHTML = `<img src="assets/icons/icon_nofocus.png" style="opacity: 0.5;">`;
+                iconEl.style.borderColor = 'var(--border-default)';
+                iconEl.style.boxShadow = 'none';
+                nameEl.textContent = 'Ohne Fokus';
+                attrEl.textContent = 'Keine magischen Fähigkeiten';
+                diceEl.style.display = 'none';
+                abilitiesEl.innerHTML = `<div class="fokus-ability no-fokus-message" onclick="openFokusPopup()">
+                    <div class="no-fokus-text">Du hast dich entschieden, das Abenteuer ohne Fokus-Fähigkeiten zu spielen.</div>
+                </div>`;
+            } else {
+                iconEl.innerHTML = '<span style="color: var(--text-muted); font-size: 24px;">?</span>';
+                iconEl.style.borderColor = 'var(--border-default)';
+                iconEl.style.boxShadow = 'none';
+                nameEl.textContent = 'Kein Fokus gewählt';
+                attrEl.textContent = 'Klicke um zu wählen';
+                diceEl.style.display = 'none';
+                abilitiesEl.innerHTML = `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 1</span></div><div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 2</span></div>`;
+            }
+        }
+        
+        function updateFokusDice() {
+            const fokusType = characterData.fokus?.type;
+            if (!fokusType || fokusType === 'none') return;
+            const attrValue = characterData.attributes[FOKUS_ATTRIBUTE_MAP[fokusType]] || 0;
+            document.getElementById('fokus-formula').textContent = `W20+${attrValue}`;
+        }
+        
+        function openFokusPopup() {
+            selectedFokusType = characterData.fokus?.type || null;
+            selectedFokusAbilities = [...(characterData.fokus?.abilities || [])];
+            renderFokusTypeGrid();
+            renderFokusAbilities();
+            updateFokusPopupInfo();
+            document.getElementById('fokus-popup').classList.add('active');
+        }
+        
+        function closeFokusPopup() {
+            document.getElementById('fokus-popup').classList.remove('active');
+        }
+        
+        function renderFokusTypeGrid() {
+            document.getElementById('fokus-type-grid').innerHTML = Object.entries(FOKUS_DATA).map(([key, data]) => {
+                const isActive = selectedFokusType === key;
+                const elementColor = data.color || 'var(--accent-primary)';
+                const activeStyle = isActive ? `style="border-color: ${elementColor}; background: ${elementColor}20;"` : '';
+                return `
+                <button class="fokus-type-btn ${isActive ? 'active' : ''}" ${activeStyle} onclick="selectFokusType('${key}')" data-color="${elementColor}">
+                    <img src="assets/icons/${data.icon}" alt="${data.name}">
+                    <span ${isActive ? `style="color: ${elementColor};"` : ''}>${data.name}</span>
+                </button>
+            `;
+            }).join('');
+        }
+        
+        function selectFokusType(type) {
+            if (selectedFokusType !== type) {
+                selectedFokusType = type;
+                selectedFokusAbilities = [];
+            }
+            renderFokusTypeGrid();
+            renderFokusAbilities();
+            updateFokusPopupInfo();
+        }
+        
+        function renderFokusAbilities() {
+            const container = document.getElementById('fokus-abilities-container');
+            if (!selectedFokusType || selectedFokusType === 'none') {
+                container.innerHTML = selectedFokusType === 'none' ? '<p style="color: var(--text-muted); text-align: center; padding: 20px;">Ohne magische Fähigkeiten spielen.</p>' : '';
+                return;
+            }
+            
+            const data = FOKUS_DATA[selectedFokusType];
+            const elementColor = data.color || 'var(--accent-primary)';
+            container.innerHTML = `
+                <div class="fokus-attr-info">Basiert auf: <strong style="color: ${elementColor};">${data.attr}</strong></div>
+                <div class="fokus-section-title" style="color: ${elementColor};">⚔️ Angriffe</div>
+                <div class="fokus-ability-grid">
+                    ${data.attacks.map(ab => {
+                        const sel = selectedFokusAbilities.includes(ab.name);
+                        const dis = !sel && selectedFokusAbilities.length >= 2;
+                        const selStyle = sel ? `style="border-color: ${elementColor}; background: ${elementColor}20;"` : '';
+                        return `<div class="fokus-ability-option ${sel ? 'selected' : ''} ${dis ? 'disabled' : ''}" ${selStyle} onclick="toggleFokusAbility('${ab.name}', ${dis})">
+                            <div class="fokus-ability-option-name">${ab.name}</div>
+                            <div class="fokus-ability-option-desc">${ab.desc}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div class="fokus-section-title" style="color: ${elementColor};">🛡️ Verteidigung</div>
+                <div class="fokus-ability-grid">
+                    ${data.defenses.map(ab => {
+                        const sel = selectedFokusAbilities.includes(ab.name);
+                        const dis = !sel && selectedFokusAbilities.length >= 2;
+                        const selStyle = sel ? `style="border-color: ${elementColor}; background: ${elementColor}20;"` : '';
+                        return `<div class="fokus-ability-option ${sel ? 'selected' : ''} ${dis ? 'disabled' : ''}" ${selStyle} onclick="toggleFokusAbility('${ab.name}', ${dis})">
+                            <div class="fokus-ability-option-name">${ab.name}</div>
+                            <div class="fokus-ability-option-desc">${ab.desc}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            `;
+        }
+        
+        function toggleFokusAbility(name, disabled) {
+            if (disabled) return;
+            const idx = selectedFokusAbilities.indexOf(name);
+            if (idx > -1) selectedFokusAbilities.splice(idx, 1);
+            else if (selectedFokusAbilities.length < 2) selectedFokusAbilities.push(name);
+            renderFokusAbilities();
+            updateFokusPopupInfo();
+        }
+        
+        function updateFokusPopupInfo() {
+            const info = document.getElementById('fokus-selection-info');
+            const btn = document.getElementById('fokus-confirm-btn');
+            if (!selectedFokusType) { info.textContent = 'Wähle einen Fokus-Typ'; btn.disabled = true; }
+            else if (selectedFokusType === 'none') { info.textContent = 'Ohne Fokus spielen'; btn.disabled = false; }
+            else { info.textContent = `${selectedFokusAbilities.length} / 2 Fähigkeiten`; btn.disabled = selectedFokusAbilities.length === 0; }
+        }
+        
+        function confirmFokusSelection() {
+            characterData.fokus = { type: selectedFokusType, abilities: selectedFokusType === 'none' ? [] : selectedFokusAbilities };
+            updateFokusDisplay();
+            closeFokusPopup();
+            autoSave();
+        }
+
+        // ===== SCHWÄCHE =====
+        function openSchwaechePopup() {
+            selectedSchwaeche = characterData.schwaeche || null;
+            renderSchwaecheGrid();
+            document.getElementById('schwaeche-popup').classList.add('active');
+        }
+
+        function closeSchwaechePopup() {
+            document.getElementById('schwaeche-popup').classList.remove('active');
+        }
+
+        function renderSchwaecheGrid() {
+            const grid = document.getElementById('schwaeche-grid');
+            grid.innerHTML = SCHWAECHE_DATA.map(s => `
+                <div class="schwaeche-option ${selectedSchwaeche === s.id ? 'selected' : ''}" onclick="selectSchwaeche('${s.id}')">
+                    <div class="schwaeche-option-name">${s.name}</div>
+                    <div class="schwaeche-option-bedeutung">${s.bedeutung}</div>
+                    <div class="schwaeche-option-wuerfel">${s.wuerfel}</div>
+                    <div class="schwaeche-option-trigger">Trigger: ${s.trigger}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectSchwaeche(id) {
+            selectedSchwaeche = selectedSchwaeche === id ? null : id;
+            renderSchwaecheGrid();
+        }
+
+        function clearSchwaeche() {
+            selectedSchwaeche = null;
+            characterData.schwaeche = null;
+            updateSchwaecheDisplay();
+            closeSchwaechePopup();
+            autoSave();
+        }
+
+        function confirmSchwaecheSelection() {
+            characterData.schwaeche = selectedSchwaeche;
+            updateSchwaecheDisplay();
+            closeSchwaechePopup();
+            autoSave();
+        }
+
+        function updateSchwaecheDisplay() {
+            const display = document.getElementById('schwaeche-display');
+            const schwaeche = SCHWAECHE_DATA.find(s => s.id === characterData.schwaeche);
+            
+            if (schwaeche) {
+                display.innerHTML = `
+                    <div class="schwaeche-selected">
+                        <div class="schwaeche-name">${schwaeche.name}</div>
+                        <div class="schwaeche-bedeutung">${schwaeche.bedeutung}</div>
+                        <div class="schwaeche-wuerfel">${schwaeche.wuerfel}</div>
+                        <div class="schwaeche-trigger">Trigger: ${schwaeche.trigger}</div>
+                    </div>
+                `;
+            } else {
+                display.innerHTML = '<div class="schwaeche-empty">Keine Schwäche gewählt</div>';
+            }
+        }
+
+        // ===== RAST =====
+        function langeRast() {
+            characterData.health.current = Math.min(100, characterData.health.current + 20);
+            characterData.moral.current = Math.min(100, characterData.moral.current + 10);
+            document.getElementById('health-current').value = characterData.health.current;
+            document.getElementById('moral-current').value = characterData.moral.current;
+            updateStatBars();
+            autoSave();
+            showRastNotification('Lange Rast: +20 LP, +10 Moral');
+        }
+
+        function kurzeRast() {
+            characterData.health.current = Math.min(100, characterData.health.current + 10);
+            characterData.moral.current = Math.min(100, characterData.moral.current + 5);
+            document.getElementById('health-current').value = characterData.health.current;
+            document.getElementById('moral-current').value = characterData.moral.current;
+            updateStatBars();
+            autoSave();
+            showRastNotification('Kurze Rast: +10 LP, +5 Moral');
+        }
+
+        function showRastNotification(message) {
+            const indicator = document.getElementById('save-indicator');
+            indicator.textContent = message;
+            indicator.classList.add('active');
+            setTimeout(() => indicator.classList.remove('active'), 2000);
+            setTimeout(() => indicator.textContent = '✓ Gespeichert', 2500);
+        }
+
+        // ===== DICE =====
+        function toggleDice(index) {
+            characterData.secondChance[index] = !characterData.secondChance[index];
+            document.getElementById(`dice-${index+1}`).classList.toggle('used');
+            autoSave();
+        }
+
+        // ===== CURRENCY =====
+        function rotateCurrency() {
+            currencyIndex = (currencyIndex + 1) % CURRENCY_TYPES.length;
+            characterData.currencyType = CURRENCY_TYPES[currencyIndex];
+            document.getElementById('currency-icon').src = `assets/icons/icon_${CURRENCY_TYPES[currencyIndex]}.png`;
+            autoSave();
+        }
+        
+        function formatCurrency(input) {
+            // Remove all non-digits
+            let value = input.value.replace(/\D/g, '');
+            // Format with thousands separator (dots)
+            if (value) {
+                value = parseInt(value, 10).toLocaleString('de-DE');
+            }
+            input.value = value;
+            // Store raw number in characterData
+            characterData.currency = value;
+            autoSave();
+        }
+
+        // ===== FILE UPLOADS =====
+        function uploadPortrait(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                characterData.portrait = e.target.result;
+                document.getElementById('portrait-img').src = e.target.result;
+                document.getElementById('portrait-img').style.display = 'block';
+                document.getElementById('portrait-placeholder').style.display = 'none';
+                autoSave();
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function uploadJolly(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                characterData.jollyRoger = e.target.result;
+                document.getElementById('crew-flag-img').src = e.target.result;
+                document.getElementById('crew-flag-img').style.display = 'block';
+                document.getElementById('crew-flag-placeholder').style.display = 'none';
+                autoSave();
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removePortrait() {
+            event.stopPropagation();
+            characterData.portrait = null;
+            document.getElementById('portrait-img').src = '';
+            document.getElementById('portrait-img').style.display = 'none';
+            document.getElementById('portrait-placeholder').style.display = 'block';
+            autoSave();
+        }
+        
+        function removeCrewFlag() {
+            event.stopPropagation();
+            characterData.jollyRoger = null;
+            document.getElementById('crew-flag-img').src = '';
+            document.getElementById('crew-flag-img').style.display = 'none';
+            document.getElementById('crew-flag-placeholder').style.display = 'block';
+            autoSave();
+        }
+
+        // ===== EXPORT / IMPORT / RESET =====
+        function exportCharacter() {
+            const blob = new Blob([JSON.stringify(characterData, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${characterData.name || 'charakter'}_worldsapart.json`;
+            a.click();
+        }
+        
+        function importCharacter(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    characterData = { ...getDefaultCharacter(), ...JSON.parse(e.target.result) };
+                    saveCharacter();
+                    populateFields();
+                    initializeSkills();
+                    updateAllCalculations();
+                    showSaveIndicator();
+                } catch(err) { alert('Fehler beim Import'); }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        function resetCharacter() {
+            if (confirm('Charakter wirklich zurücksetzen?')) {
+                localStorage.removeItem(STORAGE_KEY);
+                characterData = getDefaultCharacter();
+                populateFields();
+                initializeSkills();
+                updateAllCalculations();
+                document.getElementById('portrait-img').style.display = 'none';
+                document.getElementById('portrait-placeholder').style.display = 'block';
+                document.getElementById('crew-flag-img').style.display = 'none';
+                document.getElementById('crew-flag-placeholder').style.display = 'block';
+                document.querySelectorAll('.dice-check-large').forEach(d => d.classList.remove('used'));
+            }
+        }
+    </script>
+</body>
+</html>
