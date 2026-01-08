@@ -656,6 +656,20 @@
             font-size: 16px;
             color: var(--md-on-surface-variant);
         }
+        
+        .stat-calculated {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--md-on-surface);
+        }
+        
+        .stat-formula {
+            font-size: 10px;
+            color: var(--md-primary);
+            text-align: center;
+            margin-top: 4px;
+            opacity: 0.8;
+        }
 
         /* ===== PROGRESS BAR ===== */
         .progress-bar {
@@ -2495,7 +2509,8 @@
                             </div>
                             <div class="input-group full-width">
                                 <label data-i18n="char.appearance">Aussehen</label>
-                            <textarea class="input-field aussehen-textarea" id="char-aussehen" data-i18n-placeholder="char.appearance_placeholder" placeholder="z.B. 1.80m, athletisch, blaue Augen, Narbe über der Stirn..."></textarea>
+                                <textarea class="input-field aussehen-textarea" id="char-aussehen" data-i18n-placeholder="char.appearance_placeholder" placeholder="z.B. 1.80m, athletisch, blaue Augen, Narbe über der Stirn..."></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2602,26 +2617,26 @@
                 
                 <!-- Fokus Würfel-Info -->
                 <div class="fokus-dice-info" id="fokusDiceInfo" style="display: none;">
-                    <div class="fokus-dice-info-title" data-i18n="char.focus_dice_info">Fokus-Fähigkeiten (W20):</div>
+                    <div class="fokus-dice-info-title">So funktioniert dein Fokus:</div>
                     <div class="fokus-dice-row">
                         <div class="fokus-dice-card potential">
-                            <div class="fokus-dice-label">W20 + Attribut</div>
+                            <div class="fokus-dice-label">Dein Wurf</div>
                             <div class="fokus-dice-value">
-                                <span class="fokus-dice-formula">W20 +</span>
+                                <span class="fokus-dice-formula">🎲 W20 +</span>
                                 <span class="fokus-dice-target" id="fokusAttrValue">0</span>
                                 <span class="fokus-dice-attr" id="fokusAttrName">-</span>
                             </div>
                         </div>
                         <div class="fokus-dice-card control">
-                            <div class="fokus-dice-label">Auswertung</div>
+                            <div class="fokus-dice-label">Was passiert? Würfelergebnis:</div>
                             <div class="fokus-dice-rules">
-                                <div class="fokus-rule"><span class="rule-check">≥10</span> Erfolg (Schaden = Ergebnis)</div>
-                                <div class="fokus-rule"><span class="rule-fail">&lt;10</span> Fehlschlag</div>
-                                <div class="fokus-rule"><span class="rule-crit">Nat 20</span> Kritisch ×2</div>
+                                <div class="fokus-rule"><span class="rule-fail">01-09</span> Daneben... kein Schaden!</div>
+                                <div class="fokus-rule"><span class="rule-check">10-19</span> Treffer! Ergebnis = Schaden</div>
+                                <div class="fokus-rule"><span class="rule-crit">20</span> 🎯 Kritisch! Schaden ×2</div>
                             </div>
                         </div>
                     </div>
-                    <div class="fokus-damage-cap">Max. Schaden: 30</div>
+                    <div class="fokus-damage-cap">⚠️ Maximaler Schaden pro Einsatz: 30</div>
                 </div>
             </div>
         </div>
@@ -2664,11 +2679,12 @@
                     <div class="stat-card resonanz" id="resonanzCard">
                         <div class="stat-label" data-i18n="char.resonance">Resonanz</div>
                         <div class="stat-input-group">
-                            <input type="number" class="stat-input" id="resonanz-value" value="0" min="0" max="100">
+                            <span class="stat-calculated" id="resonanz-value">10</span>
                             <span class="stat-separator">%</span>
                         </div>
+                        <div class="stat-formula">10 + KRF × PRÄ</div>
                         <div class="progress-bar">
-                            <div class="progress-fill resonanz" id="resonanz-bar" style="width: 0%"></div>
+                            <div class="progress-fill resonanz" id="resonanz-bar" style="width: 10%"></div>
                         </div>
                     </div>
                 </div>
@@ -4016,11 +4032,11 @@
                 zweiteChance: [false, false, false],
                 fokus: { type: null, abilities: [], slot3Unlocked: false },
                 attributes: {
-                    strength: 2,
-                    dexterity: 2,
-                    constitution: 2,
-                    intellect: 2,
-                    presence: 2
+                    power: 0,
+                    agility: 0,
+                    endurance: 0,
+                    mind: 0,
+                    presence: 0
                 },
                 skills: {
                     handeln: Array(SKILLS_PER_CATEGORY).fill(null).map(() => ({ name: '', value: 0 })),
@@ -4144,6 +4160,24 @@
             });
         }
 
+        // Resonanz berechnen: 10 + KRF × PRÄ
+        function calculateResonanz() {
+            const krf = parseInt(document.getElementById('attr-power')?.value) || 0;
+            const pra = parseInt(document.getElementById('attr-presence')?.value) || 0;
+            return 10 + (krf * pra);
+        }
+        
+        function updateResonanz() {
+            const resonanz = calculateResonanz();
+            characterData.resonanz = resonanz;
+            
+            const resonanzEl = document.getElementById('resonanz-value');
+            if (resonanzEl) resonanzEl.textContent = resonanz;
+            
+            const resonanzBar = document.getElementById('resonanz-bar');
+            if (resonanzBar) resonanzBar.style.width = `${Math.min(resonanz, 100)}%`;
+        }
+
         function updateProgressBars() {
             const lebenPercent = (characterData.leben.current / characterData.leben.max) * 100;
             const moralPercent = (characterData.moral.current / characterData.moral.max) * 100;
@@ -4160,7 +4194,8 @@
             }
             
             document.getElementById('moral-bar').style.width = `${moralPercent}%`;
-            document.getElementById('resonanz-bar').style.width = `${characterData.resonanz}%`;
+            
+            // Resonanz wird separat über updateResonanz() aktualisiert
         }
 
         function updatePointCounters() {
@@ -4285,14 +4320,7 @@
             autoSave();
         });
 
-        document.getElementById('resonanz-value').addEventListener('input', (e) => {
-            let value = parseInt(e.target.value) || 0;
-            value = Math.max(0, Math.min(100, value));
-            e.target.value = value;
-            characterData.resonanz = value;
-            updateProgressBars();
-            autoSave();
-        });
+        // Resonanz wird automatisch berechnet (10 + KRF × PRÄ), kein Event Listener nötig
 
         // ===== ATTRIBUTE SYSTEM =====
         const ATTRIBUTES = ['power', 'agility', 'endurance', 'mind', 'presence'];
@@ -4304,7 +4332,7 @@
             water: 'agility',    // Wasser → GESCHICK
             wind: 'agility',     // Wind → GESCHICK
             earth: 'endurance',  // Erde → ZÄHIGKEIT
-            space: 'mind',       // Raum → VERSTAND
+            room: 'mind',        // Raum → VERSTAND
             illusion: 'presence' // Illusion → PRÄSENZ
         };
         
@@ -4459,6 +4487,28 @@
             const attrs = CLASS_ATTRIBUTE_MAP[category] || [];
             return attrs.map(attr => ATTRIBUTE_NAMES[attr]?.abbr_de || '').join(' + ');
         }
+        
+        // Resonanz berechnen: 10 + KRF × PRÄ
+        function calculateResonanz() {
+            const krf = parseInt(document.getElementById('attr-power')?.value) || 0;
+            const pra = parseInt(document.getElementById('attr-presence')?.value) || 0;
+            return 10 + (krf * pra);
+        }
+        
+        // Resonanz aktualisieren
+        function updateResonanz() {
+            const resonanz = calculateResonanz();
+            const resonanzEl = document.getElementById('resonanz-value');
+            const resonanzBar = document.getElementById('resonanz-bar');
+            
+            if (resonanzEl) {
+                resonanzEl.textContent = resonanz;
+                characterData.resonanz = resonanz;
+            }
+            if (resonanzBar) {
+                resonanzBar.style.width = `${Math.min(resonanz, 100)}%`;
+            }
+        }
         const ATTR_BASE_VALUE = 0;
         const ATTR_TOTAL_POINTS = 10;
         
@@ -4501,6 +4551,7 @@
                     updateAttributePointsDisplay();
                     updatePointCounters(); // Fähigkeiten-Boni neu berechnen
                     updateFokusDiceInfo(); // Fokus-Info aktualisieren
+                    updateResonanz(); // Resonanz neu berechnen
                     autoSave();
                 });
             }
@@ -4516,6 +4567,7 @@
                 });
             }
             updateAttributePointsDisplay();
+            updateResonanz(); // Resonanz beim Laden berechnen
         }
 
         function handleSkillChange(e) {
