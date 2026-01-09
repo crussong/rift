@@ -119,6 +119,9 @@ document.addEventListener('DOMContentLoaded', initPageTransitions);
  * @param {string} moduleToolsHTML - HTML string for module-specific tool buttons
  */
 function initNavigation(moduleName = '', moduleToolsHTML = '') {
+    // Background erstellen falls nicht vorhanden
+    createBackground();
+    
     // Get user data safely
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     const username = user?.username || 'Gast';
@@ -198,12 +201,18 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
         
         <nav class="sidebar-nav">
             <div class="sidebar-section-title">${t('sidebar.modules')}</div>
-            ${MODULES.map(m => `
-                <a href="${BASE_PATH}${m.href}" class="sidebar-link${currentPage === m.href ? ' active' : ''}">
+            ${MODULES.map(m => {
+                // Dynamischer Charakterbogen Link basierend auf aktivem Katalog
+                let moduleHref = m.href;
+                if (m.id === 'charakterbogen') {
+                    moduleHref = localStorage.getItem('rift_charakterbogen_href') || 'charakterbogen.html';
+                }
+                return `
+                <a href="${BASE_PATH}${moduleHref}" class="sidebar-link${currentPage === m.href ? ' active' : ''}">
                     <img src="${BASE_PATH}assets/icons/${m.icon}" alt="">
                     <span>${m.title}</span>
                 </a>
-            `).join('')}
+            `;}).join('')}
         </nav>
         
         <div class="sidebar-footer">
@@ -265,9 +274,9 @@ function initNavigation(moduleName = '', moduleToolsHTML = '') {
             
             <!-- Legal Links -->
             <div class="sidebar-legal">
-                <a href="impressum.html">${t('footer.imprint')}</a>
+                <a href="${BASE_PATH}pages/legal/impressum.html">${t('footer.imprint')}</a>
                 <span>·</span>
-                <a href="privacy.html">${t('footer.privacy')}</a>
+                <a href="${BASE_PATH}pages/legal/privacy.html">${t('footer.privacy')}</a>
             </div>
         </div>
     `;
@@ -327,10 +336,13 @@ function addFlyButtons(currentPage) {
     // Normalize currentPage - remove .html and leading slash
     const page = currentPage.replace('.html', '').replace(/^\//, '');
     
+    // Dynamischer Charakterbogen Link basierend auf aktivem Katalog
+    const charakterbogenHref = localStorage.getItem('rift_charakterbogen_href') || 'charakterbogen.html';
+    
     const config = {
         'wuerfel': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
-            { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
+            { href: charakterbogenHref + '#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
         'charakterbogen': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
@@ -348,21 +360,30 @@ function addFlyButtons(currentPage) {
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
             { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
         ],
+        'charakterbogen_worldsapart': [
+            { href: 'chat.html', icon: 'chat', title: 'Chat' },
+            { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
+        ],
+        'worldsapart': [
+            { href: 'chat.html', icon: 'chat', title: 'Chat' },
+            { href: 'charakterbogen_worldsapart.html', icon: 'character', title: 'Charakterbogen' },
+            { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' }
+        ],
         'chat': [
             { href: 'wuerfel.html', icon: 'dice', title: 'Würfel' },
-            { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
+            { href: charakterbogenHref + '#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
         'notizen': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
-            { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
+            { href: charakterbogenHref + '#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
         'karte': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
-            { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
+            { href: charakterbogenHref + '#fokus', icon: 'character', title: 'Charakterbogen' }
         ],
         'whiteboard': [
             { href: 'chat.html', icon: 'chat', title: 'Chat' },
-            { href: 'charakterbogen.html#fokus', icon: 'character', title: 'Charakterbogen' }
+            { href: charakterbogenHref + '#fokus', icon: 'character', title: 'Charakterbogen' }
         ]
     };
     
@@ -382,13 +403,23 @@ function addFlyButtons(currentPage) {
         if (btn.icon === 'chat') {
             link.id = 'fly-btn-chat';
             link.innerHTML = `
-                <img src="${BASE_PATH}assets/icons/icon_chat.png" alt="Chat" style="width: 24px; height: 24px;">
+                <svg viewBox="0 0 24 24" fill="white" width="24" height="24">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22ZM8 13.25C7.58579 13.25 7.25 13.5858 7.25 14C7.25 14.4142 7.58579 14.75 8 14.75H13.5C13.9142 14.75 14.25 14.4142 14.25 14C14.25 13.5858 13.9142 13.25 13.5 13.25H8ZM7.25 10.5C7.25 10.0858 7.58579 9.75 8 9.75H16C16.4142 9.75 16.75 10.0858 16.75 10.5C16.75 10.9142 16.4142 11.25 16 11.25H8C7.58579 11.25 7.25 10.9142 7.25 10.5Z"/>
+                </svg>
                 <span class="fly-btn-badge" id="chatUnreadBadge"></span>
             `;
         } else if (btn.icon === 'dice') {
-            link.innerHTML = `<img src="${BASE_PATH}assets/icons/icon_dice.png" alt="Würfel">`;
+            link.innerHTML = `
+                <svg viewBox="-32 0 512 512" fill="white" width="24" height="24">
+                    <path d="M422.19 109.95L256.21 9.07c-19.91-12.1-44.52-12.1-64.43 0L25.81 109.95c-5.32 3.23-5.29 11.27.06 14.46L224 242.55l198.14-118.14c5.35-3.19 5.38-11.22.05-14.46zm13.84 44.63L240 271.46v223.82c0 12.88 13.39 20.91 24.05 14.43l152.16-92.48c19.68-11.96 31.79-33.94 31.79-57.7v-197.7c0-6.41-6.64-10.43-11.97-7.25zM0 161.83v197.7c0 23.77 12.11 45.74 31.79 57.7l152.16 92.47c10.67 6.48 24.05-1.54 24.05-14.43V271.46L11.97 154.58C6.64 151.4 0 155.42 0 161.83z"/>
+                </svg>
+            `;
         } else if (btn.icon === 'character') {
-            link.innerHTML = `<img src="${BASE_PATH}assets/icons/icon_character.png" alt="Charakter">`;
+            link.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="white" width="24" height="24">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M4.17157 3.17157C3 4.34315 3 6.22876 3 10V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V10C21 6.22876 21 4.34315 19.8284 3.17157C18.6569 2 16.7712 2 13 2H11C7.22876 2 5.34315 2 4.17157 3.17157ZM7.25 8C7.25 7.58579 7.58579 7.25 8 7.25H16C16.4142 7.25 16.75 7.58579 16.75 8C16.75 8.41421 16.4142 8.75 16 8.75H8C7.58579 8.75 7.25 8.41421 7.25 8ZM7.25 12C7.25 11.5858 7.58579 11.25 8 11.25H16C16.4142 11.25 16.75 11.5858 16.75 12C16.75 12.4142 16.4142 12.75 16 12.75H8C7.58579 12.75 7.25 12.4142 7.25 12ZM8 15.25C7.58579 15.25 7.25 15.5858 7.25 16C7.25 16.4142 7.58579 16.75 8 16.75H13C13.4142 16.75 13.75 16.4142 13.75 16C13.75 15.5858 13.4142 15.25 13 15.25H8Z"/>
+                </svg>
+            `;
         }
         
         container.appendChild(link);
@@ -1443,6 +1474,7 @@ function injectNavStyles() {
         .fly-btn:nth-child(1) { animation-delay: 100ms; }
         .fly-btn:nth-child(2) { animation-delay: 200ms; }
         .fly-btn:nth-child(3) { animation-delay: 300ms; }
+        .fly-btn:nth-child(4) { animation-delay: 400ms; }
 
         @keyframes fabSlideIn {
             from {
@@ -1469,6 +1501,15 @@ function injectNavStyles() {
             filter: brightness(1.1);
         }
 
+        .fly-btn.gm-btn {
+            background: #22c55e;
+        }
+
+        .fly-btn.gm-btn:hover {
+            background: #16a34a;
+            box-shadow: 0 6px 16px rgba(34, 197, 94, 0.4);
+        }
+
         .fly-btn img {
             width: 24px;
             height: 24px;
@@ -1483,15 +1524,22 @@ function injectNavStyles() {
         .fly-btn svg {
             width: 24px;
             height: 24px;
-            color: var(--md-on-surface, #e6e1e5);
+            fill: white;
+            opacity: 0.9;
         }
 
         .fly-btn:hover svg {
-            color: var(--md-on-primary, #fff);
+            opacity: 1;
         }
 
         .fly-btn.primary svg {
-            color: var(--md-on-primary, #fff);
+            fill: white;
+            opacity: 1;
+        }
+
+        .fly-btn.gm-btn svg {
+            fill: white;
+            opacity: 1;
         }
 
         /* Unread Badge for Chat Button */
@@ -1755,8 +1803,21 @@ function createFooter(containerId = null) {
         const footer = document.createElement('footer');
         footer.className = 'site-footer';
         
+        // Pfad ermitteln basierend auf aktuellem Ordner
+        const path = window.location.pathname;
+        let basePath = '';
+        let legalPath = 'pages/legal/';
+        
+        if (path.includes('/pages/legal/')) {
+            basePath = '../../';
+            legalPath = '';  // Schon im legal Ordner
+        } else if (path.includes('/help/')) {
+            basePath = '../';
+            legalPath = 'pages/legal/';
+        }
+        
         // Auf Login-Seite: fixed am unteren Rand
-        const isLoginPage = window.location.pathname.includes('login');
+        const isLoginPage = path.includes('login');
         if (isLoginPage) {
             footer.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: linear-gradient(to top, var(--md-background) 60%, transparent); padding-top: 20px; opacity: 0; transition: opacity 0.5s ease;';
             // Footer nach Splash einblenden (2.5s Splash + 0.5s buffer)
@@ -1772,19 +1833,19 @@ function createFooter(containerId = null) {
             <div class="footer-divider"></div>
             <div class="footer-content">
                 <nav class="footer-primary">
-                    <a href="about.html">${t('footer.about')}</a>
+                    <a href="${basePath}about.html">${t('footer.about')}</a>
                     <span class="footer-dot">·</span>
-                    <a href="branding.html">${t('footer.branding')}</a>
+                    <a href="${basePath}branding.html">${t('footer.branding')}</a>
                     <span class="footer-dot">·</span>
-                    <a href="contact.html">${t('footer.contact')}</a>
+                    <a href="${basePath}contact.html">${t('footer.contact')}</a>
                 </nav>
                 <nav class="footer-secondary">
-                    <a href="privacy.html">${t('footer.privacy')}</a>
+                    <a href="${basePath}${legalPath}privacy.html">${t('footer.privacy')}</a>
                     <span class="footer-dot">·</span>
-                    <a href="impressum.html">${t('footer.imprint')}</a>
+                    <a href="${basePath}${legalPath}impressum.html">${t('footer.imprint')}</a>
                 </nav>
                 <div class="footer-tertiary">
-                    <a href="donation.html">${t('footer.donate')}</a>
+                    <a href="${basePath}donation.html">${t('footer.donate')}</a>
                 </div>
                 <p class="footer-copyright">© 2025 RIFT – Tabletop Companion</p>
                 <button class="footer-lang-btn" onclick="setLanguage(currentLang === 'de' ? 'en' : 'de');">
@@ -1808,22 +1869,22 @@ function createFooter(containerId = null) {
                     align-items: center;
                     justify-content: center;
                     gap: 6px;
-                    margin-top: 16px;
+                    margin-top: 12px;
                     padding: 8px 16px;
-                    background: var(--md-surface-container-high, #2b2930);
-                    border: 1px solid var(--md-outline-variant, #49454f);
+                    background: #2a2a2f;
+                    border: 1px solid rgba(255, 255, 255, 0.06);
                     border-radius: 20px;
-                    color: var(--md-on-surface-variant, #cac4d0);
+                    color: #a1a1aa;
                     font-size: 13px;
                     font-weight: 500;
                     cursor: pointer;
-                    transition: all 200ms ease;
+                    transition: all 0.15s;
                     align-self: center;
                 }
                 .footer-lang-btn:hover {
-                    background: var(--md-surface-container-highest, #36343b);
-                    border-color: var(--md-primary, #6750a4);
-                    color: var(--md-on-surface, #e6e1e5);
+                    background: #222226;
+                    border-color: #c73e3e;
+                    color: #f5f5f7;
                 }
                 .footer-lang-btn svg {
                     opacity: 0.8;
@@ -1856,3 +1917,45 @@ function createFooter(containerId = null) {
         return _createFooter();
     }
 }
+
+// ===== BACKGROUND CREATOR =====
+function createBackground() {
+    // Nicht erstellen wenn bereits vorhanden
+    if (document.getElementById('bgContainer') || document.querySelector('.bg-container')) {
+        return;
+    }
+    
+    const bgContainer = document.createElement('div');
+    bgContainer.className = 'bg-container';
+    bgContainer.id = 'bgContainer';
+    
+    // Zufälliges Hintergrundbild (001-011)
+    const bgNumber = String(Math.floor(Math.random() * 11) + 1).padStart(3, '0');
+    
+    // Pfad ermitteln (Root oder Unterordner)
+    const isSubfolder = window.location.pathname.includes('/pages/') || 
+                        window.location.pathname.includes('/help/');
+    const basePath = isSubfolder ? '../../' : '';
+    
+    bgContainer.style.backgroundImage = `url('${basePath}assets/bg/bg_${bgNumber}.webp')`;
+    
+    // Als erstes Element in body einfügen
+    document.body.insertBefore(bgContainer, document.body.firstChild);
+}
+
+// ===== AUTO-INIT =====
+// Automatisch Background erstellen wenn keiner existiert
+(function autoInitRift() {
+    function init() {
+        // Background nur erstellen wenn keiner existiert
+        if (!document.getElementById('bgContainer') && !document.querySelector('.bg-container')) {
+            createBackground();
+        }
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        setTimeout(init, 0);
+    }
+})();

@@ -129,14 +129,38 @@ async function initFirebase() {
 
 /**
  * Create GM Options FAB for GMs (called after Firebase init to ensure user data is available)
+ * Integrates into fly-btn-container for consistent vertical layout
  */
 function createGMOptionsFAB() {
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    // STRICT GM CHECK - Spieler dürfen NIEMALS den GM FAB sehen
+    let user = null;
+    let isGM = false;
+    
+    try {
+        user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        if (!user) {
+            const userData = localStorage.getItem('pnp_companion_user');
+            if (userData) {
+                user = JSON.parse(userData);
+            }
+        }
+        // Strict boolean check
+        isGM = user?.isGM === true || user?.isGM === 'true';
+    } catch(e) {
+        console.log('[GM FAB] Error checking GM status:', e);
+        return; // Bei Fehler: KEIN FAB anzeigen
+    }
+    
+    // NIEMALS für Nicht-GMs
+    if (!isGM) {
+        return;
+    }
+    
     const isGmOptionsPage = window.location.pathname.includes('gm-options');
     const isLoginPage = window.location.pathname.includes('login');
     const isIndexPage = window.location.pathname.endsWith('/') || window.location.pathname.includes('index');
     
-    if (!user?.isGM || isGmOptionsPage || isLoginPage || isIndexPage) {
+    if (isGmOptionsPage || isLoginPage || isIndexPage) {
         return;
     }
     
@@ -144,43 +168,28 @@ function createGMOptionsFAB() {
         return;
     }
     
-    const isMobile = window.innerWidth <= 600;
-    const hasOtherFabs = !!document.querySelector('.fly-btn-container');
-    
     const gmFab = document.createElement('a');
     gmFab.href = 'gm-options.html';
-    gmFab.className = 'gm-options-fab';
+    gmFab.className = 'fly-btn gm-btn gm-options-fab';
     gmFab.title = 'GM Optionen';
     
-    // INLINE STYLES - cannot be overridden
-    gmFab.style.cssText = `
-        position: fixed !important;
-        bottom: ${isMobile ? '16px' : '24px'} !important;
-        right: ${hasOtherFabs ? (isMobile ? '74px' : '88px') : (isMobile ? '16px' : '24px')} !important;
-        width: ${isMobile ? '48px' : '52px'} !important;
-        height: ${isMobile ? '48px' : '52px'} !important;
-        background: #4CAF50 !important;
-        border-radius: 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-        cursor: pointer !important;
-        text-decoration: none !important;
-        z-index: 1000 !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    `;
-    
     gmFab.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: ${isMobile ? '22px' : '26px'}; height: ${isMobile ? '22px' : '26px'};">
-            <rect x="2" y="7" width="20" height="14" rx="2"/>
-            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-            <line x1="12" y1="12" x2="12" y2="12.01"/>
+        <svg viewBox="0 0 24 24" fill="white" width="24" height="24">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M3 10.4167C3 7.21907 3 5.62028 3.37752 5.08241C3.75503 4.54454 5.25832 4.02996 8.26491 3.00079L8.83772 2.80472C10.405 2.26824 11.1886 2 12 2C12.8114 2 13.595 2.26824 15.1623 2.80472L15.7351 3.00079C18.7417 4.02996 20.245 4.54454 20.6225 5.08241C21 5.62028 21 7.21907 21 10.4167V11.9914C21 17.6294 16.761 20.3655 14.1014 21.5273C13.38 21.8424 13.0193 22 12 22C10.9807 22 10.62 21.8424 9.89856 21.5273C7.23896 20.3655 3 17.6294 3 11.9914V10.4167ZM14 9C14 10.1046 13.1046 11 12 11C10.8954 11 10 10.1046 10 9C10 7.89543 10.8954 7 12 7C13.1046 7 14 7.89543 14 9ZM12 17C16 17 16 16.1046 16 15C16 13.8954 14.2091 13 12 13C9.79086 13 8 13.8954 8 15C8 16.1046 8 17 12 17Z"/>
         </svg>
     `;
     
-    document.body.appendChild(gmFab);
+    // Try to insert into existing fly-btn-container (at the top)
+    const container = document.querySelector('.fly-btn-container');
+    if (container) {
+        container.insertBefore(gmFab, container.firstChild);
+    } else {
+        // Fallback: create own container if none exists
+        const newContainer = document.createElement('div');
+        newContainer.className = 'fly-btn-container';
+        newContainer.appendChild(gmFab);
+        document.body.appendChild(newContainer);
+    }
 }
 
 /**
