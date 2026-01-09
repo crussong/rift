@@ -1,994 +1,330 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Session Management Guide | RIFT</title>
+    <title>Session Management | RIFT</title>
+    <link rel="icon" type="image/png" href="../assets/icons/icon_favicon.png">
+    <link rel="manifest" href="../manifest.json">
+    <script>(function(){var t=localStorage.getItem('pnp_theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/rift.css">
     <style>
-        :root {
-            --md-primary: #8a78b4;
-            --md-on-primary: #1a1a2e;
-            --md-surface: #1a1a2e;
-            --md-surface-container: #242438;
-            --md-surface-container-high: #2a2a42;
-            --md-surface-container-highest: #32324a;
-            --md-on-surface: #e6e1e5;
-            --md-on-surface-variant: #a9a5ae;
-            --md-outline: #938f99;
-            --md-outline-variant: #49454f;
-            --md-success: #4ade80;
-            --md-warning: #fbbf24;
-            --md-error: #f87171;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--md-surface);
-            color: var(--md-on-surface);
-            line-height: 1.7;
-            padding: 20px;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        /* Language Toggle */
-        .lang-toggle {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            justify-content: flex-end;
-        }
-
-        .lang-btn {
-            padding: 8px 16px;
-            border: 2px solid var(--md-outline-variant);
-            background: transparent;
-            color: var(--md-on-surface-variant);
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .lang-btn:hover {
-            border-color: var(--md-primary);
-            color: var(--md-primary);
-        }
-
-        .lang-btn.active {
-            background: var(--md-primary);
-            border-color: var(--md-primary);
-            color: var(--md-on-primary);
-        }
-
-        /* Header */
-        .doc-header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid var(--md-outline-variant);
-        }
-
-        .doc-header h1 {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--md-on-surface);
-            margin-bottom: 8px;
-        }
-
-        .doc-header .subtitle {
-            color: var(--md-on-surface-variant);
-            font-size: 16px;
-        }
-
-        /* Table of Contents */
-        .toc {
-            background: var(--md-surface-container);
-            border-radius: 12px;
-            padding: 20px 24px;
-            margin-bottom: 32px;
-        }
-
-        .toc h2 {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--md-on-surface-variant);
-            margin-bottom: 12px;
-        }
-
-        .toc ol {
-            list-style: none;
-            counter-reset: toc-counter;
-        }
-
-        .toc li {
-            counter-increment: toc-counter;
-            margin-bottom: 8px;
-        }
-
-        .toc li::before {
-            content: counter(toc-counter) ".";
-            color: var(--md-primary);
-            font-weight: 600;
-            margin-right: 8px;
-        }
-
-        .toc a {
-            color: var(--md-on-surface);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .toc a:hover {
-            color: var(--md-primary);
-        }
-
-        /* Sections */
-        .section {
-            background: var(--md-surface-container);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
-        }
-
-        .section h2 {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--md-on-surface);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .section h2 .icon {
-            width: 32px;
-            height: 32px;
-            background: var(--md-primary);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--md-on-primary);
-            font-size: 16px;
-        }
-
-        .section h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--md-primary);
-            margin: 20px 0 12px 0;
-        }
-
-        .section p {
-            color: var(--md-on-surface-variant);
-            margin-bottom: 12px;
-        }
-
-        .section ul, .section ol {
-            margin-left: 20px;
-            margin-bottom: 16px;
-            color: var(--md-on-surface-variant);
-        }
-
-        .section li {
-            margin-bottom: 8px;
-        }
-
-        /* Info Boxes */
-        .info-box {
-            padding: 16px;
-            border-radius: 10px;
-            margin: 16px 0;
-        }
-
-        .info-box.tip {
-            background: rgba(138, 120, 180, 0.15);
-            border-left: 4px solid var(--md-primary);
-        }
-
-        .info-box.warning {
-            background: rgba(251, 191, 36, 0.15);
-            border-left: 4px solid var(--md-warning);
-        }
-
-        .info-box.success {
-            background: rgba(74, 222, 128, 0.15);
-            border-left: 4px solid var(--md-success);
-        }
-
-        .info-box.error {
-            background: rgba(248, 113, 113, 0.15);
-            border-left: 4px solid var(--md-error);
-        }
-
-        .info-box-title {
-            font-weight: 700;
-            font-size: 14px;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .info-box.tip .info-box-title { color: var(--md-primary); }
-        .info-box.warning .info-box-title { color: var(--md-warning); }
-        .info-box.success .info-box-title { color: var(--md-success); }
-        .info-box.error .info-box-title { color: var(--md-error); }
-
-        .info-box p {
-            margin: 0;
-            font-size: 14px;
-        }
-
-        /* Step Cards */
-        .steps {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .step {
-            display: flex;
-            gap: 16px;
-            padding: 16px;
-            background: var(--md-surface-container-high);
-            border-radius: 10px;
-        }
-
-        .step-number {
-            width: 32px;
-            height: 32px;
-            background: var(--md-primary);
-            color: var(--md-on-primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-
-        .step-content {
-            flex: 1;
-        }
-
-        .step-content strong {
-            color: var(--md-on-surface);
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .step-content p {
-            margin: 0;
-            font-size: 14px;
-        }
-
-        /* Comparison Table */
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0;
-            font-size: 14px;
-        }
-
-        .comparison-table th,
-        .comparison-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--md-outline-variant);
-        }
-
-        .comparison-table th {
-            background: var(--md-surface-container-high);
-            color: var(--md-on-surface);
-            font-weight: 600;
-        }
-
-        .comparison-table td {
-            color: var(--md-on-surface-variant);
-        }
-
-        .comparison-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .badge.recommended {
-            background: var(--md-success);
-            color: var(--md-surface);
-        }
-
-        .badge.optional {
-            background: var(--md-outline);
-            color: var(--md-surface);
-        }
-
-        /* Code/Path Styling */
-        code {
-            background: var(--md-surface-container-highest);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 13px;
-            color: var(--md-primary);
-        }
-
-        /* Checklist */
-        .checklist {
-            list-style: none;
-            margin-left: 0;
-        }
-
-        .checklist li {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 8px 0;
-        }
-
-        .checklist li::before {
-            content: "☐";
-            color: var(--md-primary);
-            font-size: 18px;
-            line-height: 1;
-        }
-
-        /* Footer */
-        .doc-footer {
-            text-align: center;
-            padding-top: 24px;
-            margin-top: 40px;
-            border-top: 1px solid var(--md-outline-variant);
-            color: var(--md-on-surface-variant);
-            font-size: 13px;
-        }
-
-        /* Language Content */
-        .lang-content {
-            display: none;
-        }
-
-        .lang-content.active {
-            display: block;
-        }
-
-        /* Responsive */
-        @media (max-width: 600px) {
-            body {
-                padding: 12px;
-            }
-
-            .section {
-                padding: 16px;
-            }
-
-            .step {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .comparison-table {
-                font-size: 12px;
-            }
-
-            .comparison-table th,
-            .comparison-table td {
-                padding: 8px;
-            }
+        body { padding-top: 80px; padding-bottom: 100px; }
+        .page-container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+        .doc-header { text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--md-outline-variant); }
+        .doc-header h1 { font-size: 28px; font-weight: 700; color: var(--md-on-surface); margin-bottom: 8px; }
+        .doc-header .subtitle { color: var(--md-on-surface-variant); font-size: 16px; }
+        .toc { background: var(--md-surface-container); border-radius: var(--shape-lg); padding: 20px 24px; margin-bottom: 32px; }
+        .toc h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--md-on-surface-variant); margin-bottom: 12px; }
+        .toc ol { list-style: none; counter-reset: toc-counter; padding-left: 0; }
+        .toc li { counter-increment: toc-counter; margin-bottom: 8px; }
+        .toc li::before { content: counter(toc-counter) "."; color: var(--md-primary); font-weight: 600; margin-right: 8px; }
+        .toc a { color: var(--md-on-surface); text-decoration: none; transition: color 0.2s; }
+        .toc a:hover { color: var(--md-primary); }
+        .section { background: var(--md-surface-container); border-radius: var(--shape-lg); padding: 24px; margin-bottom: 24px; }
+        .section h2 { font-size: 20px; font-weight: 700; color: var(--md-on-surface); margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+        .section h2 .icon { width: 32px; height: 32px; background: var(--md-primary); border-radius: var(--shape-md); display: flex; align-items: center; justify-content: center; color: var(--md-on-primary); font-size: 16px; }
+        .section h3 { font-size: 16px; font-weight: 600; color: var(--md-primary); margin: 20px 0 12px 0; }
+        .section p { color: var(--md-on-surface-variant); margin-bottom: 12px; line-height: 1.7; }
+        .section ul, .section ol { margin-left: 20px; margin-bottom: 16px; color: var(--md-on-surface-variant); }
+        .section li { margin-bottom: 8px; line-height: 1.6; }
+        .info-box { padding: 16px; border-radius: var(--shape-md); margin: 16px 0; }
+        .info-box.tip { background: rgba(103, 80, 164, 0.15); border-left: 4px solid var(--md-primary); }
+        .info-box.warning { background: rgba(251, 191, 36, 0.15); border-left: 4px solid var(--md-warning); }
+        .info-box.success { background: rgba(76, 175, 80, 0.15); border-left: 4px solid var(--md-success); }
+        .info-box-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; color: var(--md-on-surface); }
+        .info-box p { margin-bottom: 0; font-size: 14px; }
+        code { background: var(--md-surface-container-highest); padding: 2px 8px; border-radius: 4px; font-family: 'Roboto Mono', monospace; font-size: 13px; color: var(--md-primary); }
+        .steps { margin: 16px 0; }
+        .step { display: flex; gap: 16px; margin-bottom: 16px; padding: 16px; background: var(--md-surface-container-high); border-radius: var(--shape-md); }
+        .step-number { width: 32px; height: 32px; background: var(--md-primary); color: var(--md-on-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+        .step-content { flex: 1; }
+        .step-content strong { display: block; color: var(--md-on-surface); margin-bottom: 4px; }
+        .step-content p { margin-bottom: 0; font-size: 14px; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+        .comparison-table th, .comparison-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--md-outline-variant); }
+        .comparison-table th { background: var(--md-surface-container-high); color: var(--md-on-surface); font-weight: 600; }
+        .comparison-table td { color: var(--md-on-surface-variant); }
+        .comparison-table tr:last-child td { border-bottom: none; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-left: 8px; }
+        .badge.recommended { background: var(--md-success); color: #000; }
+        .badge.optional { background: var(--md-outline); color: var(--md-on-surface); }
+        .checklist { list-style: none; margin-left: 0; padding-left: 0; }
+        .checklist li { padding-left: 28px; position: relative; }
+        .checklist li::before { content: "☐"; position: absolute; left: 0; color: var(--md-primary); font-size: 16px; }
+        .doc-footer { text-align: center; padding: 24px; color: var(--md-on-surface-variant); font-size: 13px; border-top: 1px solid var(--md-outline-variant); margin-top: 40px; }
+        .doc-footer p { margin-bottom: 4px; }
+        .lang-content { display: none; }
+        .lang-content.active { display: block; }
+        @media (max-width: 768px) {
+            .page-container { padding: 16px 12px; }
+            .section { padding: 16px; }
+            .doc-header h1 { font-size: 22px; }
+            .comparison-table { font-size: 12px; }
+            .comparison-table th, .comparison-table td { padding: 8px; }
+            .step { flex-direction: column; gap: 8px; }
         }
     </style>
 </head>
 <body>
+    <div class="page-container">
+        <!-- ==================== ENGLISH CONTENT ==================== -->
+        <div id="content-en" class="lang-content">
+            <header class="doc-header">
+                <h1>📋 Session Management Guide</h1>
+                <p class="subtitle">How to pause, resume, and backup your RIFT sessions</p>
+            </header>
+            <nav class="toc">
+                <h2>Table of Contents</h2>
+                <ol>
+                    <li><a href="#en-ending">Ending a Session (GM)</a></li>
+                    <li><a href="#en-players">Integrating Players & Character Sheets</a></li>
+                    <li><a href="#en-time">Time Factor & Data Persistence</a></li>
+                    <li><a href="#en-backup">Backup Strategies</a></li>
+                    <li><a href="#en-checklist">Session Checklist</a></li>
+                </ol>
+            </nav>
+            <section class="section" id="en-ending">
+                <h2><span class="icon">🎬</span> Ending a Session (GM)</h2>
+                <p>As a Game Master, you don't need to perform any special "save" action. RIFT automatically preserves all session data. However, following these best practices ensures a smooth continuation.</p>
+                <h3>Before Ending the Session</h3>
+                <div class="steps">
+                    <div class="step"><div class="step-number">1</div><div class="step-content"><strong>Confirm All Players Have Saved</strong><p>Ask each player to verify their character sheet shows recent changes. The auto-save indicator should show "Saved" status.</p></div></div>
+                    <div class="step"><div class="step-number">2</div><div class="step-content"><strong>Note Current Game State</strong><p>Make a quick note of: current location, active effects, pending initiative, and any temporary conditions on characters.</p></div></div>
+                    <div class="step"><div class="step-number">3</div><div class="step-content"><strong>Export JSON Backups (Recommended)</strong><p>Have each player download their character as JSON. This serves as an offline backup independent of browser storage.</p></div></div>
+                    <div class="step"><div class="step-number">4</div><div class="step-content"><strong>Screenshot Key Information</strong><p>For complex encounters, take a screenshot of the initiative order, battlefield positions, or resource usage.</p></div></div>
+                </div>
+                <div class="info-box tip"><div class="info-box-title">💡 Pro Tip</div><p>The Atmosphere Panel settings (sound, lighting, effects) persist automatically. You can resume with the exact same ambiance.</p></div>
+            </section>
+            <section class="section" id="en-players">
+                <h2><span class="icon">👥</span> Integrating Players & Character Sheets</h2>
+                <p>Character data persists through multiple mechanisms. Here's how to ensure lossless continuation:</p>
+                <h3>Automatic Persistence (Default)</h3>
+                <p>Every change to a character sheet is automatically saved to the browser's LocalStorage. This works without any user action.</p>
+                <table class="comparison-table">
+                    <tr><th>Storage Method</th><th>Capacity</th><th>Persistence</th><th>Risk</th></tr>
+                    <tr><td>LocalStorage</td><td>~5MB per domain</td><td>Until cleared</td><td>Browser data wipe</td></tr>
+                    <tr><td>JSON Export</td><td>Unlimited</td><td>Permanent file</td><td>File loss</td></tr>
+                    <tr><td>Firebase Sync <span class="badge optional">Optional</span></td><td>Cloud</td><td>Cross-device</td><td>Account required</td></tr>
+                </table>
+                <h3>Resuming with Existing Players</h3>
+                <div class="steps">
+                    <div class="step"><div class="step-number">1</div><div class="step-content"><strong>Same Device & Browser</strong><p>Simply open RIFT → Character sheet loads automatically from LocalStorage. No action needed.</p></div></div>
+                    <div class="step"><div class="step-number">2</div><div class="step-content"><strong>Different Device / Cleared Browser</strong><p>Player uploads their JSON backup via "Manage Sheet → Upload JSON". Full data is restored instantly.</p></div></div>
+                </div>
+                <h3>Adding New Players Mid-Campaign</h3>
+                <p>New players simply create a fresh character sheet. No special integration required.</p>
+                <div class="info-box warning"><div class="info-box-title">⚠️ Important</div><p>Incognito/Private browsing mode does NOT persist LocalStorage. Always use normal browser mode or rely on JSON exports.</p></div>
+            </section>
+            <section class="section" id="en-time">
+                <h2><span class="icon">⏱️</span> Time Factor & Data Persistence</h2>
+                <p>A common concern: <em>"Does my data expire if I don't play for weeks or months?"</em></p>
+                <h3>Short Answer: No Time Limit</h3>
+                <p>RIFT data does not expire based on time. Your character sheets and settings remain intact indefinitely, as long as:</p>
+                <ul>
+                    <li>You use the <strong>same browser</strong> on the <strong>same device</strong></li>
+                    <li>You haven't <strong>cleared browser data</strong></li>
+                    <li>The browser hasn't performed an <strong>automatic cleanup</strong> due to low storage</li>
+                </ul>
+                <h3>Potential Data Loss Scenarios</h3>
+                <table class="comparison-table">
+                    <tr><th>Scenario</th><th>Data Lost?</th><th>Prevention</th></tr>
+                    <tr><td>6 months without playing</td><td>❌ No</td><td>—</td></tr>
+                    <tr><td>Browser update</td><td>❌ No</td><td>—</td></tr>
+                    <tr><td>"Clear browsing data"</td><td>✅ Yes</td><td>JSON backup</td></tr>
+                    <tr><td>Reinstall browser</td><td>✅ Yes</td><td>JSON backup</td></tr>
+                    <tr><td>New device</td><td>✅ Yes</td><td>JSON backup / Firebase</td></tr>
+                    <tr><td>Low disk space cleanup</td><td>⚠️ Possible</td><td>JSON backup</td></tr>
+                </table>
+                <div class="info-box success"><div class="info-box-title">✅ Best Practice</div><p>Download a JSON backup at the end of each session. It takes 2 seconds and guarantees you can always recover your character.</p></div>
+            </section>
+            <section class="section" id="en-backup">
+                <h2><span class="icon">💾</span> Backup Strategies</h2>
+                <p>Multiple backup options ensure you never lose campaign progress:</p>
+                <h3>Option 1: JSON Export <span class="badge recommended">Recommended</span></h3>
+                <div class="steps">
+                    <div class="step"><div class="step-number">1</div><div class="step-content"><strong>Export</strong><p>Character Sheet → Manage Sheet → <code>Download JSON</code></p></div></div>
+                    <div class="step"><div class="step-number">2</div><div class="step-content"><strong>Store</strong><p>Save the file to cloud storage (Google Drive, Dropbox) or a dedicated folder.</p></div></div>
+                    <div class="step"><div class="step-number">3</div><div class="step-content"><strong>Restore</strong><p>Manage Sheet → <code>Upload JSON</code> → Select the file.</p></div></div>
+                </div>
+                <h3>Option 2: Print / PDF</h3>
+                <p>Creates a visual snapshot. Useful for physical reference but cannot be re-imported.</p>
+                <h3>Option 3: Firebase Cloud Sync <span class="badge optional">Optional</span></h3>
+                <p>If Firebase is configured, character data syncs across devices automatically when logged in.</p>
+                <h3>GM Campaign Backup</h3>
+                <p>For GMs running long campaigns, consider maintaining:</p>
+                <ul>
+                    <li>A shared folder where all players upload their JSON after each session</li>
+                    <li>Session notes in a separate document (Google Docs, Notion, etc.)</li>
+                    <li>Screenshots of complex encounter states</li>
+                </ul>
+                <div class="info-box tip"><div class="info-box-title">💡 Automation Tip</div><p>Create a session-end ritual: "Everyone download your JSON and drop it in the shared Drive folder."</p></div>
+            </section>
+            <section class="section" id="en-checklist">
+                <h2><span class="icon">✓</span> Session End Checklist</h2>
+                <h3>For the GM</h3>
+                <ul class="checklist">
+                    <li>Announce "Session ending in 5 minutes"</li>
+                    <li>Note current in-game time, location, and situation</li>
+                    <li>Save any atmosphere settings you want to preserve</li>
+                    <li>Remind players to download JSON backups</li>
+                    <li>Confirm all players see "Saved" status</li>
+                    <li>Schedule next session if possible</li>
+                </ul>
+                <h3>For Players</h3>
+                <ul class="checklist">
+                    <li>Verify character sheet shows current HP, spell slots, resources</li>
+                    <li>Download JSON backup (Manage Sheet → Download JSON)</li>
+                    <li>Store backup in cloud folder or email to yourself</li>
+                    <li>Note any temporary effects or conditions</li>
+                </ul>
+                <div class="info-box success"><div class="info-box-title">✅ You're Ready</div><p>Following these steps ensures seamless session continuity, whether you resume tomorrow or in three months.</p></div>
+            </section>
+            <footer class="doc-footer">
+                <p>RIFT Session Management Guide • Version 1.1</p>
+                <p>Compatible with 5th Edition Fantasy Roleplaying (SRD 5.1)</p>
+            </footer>
+        </div>
 
-    <!-- Language Toggle -->
-    <div class="lang-toggle">
-        <button class="lang-btn active" onclick="setLang('en')">English</button>
-        <button class="lang-btn" onclick="setLang('de')">Deutsch</button>
+        <!-- ==================== GERMAN CONTENT ==================== -->
+        <div id="content-de" class="lang-content active">
+            <header class="doc-header">
+                <h1>📋 Session-Management Leitfaden</h1>
+                <p class="subtitle">Wie du RIFT-Sessions pausierst, fortsetzt und sicherst</p>
+            </header>
+            <nav class="toc">
+                <h2>Inhaltsverzeichnis</h2>
+                <ol>
+                    <li><a href="#de-ending">Eine Session beenden (GM)</a></li>
+                    <li><a href="#de-players">Spieler & Charakterbögen integrieren</a></li>
+                    <li><a href="#de-time">Zeitfaktor & Datenpersistenz</a></li>
+                    <li><a href="#de-backup">Backup-Strategien</a></li>
+                    <li><a href="#de-checklist">Session-Checkliste</a></li>
+                </ol>
+            </nav>
+            <section class="section" id="de-ending">
+                <h2><span class="icon">🎬</span> Eine Session beenden (GM)</h2>
+                <p>Als Spielleiter musst du keine spezielle "Speichern"-Aktion durchführen. RIFT bewahrt alle Session-Daten automatisch. Trotzdem sorgen diese Best Practices für eine reibungslose Fortsetzung.</p>
+                <h3>Vor dem Beenden der Session</h3>
+                <div class="steps">
+                    <div class="step"><div class="step-number">1</div><div class="step-content"><strong>Bestätigen, dass alle Spieler gespeichert haben</strong><p>Frage jeden Spieler, ob sein Charakterbogen die aktuellen Änderungen zeigt. Der Auto-Save-Indikator sollte "Gespeichert" anzeigen.</p></div></div>
+                    <div class="step"><div class="step-number">2</div><div class="step-content"><strong>Aktuellen Spielstand notieren</strong><p>Mache eine kurze Notiz über: aktuellen Ort, aktive Effekte, laufende Initiative und temporäre Zustände der Charaktere.</p></div></div>
+                    <div class="step"><div class="step-number">3</div><div class="step-content"><strong>JSON-Backups exportieren (Empfohlen)</strong><p>Lass jeden Spieler seinen Charakter als JSON herunterladen. Das dient als Offline-Backup unabhängig vom Browser-Speicher.</p></div></div>
+                    <div class="step"><div class="step-number">4</div><div class="step-content"><strong>Wichtige Informationen als Screenshot</strong><p>Bei komplexen Begegnungen: Screenshot der Initiative-Reihenfolge, Positionen auf dem Schlachtfeld oder Ressourcen-Verbrauch.</p></div></div>
+                </div>
+                <div class="info-box tip"><div class="info-box-title">💡 Profi-Tipp</div><p>Die Einstellungen des Atmosphäre-Panels (Sound, Beleuchtung, Effekte) bleiben automatisch erhalten. Du kannst mit exakt derselben Stimmung fortfahren.</p></div>
+            </section>
+            <section class="section" id="de-players">
+                <h2><span class="icon">👥</span> Spieler & Charakterbögen integrieren</h2>
+                <p>Charakterdaten werden durch mehrere Mechanismen gespeichert. So stellst du eine verlustfreie Fortsetzung sicher:</p>
+                <h3>Automatische Persistenz (Standard)</h3>
+                <p>Jede Änderung am Charakterbogen wird automatisch im LocalStorage des Browsers gespeichert. Das funktioniert ohne Benutzeraktion.</p>
+                <table class="comparison-table">
+                    <tr><th>Speichermethode</th><th>Kapazität</th><th>Beständigkeit</th><th>Risiko</th></tr>
+                    <tr><td>LocalStorage</td><td>~5MB pro Domain</td><td>Bis gelöscht</td><td>Browser-Daten löschen</td></tr>
+                    <tr><td>JSON-Export</td><td>Unbegrenzt</td><td>Permanente Datei</td><td>Datei-Verlust</td></tr>
+                    <tr><td>Firebase-Sync <span class="badge optional">Optional</span></td><td>Cloud</td><td>Geräteübergreifend</td><td>Account erforderlich</td></tr>
+                </table>
+                <h3>Fortsetzen mit bestehenden Spielern</h3>
+                <div class="steps">
+                    <div class="step"><div class="step-number">1</div><div class="step-content"><strong>Gleiches Gerät & Browser</strong><p>Einfach RIFT öffnen → Charakterbogen lädt automatisch aus dem LocalStorage. Keine Aktion nötig.</p></div></div>
+                    <div class="step"><div class="step-number">2</div><div class="step-content"><strong>Anderes Gerät / Browser gelöscht</strong><p>Spieler lädt sein JSON-Backup über "Bogen verwalten → JSON hochladen" hoch. Alle Daten werden sofort wiederhergestellt.</p></div></div>
+                </div>
+                <h3>Neue Spieler mitten in der Kampagne</h3>
+                <p>Neue Spieler erstellen einfach einen frischen Charakterbogen. Keine spezielle Integration nötig.</p>
+                <div class="info-box warning"><div class="info-box-title">⚠️ Wichtig</div><p>Inkognito-/Privater Modus speichert KEINEN LocalStorage. Nutze immer den normalen Browser-Modus oder verlasse dich auf JSON-Exports.</p></div>
+            </section>
+            <section class="section" id="de-time">
+                <h2><span class="icon">⏱️</span> Zeitfaktor & Datenpersistenz</h2>
+                <p>Eine häufige Frage: <em>"Verfallen meine Daten, wenn ich wochen- oder monatelang nicht spiele?"</em></p>
+                <h3>Kurze Antwort: Kein Zeitlimit</h3>
+                <p>RIFT-Daten verfallen nicht zeitbasiert. Deine Charakterbögen und Einstellungen bleiben unbegrenzt erhalten, solange:</p>
+                <ul>
+                    <li>Du den <strong>gleichen Browser</strong> auf dem <strong>gleichen Gerät</strong> verwendest</li>
+                    <li>Du nicht <strong>Browser-Daten gelöscht</strong> hast</li>
+                    <li>Der Browser keine <strong>automatische Bereinigung</strong> durchgeführt hat</li>
+                </ul>
+                <h3>Mögliche Datenverlust-Szenarien</h3>
+                <table class="comparison-table">
+                    <tr><th>Szenario</th><th>Daten verloren?</th><th>Prävention</th></tr>
+                    <tr><td>6 Monate ohne Spielen</td><td>❌ Nein</td><td>—</td></tr>
+                    <tr><td>Browser-Update</td><td>❌ Nein</td><td>—</td></tr>
+                    <tr><td>"Browserdaten löschen"</td><td>✅ Ja</td><td>JSON-Backup</td></tr>
+                    <tr><td>Browser neu installieren</td><td>✅ Ja</td><td>JSON-Backup</td></tr>
+                    <tr><td>Neues Gerät</td><td>✅ Ja</td><td>JSON-Backup / Firebase</td></tr>
+                    <tr><td>Speicherplatz-Bereinigung</td><td>⚠️ Möglich</td><td>JSON-Backup</td></tr>
+                </table>
+                <div class="info-box success"><div class="info-box-title">✅ Best Practice</div><p>Lade am Ende jeder Session ein JSON-Backup herunter. Das dauert 2 Sekunden und garantiert, dass du deinen Charakter immer wiederherstellen kannst.</p></div>
+            </section>
+            <section class="section" id="de-backup">
+                <h2><span class="icon">💾</span> Backup-Strategien</h2>
+                <p>Mehrere Backup-Optionen stellen sicher, dass du nie Kampagnen-Fortschritt verlierst:</p>
+                <h3>Option 1: JSON-Export <span class="badge recommended">Empfohlen</span></h3>
+                <div class="steps">
+                    <div class="step"><div class="step-number">1</div><div class="step-content"><strong>Exportieren</strong><p>Charakterbogen → Bogen verwalten → <code>JSON herunterladen</code></p></div></div>
+                    <div class="step"><div class="step-number">2</div><div class="step-content"><strong>Speichern</strong><p>Datei in Cloud-Speicher (Google Drive, Dropbox) oder dediziertem Ordner ablegen.</p></div></div>
+                    <div class="step"><div class="step-number">3</div><div class="step-content"><strong>Wiederherstellen</strong><p>Bogen verwalten → <code>JSON hochladen</code> → Datei auswählen.</p></div></div>
+                </div>
+                <h3>Option 2: Drucken / PDF</h3>
+                <p>Erstellt einen visuellen Snapshot. Nützlich als physische Referenz, kann aber nicht wieder importiert werden.</p>
+                <h3>Option 3: Firebase Cloud-Sync <span class="badge optional">Optional</span></h3>
+                <p>Wenn Firebase konfiguriert ist, synchronisieren sich Charakterdaten automatisch geräteübergreifend bei Anmeldung.</p>
+                <h3>GM Kampagnen-Backup</h3>
+                <p>Für GMs, die lange Kampagnen leiten, empfiehlt sich:</p>
+                <ul>
+                    <li>Ein geteilter Ordner, in den alle Spieler nach jeder Session ihr JSON hochladen</li>
+                    <li>Session-Notizen in einem separaten Dokument (Google Docs, Notion, etc.)</li>
+                    <li>Screenshots von komplexen Encounter-Zuständen</li>
+                </ul>
+                <div class="info-box tip"><div class="info-box-title">💡 Automatisierungs-Tipp</div><p>Etabliere ein Session-Ende-Ritual: "Alle laden ihr JSON herunter und werfen es in den geteilten Drive-Ordner."</p></div>
+            </section>
+            <section class="section" id="de-checklist">
+                <h2><span class="icon">✓</span> Session-Ende Checkliste</h2>
+                <h3>Für den GM</h3>
+                <ul class="checklist">
+                    <li>"Session endet in 5 Minuten" ankündigen</li>
+                    <li>Aktuelle Spielzeit, Ort und Situation notieren</li>
+                    <li>Atmosphäre-Einstellungen sichern</li>
+                    <li>Spieler an JSON-Backup erinnern</li>
+                    <li>Bestätigen, dass alle Spieler "Gespeichert" sehen</li>
+                    <li>Nächste Session vereinbaren</li>
+                </ul>
+                <h3>Für Spieler</h3>
+                <ul class="checklist">
+                    <li>Überprüfen, dass Charakterbogen aktuelle HP, Zauberplätze, Ressourcen zeigt</li>
+                    <li>JSON-Backup herunterladen (Bogen verwalten → JSON herunterladen)</li>
+                    <li>Backup in Cloud-Ordner speichern</li>
+                    <li>Temporäre Effekte oder Zustände notieren</li>
+                </ul>
+                <div class="info-box success"><div class="info-box-title">✅ Du bist bereit</div><p>Wenn du diese Schritte befolgst, ist eine nahtlose Session-Fortsetzung gewährleistet – egal ob du morgen oder in drei Monaten weiterspielst.</p></div>
+            </section>
+            <footer class="doc-footer">
+                <p>RIFT Session-Management Leitfaden • Version 1.1</p>
+                <p>Kompatibel mit 5th Edition Fantasy Roleplaying (SRD 5.1)</p>
+            </footer>
+        </div>
     </div>
 
-    <!-- ==================== ENGLISH CONTENT ==================== -->
-    <div id="content-en" class="lang-content active">
-
-        <header class="doc-header">
-            <h1>📋 Session Management Guide</h1>
-            <p class="subtitle">How to pause, resume, and backup your RIFT sessions</p>
-        </header>
-
-        <nav class="toc">
-            <h2>Table of Contents</h2>
-            <ol>
-                <li><a href="#en-ending">Ending a Session (GM)</a></li>
-                <li><a href="#en-players">Integrating Players &amp; Character Sheets</a></li>
-                <li><a href="#en-time">Time Factor &amp; Data Persistence</a></li>
-                <li><a href="#en-backup">Backup Strategies</a></li>
-                <li><a href="#en-checklist">Session Checklist</a></li>
-            </ol>
-        </nav>
-
-        <!-- Section 1: Ending a Session -->
-        <section class="section" id="en-ending">
-            <h2><span class="icon">🎬</span> Ending a Session (GM)</h2>
-            
-            <p>As a Game Master, you don't need to perform any special "save" action. RIFT automatically preserves all session data. However, following these best practices ensures a smooth continuation.</p>
-
-            <h3>Before Ending the Session</h3>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <strong>Confirm All Players Have Saved</strong>
-                        <p>Ask each player to verify their character sheet shows recent changes. The auto-save indicator should show "Saved" status.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <strong>Note Current Game State</strong>
-                        <p>Make a quick note of: current location, active effects, pending initiative, and any temporary conditions on characters.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <strong>Export JSON Backups (Recommended)</strong>
-                        <p>Have each player download their character as JSON. This serves as an offline backup independent of browser storage.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <strong>Screenshot Key Information</strong>
-                        <p>For complex encounters, take a screenshot of the initiative order, battlefield positions, or resource usage.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="info-box tip">
-                <div class="info-box-title">💡 Pro Tip</div>
-                <p>The Atmosphere Panel settings (sound, lighting, effects) persist automatically. You can resume with the exact same ambiance.</p>
-            </div>
-        </section>
-
-        <!-- Section 2: Integrating Players -->
-        <section class="section" id="en-players">
-            <h2><span class="icon">👥</span> Integrating Players &amp; Character Sheets</h2>
-            
-            <p>Character data persists through multiple mechanisms. Here's how to ensure lossless continuation:</p>
-
-            <h3>Automatic Persistence (Default)</h3>
-            <p>Every change to a character sheet is automatically saved to the browser's LocalStorage. This works without any user action.</p>
-            
-            <table class="comparison-table">
-                <tr>
-                    <th>Storage Method</th>
-                    <th>Capacity</th>
-                    <th>Persistence</th>
-                    <th>Risk</th>
-                </tr>
-                <tr>
-                    <td>LocalStorage</td>
-                    <td>~5MB per domain</td>
-                    <td>Until cleared</td>
-                    <td>Browser data wipe</td>
-                </tr>
-                <tr>
-                    <td>JSON Export</td>
-                    <td>Unlimited</td>
-                    <td>Permanent file</td>
-                    <td>File loss</td>
-                </tr>
-                <tr>
-                    <td>Firebase Sync <span class="badge optional">Optional</span></td>
-                    <td>Cloud</td>
-                    <td>Cross-device</td>
-                    <td>Account required</td>
-                </tr>
-            </table>
-
-            <h3>Resuming with Existing Players</h3>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <strong>Same Device &amp; Browser</strong>
-                        <p>Simply open RIFT → Character sheet loads automatically from LocalStorage. No action needed.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <strong>Different Device / Cleared Browser</strong>
-                        <p>Player uploads their JSON backup via "Manage Sheet → Upload JSON". Full data is restored instantly.</p>
-                    </div>
-                </div>
-            </div>
-
-            <h3>Adding New Players Mid-Campaign</h3>
-            <p>New players simply create a fresh character sheet. No special integration required. If they have a pre-made character from another tool, they can manually enter the data or import a compatible JSON.</p>
-
-            <div class="info-box warning">
-                <div class="info-box-title">⚠️ Important</div>
-                <p>Incognito/Private browsing mode does NOT persist LocalStorage. Always use normal browser mode or rely on JSON exports.</p>
-            </div>
-        </section>
-
-        <!-- Section 3: Time Factor -->
-        <section class="section" id="en-time">
-            <h2><span class="icon">⏱️</span> Time Factor &amp; Data Persistence</h2>
-            
-            <p>A common concern: <em>"Does my data expire if I don't play for weeks or months?"</em></p>
-
-            <h3>Short Answer: No Time Limit</h3>
-            <p>RIFT data does not expire based on time. Your character sheets and settings remain intact indefinitely, as long as:</p>
-            
-            <ul>
-                <li>You use the <strong>same browser</strong> on the <strong>same device</strong></li>
-                <li>You haven't <strong>cleared browser data</strong> (cookies, site data, etc.)</li>
-                <li>The browser hasn't performed an <strong>automatic cleanup</strong> due to low storage</li>
-            </ul>
-
-            <h3>Potential Data Loss Scenarios</h3>
-            <table class="comparison-table">
-                <tr>
-                    <th>Scenario</th>
-                    <th>Data Lost?</th>
-                    <th>Prevention</th>
-                </tr>
-                <tr>
-                    <td>6 months without playing</td>
-                    <td>❌ No</td>
-                    <td>—</td>
-                </tr>
-                <tr>
-                    <td>Browser update</td>
-                    <td>❌ No</td>
-                    <td>—</td>
-                </tr>
-                <tr>
-                    <td>"Clear browsing data"</td>
-                    <td>✅ Yes</td>
-                    <td>JSON backup</td>
-                </tr>
-                <tr>
-                    <td>Reinstall browser</td>
-                    <td>✅ Yes</td>
-                    <td>JSON backup</td>
-                </tr>
-                <tr>
-                    <td>New device</td>
-                    <td>✅ Yes</td>
-                    <td>JSON backup / Firebase</td>
-                </tr>
-                <tr>
-                    <td>Low disk space cleanup</td>
-                    <td>⚠️ Possible</td>
-                    <td>JSON backup</td>
-                </tr>
-            </table>
-
-            <div class="info-box success">
-                <div class="info-box-title">✅ Best Practice</div>
-                <p>Download a JSON backup at the end of each session. It takes 2 seconds and guarantees you can always recover your character, regardless of what happens to your browser.</p>
-            </div>
-        </section>
-
-        <!-- Section 4: Backup Strategies -->
-        <section class="section" id="en-backup">
-            <h2><span class="icon">💾</span> Backup Strategies</h2>
-            
-            <p>Multiple backup options ensure you never lose campaign progress:</p>
-
-            <h3>Option 1: JSON Export <span class="badge recommended">Recommended</span></h3>
-            <p>The most reliable method for individual character backup.</p>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <strong>Export</strong>
-                        <p>Character Sheet → Manage Sheet → <code>Download JSON</code></p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <strong>Store</strong>
-                        <p>Save the <code>CharacterName.json</code> file to cloud storage (Google Drive, Dropbox, etc.) or a dedicated folder.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <strong>Restore</strong>
-                        <p>Manage Sheet → <code>Upload JSON</code> → Select the file.</p>
-                    </div>
-                </div>
-            </div>
-
-            <h3>Option 2: Print / PDF</h3>
-            <p>Creates a visual snapshot of the character sheet. Useful for physical reference but cannot be re-imported.</p>
-            <p><code>Manage Sheet → Print / PDF</code></p>
-
-            <h3>Option 3: Firebase Cloud Sync <span class="badge optional">Optional</span></h3>
-            <p>If Firebase is configured, character data syncs across devices automatically when logged in. This is optional and requires setup by the GM.</p>
-
-            <h3>GM Campaign Backup</h3>
-            <p>For GMs running long campaigns, consider maintaining:</p>
-            <ul>
-                <li>A shared folder where all players upload their JSON after each session</li>
-                <li>Session notes in a separate document (Google Docs, Notion, etc.)</li>
-                <li>Screenshots of complex encounter states</li>
-            </ul>
-
-            <div class="info-box tip">
-                <div class="info-box-title">💡 Automation Tip</div>
-                <p>Create a session-end ritual: "Everyone download your JSON and drop it in the shared Drive folder." This takes 30 seconds and prevents future headaches.</p>
-            </div>
-        </section>
-
-        <!-- Section 5: Checklist -->
-        <section class="section" id="en-checklist">
-            <h2><span class="icon">✓</span> Session End Checklist</h2>
-            
-            <p>Use this checklist before ending each session:</p>
-
-            <h3>For the GM</h3>
-            <ul class="checklist">
-                <li>Announce "Session ending in 5 minutes" to allow players to finish actions</li>
-                <li>Note current in-game time, location, and situation</li>
-                <li>Save any atmosphere settings you want to preserve</li>
-                <li>Remind players to download their JSON backups</li>
-                <li>Confirm all players see "Saved" status on their sheets</li>
-                <li>Schedule next session if possible</li>
-            </ul>
-
-            <h3>For Players</h3>
-            <ul class="checklist">
-                <li>Verify character sheet shows current HP, spell slots, resources</li>
-                <li>Download JSON backup (Manage Sheet → Download JSON)</li>
-                <li>Store backup in cloud folder or email to yourself</li>
-                <li>Note any temporary effects or conditions to remember</li>
-            </ul>
-
-            <div class="info-box success">
-                <div class="info-box-title">✅ You're Ready</div>
-                <p>Following these steps ensures seamless session continuity, whether you resume tomorrow or in three months.</p>
-            </div>
-        </section>
-
-        <footer class="doc-footer">
-            <p>RIFT Session Management Guide • Version 1.0</p>
-            <p>Compatible with 5th Edition Fantasy Roleplaying (SRD 5.1)</p>
-        </footer>
-
-    </div>
-
-    <!-- ==================== GERMAN CONTENT ==================== -->
-    <div id="content-de" class="lang-content">
-
-        <header class="doc-header">
-            <h1>📋 Session-Management Leitfaden</h1>
-            <p class="subtitle">Wie du RIFT-Sessions pausierst, fortsetzt und sicherst</p>
-        </header>
-
-        <nav class="toc">
-            <h2>Inhaltsverzeichnis</h2>
-            <ol>
-                <li><a href="#de-ending">Eine Session beenden (GM)</a></li>
-                <li><a href="#de-players">Spieler &amp; Charakterbögen integrieren</a></li>
-                <li><a href="#de-time">Zeitfaktor &amp; Datenpersistenz</a></li>
-                <li><a href="#de-backup">Backup-Strategien</a></li>
-                <li><a href="#de-checklist">Session-Checkliste</a></li>
-            </ol>
-        </nav>
-
-        <!-- Section 1: Ending a Session -->
-        <section class="section" id="de-ending">
-            <h2><span class="icon">🎬</span> Eine Session beenden (GM)</h2>
-            
-            <p>Als Spielleiter musst du keine spezielle "Speichern"-Aktion durchführen. RIFT bewahrt alle Session-Daten automatisch. Trotzdem sorgen diese Best Practices für eine reibungslose Fortsetzung.</p>
-
-            <h3>Vor dem Beenden der Session</h3>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <strong>Bestätigen, dass alle Spieler gespeichert haben</strong>
-                        <p>Frage jeden Spieler, ob sein Charakterbogen die aktuellen Änderungen zeigt. Der Auto-Save-Indikator sollte "Gespeichert" anzeigen.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <strong>Aktuellen Spielstand notieren</strong>
-                        <p>Mache eine kurze Notiz über: aktuellen Ort, aktive Effekte, laufende Initiative und temporäre Zustände der Charaktere.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <strong>JSON-Backups exportieren (Empfohlen)</strong>
-                        <p>Lass jeden Spieler seinen Charakter als JSON herunterladen. Das dient als Offline-Backup unabhängig vom Browser-Speicher.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <strong>Wichtige Informationen als Screenshot</strong>
-                        <p>Bei komplexen Begegnungen: Screenshot der Initiative-Reihenfolge, Positionen auf dem Schlachtfeld oder Ressourcen-Verbrauch.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="info-box tip">
-                <div class="info-box-title">💡 Profi-Tipp</div>
-                <p>Die Einstellungen des Atmosphäre-Panels (Sound, Beleuchtung, Effekte) bleiben automatisch erhalten. Du kannst mit exakt derselben Stimmung fortfahren.</p>
-            </div>
-        </section>
-
-        <!-- Section 2: Integrating Players -->
-        <section class="section" id="de-players">
-            <h2><span class="icon">👥</span> Spieler &amp; Charakterbögen integrieren</h2>
-            
-            <p>Charakterdaten werden durch mehrere Mechanismen gespeichert. So stellst du eine verlustfreie Fortsetzung sicher:</p>
-
-            <h3>Automatische Persistenz (Standard)</h3>
-            <p>Jede Änderung am Charakterbogen wird automatisch im LocalStorage des Browsers gespeichert. Das funktioniert ohne Benutzeraktion.</p>
-            
-            <table class="comparison-table">
-                <tr>
-                    <th>Speichermethode</th>
-                    <th>Kapazität</th>
-                    <th>Beständigkeit</th>
-                    <th>Risiko</th>
-                </tr>
-                <tr>
-                    <td>LocalStorage</td>
-                    <td>~5MB pro Domain</td>
-                    <td>Bis gelöscht</td>
-                    <td>Browser-Daten löschen</td>
-                </tr>
-                <tr>
-                    <td>JSON-Export</td>
-                    <td>Unbegrenzt</td>
-                    <td>Permanente Datei</td>
-                    <td>Datei-Verlust</td>
-                </tr>
-                <tr>
-                    <td>Firebase-Sync <span class="badge optional">Optional</span></td>
-                    <td>Cloud</td>
-                    <td>Geräteübergreifend</td>
-                    <td>Account erforderlich</td>
-                </tr>
-            </table>
-
-            <h3>Fortsetzen mit bestehenden Spielern</h3>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <strong>Gleiches Gerät &amp; Browser</strong>
-                        <p>Einfach RIFT öffnen → Charakterbogen lädt automatisch aus dem LocalStorage. Keine Aktion nötig.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <strong>Anderes Gerät / Browser gelöscht</strong>
-                        <p>Spieler lädt sein JSON-Backup über "Bogen verwalten → JSON hochladen" hoch. Alle Daten werden sofort wiederhergestellt.</p>
-                    </div>
-                </div>
-            </div>
-
-            <h3>Neue Spieler mitten in der Kampagne</h3>
-            <p>Neue Spieler erstellen einfach einen frischen Charakterbogen. Keine spezielle Integration nötig. Wenn sie einen vorgefertigten Charakter von einem anderen Tool haben, können sie die Daten manuell eingeben oder ein kompatibles JSON importieren.</p>
-
-            <div class="info-box warning">
-                <div class="info-box-title">⚠️ Wichtig</div>
-                <p>Inkognito-/Privater Modus speichert KEINEN LocalStorage. Nutze immer den normalen Browser-Modus oder verlasse dich auf JSON-Exports.</p>
-            </div>
-        </section>
-
-        <!-- Section 3: Time Factor -->
-        <section class="section" id="de-time">
-            <h2><span class="icon">⏱️</span> Zeitfaktor &amp; Datenpersistenz</h2>
-            
-            <p>Eine häufige Frage: <em>"Verfallen meine Daten, wenn ich wochen- oder monatelang nicht spiele?"</em></p>
-
-            <h3>Kurze Antwort: Kein Zeitlimit</h3>
-            <p>RIFT-Daten verfallen nicht zeitbasiert. Deine Charakterbögen und Einstellungen bleiben unbegrenzt erhalten, solange:</p>
-            
-            <ul>
-                <li>Du den <strong>gleichen Browser</strong> auf dem <strong>gleichen Gerät</strong> verwendest</li>
-                <li>Du nicht <strong>Browser-Daten gelöscht</strong> hast (Cookies, Website-Daten, etc.)</li>
-                <li>Der Browser keine <strong>automatische Bereinigung</strong> wegen geringem Speicherplatz durchgeführt hat</li>
-            </ul>
-
-            <h3>Mögliche Datenverlust-Szenarien</h3>
-            <table class="comparison-table">
-                <tr>
-                    <th>Szenario</th>
-                    <th>Daten verloren?</th>
-                    <th>Prävention</th>
-                </tr>
-                <tr>
-                    <td>6 Monate ohne Spielen</td>
-                    <td>❌ Nein</td>
-                    <td>—</td>
-                </tr>
-                <tr>
-                    <td>Browser-Update</td>
-                    <td>❌ Nein</td>
-                    <td>—</td>
-                </tr>
-                <tr>
-                    <td>"Browserdaten löschen"</td>
-                    <td>✅ Ja</td>
-                    <td>JSON-Backup</td>
-                </tr>
-                <tr>
-                    <td>Browser neu installieren</td>
-                    <td>✅ Ja</td>
-                    <td>JSON-Backup</td>
-                </tr>
-                <tr>
-                    <td>Neues Gerät</td>
-                    <td>✅ Ja</td>
-                    <td>JSON-Backup / Firebase</td>
-                </tr>
-                <tr>
-                    <td>Speicherplatz-Bereinigung</td>
-                    <td>⚠️ Möglich</td>
-                    <td>JSON-Backup</td>
-                </tr>
-            </table>
-
-            <div class="info-box success">
-                <div class="info-box-title">✅ Best Practice</div>
-                <p>Lade am Ende jeder Session ein JSON-Backup herunter. Das dauert 2 Sekunden und garantiert, dass du deinen Charakter immer wiederherstellen kannst – egal was mit deinem Browser passiert.</p>
-            </div>
-        </section>
-
-        <!-- Section 4: Backup Strategies -->
-        <section class="section" id="de-backup">
-            <h2><span class="icon">💾</span> Backup-Strategien</h2>
-            
-            <p>Mehrere Backup-Optionen stellen sicher, dass du nie Kampagnen-Fortschritt verlierst:</p>
-
-            <h3>Option 1: JSON-Export <span class="badge recommended">Empfohlen</span></h3>
-            <p>Die zuverlässigste Methode für individuelles Charakter-Backup.</p>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <strong>Exportieren</strong>
-                        <p>Charakterbogen → Bogen verwalten → <code>JSON herunterladen</code></p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <strong>Speichern</strong>
-                        <p>Die <code>Charaktername.json</code>-Datei in Cloud-Speicher (Google Drive, Dropbox, etc.) oder einem dedizierten Ordner ablegen.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <strong>Wiederherstellen</strong>
-                        <p>Bogen verwalten → <code>JSON hochladen</code> → Datei auswählen.</p>
-                    </div>
-                </div>
-            </div>
-
-            <h3>Option 2: Drucken / PDF</h3>
-            <p>Erstellt einen visuellen Snapshot des Charakterbogens. Nützlich als physische Referenz, kann aber nicht wieder importiert werden.</p>
-            <p><code>Bogen verwalten → Drucken / PDF</code></p>
-
-            <h3>Option 3: Firebase Cloud-Sync <span class="badge optional">Optional</span></h3>
-            <p>Wenn Firebase konfiguriert ist, synchronisieren sich Charakterdaten automatisch geräteübergreifend bei Anmeldung. Das ist optional und erfordert Einrichtung durch den GM.</p>
-
-            <h3>GM Kampagnen-Backup</h3>
-            <p>Für GMs, die lange Kampagnen leiten, empfiehlt sich:</p>
-            <ul>
-                <li>Ein geteilter Ordner, in den alle Spieler nach jeder Session ihr JSON hochladen</li>
-                <li>Session-Notizen in einem separaten Dokument (Google Docs, Notion, etc.)</li>
-                <li>Screenshots von komplexen Encounter-Zuständen</li>
-            </ul>
-
-            <div class="info-box tip">
-                <div class="info-box-title">💡 Automatisierungs-Tipp</div>
-                <p>Etabliere ein Session-Ende-Ritual: "Alle laden ihr JSON herunter und werfen es in den geteilten Drive-Ordner." Das dauert 30 Sekunden und verhindert zukünftige Kopfschmerzen.</p>
-            </div>
-        </section>
-
-        <!-- Section 5: Checklist -->
-        <section class="section" id="de-checklist">
-            <h2><span class="icon">✓</span> Session-Ende Checkliste</h2>
-            
-            <p>Verwende diese Checkliste vor dem Beenden jeder Session:</p>
-
-            <h3>Für den GM</h3>
-            <ul class="checklist">
-                <li>"Session endet in 5 Minuten" ankündigen, damit Spieler Aktionen abschließen können</li>
-                <li>Aktuelle Spielzeit, Ort und Situation notieren</li>
-                <li>Atmosphäre-Einstellungen sichern, die du behalten möchtest</li>
-                <li>Spieler an JSON-Backup erinnern</li>
-                <li>Bestätigen, dass alle Spieler "Gespeichert" auf ihren Bögen sehen</li>
-                <li>Nächste Session vereinbaren, wenn möglich</li>
-            </ul>
-
-            <h3>Für Spieler</h3>
-            <ul class="checklist">
-                <li>Überprüfen, dass Charakterbogen aktuelle HP, Zauberplätze, Ressourcen zeigt</li>
-                <li>JSON-Backup herunterladen (Bogen verwalten → JSON herunterladen)</li>
-                <li>Backup in Cloud-Ordner speichern oder an sich selbst mailen</li>
-                <li>Temporäre Effekte oder Zustände notieren, um sie zu erinnern</li>
-            </ul>
-
-            <div class="info-box success">
-                <div class="info-box-title">✅ Du bist bereit</div>
-                <p>Wenn du diese Schritte befolgst, ist eine nahtlose Session-Fortsetzung gewährleistet – egal ob du morgen oder in drei Monaten weiterspielst.</p>
-            </div>
-        </section>
-
-        <footer class="doc-footer">
-            <p>RIFT Session-Management Leitfaden • Version 1.0</p>
-            <p>Kompatibel mit 5th Edition Fantasy Roleplaying (SRD 5.1)</p>
-        </footer>
-
-    </div>
-
+    <script>window.RIFT_BASE_PATH = '../';</script>
+    <script src="../assets/js/lang.js"></script>
+    <script src="../assets/js/i18n.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/nav.js"></script>
     <script>
-        function setLang(lang) {
-            // Toggle content visibility
-            document.querySelectorAll('.lang-content').forEach(el => {
-                el.classList.remove('active');
-            });
-            document.getElementById('content-' + lang).classList.add('active');
-
-            // Toggle button state
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            // Update document language
+        function syncLanguage() {
+            // Check both possible keys (pnp_lang from i18n.js, pnp_language as fallback)
+            var lang = localStorage.getItem('pnp_lang') || localStorage.getItem('pnp_language') || 'de';
+            document.querySelectorAll('.lang-content').forEach(function(el) { el.classList.remove('active'); });
+            var content = document.getElementById('content-' + lang);
+            if (content) content.classList.add('active');
             document.documentElement.lang = lang;
-
-            // Store preference
-            localStorage.setItem('rift_help_lang', lang);
         }
-
-        // Load saved language preference
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedLang = localStorage.getItem('rift_help_lang');
-            if (savedLang) {
-                setLang(savedLang);
-                // Update button state
-                document.querySelectorAll('.lang-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(savedLang === 'de' ? 'deutsch' : 'english'));
-                });
-            }
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof createNavigationBar === 'function') createNavigationBar('Session Guide', '');
+            if (typeof createFooter === 'function') createFooter();
+            syncLanguage();
         });
     </script>
-
 </body>
 </html>
