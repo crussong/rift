@@ -2,36 +2,193 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User profiles - only owner can read/write
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is the owner of a resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is GM of a room
+    function isRoomGM(roomId) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/rooms/$(roomId)).data.gmId == request.auth.uid;
+    }
+    
+    // Check if user is a member of a room
+    function isRoomMember(roomId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
+    }
+    
+    // ========================================
+    // USER PROFILES
+    // ========================================
+    
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Only owner can read/write their profile
+      allow read, write: if isOwner(userId);
       
-      // Characters subcollection
+      // Character templates subcollection
       match /characters/{charId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
-    }
-    
-    // Rooms - members can read, owner can write
-    match /rooms/{roomId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && 
-        (resource.data.ownerId == request.auth.uid || 
-         request.auth.uid in resource.data.members);
       
-      // Room subcollections (chat, dice, etc.)
-      match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null;
+      // User's room list
+      match /rooms/{roomId} {
+        allow read, write: if isOwner(userId);
       }
     }
     
-    // Sessions - room members can read/write
-    match /sessions/{sessionId} {
-      allow read, write: if request.auth != null;
+    // ========================================
+    // ROOMS
+    // ========================================
+    
+    match /rooms/{roomId} {
+      // Anyone authenticated can create a room
+      allow create: if isAuthenticated();
+      
+      // Only members can read room data
+      allow read: if isRoomMember(roomId) || 
+        // Allow read during join check (before becoming member)
+        isAuthenticated();
+      
+      // Only GM can update/delete room
+      allow update, delete: if isRoomGM(roomId);
+      
+      // ----------------------------------------
+      // MEMBERS SUBCOLLECTION
+      // ----------------------------------------
+      match /members/{memberId} {
+        // Members can read all members in their room
+        allow read: if isRoomMember(roomId) || 
+          // Allow during join (checking own membership)
+          (isAuthenticated() && request.auth.uid == memberId);
+        
+        // User can add themselves (join room)
+        allow create: if isAuthenticated() && request.auth.uid == memberId;
+        
+        // User can update their own member doc (online status, etc.)
+        allow update: if isOwner(memberId) || isRoomGM(roomId);
+        
+        // Only GM can remove members, or user can remove themselves
+        allow delete: if isOwner(memberId) || isRoomGM(roomId);
+      }
+      
+      // ----------------------------------------
+      // CHARACTERS IN ROOM
+      // ----------------------------------------
+      match /characters/{charId} {
+        // All room members can read characters
+        allow read: if isRoomMember(roomId);
+        
+        // Owner can create/update their own characters
+        allow create: if isAuthenticated() && 
+          request.resource.data.ownerId == request.auth.uid;
+        
+        allow update: if isAuthenticated() && 
+          (resource.data.ownerId == request.auth.uid || isRoomGM(roomId));
+        
+        // Owner or GM can delete
+        allow delete: if isAuthenticated() && 
+          (resource.data.ownerId == request.auth.uid || isRoomGM(roomId));
+      }
+      
+      // ----------------------------------------
+      // CHAT MESSAGES
+      // ----------------------------------------
+      match /chat/{messageId} {
+        // Members can read all chat
+        allow read: if isRoomMember(roomId);
+        
+        // Members can create messages (as themselves)
+        allow create: if isRoomMember(roomId) && 
+          request.resource.data.oderId == request.auth.uid;
+        
+        // Only author or GM can update/delete
+        allow update, delete: if isAuthenticated() && 
+          (resource.data.oderId == request.auth.uid || isRoomGM(roomId));
+      }
+      
+      // ----------------------------------------
+      // DICE ROLLS
+      // ----------------------------------------
+      match /dice/{rollId} {
+        // Members can read all dice rolls
+        allow read: if isRoomMember(roomId);
+        
+        // Members can create rolls (as themselves)
+        allow create: if isRoomMember(roomId);
+        
+        // No updates/deletes for dice (immutable)
+        allow update, delete: if false;
+      }
+      
+      // ----------------------------------------
+      // SESSIONS
+      // ----------------------------------------
+      match /sessions/{sessionId} {
+        // Members can read sessions
+        allow read: if isRoomMember(roomId);
+        
+        // Only GM can create/update/delete sessions
+        allow create, update, delete: if isRoomGM(roomId);
+      }
+      
+      // ----------------------------------------
+      // NOTES (shared notes in room)
+      // ----------------------------------------
+      match /notes/{noteId} {
+        // Members can read all notes
+        allow read: if isRoomMember(roomId);
+        
+        // Members can create notes
+        allow create: if isRoomMember(roomId);
+        
+        // Owner or GM can update/delete
+        allow update, delete: if isAuthenticated() && 
+          (resource.data.ownerId == request.auth.uid || isRoomGM(roomId));
+      }
+      
+      // ----------------------------------------
+      // WHITEBOARD
+      // ----------------------------------------
+      match /whiteboard/{elementId} {
+        // Members can read/write whiteboard elements
+        allow read, write: if isRoomMember(roomId);
+      }
+      
+      // ----------------------------------------
+      // MAP MARKERS
+      // ----------------------------------------
+      match /markers/{markerId} {
+        // Members can read all markers
+        allow read: if isRoomMember(roomId);
+        
+        // GM can create/update/delete markers
+        allow create, update, delete: if isRoomGM(roomId);
+      }
     }
     
-    // Default deny
+    // ========================================
+    // LEGACY: Top-level sessions (for migration)
+    // ========================================
+    match /sessions/{sessionId} {
+      // Temporarily allow for existing sessions
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // ========================================
+    // DEFAULT DENY
+    // ========================================
     match /{document=**} {
       allow read, write: if false;
     }

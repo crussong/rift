@@ -400,8 +400,42 @@
                             </div>
                         </div>
                         
+                        <!-- Player Info (nur für Spieler sichtbar) -->
+                        <div class="session-card session-card--player" id="playerInfo" style="display: none;">
+                            <div class="session-card__header">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                <h2 class="session-card__title">Spieler-Info</h2>
+                            </div>
+                            <div class="session-card__body">
+                                <div class="player-info-content">
+                                    <div class="player-info-item">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12 6 12 12 16 14"/>
+                                        </svg>
+                                        <span>Warte auf Session-Start durch den GM</span>
+                                    </div>
+                                    <div class="player-info-item">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        </svg>
+                                        <span>Wähle deinen Charakter für diese Session</span>
+                                    </div>
+                                    <div class="player-info-item">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                        <span>Nutze Chat und Würfel während der Session</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- GM Actions (nur für GM sichtbar) -->
-                        <div class="session-card session-card--gm" id="gmActions">
+                        <div class="session-card session-card--gm" id="gmActions" style="display: none;">
                             <div class="session-card__header">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -1021,14 +1055,27 @@
             // Show select button if there are compatible characters
             selectBtn.style.display = compatibleCharacters.length > 0 ? 'inline-flex' : 'none';
             
-            // Show GM View button if user is GM
-            const isGM = sessionData.gameMaster === window.currentUser?.id || sessionData.gameMaster === 'GM';
+            // Check if user is GM - use room-based isGM from currentUser
+            const isGM = window.currentUser?.isGM === true;
+            
+            // Show/hide GM elements
+            const gmActionsCard = document.getElementById('gmActions');
+            const playerInfoCard = document.getElementById('playerInfo');
+            
+            if (gmActionsCard) {
+                gmActionsCard.style.display = isGM ? 'block' : 'none';
+            }
+            if (playerInfoCard) {
+                playerInfoCard.style.display = isGM ? 'none' : 'block';
+            }
             if (gmViewBtn) {
                 gmViewBtn.style.display = isGM ? 'inline-flex' : 'none';
             }
             if (gmViewBtnLoaded) {
                 gmViewBtnLoaded.style.display = isGM ? 'inline-flex' : 'none';
             }
+            
+            console.log('[Session] User isGM:', isGM);
             
             // Check if session has a character assigned
             const myCharacterId = sessionData.myCharacterId;
