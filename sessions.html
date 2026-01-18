@@ -1368,9 +1368,16 @@
             const dateObj = new Date(session.date);
             const ruleset = rulesetConfig[session.ruleset] || { name: session.ruleset, icon: 'ruleset_worldsapart.svg', class: 'worldsapart' };
             
-            const subtitle = session.sessionCount > 1 
-                ? `Session ${session.currentSession || 1} von ${session.sessionCount}`
-                : `Max. ${session.maxPlayers} Spieler`;
+            // Build meta info for top row
+            const sessionInfo = session.sessionCount > 1 
+                ? `Session ${session.currentSession || 1}/${session.sessionCount}`
+                : '';
+            const playerInfo = `${session.maxPlayers || 4} Spieler`;
+            
+            // Description preview (truncate to ~100 chars)
+            const descPreview = session.description 
+                ? session.description.substring(0, 120) + (session.description.length > 120 ? '...' : '')
+                : 'Keine Beschreibung vorhanden.';
             
             // RIFT Logo SVG for fallback
             const riftLogoSvg = `<svg width="64" height="64" viewBox="0 0 100 100" fill="currentColor" opacity="0.4">
@@ -1399,16 +1406,15 @@
                                 <img src="assets/img/rulesets/${ruleset.icon}" alt="">
                                 <span>${ruleset.name}</span>
                             </div>
-                            <span class="session-card__time">${session.time || '20:00'} Uhr</span>
+                            <div class="session-card__meta">
+                                <span>${session.time || '20:00'} Uhr</span>
+                                ${sessionInfo ? `<span class="session-card__meta-divider"></span><span>${sessionInfo}</span>` : ''}
+                                <span class="session-card__meta-divider"></span>
+                                <span>${playerInfo}</span>
+                            </div>
                         </div>
                         <h3 class="session-card__title">${session.name}</h3>
-                        <p class="session-card__subtitle">${subtitle}</p>
-                        <div class="session-card__players">
-                            <div class="session-card__avatars">
-                                <span class="session-card__avatar" style="background: var(--accent);">GM</span>
-                            </div>
-                            <span class="session-card__player-count">Max. ${session.maxPlayers} Spieler</span>
-                        </div>
+                        <p class="session-card__desc">${descPreview}</p>
                     </div>
                     <div class="session-card__actions">
                         <button class="session-card__btn session-card__btn--primary" title="Session starten" onclick="event.preventDefault(); event.stopPropagation();">
