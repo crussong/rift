@@ -930,16 +930,29 @@
             const gmContent = document.getElementById('gmContent');
             const accessDenied = document.getElementById('accessDenied');
             const currentRoomCode = localStorage.getItem('rift_current_room');
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            
+            // Quick check from localStorage first
+            if (userData.isGM === true) {
+                console.log('[GM] Quick access granted from localStorage');
+                gmContent.style.display = '';
+                accessDenied.style.display = 'none';
+                GMDash.init();
+                return;
+            }
             
             // Hide content initially
             gmContent.style.display = 'none';
             
-            // Wait for Firebase
-            function waitForRIFT() {
-                return new Promise((resolve) => {
+            // Wait for Firebase with timeout
+            function waitForRIFT(timeout = 5000) {
+                return new Promise((resolve, reject) => {
+                    const start = Date.now();
                     const check = () => {
-                        if (typeof RIFT !== 'undefined' && RIFT.rooms && firebase?.auth()?.currentUser) {
-                            resolve();
+                        if (typeof RIFT !== 'undefined' && RIFT.rooms) {
+                            resolve(true);
+                        } else if (Date.now() - start > timeout) {
+                            reject(new Error('Timeout waiting for RIFT'));
                         } else {
                             setTimeout(check, 200);
                         }
@@ -952,26 +965,36 @@
                 await waitForRIFT();
                 
                 if (!currentRoomCode) {
+                    console.log('[GM] No room code');
                     accessDenied.style.display = 'flex';
                     return;
                 }
                 
                 const isGM = await RIFT.rooms.isUserGM(currentRoomCode);
+                console.log('[GM] Firebase check result:', isGM);
                 
                 if (isGM) {
                     gmContent.style.display = '';
                     accessDenied.style.display = 'none';
                     GMDash.init();
+                    
+                    // Update localStorage
+                    userData.isGM = true;
+                    localStorage.setItem('rift_user', JSON.stringify(userData));
                 } else {
                     gmContent.style.display = 'none';
                     accessDenied.style.display = 'flex';
                 }
             } catch (e) {
                 console.error('[GM] Access check failed:', e);
-                // Show for testing
-                gmContent.style.display = '';
-                accessDenied.style.display = 'none';
-                GMDash.init();
+                // Fallback: show if localStorage says GM
+                if (userData.isGM === true) {
+                    gmContent.style.display = '';
+                    accessDenied.style.display = 'none';
+                    GMDash.init();
+                } else {
+                    accessDenied.style.display = 'flex';
+                }
             }
         })();
         

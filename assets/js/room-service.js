@@ -237,15 +237,28 @@ async function getUserRole(code, userId) {
 
 /**
  * Check if user is GM of a room
+ * @param {string} code - Room code
+ * @param {string} [userId] - User ID (defaults to current user)
  */
 async function isUserGM(code, userId) {
-    // First check room's gmId (faster)
-    const room = await getRoom(code);
-    if (room && room.gmId === userId) return true;
+    // Default to current user
+    if (!userId) {
+        userId = firebase?.auth()?.currentUser?.uid;
+    }
+    if (!userId) return false;
     
-    // Fallback to member role check
-    const role = await getUserRole(code, userId);
-    return role === 'gm';
+    try {
+        // First check room's gmId (faster)
+        const room = await getRoom(code);
+        if (room && room.gmId === userId) return true;
+        
+        // Fallback to member role check
+        const role = await getUserRole(code, userId);
+        return role === 'gm';
+    } catch (e) {
+        console.error('[RoomService] isUserGM error:', e);
+        return false;
+    }
 }
 
 /**
