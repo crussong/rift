@@ -100,7 +100,7 @@
                 
                 <!-- Quick Action Bar -->
                 <div class="quick-action-bar">
-                    <a href="sheet.html" class="quick-action">
+                    <a href="sheet.html" class="quick-action" id="quickActionPrimary">
                         <div class="quick-action__icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 5v14M5 12h14"/>
@@ -559,11 +559,13 @@
             const prevBtn = document.querySelector('.news-carousel-nav__btn[data-dir="prev"]');
             const nextBtn = document.querySelector('.news-carousel-nav__btn[data-dir="next"]');
             
-            if (track && cards && dotsContainer) {
+            if (track && cards && cards.length > 0 && dotsContainer) {
                 // Create dots
+                dotsContainer.innerHTML = '';
                 cards.forEach((_, i) => {
                     const dot = document.createElement('button');
                     dot.className = 'news-carousel__dot' + (i === 0 ? ' active' : '');
+                    dot.setAttribute('aria-label', `News ${i + 1}`);
                     dot.addEventListener('click', () => scrollToCard(i));
                     dotsContainer.appendChild(dot);
                 });
@@ -573,26 +575,43 @@
                 function scrollToCard(index) {
                     const card = cards[index];
                     if (card) {
-                        track.scrollTo({ left: card.offsetLeft - 24, behavior: 'smooth' });
+                        const scrollPos = card.offsetLeft - parseInt(getComputedStyle(track).paddingLeft || 0);
+                        track.scrollTo({ left: scrollPos, behavior: 'smooth' });
                     }
                 }
                 
                 function updateDots() {
                     const scrollLeft = track.scrollLeft;
-                    const cardWidth = cards[0].offsetWidth + 16;
-                    const activeIndex = Math.round(scrollLeft / cardWidth);
+                    let activeIndex = 0;
+                    let minDistance = Infinity;
+                    
+                    cards.forEach((card, i) => {
+                        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+                        const viewCenter = scrollLeft + track.offsetWidth / 2;
+                        const distance = Math.abs(cardCenter - viewCenter);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            activeIndex = i;
+                        }
+                    });
+                    
                     dots.forEach((dot, i) => dot.classList.toggle('active', i === activeIndex));
                 }
                 
                 track.addEventListener('scroll', updateDots);
                 
                 prevBtn?.addEventListener('click', () => {
-                    track.scrollBy({ left: -320, behavior: 'smooth' });
+                    const cardWidth = cards[0].offsetWidth + 20; // 20px gap
+                    track.scrollBy({ left: -cardWidth, behavior: 'smooth' });
                 });
                 
                 nextBtn?.addEventListener('click', () => {
-                    track.scrollBy({ left: 320, behavior: 'smooth' });
+                    const cardWidth = cards[0].offsetWidth + 20; // 20px gap
+                    track.scrollBy({ left: cardWidth, behavior: 'smooth' });
                 });
+                
+                // Initial update
+                updateDots();
             }
         })();
         
@@ -803,6 +822,22 @@
             } else {
                 statusBanner.style.display = 'none';
             }
+            
+            // Update Quick Action Bar based on session status
+            const quickActionPrimary = document.getElementById('quickActionPrimary');
+            if (quickActionPrimary) {
+                if (!hasSessions) {
+                    // Keine Session - zeige "Session beitreten"
+                    quickActionPrimary.href = 'sessions.html';
+                    quickActionPrimary.querySelector('.quick-action__icon').innerHTML = `
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                            <polyline points="10 17 15 12 10 7"/>
+                            <line x1="15" y1="12" x2="3" y2="12"/>
+                        </svg>`;
+                    quickActionPrimary.querySelector('.quick-action__label').textContent = 'Session beitreten';
+                }
+            }
                 
                 // Find next upcoming session
                 const upcomingSessions = sessions.filter(s => {
@@ -839,9 +874,14 @@
                         'cyberpunk': { name: 'CYBERPUNK', class: 'cyberpunk', icon: 'ruleset_cyberpunkred.svg' }
                     };
                     
-                    // Get upcoming/active sessions (max 2)
+                    // Get upcoming/active sessions (unique by ID, max 2)
+                    const seenIds = new Set();
                     const activeSessions = sessions
-                        .filter(s => s.status !== 'ended')
+                        .filter(s => {
+                            if (s.status === 'ended' || seenIds.has(s.id)) return false;
+                            seenIds.add(s.id);
+                            return true;
+                        })
                         .slice(0, 2);
                     
                     const continueCards = activeSessions.map(session => {
@@ -912,6 +952,13 @@
                     continueContainer.innerHTML = continueCards;
                     continueContainer.style.display = 'flex';
                     continueContainer.style.gap = '24px';
+                    
+                    // Wenn nur 1 Card, zentrieren
+                    if (activeSessions.length === 1) {
+                        continueContainer.style.justifyContent = 'center';
+                    } else {
+                        continueContainer.style.justifyContent = 'flex-start';
+                    }
                 }
             
             // Sessions Widget
