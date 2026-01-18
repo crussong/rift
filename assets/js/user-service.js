@@ -30,9 +30,11 @@ async function createOrUpdateProfile(user, additionalData = {}) {
             oderId: user.uid,
             displayName: additionalData.displayName || user.displayName || generateDisplayName(),
             name: additionalData.displayName || user.displayName || generateDisplayName(),
-            email: user.email || null,
-            photoURL: user.photoURL || null,
+            email: additionalData.email || user.email || null,
+            photoURL: additionalData.photoURL || additionalData.avatar || user.photoURL || null,
+            avatar: additionalData.avatar || additionalData.photoURL || user.photoURL || null,
             color: additionalData.color || getRandomColor(),
+            provider: additionalData.provider || (user.isAnonymous ? 'anonymous' : 'unknown'),
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             lastSeen: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -60,6 +62,13 @@ async function createOrUpdateProfile(user, additionalData = {}) {
         if (additionalData.color) {
             updates.color = additionalData.color;
         }
+        if (additionalData.photoURL || additionalData.avatar) {
+            updates.photoURL = additionalData.photoURL || additionalData.avatar;
+            updates.avatar = additionalData.avatar || additionalData.photoURL;
+        }
+        if (additionalData.provider) {
+            updates.provider = additionalData.provider;
+        }
         
         await userRef.update(updates);
         console.log('[UserService] Updated profile:', user.uid);
@@ -72,8 +81,8 @@ async function createOrUpdateProfile(user, additionalData = {}) {
             color: updates.color || existingData.color,
             email: existingData.email,
             // Prioritize localStorage avatar over Firestore photoURL
-            avatar: localStored?.avatar || existingData.avatar || existingData.photoURL || null,
-            photoURL: localStored?.avatar || existingData.avatar || existingData.photoURL || null,
+            avatar: localStored?.avatar || updates.avatar || existingData.avatar || existingData.photoURL || null,
+            photoURL: localStored?.avatar || updates.photoURL || existingData.avatar || existingData.photoURL || null,
             isGM: localStored?.isGM !== undefined ? localStored.isGM : (existingData.isGM || false)
         };
     }

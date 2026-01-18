@@ -355,10 +355,6 @@ class LoginController {
         document.getElementById('btn-google-login')?.addEventListener('click', () => {
             this.signInWithGoogle();
         });
-        
-        document.getElementById('btn-discord-login')?.addEventListener('click', () => {
-            this.signInWithDiscord();
-        });
     }
     
     showStep(step) {
@@ -544,7 +540,7 @@ class LoginController {
             // Show loading
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = '<div class="spinner"></div><span>Wird geladen...</span>';
+                btn.innerHTML = '<div class="spinner"></div><span>Anmelden...</span>';
             }
             
             // Sign in with Google
@@ -557,32 +553,46 @@ class LoginController {
             
             console.log('[Auth] Google sign-in successful:', user.displayName);
             
-            // Fill in the form with Google data
-            const usernameInput = document.getElementById('username-input');
-            if (usernameInput && user.displayName) {
-                // Use display name + random discriminator
-                const discriminator = Math.floor(1000 + Math.random() * 9000);
-                usernameInput.value = `${user.displayName}#${discriminator}`;
-            }
+            // Generate username with discriminator
+            const discriminator = Math.floor(1000 + Math.random() * 9000);
+            const displayName = `${user.displayName}#${discriminator}`;
             
-            // Store OAuth info for later
-            this.oauthUser = {
+            // Pick a random color
+            const color = getRandomColor().value;
+            
+            // Create profile in Firestore with Google data
+            const profileData = {
+                displayName: displayName,
+                color: color,
                 provider: 'google',
-                uid: user.uid,
-                displayName: user.displayName,
                 email: user.email,
-                photoURL: user.photoURL
+                photoURL: user.photoURL,
+                avatar: user.photoURL // Use Google photo as avatar
             };
             
-            // Show connected state
-            this.showOAuthConnected('google', user.displayName, user.photoURL);
+            await RIFT.user.createOrUpdateProfile(user, profileData);
             
-            // Update preview
-            this.updatePreview();
+            // Save to localStorage
+            const userData = {
+                uid: user.uid,
+                name: displayName,
+                color: color,
+                initial: user.displayName.charAt(0).toUpperCase(),
+                isGM: false,
+                provider: 'google',
+                avatar: user.photoURL
+            };
+            RIFT.user.saveUserToStorage(userData);
             
+            // Success toast
             if (window.RIFT?.ui?.Toast) {
-                RIFT.ui.Toast.success(`Angemeldet als ${user.displayName}`, 'Google');
+                RIFT.ui.Toast.success(`Willkommen, ${user.displayName}!`, 'Angemeldet');
             }
+            
+            // Redirect to dashboard
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 500);
             
         } catch (error) {
             console.error('[Auth] Google sign-in error:', error);
@@ -602,18 +612,8 @@ class LoginController {
     }
     
     async signInWithDiscord() {
-        const btn = document.getElementById('btn-discord-login');
-        
-        // Discord requires a backend for OAuth token exchange
-        // For now, show a message that it's coming soon
-        if (window.RIFT?.ui?.Toast) {
-            RIFT.ui.Toast.info('Discord-Anmeldung kommt bald!', 'In Entwicklung');
-        }
-        
-        // TODO: Implement Discord OAuth with Cloud Functions
-        // 1. Redirect to Discord OAuth
-        // 2. Cloud Function handles callback and creates Firebase custom token
-        // 3. Sign in with custom token
+        // Discord OAuth removed - not implemented
+        console.log('[Auth] Discord login not available');
     }
     
     showOAuthConnected(provider, name, photoURL) {
