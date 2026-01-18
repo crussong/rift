@@ -55,11 +55,37 @@ const App = {
             await RIFT.firebase.init();
             
             // Check auth state
-            RIFT.user.initAuthListener((user) => {
+            RIFT.user.initAuthListener(async (user) => {
                 if (user) {
                     this.user = user;
                     window.currentUser = user;
                     console.log('[App] User authenticated:', user.displayName || user.name);
+                    
+                    // Get current room
+                    this.roomCode = RIFT.user.getCurrentRoom();
+                    
+                    // Load room membership to get actual isGM status
+                    if (this.roomCode && RIFT.rooms) {
+                        try {
+                            const membership = await RIFT.rooms.getCurrentMembership(this.roomCode);
+                            if (membership) {
+                                // Update isGM from room data (overrides localStorage)
+                                window.currentUser.isGM = membership.isGM;
+                                window.currentUser.isRoomOwner = membership.isOwner;
+                                window.currentUser.roomRole = membership.role;
+                                
+                                // Also update localStorage
+                                const stored = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                                stored.isGM = membership.isGM;
+                                localStorage.setItem('rift_user', JSON.stringify(stored));
+                                
+                                console.log('[App] Room membership loaded - isGM:', membership.isGM, 'role:', membership.role);
+                            }
+                        } catch (e) {
+                            console.warn('[App] Could not load room membership:', e);
+                        }
+                    }
+                    
                     this.updateRoomDisplay();
                     
                     // Update user display in layout

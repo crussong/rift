@@ -1106,14 +1106,37 @@ function createSettingsModal() {
                     <div class="settings-content" data-content="role">
                         <div class="settings-form-group">
                             <label class="settings-label">Spielleiter-Modus</label>
-                            <div class="settings-toggle-row">
-                                <span class="settings-toggle-label">Ich bin Spielleiter (GM)</span>
-                                <label class="settings-toggle">
-                                    <input type="checkbox" id="settingsIsGM" ${userData.isGM ? 'checked' : ''}>
-                                    <span class="settings-toggle-slider"></span>
-                                </label>
-                            </div>
-                            <p class="form-hint">Als GM hast du Zugriff auf erweiterte Optionen wie Spielerverwaltung, Session-Steuerung und mehr.</p>
+                            ${window.currentUser?.roomRole ? `
+                                <!-- In a room - show current role -->
+                                <div class="settings-info-box ${userData.isGM ? 'settings-info-box--gm' : ''}">
+                                    <div class="settings-info-icon">
+                                        ${userData.isGM ? `
+                                            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                            </svg>
+                                        ` : `
+                                            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                            </svg>
+                                        `}
+                                    </div>
+                                    <div class="settings-info-text">
+                                        <strong>${userData.isGM ? 'Du bist Spielleiter' : 'Du bist Spieler'}</strong>
+                                        <span>Deine Rolle in diesem Raum</span>
+                                    </div>
+                                </div>
+                                <p class="form-hint">Die Rolle wird vom Raum-Ersteller vergeben und kann nicht selbst geändert werden.</p>
+                            ` : `
+                                <!-- No room - allow toggle for solo mode -->
+                                <div class="settings-toggle-row">
+                                    <span class="settings-toggle-label">Ich bin Spielleiter (GM)</span>
+                                    <label class="settings-toggle">
+                                        <input type="checkbox" id="settingsIsGM" ${userData.isGM ? 'checked' : ''}>
+                                        <span class="settings-toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p class="form-hint">Als GM hast du Zugriff auf erweiterte Optionen wie Spielerverwaltung, Session-Steuerung und mehr.</p>
+                            `}
                         </div>
                     </div>
                 </div>

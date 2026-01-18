@@ -218,6 +218,86 @@ async function roomExists(code) {
 async function getRoomMembers(code) {
     const db = RIFT.firebase.getFirestore();
     if (!db) throw new Error('Firebase nicht initialisiert');
+
+/**
+ * Get current user's role in a room
+ * @returns {Promise<'gm'|'player'|null>} Role or null if not a member
+ */
+async function getUserRole(code, userId) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db || !code || !userId) return null;
+    
+    try {
+        const normalizedCode = normalizeRoomCode(code);
+        const memberDoc = await db.collection('rooms').doc(normalizedCode)
+            .collection('members').doc(userId).get();
+        
+        if (!memberDoc.exists) return null;
+        return memberDoc.data().role || 'player';
+    } catch (e) {
+        console.warn('[RoomService] getUserRole error:', e);
+        return null;
+    }
+}
+
+/**
+ * Check if user is GM of a room
+ */
+async function isUserGM(code, userId) {
+    // First check room's gmId (faster)
+    const room = await getRoom(code);
+    if (room && room.gmId === userId) return true;
+    
+    // Fallback to member role check
+    const role = await getUserRole(code, userId);
+    return role === 'gm';
+}
+
+/**
+ * Get current user's membership info for a room
+ */
+async function getCurrentMembership(code) {
+    const db = RIFT.firebase.getFirestore();
+    const currentUser = firebase.auth().currentUser;
+    if (!db || !code || !currentUser) return null;
+    
+    try {
+        const normalizedCode = normalizeRoomCode(code);
+        
+        // Get room data
+        const roomDoc = await db.collection('rooms').doc(normalizedCode).get();
+        if (!roomDoc.exists) return null;
+        const roomData = roomDoc.data();
+        
+        // Get member data
+        const memberDoc = await db.collection('rooms').doc(normalizedCode)
+            .collection('members').doc(currentUser.uid).get();
+        
+        if (!memberDoc.exists) return null;
+        const memberData = memberDoc.data();
+        
+        return {
+            oderId: currentUser.uid,
+            roomCode: normalizedCode,
+            role: memberData.role || 'player',
+            isGM: roomData.gmId === currentUser.uid || memberData.role === 'gm',
+            isOwner: roomData.gmId === currentUser.uid,
+            joinedAt: memberData.joinedAt,
+            roomName: roomData.name,
+            ruleset: roomData.ruleset
+        };
+    } catch (e) {
+        console.warn('[RoomService] getCurrentMembership error:', e);
+        return null;
+    }
+}
+
+/**
+ * Get room members
+ */
+async function getRoomMembers(code) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) throw new Error('Firebase nicht initialisiert');
     
     const normalizedCode = normalizeRoomCode(code);
     const membersSnap = await db.collection('rooms').doc(normalizedCode)
@@ -537,6 +617,11 @@ if (typeof window !== 'undefined') {
         leaveRoom,
         getRoomMembers,
         updateMemberStatus,
+        
+        // Role/Membership
+        getUserRole,
+        isUserGM,
+        getCurrentMembership,
         
         // Subscriptions
         subscribeToRoom,
