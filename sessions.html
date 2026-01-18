@@ -165,7 +165,7 @@
                             <select id="historyFilter" class="sessions-filter">
                                 <option value="all">Alle Kampagnen</option>
                                 <option value="worldsapart">Worlds Apart</option>
-                                <option value="5e">D&D 5e</option>
+                                <option value="5e2024">D&D 5e</option>
                                 <option value="htbah">How To Be A Hero</option>
                                 <option value="cyberpunk">Cyberpunk Red</option>
                             </select>
@@ -1793,10 +1793,17 @@
             const pastContainer = document.getElementById('pastSessions');
             const pastEmpty = document.getElementById('pastEmpty');
             
-            if (past.length > 0) {
+            // Apply ruleset filter
+            const historyFilter = document.getElementById('historyFilter');
+            const filterValue = historyFilter?.value || 'all';
+            const filteredPast = filterValue === 'all' 
+                ? past 
+                : past.filter(s => s.ruleset === filterValue);
+            
+            if (filteredPast.length > 0) {
                 pastEmpty.style.display = 'none';
-                pastContainer.innerHTML = past.map(s => renderSessionCard(s, true)).join('');
-                document.getElementById('loadMoreContainer').style.display = past.length > 5 ? 'flex' : 'none';
+                pastContainer.innerHTML = filteredPast.map(s => renderSessionCard(s, true)).join('');
+                document.getElementById('loadMoreContainer').style.display = filteredPast.length > 5 ? 'flex' : 'none';
             } else {
                 pastEmpty.style.display = 'flex';
                 pastContainer.innerHTML = '';
@@ -1811,6 +1818,11 @@
         
         // Load sessions on page load
         loadSessions();
+        
+        // Filter event listener
+        document.getElementById('historyFilter')?.addEventListener('change', () => {
+            loadSessions();
+        });
         
         // Make functions globally available for onclick handlers
         window.openCreateModal = openCreateModal;
