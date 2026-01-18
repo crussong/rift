@@ -55,10 +55,9 @@ service cloud.firestore {
       // Anyone authenticated can create a room
       allow create: if isAuthenticated();
       
-      // Only members can read room data
-      allow read: if isRoomMember(roomId) || 
-        // Allow read during join check (before becoming member)
-        isAuthenticated();
+      // Allow read for anyone authenticated (needed for join check)
+      // This is safe because room data is not sensitive
+      allow read: if isAuthenticated();
       
       // Only GM can update/delete room
       allow update, delete: if isRoomGM(roomId);
@@ -67,10 +66,8 @@ service cloud.firestore {
       // MEMBERS SUBCOLLECTION
       // ----------------------------------------
       match /members/{memberId} {
-        // Members can read all members in their room
-        allow read: if isRoomMember(roomId) || 
-          // Allow during join (checking own membership)
-          (isAuthenticated() && request.auth.uid == memberId);
+        // Allow read for authenticated users (needed during join)
+        allow read: if isAuthenticated();
         
         // User can add themselves (join room)
         allow create: if isAuthenticated() && request.auth.uid == memberId;
