@@ -510,15 +510,102 @@ function initUserDropdown() {
 }
 
 /**
- * Update party count from storage
+ * Subscribe to party members from Firebase (realtime)
+ */
+let partyUnsubscribe = null;
+
+function subscribeToPartyMembers() {
+    const roomCode = localStorage.getItem('rift_current_room');
+    if (!roomCode) {
+        console.log('[Layout] No room code, skipping party subscription');
+        return;
+    }
+    
+    // Wait for RIFT.rooms to be available
+    if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+        setTimeout(subscribeToPartyMembers, 500);
+        return;
+    }
+    
+    // Unsubscribe from previous if exists
+    if (partyUnsubscribe) partyUnsubscribe();
+    
+    console.log('[Layout] Subscribing to party members for room:', roomCode);
+    
+    partyUnsubscribe = RIFT.rooms.subscribeToMembers(roomCode, (members) => {
+        console.log('[Layout] Party update - members:', members.length);
+        updatePartyUI(members);
+    });
+}
+
+/**
+ * Update party UI (sidebar dropdown + count)
+ */
+function updatePartyUI(members) {
+    const currentUserId = firebase.auth()?.currentUser?.uid;
+    const onlineMembers = members.filter(m => m.online === true);
+    const otherMembers = members.filter(m => m.id !== currentUserId);
+    
+    // Update count in topbar
+    updatePartyCount(onlineMembers.length, members.length);
+    
+    // Update sidebar dropdown list
+    const listEl = document.getElementById('partyMembersList');
+    const emptyEl = document.getElementById('partyEmptyState');
+    const footerEl = document.getElementById('partyFooter');
+    const gmNameEl = document.getElementById('partyGmName');
+    
+    if (!listEl) return;
+    
+    if (otherMembers.length === 0) {
+        listEl.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'block';
+        if (footerEl) footerEl.style.display = 'none';
+        return;
+    }
+    
+    if (emptyEl) emptyEl.style.display = 'none';
+    listEl.style.display = 'block';
+    
+    // Find GM
+    const gm = members.find(m => m.role === 'gm');
+    if (gm && gmNameEl && footerEl) {
+        gmNameEl.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+            GM: ${gm.displayName || gm.name || 'Unbekannt'}
+        `;
+        footerEl.style.display = 'flex';
+    }
+    
+    // Render member list
+    listEl.innerHTML = otherMembers.map(member => {
+        const name = member.displayName || member.name || 'Unbekannt';
+        const color = member.color || '#8B5CF6';
+        const initial = name.charAt(0).toUpperCase();
+        const isOnline = member.online === true;
+        const isGM = member.role === 'gm';
+        
+        return `
+            <div class="topbar__party-member ${isOnline ? 'topbar__party-member--online' : ''}">
+                <div class="topbar__party-member-avatar" style="background: ${color};">
+                    ${initial}
+                    <span class="topbar__party-member-status"></span>
+                </div>
+                <div class="topbar__party-member-info">
+                    <span class="topbar__party-member-name">${name}</span>
+                    ${isGM ? '<span class="topbar__party-member-role">Spielleiter</span>' : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Update party count from storage (fallback)
  */
 function updatePartyFromStorage() {
-    // Load party data from room if exists
-    const roomData = JSON.parse(localStorage.getItem('rift_room_data') || '{}');
-    const online = roomData.onlineCount || 1; // At least current user
-    const total = roomData.partySize || 1;
-    updatePartyCount(online, total);
-}
+    // Try to subscribe to Firebase instead
+    subscribeToPartyMembers();
 
 /**
  * Update user display in topbar and sidebar
@@ -1452,6 +1539,100 @@ function updatePartyCount(online = 0, total = 0) {
         onlineCount.textContent = `${online} online`;
     }
 }
+
+/**
+ * Update Party Dropdown with member list
+ * @param {Array} members - Array of member objects from Firebase
+ */
+function updatePartyDropdown(members) {
+    const listEl = document.getElementById('partyMembersList');
+    const emptyEl = document.getElementById('partyEmptyState');
+    const footerEl = document.getElementById('partyFooter');
+    const gmNameEl = document.getElementById('partyGmName');
+    
+    if (!listEl) return;
+    
+    // Filter out current user (show others)
+    const currentUserId = firebase?.auth()?.currentUser?.uid;
+    const otherMembers = members.filter(m => m.id !== currentUserId);
+    const onlineCount = members.filter(m => m.online === true).length;
+    const gm = members.find(m => m.role === 'gm');
+    
+    // Update count
+    updatePartyCount(onlineCount, members.length);
+    
+    if (otherMembers.length === 0) {
+        listEl.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'block';
+        if (footerEl) footerEl.style.display = 'none';
+        return;
+    }
+    
+    if (emptyEl) emptyEl.style.display = 'none';
+    listEl.style.display = 'flex';
+    if (footerEl) footerEl.style.display = 'flex';
+    
+    // Update GM name
+    if (gmNameEl && gm) {
+        gmNameEl.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+            GM: ${gm.displayName || gm.name || 'Unbekannt'}
+        `;
+    }
+    
+    // Render members
+    listEl.innerHTML = otherMembers.map(member => {
+        const name = member.displayName || member.name || 'Unbekannt';
+        const color = member.color || '#8B5CF6';
+        const initial = name.charAt(0).toUpperCase();
+        const isOnline = member.online === true;
+        const roleLabel = member.role === 'gm' ? 'Spielleiter' : 'Spieler';
+        const statusClass = isOnline ? 'online' : 'offline';
+        
+        return `
+            <div class="topbar__party-member">
+                <div class="topbar__party-member-avatar topbar__party-member-avatar--${statusClass}" style="background: ${color};">
+                    ${initial}
+                </div>
+                <div class="topbar__party-member-info">
+                    <span class="topbar__party-member-name">${name}</span>
+                    <span class="topbar__party-member-char">${roleLabel}</span>
+                </div>
+                <span class="topbar__party-member-status topbar__party-member-status--${statusClass}">
+                    ${isOnline ? '●' : '○'}
+                </span>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Initialize Party Sync (subscribe to Firebase members)
+ */
+function initPartySync() {
+    const roomCode = localStorage.getItem('rift_current_room');
+    if (!roomCode) {
+        console.log('[Layout] No room code, skipping party sync');
+        return;
+    }
+    
+    // Wait for Firebase
+    if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+        setTimeout(initPartySync, 500);
+        return;
+    }
+    
+    console.log('[Layout] Starting party sync for room:', roomCode);
+    
+    // Subscribe to member updates
+    RIFT.rooms.subscribeToMembers(roomCode, (members) => {
+        console.log('[Layout] Party members updated:', members.length);
+        updatePartyDropdown(members);
+    });
+}
+
+// Start party sync after layout is initialized
+setTimeout(initPartySync, 1000);
 
 // Make new functions globally available
 // openSettings is handled by settings.js - don't override here
