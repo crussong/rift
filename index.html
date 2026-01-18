@@ -492,6 +492,88 @@
         // Get current room code for filtering
         var currentRoomCode = localStorage.getItem('rift_current_room') || null;
         
+        // ========================================
+        // PARTY MEMBERS (Realtime from Firebase)
+        // ========================================
+        (function() {
+            const partyList = document.getElementById('partyList');
+            const partyEmpty = document.getElementById('partyEmpty');
+            let unsubscribe = null;
+            
+            function renderPartyMembers(members) {
+                if (!partyList || !partyEmpty) return;
+                
+                // Filter out current user for display (show others)
+                const currentUserId = firebase.auth()?.currentUser?.uid;
+                const otherMembers = members.filter(m => m.id !== currentUserId);
+                
+                console.log('[Hub] Party members:', members.length, 'Others:', otherMembers.length);
+                
+                if (otherMembers.length === 0) {
+                    partyList.style.display = 'none';
+                    partyEmpty.style.display = 'flex';
+                    return;
+                }
+                
+                partyEmpty.style.display = 'none';
+                partyList.style.display = 'flex';
+                
+                partyList.innerHTML = otherMembers.map(member => {
+                    const name = member.displayName || member.name || 'Unbekannt';
+                    const color = member.color || '#8B5CF6';
+                    const initial = name.charAt(0).toUpperCase();
+                    const isOnline = member.online === true;
+                    const role = member.role === 'gm' ? 'Spielleiter' : 'Spieler';
+                    
+                    return `
+                        <div class="party-member">
+                            <div class="party-member__avatar" style="background: ${color};">
+                                ${initial}
+                                <span class="party-member__status party-member__status--${isOnline ? 'online' : 'offline'}"></span>
+                            </div>
+                            <div class="party-member__info">
+                                <span class="party-member__name">${name}</span>
+                                <span class="party-member__role">${role}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            function subscribeToParty() {
+                const roomCode = localStorage.getItem('rift_current_room');
+                if (!roomCode) {
+                    console.log('[Hub] No room code, skipping party subscription');
+                    return;
+                }
+                
+                // Wait for Firebase and RIFT.rooms
+                if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+                    setTimeout(subscribeToParty, 500);
+                    return;
+                }
+                
+                console.log('[Hub] Subscribing to party members for room:', roomCode);
+                
+                // Unsubscribe from previous if exists
+                if (unsubscribe) unsubscribe();
+                
+                // Subscribe to realtime updates
+                unsubscribe = RIFT.rooms.subscribeToMembers(roomCode, (members) => {
+                    console.log('[Hub] Received members update:', members);
+                    renderPartyMembers(members);
+                });
+            }
+            
+            // Start subscription after a delay to ensure Firebase is ready
+            setTimeout(subscribeToParty, 1000);
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', () => {
+                if (unsubscribe) unsubscribe();
+            });
+        })();
+        
         // Show GM elements and adjust UI based on role
         (function() {
             const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');

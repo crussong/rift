@@ -123,7 +123,8 @@ async function createRoom({ name, ruleset, gm }) {
     // Add GM as first member
     await db.collection('rooms').doc(code).collection('members').doc(gm.uid).set({
         userId: gm.uid,
-        name: gm.name,
+        name: gm.name || gm.displayName,
+        displayName: gm.displayName || gm.name,
         color: gm.color || '#8B5CF6',
         joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
         role: 'gm',
@@ -169,8 +170,9 @@ async function joinRoom(code, user) {
     } else {
         // Add as new member
         await memberRef.set({
-            oderId: user.uid,
-            name: user.name,
+            userId: user.uid,
+            name: user.name || user.displayName,
+            displayName: user.displayName || user.name,
             color: user.color || '#8B5CF6',
             joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
             role: 'player',
