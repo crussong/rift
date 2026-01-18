@@ -429,6 +429,13 @@ class LoginController {
         }
         
         try {
+            // Ensure user is authenticated (sign in anonymously if not)
+            if (!firebase.auth().currentUser) {
+                console.log('[Auth] Signing in anonymously for room check...');
+                await firebase.auth().signInAnonymously();
+                console.log('[Auth] Signed in anonymously:', firebase.auth().currentUser?.uid);
+            }
+            
             // Check if room exists in Firebase
             const exists = await RIFT.rooms.roomExists(code);
             
@@ -441,6 +448,7 @@ class LoginController {
             this.showStep('setup');
             
         } catch (error) {
+            console.error('[Auth] Room check error:', error);
             this.showError(errorEl, error.message || 'Raum nicht gefunden');
         } finally {
             if (checkBtn) {
