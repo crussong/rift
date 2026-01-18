@@ -1,0 +1,2324 @@
+/**
+ * RIFT v2 - Modern Dice Roller
+ * Full-featured with themes, multiplayer, swipe support
+ */
+
+/* ========================================
+   CSS VARIABLES - DICE THEMES
+   ======================================== */
+
+:root {
+    /* Default Theme - Classic Dark */
+    --dice-primary: #1a1a1a;
+    --dice-secondary: #f0f0f0;
+    --dice-accent: var(--accent);
+}
+
+[data-dice-theme="blood"] {
+    --dice-primary: #8b0000;
+    --dice-secondary: #ffd700;
+    --dice-accent: #ff4655;
+}
+
+[data-dice-theme="ice"] {
+    --dice-primary: #1a3a5c;
+    --dice-secondary: #a8d8ff;
+    --dice-accent: #00d4ff;
+}
+
+[data-dice-theme="nature"] {
+    --dice-primary: #2d4a1c;
+    --dice-secondary: #c8e6c9;
+    --dice-accent: #4caf50;
+}
+
+[data-dice-theme="royal"] {
+    --dice-primary: #2a1a4a;
+    --dice-secondary: #e8d5ff;
+    --dice-accent: #9c27b0;
+}
+
+[data-dice-theme="gold"] {
+    --dice-primary: #3d2c0a;
+    --dice-secondary: #ffd700;
+    --dice-accent: #ffab00;
+}
+
+/* ========================================
+   LAYOUT
+   ======================================== */
+
+.dice-page {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 80px);
+    padding: 24px;
+    gap: 12px;
+    isolation: isolate; /* Create isolated stacking context */
+    position: relative;
+    z-index: 1;
+}
+
+/* ========================================
+   3D ARENA
+   ======================================== */
+
+.dice-arena {
+    position: relative;
+    flex: 1;
+    min-height: 300px;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    transition: all 0.3s ease;
+    
+    /* Theme variables with defaults */
+    --theme-primary: #1a1a1a;
+    --theme-secondary: #f0f0f0;
+}
+
+.dice-arena:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.dice-arena:active {
+    cursor: grabbing;
+}
+
+.dice-arena::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--theme-secondary) 15%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 70% 80%, color-mix(in srgb, var(--theme-primary) 20%, transparent) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: 1;
+    transition: background 0.5s ease;
+}
+
+/* Theme-specific arena backgrounds */
+[data-dice-theme="blood"] .dice-arena::before {
+    background: 
+        radial-gradient(circle at 30% 20%, rgba(255, 70, 85, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 70% 80%, rgba(139, 0, 0, 0.2) 0%, transparent 40%);
+}
+
+[data-dice-theme="ice"] .dice-arena::before {
+    background: 
+        radial-gradient(circle at 30% 20%, rgba(0, 212, 255, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 70% 80%, rgba(26, 58, 92, 0.2) 0%, transparent 40%);
+}
+
+[data-dice-theme="nature"] .dice-arena::before {
+    background: 
+        radial-gradient(circle at 30% 20%, rgba(76, 175, 80, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 70% 80%, rgba(45, 74, 28, 0.2) 0%, transparent 40%);
+}
+
+[data-dice-theme="royal"] .dice-arena::before {
+    background: 
+        radial-gradient(circle at 30% 20%, rgba(156, 39, 176, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 70% 80%, rgba(42, 26, 74, 0.2) 0%, transparent 40%);
+}
+
+[data-dice-theme="gold"] .dice-arena::before {
+    background: 
+        radial-gradient(circle at 30% 20%, rgba(255, 215, 0, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 70% 80%, rgba(61, 44, 10, 0.2) 0%, transparent 40%);
+}
+
+.dice-arena::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.dice-arena canvas {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 5;
+}
+
+/* Swipe Indicator */
+.dice-arena__swipe-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+    z-index: 5;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.dice-arena:not(.empty) .dice-arena__swipe-hint {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dice-arena__swipe-hint svg {
+    width: 16px;
+    height: 16px;
+    animation: swipeHint 2s ease-in-out infinite;
+}
+
+@keyframes swipeHint {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(10px); }
+}
+
+/* Empty State */
+.dice-arena__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-dim);
+    text-align: center;
+    z-index: 5;
+    transition: opacity 0.3s ease;
+}
+
+.dice-arena:not(.empty) .dice-arena__empty {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dice-arena__empty-icon {
+    width: 80px;
+    height: 80px;
+    opacity: 0.3;
+    animation: floatDice 3s ease-in-out infinite;
+}
+
+@keyframes floatDice {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(5deg); }
+}
+
+/* Dice Value Labels (floating above dice) */
+.dice-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15;
+}
+
+.dice-label {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+    opacity: 0;
+    animation: labelFadeIn 0.3s ease-out forwards;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 70, 85, 0.3);
+}
+
+.dice-label::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--accent);
+}
+
+.dice-label--crit {
+    background: var(--accent);
+    border-color: white;
+    animation: labelFadeIn 0.3s ease-out forwards, labelPulse 1s ease-in-out infinite 0.3s;
+}
+
+.dice-label--crit::after {
+    border-top-color: var(--accent);
+}
+
+/* Different colors for different dice types */
+.dice-label--d4 { border-color: #4ECDC4; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(78, 205, 196, 0.4); }
+.dice-label--d4::after { border-top-color: #4ECDC4; }
+
+.dice-label--d6 { border-color: #45B7D1; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(69, 183, 209, 0.4); }
+.dice-label--d6::after { border-top-color: #45B7D1; }
+
+.dice-label--d8 { border-color: #96CEB4; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(150, 206, 180, 0.4); }
+.dice-label--d8::after { border-top-color: #96CEB4; }
+
+.dice-label--d10 { border-color: #DDA0DD; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(221, 160, 221, 0.4); }
+.dice-label--d10::after { border-top-color: #DDA0DD; }
+
+.dice-label--d12 { border-color: #F7DC6F; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(247, 220, 111, 0.4); }
+.dice-label--d12::after { border-top-color: #F7DC6F; }
+
+.dice-label--d20 { border-color: var(--accent); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 70, 85, 0.4); }
+.dice-label--d20::after { border-top-color: var(--accent); }
+
+.dice-label--d100 { border-color: #BB8FCE; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(187, 143, 206, 0.4); }
+.dice-label--d100::after { border-top-color: #BB8FCE; }
+
+@keyframes labelFadeIn {
+    0% { opacity: 0; transform: translate(-50%, -80%); }
+    100% { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+@keyframes labelPulse {
+    0%, 100% { transform: translate(-50%, -100%) scale(1); }
+    50% { transform: translate(-50%, -100%) scale(1.1); }
+}
+
+/* Result Display - Bottom positioned to not cover dice */
+.dice-result {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 20px 40px;
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(30, 30, 30, 0.9));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dice-result.visible {
+    animation: resultSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes resultSlideUp {
+    0% { opacity: 0; transform: translateX(-50%) translateY(40px) scale(0.9); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.dice-result__total {
+    font-family: var(--font-display);
+    font-size: 56px;
+    font-weight: 900;
+    color: white;
+    line-height: 1;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.dice-result__breakdown {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.dice-result__player {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 4px;
+}
+
+/* Secret Roll */
+.dice-result.secret {
+    border-color: var(--accent);
+    background: rgba(255, 70, 85, 0.15);
+}
+
+.dice-result.secret::before {
+    content: '🔒';
+    font-size: 18px;
+    margin-right: 8px;
+}
+
+/* Critical */
+.dice-result.critical {
+    border-color: var(--accent);
+    box-shadow: 0 0 40px rgba(255, 70, 85, 0.5);
+    animation: resultSlideUp 0.4s forwards, critGlow 1.5s ease-in-out infinite 0.4s;
+}
+
+@keyframes critGlow {
+    0%, 100% { box-shadow: 0 0 40px rgba(255, 70, 85, 0.4); }
+    50% { box-shadow: 0 0 60px rgba(255, 70, 85, 0.7); }
+}
+
+.dice-result.critical .dice-result__total {
+    color: var(--accent);
+}
+
+.dice-result.critical::after {
+    content: '🎲 KRITISCH!';
+    margin-left: 12px;
+    padding: 4px 10px;
+    background: var(--accent);
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+}
+
+/* ========================================
+   MULTIPLAYER FEED
+   ======================================== */
+
+.dice-feed {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 15;
+    max-height: 200px;
+    overflow: hidden;
+}
+
+.dice-feed__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    animation: feedSlide 0.3s ease;
+}
+
+@keyframes feedSlide {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.dice-feed__avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+}
+
+.dice-feed__info {
+    flex: 1;
+}
+
+.dice-feed__name {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.dice-feed__roll {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+}
+
+.dice-feed__result {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.dice-feed__item.secret .dice-feed__result {
+    color: var(--text-dim);
+}
+
+.dice-feed__item.secret .dice-feed__result::before {
+    content: '🔒';
+    margin-right: 4px;
+}
+
+/* ========================================
+   CONTROLS
+   ======================================== */
+
+.dice-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Top Bar - Theme & Settings */
+.dice-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    transition: all 0.3s ease;
+}
+
+.dice-toolbar:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dice-toolbar__left,
+.dice-toolbar__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Theme Selector */
+.dice-themes {
+    display: flex;
+    gap: 6px;
+}
+
+.dice-theme-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-theme-btn:hover {
+    transform: scale(1.15);
+}
+
+.dice-theme-btn.active {
+    border-color: white;
+    box-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+
+.dice-theme-btn--classic { background: linear-gradient(135deg, #1a1a1a, #333); }
+.dice-theme-btn--blood { background: linear-gradient(135deg, #8b0000, #ff4655); }
+.dice-theme-btn--ice { background: linear-gradient(135deg, #1a3a5c, #00d4ff); }
+.dice-theme-btn--nature { background: linear-gradient(135deg, #2d4a1c, #4caf50); }
+.dice-theme-btn--royal { background: linear-gradient(135deg, #2a1a4a, #9c27b0); }
+.dice-theme-btn--gold { background: linear-gradient(135deg, #3d2c0a, #ffd700); }
+
+/* Toggle Buttons */
+.dice-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-toggle:hover {
+    border-color: var(--text-muted);
+}
+
+.dice-toggle.active {
+    background: var(--red-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dice-toggle svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ========================================
+   DICE SELECTOR
+   ======================================== */
+
+.dice-orbit {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 18px;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    transition: all 0.3s ease;
+}
+
+.dice-orbit:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dice-orb {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.dice-orb:hover {
+    transform: scale(1.15) translateY(-4px);
+    border-color: var(--dice-color);
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.dice-orb.selected {
+    border-color: var(--dice-color);
+    background: color-mix(in srgb, var(--dice-color) 15%, transparent);
+    box-shadow: 0 0 25px color-mix(in srgb, var(--dice-color) 40%, transparent);
+}
+
+.dice-orb__svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: var(--dice-color);
+    stroke-width: 1.5;
+}
+
+.dice-orb__label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.dice-orb__count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    background: var(--accent);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(0);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dice-orb.selected .dice-orb__count {
+    transform: scale(1);
+}
+
+.dice-orb--d4 { --dice-color: #FF6B6B; }
+.dice-orb--d6 { --dice-color: #4ECDC4; }
+.dice-orb--d8 { --dice-color: #45B7D1; }
+.dice-orb--d10 { --dice-color: #96CEB4; }
+.dice-orb--d12 { --dice-color: #DDA0DD; }
+.dice-orb--d20 { --dice-color: #FF4655; }
+.dice-orb--d100 { --dice-color: #F59E0B; }
+
+/* ========================================
+   QUICK ACTIONS
+   ======================================== */
+
+.dice-quick-row {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dice-preset {
+    padding: 8px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-preset:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Advantage/Disadvantage */
+.dice-adv-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-adv-btn:hover {
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.dice-adv-btn--dis:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dice-adv-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Repeat Button */
+.dice-repeat-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-repeat-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dice-repeat-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dice-repeat-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ========================================
+   ROLL ZONE
+   ======================================== */
+
+.dice-roll-zone-OLD-HIDDEN {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+}
+
+/* Custom Notation Input */
+.dice-notation {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.2s ease;
+}
+
+.dice-notation:focus-within {
+    border-color: var(--accent);
+}
+
+.dice-notation__input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 16px;
+}
+
+.dice-notation__input::placeholder {
+    color: var(--text-dim);
+}
+
+.dice-notation__input:focus {
+    outline: none;
+}
+
+.dice-notation__clear {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.dice-notation:focus-within .dice-notation__clear,
+.dice-notation__input:not(:placeholder-shown) + .dice-notation__clear {
+    opacity: 1;
+}
+
+.dice-notation__clear:hover {
+    color: var(--accent);
+}
+
+/* Modifier */
+.dice-modifier {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.dice-modifier__btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-modifier__btn:hover {
+    color: var(--accent);
+}
+
+.dice-modifier__value {
+    width: 50px;
+    padding: 8px 0;
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    text-align: center;
+}
+
+.dice-modifier__value:focus {
+    outline: none;
+}
+
+/* Roll Button */
+.dice-roll-btn {
+    height: 52px;
+    padding: 0 32px;
+    background: linear-gradient(135deg, var(--accent) 0%, #c73847 100%);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 20px rgba(255, 70, 85, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.dice-roll-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.dice-roll-btn:hover::before {
+    left: 100%;
+}
+
+.dice-roll-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 35px rgba(255, 70, 85, 0.5);
+}
+
+.dice-roll-btn:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+.dice-roll-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.dice-roll-btn.rolling {
+    animation: rollPulse 0.3s ease infinite;
+    box-shadow: 0 0 40px rgba(255, 70, 85, 0.6);
+}
+
+@keyframes rollPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+}
+
+/* ========================================
+   HISTORY
+   ======================================== */
+
+.dice-history {
+    padding: 16px 18px;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    transition: all 0.3s ease;
+}
+
+.dice-history:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dice-history__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.dice-history__title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.dice-history__clear {
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-history__clear:hover {
+    background: rgba(255, 70, 85, 0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dice-history__list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+}
+
+.dice-history__item {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    min-width: 75px;
+    transition: all 0.2s ease;
+}
+
+.dice-history__item:hover {
+    background: rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.dice-history__item--crit {
+    background: linear-gradient(135deg, rgba(255, 70, 85, 0.2), rgba(255, 70, 85, 0.05));
+    border: 1px solid rgba(255, 70, 85, 0.3);
+    box-shadow: 0 4px 20px rgba(255, 70, 85, 0.15);
+}
+
+.dice-history__value {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.dice-history__item--crit .dice-history__value {
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(255, 70, 85, 0.5);
+}
+
+.dice-history__notation {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.dice-history__time {
+    font-size: 9px;
+    color: var(--text-dim);
+}
+
+.dice-history__empty {
+    text-align: center;
+    padding: 12px;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+/* ========================================
+   PARTICLES
+   ======================================== */
+
+.dice-particles {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    pointer-events: none;
+    z-index: 25;
+}
+
+.dice-particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: particleExplode 0.8s ease-out forwards;
+}
+
+@keyframes particleExplode {
+    0% { opacity: 1; transform: translate(0, 0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); }
+}
+
+/* Arena Effects */
+.dice-arena.throwing {
+    animation: arenaThrow 0.3s ease;
+}
+
+@keyframes arenaThrow {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.99); }
+}
+
+.dice-arena.shake {
+    animation: arenaShake 0.5s ease;
+}
+
+@keyframes arenaShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+    .dice-page {
+        padding: 16px;
+        gap: 12px;
+    }
+    
+    .dice-toolbar {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .dice-orbit {
+        gap: 6px;
+        padding: 12px;
+    }
+    
+    .dice-orb {
+        width: 46px;
+        height: 46px;
+    }
+    
+    .dice-orb__svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .dice-orb__label {
+        font-size: 8px;
+    }
+    
+    .dice-roll-zone {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .dice-modifier {
+        justify-self: center;
+    }
+    
+    .dice-roll-btn {
+        width: 100%;
+    }
+    
+    .dice-quick-row {
+        gap: 6px;
+    }
+    
+    .dice-preset,
+    .dice-adv-btn,
+    .dice-repeat-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+    
+    .dice-result__total {
+        font-size: 40px;
+    }
+    
+    .dice-feed {
+        top: 10px;
+        right: 10px;
+    }
+    
+    .dice-feed__item {
+        padding: 6px 10px;
+    }
+    
+    .dice-feed__result {
+        font-size: 20px;
+    }
+}
+
+/* ========================================
+   SIMPLIFIED MODE - HIDE CLUTTER
+   ======================================== */
+
+/* Hide toolbar - move themes to a settings panel later */
+.dice-toolbar {
+    display: none !important;
+}
+
+/* Hide quick actions row */
+.dice-quick-row {
+    display: none !important;
+}
+
+/* Hide custom notation input area */
+.dice-notation {
+    display: none !important;
+}
+
+/* Compact dice orbit */
+.dice-orbit {
+    padding: 14px 16px;
+    gap: 8px;
+}
+
+.dice-orb {
+    width: 50px;
+    height: 50px;
+}
+
+.dice-orb__svg {
+    width: 22px;
+    height: 22px;
+}
+
+.dice-orb__label {
+    font-size: 9px;
+}
+
+/* Compact roll zone */
+.dice-roll-zone {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+}
+
+/* Bigger, more prominent roll button */
+.dice-roll-btn {
+    height: 52px;
+    padding: 0 40px;
+    font-size: 22px;
+    min-width: 160px;
+}
+
+/* Better modifier styling */
+.dice-modifier {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 14px;
+    padding: 4px;
+}
+
+.dice-modifier__btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-modifier__btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text);
+}
+
+.dice-modifier__btn--md {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.dice-modifier__btn--lg {
+    font-size: 11px;
+    color: var(--text-dim);
+    opacity: 0.7;
+}
+
+.dice-modifier__btn--lg:hover {
+    opacity: 1;
+}
+
+.dice-modifier__value {
+    width: 50px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.dice-modifier__value::-webkit-outer-spin-button,
+.dice-modifier__value::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.dice-modifier__value:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Compact history */
+.dice-history {
+    padding: 10px 14px;
+}
+
+.dice-history__header {
+    margin-bottom: 8px;
+}
+
+.dice-history__title {
+    font-size: 10px;
+}
+
+.dice-history__clear {
+    padding: 4px 8px;
+    font-size: 9px;
+}
+
+.dice-history__list {
+    gap: 6px;
+}
+
+.dice-history__item {
+    padding: 8px 12px;
+    min-width: 55px;
+}
+
+.dice-history__value {
+    font-size: 18px;
+}
+
+.dice-history__notation {
+    font-size: 9px;
+}
+
+.dice-history__time {
+    display: none;
+}
+
+/* Show settings via a floating button */
+.dice-page::after {
+    content: '';
+    display: none; /* Placeholder for future settings button */
+}
+
+/* ========================================
+   MOBILE ADJUSTMENTS
+   ======================================== */
+
+@media (max-width: 600px) {
+    .dice-page {
+        padding: 16px;
+        gap: 10px;
+    }
+    
+    .dice-orbit {
+        padding: 12px;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .dice-orb {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .dice-orb__svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .dice-orb__label {
+        font-size: 8px;
+    }
+    
+    .dice-roll-zone {
+        flex-wrap: wrap;
+        padding: 12px;
+        gap: 10px;
+    }
+    
+    .dice-roll-btn {
+        width: 100%;
+        order: -1;
+    }
+    
+    .dice-modifier {
+        order: 1;
+    }
+    
+    /* Hide large modifier buttons on mobile */
+    .dice-modifier__btn--lg {
+        display: none;
+    }
+    
+    .dice-modifier__btn--md {
+        font-size: 11px;
+    }
+    
+    .dice-action-group {
+        order: 2;
+    }
+}
+
+/* ========================================
+   ACTION GROUP (Vorteil/Nachteil/Reset/Settings)
+   ======================================== */
+
+.dice-action-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 14px;
+    padding: 4px;
+}
+
+.dice-action-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text);
+}
+
+.dice-action-btn--adv {
+    color: #22c55e;
+}
+
+.dice-action-btn--adv:hover {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.dice-action-btn--dis {
+    color: var(--accent);
+}
+
+.dice-action-btn--dis:hover {
+    background: rgba(255, 70, 85, 0.15);
+    color: var(--accent);
+}
+
+.dice-action-btn--reset:hover {
+    background: rgba(255, 70, 85, 0.15);
+    color: var(--accent);
+}
+
+.dice-action-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.dice-action-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 2px;
+}
+
+/* ========================================
+   SETTINGS DRAWER
+   ======================================== */
+
+.dice-settings-drawer {
+    display: none;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px 20px;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    animation: slideDown 0.3s ease;
+}
+
+.dice-settings-drawer.open {
+    display: flex;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dice-settings-drawer__section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dice-settings-drawer__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+}
+
+/* Compact theme buttons in drawer */
+.dice-settings-drawer .dice-themes {
+    display: flex;
+    gap: 6px;
+}
+
+.dice-settings-drawer .dice-theme-btn {
+    width: 26px;
+    height: 26px;
+}
+
+/* Compact toggles in drawer */
+.dice-settings-drawer .dice-toggle {
+    padding: 6px 12px;
+    font-size: 11px;
+}
+
+.dice-settings-drawer .dice-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ========================================
+   IMPROVED DICE ORBIT WITH ACTIONS
+   ======================================== */
+
+.dice-orbit {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dice-orbit__dice {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+}
+
+.dice-orbit__action {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.dice-orbit__action:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text);
+    transform: translateY(-2px);
+}
+
+.dice-orbit__action svg {
+    width: 20px;
+    height: 20px;
+}
+
+.dice-orbit__reset:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.dice-orbit__settings:hover {
+    color: #F59E0B;
+    border-color: #F59E0B;
+}
+
+/* ========================================
+   FANCY DICE ICONS
+   ======================================== */
+
+.dice-orb {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    flex-direction: column;
+    gap: 0;
+    padding: 4px;
+}
+
+.dice-orb__icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dice-orb__icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.dice-orb__label {
+    font-size: 8px;
+    margin-top: 2px;
+}
+
+.dice-orb:hover {
+    transform: translateY(-4px) scale(1.08);
+}
+
+.dice-orb:hover .dice-orb__icon svg {
+    filter: drop-shadow(0 0 8px var(--dice-color));
+}
+
+/* ========================================
+   IMPROVED MODIFIER BAR
+   ======================================== */
+
+.dice-modifier {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 6px 8px;
+}
+
+.dice-modifier__btn {
+    min-width: 36px;
+    height: 32px;
+    padding: 0 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-modifier__btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text);
+}
+
+.dice-modifier__btn--md {
+    min-width: 40px;
+    font-size: 11px;
+}
+
+.dice-modifier__btn--lg {
+    min-width: 44px;
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+.dice-modifier__value {
+    width: 50px;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.dice-modifier__value:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2);
+}
+
+/* ========================================
+   ACTION BUTTONS GROUP
+   ======================================== */
+
+.dice-action-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 6px 8px;
+}
+
+.dice-action-btn {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dice-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.dice-action-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.dice-action-btn--adv {
+    color: #22c55e;
+}
+
+.dice-action-btn--adv:hover {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: #22c55e;
+}
+
+.dice-action-btn--dis {
+    color: var(--accent);
+}
+
+.dice-action-btn--dis:hover {
+    background: rgba(255, 70, 85, 0.15);
+    border-color: var(--accent);
+}
+
+.dice-action-btn--reset:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(255, 70, 85, 0.1);
+}
+
+.dice-action-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+}
+
+/* ========================================
+   EPIC RESULT POPUP
+   ======================================== */
+
+.dice-result {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 24px 48px;
+    background: rgba(30, 30, 30, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dice-result::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.dice-result.visible {
+    animation: resultPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes resultPopIn {
+    0% { 
+        opacity: 0; 
+        transform: translateX(-50%) translateY(40px) scale(0.8); 
+    }
+    60% {
+        transform: translateX(-50%) translateY(-5px) scale(1.02);
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateX(-50%) translateY(0) scale(1); 
+    }
+}
+
+.dice-result__total {
+    font-family: var(--font-display);
+    font-size: 64px;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.dice-result__player {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    order: -1; /* Show above total */
+}
+
+.dice-result__breakdown {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.25);
+    padding: 6px 14px;
+    border-radius: 10px;
+}
+
+/* Critical Result */
+.dice-result.critical {
+    border-color: rgba(255, 70, 85, 0.3);
+    background: rgba(255, 70, 85, 0.1);
+    box-shadow: 
+        0 25px 80px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(255, 70, 85, 0.15);
+}
+
+.dice-result.critical::before {
+    background: linear-gradient(90deg, transparent, rgba(255, 70, 85, 0.5), transparent);
+}
+
+.dice-result.critical .dice-result__total {
+    color: var(--accent);
+    animation: critPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes critPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+/* Natural 1 (Fumble) */
+.dice-result.fumble {
+    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.dice-result.fumble .dice-result__total {
+    color: #6366f1;
+}
+
+/* ========================================
+   ROLL ZONE LAYOUT
+   ======================================== */
+
+.dice-roll-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+    .dice-orbit {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .dice-orbit__dice {
+        order: 0;
+        width: 100%;
+    }
+    
+    .dice-orbit__action {
+        order: 1;
+    }
+    
+    .dice-modifier {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .dice-modifier__btn--lg {
+        display: none;
+    }
+    
+    .dice-action-group {
+        order: 2;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .dice-roll-btn {
+        order: -1;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .dice-orb {
+        width: 46px;
+        height: 46px;
+    }
+    
+    .dice-orb__icon {
+        width: 26px;
+        height: 26px;
+    }
+    
+    .dice-modifier__btn--md {
+        display: none;
+    }
+    
+    .dice-result {
+        padding: 20px 32px;
+    }
+    
+    .dice-result__total {
+        font-size: 56px;
+    }
+}
+
+/* Small +/- buttons */
+.dice-modifier__btn--sm {
+    min-width: 32px;
+    font-size: 18px;
+    font-weight: 400;
+}
+
+/* ========================================
+   HISTORY PLAYER NAME
+   ======================================== */
+
+.dice-history__player {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60px;
+    margin-bottom: 2px;
+}
+
+.dice-history__item--crit .dice-history__player {
+    color: white;
+}
+
+/* Adjust history item layout */
+.dice-history--compact .dice-history__item {
+    min-width: 70px;
+    gap: 1px;
+}
+
+/* ========================================
+   DICE LANDING PULSE EFFECT
+   ======================================== */
+
+.dice-pulse {
+    position: absolute;
+    transform: translate(-50%, 0);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.dice-pulse::before,
+.dice-pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid var(--pulse-color, rgba(255, 255, 255, 0.5));
+    animation: pulseRing 0.8s cubic-bezier(0, 0.4, 0.4, 1) forwards;
+}
+
+.dice-pulse::after {
+    animation-delay: 0.12s;
+}
+
+@keyframes pulseRing {
+    0% {
+        transform: scale(1);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(25);
+        opacity: 0;
+    }
+}
+
+/* Pulse colors per dice type */
+.dice-pulse--d4 { --pulse-color: rgba(255, 107, 107, 0.6); }
+.dice-pulse--d6 { --pulse-color: rgba(78, 205, 196, 0.6); }
+.dice-pulse--d8 { --pulse-color: rgba(69, 183, 209, 0.6); }
+.dice-pulse--d10 { --pulse-color: rgba(150, 206, 180, 0.6); }
+.dice-pulse--d12 { --pulse-color: rgba(221, 160, 221, 0.6); }
+.dice-pulse--d20 { --pulse-color: rgba(255, 70, 85, 0.6); }
+.dice-pulse--d100 { --pulse-color: rgba(245, 158, 11, 0.6); }
+
+/* Critical pulse - more intense */
+.dice-pulse--crit::before,
+.dice-pulse--crit::after {
+    border-width: 1.5px;
+    border-color: var(--accent);
+    box-shadow: 0 0 15px var(--accent);
+    animation: pulseRingCrit 0.7s cubic-bezier(0, 0.4, 0.4, 1) forwards;
+}
+
+.dice-pulse--crit::after {
+    animation-delay: 0.08s;
+}
+
+@keyframes pulseRingCrit {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 15px var(--accent);
+    }
+    100% {
+        transform: scale(30);
+        opacity: 0;
+        box-shadow: 0 0 30px var(--accent);
+    }
+}
+
+/* ========================================
+   ARENA SCAN-LINE / RESOLVE EFFECT
+   ======================================== */
+
+.dice-arena.resolving::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent 0%,
+        rgba(255, 70, 85, 0.3) 20%,
+        rgba(255, 70, 85, 0.8) 50%,
+        rgba(255, 70, 85, 0.3) 80%,
+        transparent 100%
+    );
+    box-shadow: 
+        0 0 15px rgba(255, 70, 85, 0.5),
+        0 0 30px rgba(255, 70, 85, 0.3);
+    animation: scanLineDown 1s ease-in-out forwards;
+    pointer-events: none;
+    z-index: 25;
+}
+
+@keyframes scanLineDown {
+    0% {
+        top: 0;
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 0.8;
+    }
+    100% {
+        top: 100%;
+        opacity: 0;
+    }
+}
+
+/* Floor glow effect - at the BOTTOM of the arena */
+.dice-arena.resolving .dice-labels::before {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 150px;
+    background: linear-gradient(to top,
+        rgba(255, 70, 85, 0.15) 0%,
+        rgba(255, 70, 85, 0.05) 50%,
+        transparent 100%
+    );
+    animation: floorGlowPulse 1s ease-out forwards;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes floorGlowPulse {
+    0% {
+        opacity: 0;
+        transform: scaleY(0.5);
+    }
+    30% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scaleY(1.2);
+    }
+}
+
+/* Pulse container - UNDER the 3D canvas */
+.dice-pulses {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1; /* Below the WebGL canvas which is typically z-index: auto */
+    overflow: visible;
+}
+
+/* ========================================
+   DICE HERO CARD BUTTONS - Neues Design
+   ======================================== */
+
+/* dice-orbit__dice bleibt horizontal */
+.dice-orbit__dice {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Hero Card Button - kompakte Größe für horizontales Layout */
+.dice-btn {
+    position: relative;
+    width: 200px;
+    height: 80px;
+    padding: 0;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    overflow: visible;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    background: linear-gradient(180deg, var(--dice-bg-light) 0%, var(--dice-bg) 100%);
+    flex-shrink: 0;
+}
+
+.dice-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--dice-shadow);
+}
+
+.dice-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Farben pro Würfeltyp */
+.dice-btn[data-dice="d4"] {
+    --dice-bg-light: #00acc1;
+    --dice-bg: #00838f;
+    --dice-shadow: rgba(0, 131, 143, 0.4);
+}
+.dice-btn[data-dice="d6"] {
+    --dice-bg-light: #43a047;
+    --dice-bg: #2e7d32;
+    --dice-shadow: rgba(46, 125, 50, 0.4);
+}
+.dice-btn[data-dice="d8"] {
+    --dice-bg-light: #1e88e5;
+    --dice-bg: #1565c0;
+    --dice-shadow: rgba(21, 101, 192, 0.4);
+}
+.dice-btn[data-dice="d10"] {
+    --dice-bg-light: #fb8c00;
+    --dice-bg: #ef6c00;
+    --dice-shadow: rgba(239, 108, 0, 0.4);
+}
+.dice-btn[data-dice="d12"] {
+    --dice-bg-light: #8e24aa;
+    --dice-bg: #7b1fa2;
+    --dice-shadow: rgba(123, 31, 162, 0.4);
+}
+.dice-btn[data-dice="d20"] {
+    --dice-bg-light: #e53935;
+    --dice-bg: #c62828;
+    --dice-shadow: rgba(198, 40, 40, 0.4);
+}
+.dice-btn[data-dice="d100"] {
+    --dice-bg-light: #d81b60;
+    --dice-bg: #ad1457;
+    --dice-shadow: rgba(173, 20, 87, 0.4);
+}
+
+/* Badge - Oben RECHTS */
+.dice-btn__badge {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    z-index: 10;
+    transition: all 0.25s ease;
+}
+
+.dice-btn__badge span {
+    min-width: 8px;
+    text-align: center;
+}
+
+.dice-btn.has-count .dice-btn__badge {
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--dice-bg);
+    font-weight: 700;
+}
+
+/* Glassmorphism Bar - unten */
+.dice-btn__glass {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 14px;
+    padding-left: 60px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border-radius: 10px;
+    z-index: 3;
+}
+
+/* Label - RECHTS, Roboto Black Italic */
+.dice-btn__label {
+    font-family: 'Roboto', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    font-style: italic;
+    color: white;
+    letter-spacing: 0.5px;
+}
+
+/* Icon - LINKS */
+.dice-btn__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 55px;
+    height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.35));
+}
+
+.dice-btn__icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+}
+
+/* Hover: Icon hoch + rotiert */
+.dice-btn:hover .dice-btn__icon {
+    transform: translateY(-50%) translateY(-6px) rotate(8deg);
+    filter: drop-shadow(4px 10px 10px rgba(0, 0, 0, 0.4));
+}
+
+/* Selected: Langsames Schweben */
+.dice-btn.has-count .dice-btn__icon {
+    animation: diceFloat 6s ease-in-out infinite;
+}
+
+@keyframes diceFloat {
+    0%, 100% { 
+        transform: translateY(-50%) translateY(0) rotate(0deg); 
+    }
+    50% { 
+        transform: translateY(-50%) translateY(-4px) rotate(3deg); 
+    }
+}
