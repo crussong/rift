@@ -411,7 +411,7 @@ class LoginController {
     async checkAndJoinRoom() {
         const input = document.getElementById('room-code-input');
         const code = normalizeRoomCode(input?.value || '');
-        const errorEl = document.getElementById('join-error');
+        const errorEl = document.getElementById('code-error');
         const checkBtn = document.getElementById('btn-check-code');
         
         if (code.length !== 6) {
@@ -445,7 +445,12 @@ class LoginController {
         } finally {
             if (checkBtn) {
                 checkBtn.disabled = false;
-                checkBtn.innerHTML = 'Prüfen';
+                checkBtn.innerHTML = `
+                    <span data-i18n="join.check">Code prüfen</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                `;
             }
         }
     }

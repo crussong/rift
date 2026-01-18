@@ -1235,6 +1235,23 @@
             
             loginController = new RIFT.auth.LoginController();
             
+            // Check for room code in URL (invite link)
+            const roomParam = urlParams.get('room');
+            if (roomParam && roomParam.length >= 6) {
+                console.log('[RIFT] Room code found in URL:', roomParam);
+                // Pre-fill room code and go to join step
+                setTimeout(() => {
+                    loginController.showStep('join');
+                    const input = document.getElementById('room-code-input');
+                    if (input) {
+                        input.value = roomParam.toUpperCase().replace(/(.{3})(.{3})/, '$1-$2');
+                        loginController.formatCodeInput(input);
+                        // Auto-check the room
+                        loginController.checkAndJoinRoom();
+                    }
+                }, 100);
+            }
+            
             createParticles();
             initIntroSequence();
             setLanguage(currentLang);
