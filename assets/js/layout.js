@@ -688,10 +688,24 @@ function initSidebarEvents() {
 /**
  * Logout handler
  */
-function handleLogout() {
+async function handleLogout() {
+    // Clear localStorage
     localStorage.removeItem('rift_user');
     localStorage.removeItem('rift_current_room');
-    window.location.href = 'login.html';
+    localStorage.removeItem('rift_last_session');
+    
+    // Sign out from Firebase
+    try {
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            await firebase.auth().signOut();
+            console.log('[Layout] Firebase signed out');
+        }
+    } catch (e) {
+        console.warn('[Layout] Firebase signOut error:', e);
+    }
+    
+    // Redirect to login with logout flag (prevents auto-login redirect)
+    window.location.href = 'login.html?logout=true';
 }
 
 /**

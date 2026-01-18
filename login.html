@@ -1191,27 +1191,45 @@
             await RIFT.firebase.init();
             console.log('[RIFT] Firebase ready');
             
-            // AUTO-LOGIN CHECK: If already logged in AND has complete profile, redirect
-            const currentUser = firebase.auth().currentUser;
-            if (currentUser && !currentUser.isAnonymous) {
-                console.log('[RIFT] Checking existing user:', currentUser.displayName);
-                
+            // Check for logout parameter - skip auto-login if present
+            const urlParams = new URLSearchParams(window.location.search);
+            const isLoggingOut = urlParams.get('logout') === 'true';
+            
+            if (isLoggingOut) {
+                // Clear any remaining auth state
                 try {
-                    const db = firebase.firestore();
-                    const userDoc = await db.collection('users').doc(currentUser.uid).get();
-                    
-                    if (userDoc.exists) {
-                        const profile = userDoc.data();
-                        // Only redirect if profile has a custom displayName (not just Google name)
-                        // This ensures user went through the profile setup at least once
-                        if (profile.displayName && profile.displayName.includes('#')) {
-                            console.log('[RIFT] Complete profile found, redirecting to dashboard');
-                            window.location.href = 'index.html';
-                            return;
-                        }
-                    }
+                    await firebase.auth().signOut();
+                    console.log('[RIFT] Logout completed');
                 } catch (e) {
-                    console.warn('[RIFT] Could not check profile:', e);
+                    console.warn('[RIFT] Logout error:', e);
+                }
+                // Remove logout param from URL
+                window.history.replaceState({}, document.title, 'login.html');
+            }
+            
+            // AUTO-LOGIN CHECK: If already logged in AND has complete profile, redirect
+            // Skip if we just logged out
+            if (!isLoggingOut) {
+                const currentUser = firebase.auth().currentUser;
+                if (currentUser && !currentUser.isAnonymous) {
+                    console.log('[RIFT] Checking existing user:', currentUser.displayName);
+                    
+                    try {
+                        const db = firebase.firestore();
+                        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                        
+                        if (userDoc.exists) {
+                            const profile = userDoc.data();
+                            // Only redirect if profile has a custom displayName (not just Google name)
+                            if (profile.displayName && profile.displayName.includes('#')) {
+                                console.log('[RIFT] Complete profile found, redirecting to dashboard');
+                                window.location.href = 'index.html';
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[RIFT] Could not check profile:', e);
+                    }
                 }
             }
             
