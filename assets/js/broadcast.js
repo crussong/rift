@@ -55,10 +55,10 @@
                     const data = doc.data();
                     const broadcast = data.broadcast;
                     
-                    if (broadcast && broadcast.id && broadcast.id !== this.lastBroadcastId) {
+                    if (broadcast && broadcast.id && String(broadcast.id) !== this.lastBroadcastId) {
                         // New broadcast!
-                        this.lastBroadcastId = broadcast.id;
-                        localStorage.setItem('rift_last_broadcast_id', broadcast.id);
+                        this.lastBroadcastId = String(broadcast.id);
+                        localStorage.setItem('rift_last_broadcast_id', String(broadcast.id));
                         this.showBroadcast(broadcast);
                     }
                 }, (error) => {
