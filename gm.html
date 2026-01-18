@@ -20,7 +20,7 @@
             <div class="main__content">
                 
                 <!-- GM Dashboard -->
-                <div class="gm-dashboard" id="gmContent" style="display: none;">
+                <div class="gm-dashboard" id="gmContent">
                     
                     <!-- Hero Section -->
                     <div class="gm-hero">
@@ -828,8 +828,27 @@
             const currentRoomCode = localStorage.getItem('rift_current_room');
             const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
             
-            // Show loading
-            loadingState.style.display = 'flex';
+            function showLoading() {
+                loadingState.style.cssText = 'display: flex !important;';
+                gmContent.style.cssText = 'display: none !important;';
+                accessDenied.style.cssText = 'display: none !important;';
+            }
+            
+            function showContent() {
+                console.log('[GM] Showing content');
+                loadingState.style.cssText = 'display: none !important;';
+                gmContent.style.cssText = 'display: block !important;';
+                accessDenied.style.cssText = 'display: none !important;';
+            }
+            
+            function showDenied() {
+                loadingState.style.cssText = 'display: none !important;';
+                gmContent.style.cssText = 'display: none !important;';
+                accessDenied.style.cssText = 'display: flex !important;';
+            }
+            
+            // Start with loading
+            showLoading();
             
             // Wait for RIFT with timeout
             function waitForRIFT(timeout = 8000) {
@@ -856,8 +875,7 @@
                 
                 if (!currentRoomCode) {
                     console.log('[GM] No room code');
-                    loadingState.style.display = 'none';
-                    accessDenied.style.display = 'flex';
+                    showDenied();
                     return;
                 }
                 
@@ -872,33 +890,26 @@
                     isGM = userData.isGM === true;
                 }
                 
-                loadingState.style.display = 'none';
-                
                 if (isGM) {
-                    gmContent.style.display = '';
-                    accessDenied.style.display = 'none';
-                    
                     // Update localStorage
                     userData.isGM = true;
                     localStorage.setItem('rift_user', JSON.stringify(userData));
                     
-                    // Initialize dashboard
+                    // Show content and init
+                    showContent();
                     GMDash.init();
                 } else {
-                    gmContent.style.display = 'none';
-                    accessDenied.style.display = 'flex';
+                    showDenied();
                 }
             } catch (e) {
                 console.error('[GM] Init failed:', e);
-                loadingState.style.display = 'none';
                 
                 // Fallback to localStorage
                 if (userData.isGM === true && currentRoomCode) {
-                    gmContent.style.display = '';
-                    accessDenied.style.display = 'none';
+                    showContent();
                     GMDash.init();
                 } else {
-                    accessDenied.style.display = 'flex';
+                    showDenied();
                 }
             }
         })();
