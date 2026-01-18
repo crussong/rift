@@ -1191,42 +1191,29 @@
             await RIFT.firebase.init();
             console.log('[RIFT] Firebase ready');
             
-            // AUTO-LOGIN CHECK: If already logged in with Google, redirect to dashboard
+            // AUTO-LOGIN CHECK: If already logged in AND has complete profile, redirect
             const currentUser = firebase.auth().currentUser;
             if (currentUser && !currentUser.isAnonymous) {
-                console.log('[RIFT] Already logged in as:', currentUser.displayName);
+                console.log('[RIFT] Checking existing user:', currentUser.displayName);
                 
-                // Check if profile exists in Firestore
                 try {
                     const db = firebase.firestore();
                     const userDoc = await db.collection('users').doc(currentUser.uid).get();
                     
                     if (userDoc.exists) {
-                        // Profile exists, redirect to dashboard
-                        console.log('[RIFT] Profile found, redirecting to dashboard');
-                        window.location.href = 'index.html';
-                        return; // Stop execution
+                        const profile = userDoc.data();
+                        // Only redirect if profile has a custom displayName (not just Google name)
+                        // This ensures user went through the profile setup at least once
+                        if (profile.displayName && profile.displayName.includes('#')) {
+                            console.log('[RIFT] Complete profile found, redirecting to dashboard');
+                            window.location.href = 'index.html';
+                            return;
+                        }
                     }
                 } catch (e) {
                     console.warn('[RIFT] Could not check profile:', e);
                 }
             }
-            
-            // Also listen for auth state changes (e.g., if login happens in popup)
-            firebase.auth().onAuthStateChanged(async (user) => {
-                if (user && !user.isAnonymous) {
-                    try {
-                        const db = firebase.firestore();
-                        const userDoc = await db.collection('users').doc(user.uid).get();
-                        if (userDoc.exists && userDoc.data().displayName) {
-                            // Already has profile, redirect
-                            window.location.href = 'index.html';
-                        }
-                    } catch (e) {
-                        // Ignore
-                    }
-                }
-            });
             
             loginController = new RIFT.auth.LoginController();
             

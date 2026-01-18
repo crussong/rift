@@ -553,46 +553,32 @@ class LoginController {
             
             console.log('[Auth] Google sign-in successful:', user.displayName);
             
-            // Generate username with discriminator
-            const discriminator = Math.floor(1000 + Math.random() * 9000);
-            const displayName = `${user.displayName}#${discriminator}`;
-            
-            // Pick a random color
-            const color = getRandomColor().value;
-            
-            // Create profile in Firestore with Google data
-            const profileData = {
-                displayName: displayName,
-                color: color,
-                provider: 'google',
-                email: user.email,
-                photoURL: user.photoURL,
-                avatar: user.photoURL // Use Google photo as avatar
-            };
-            
-            await RIFT.user.createOrUpdateProfile(user, profileData);
-            
-            // Save to localStorage
-            const userData = {
-                uid: user.uid,
-                name: displayName,
-                color: color,
-                initial: user.displayName.charAt(0).toUpperCase(),
-                isGM: false,
-                provider: 'google',
-                avatar: user.photoURL
-            };
-            RIFT.user.saveUserToStorage(userData);
-            
-            // Success toast
-            if (window.RIFT?.ui?.Toast) {
-                RIFT.ui.Toast.success(`Willkommen, ${user.displayName}!`, 'Angemeldet');
+            // Fill in the form with Google data
+            const usernameInput = document.getElementById('username-input');
+            if (usernameInput && user.displayName) {
+                // Use display name + random discriminator
+                const discriminator = Math.floor(1000 + Math.random() * 9000);
+                usernameInput.value = `${user.displayName}#${discriminator}`;
             }
             
-            // Redirect to dashboard
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 500);
+            // Store OAuth info for later (when user clicks "Enter")
+            this.oauthUser = {
+                provider: 'google',
+                uid: user.uid,
+                displayName: user.displayName,
+                email: user.email,
+                photoURL: user.photoURL
+            };
+            
+            // Show connected state
+            this.showOAuthConnected('google', user.displayName, user.photoURL);
+            
+            // Update preview
+            this.updatePreview();
+            
+            if (window.RIFT?.ui?.Toast) {
+                RIFT.ui.Toast.success(`Verbunden mit ${user.displayName}`, 'Google');
+            }
             
         } catch (error) {
             console.error('[Auth] Google sign-in error:', error);
@@ -684,11 +670,12 @@ class LoginController {
                 color: color
             };
             
-            // Add OAuth data if available
+            // Add OAuth data if available (including avatar!)
             if (this.oauthUser) {
                 profileData.provider = this.oauthUser.provider;
                 profileData.email = this.oauthUser.email;
                 profileData.photoURL = this.oauthUser.photoURL;
+                profileData.avatar = this.oauthUser.photoURL; // Use Google photo as avatar
             }
             
             const profile = await RIFT.user.createOrUpdateProfile(firebaseUser, profileData);
@@ -696,11 +683,13 @@ class LoginController {
             const userData = {
                 uid: firebaseUser.uid,
                 name: username,
+                displayName: username,
                 color: color,
                 initial: username.charAt(0).toUpperCase(),
                 isGM: this.isCreating,
                 provider: this.oauthUser?.provider || 'anonymous',
-                avatar: this.oauthUser?.photoURL || null
+                avatar: this.oauthUser?.photoURL || null,
+                photoURL: this.oauthUser?.photoURL || null
             };
             
             // 3. Create or join room in Firestore
@@ -729,7 +718,7 @@ class LoginController {
             // 4. Setup presence tracking
             RIFT.rooms.setupPresence(this.roomCode, firebaseUser.uid);
             
-            // 5. Save to localStorage (backup)
+            // 5. Save to localStorage AND window.currentUser BEFORE redirect
             RIFT.user.saveUserToStorage(userData);
             RIFT.user.saveCurrentRoom(this.roomCode);
             RIFT.user.saveLastSession({
@@ -737,15 +726,18 @@ class LoginController {
                 playerName: username
             });
             
+            // WICHTIG: Set window.currentUser so index.html has it immediately
+            window.currentUser = userData;
+            
             // Success toast
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.success(this.isCreating ? 'Raum erstellt!' : 'Raum beigetreten!');
             }
             
-            // Redirect to dashboard
+            // Redirect to dashboard (small delay for toast)
             setTimeout(() => {
                 window.location.href = 'index.html';
-            }, 500);
+            }, 300);
             
         } catch (error) {
             console.error('[Auth] Error:', error);
