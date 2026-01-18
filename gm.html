@@ -524,10 +524,122 @@
             timerRunning: false,
             timerSeconds: 300,
             isPaused: false,
+            members: [],
+            membersUnsubscribe: null,
+            currentRoomCode: localStorage.getItem('rift_current_room') || null,
             
             init() {
                 this.updateTimerDisplay();
                 this.initDropzone();
+                this.loadRoomInfo();
+                this.subscribeToMembers();
+            },
+            
+            // Load Room Info from Firebase
+            async loadRoomInfo() {
+                if (!this.currentRoomCode) {
+                    console.log('[GM] No room code');
+                    return;
+                }
+                
+                // Update room code display
+                const codeEl = document.getElementById('roomCode');
+                if (codeEl) {
+                    const formatted = this.currentRoomCode.replace(/(.{3})(.{3})/, '$1-$2');
+                    codeEl.textContent = formatted;
+                }
+                
+                // Wait for RIFT.rooms
+                if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+                    setTimeout(() => this.loadRoomInfo(), 500);
+                    return;
+                }
+                
+                try {
+                    const room = await RIFT.rooms.getRoom(this.currentRoomCode);
+                    if (room) {
+                        // Created date
+                        if (room.createdAt) {
+                            const date = room.createdAt.toDate ? room.createdAt.toDate() : new Date(room.createdAt);
+                            document.getElementById('roomCreated').textContent = date.toLocaleDateString('de-DE', {
+                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error('[GM] Failed to load room info:', e);
+                }
+            },
+            
+            // Subscribe to Members
+            subscribeToMembers() {
+                if (!this.currentRoomCode) return;
+                
+                // Wait for RIFT.rooms
+                if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+                    setTimeout(() => this.subscribeToMembers(), 500);
+                    return;
+                }
+                
+                console.log('[GM] Subscribing to members');
+                
+                this.membersUnsubscribe = RIFT.rooms.subscribeToMembers(this.currentRoomCode, (members) => {
+                    console.log('[GM] Members update:', members.length);
+                    this.members = members;
+                    this.renderPlayers(members);
+                    
+                    // Update player count
+                    const onlineCount = members.filter(m => m.online).length;
+                    document.getElementById('roomPlayers').textContent = `${onlineCount} / ${members.length}`;
+                });
+            },
+            
+            // Render Players List
+            renderPlayers(members) {
+                const list = document.getElementById('playersList');
+                const empty = document.getElementById('playersEmpty');
+                const currentUserId = firebase?.auth()?.currentUser?.uid;
+                
+                if (!list) return;
+                
+                if (members.length === 0) {
+                    list.innerHTML = '';
+                    if (empty) empty.style.display = 'block';
+                    return;
+                }
+                
+                if (empty) empty.style.display = 'none';
+                
+                list.innerHTML = members.map(member => {
+                    const name = member.displayName || member.name || 'Unbekannt';
+                    const color = member.color || '#8B5CF6';
+                    const initial = name.charAt(0).toUpperCase();
+                    const isGM = member.role === 'gm';
+                    const isYou = member.id === currentUserId;
+                    const isOnline = member.online === true;
+                    
+                    return `
+                        <div class="player-row">
+                            <div class="player-row__avatar ${isOnline ? '' : 'player-row__avatar--offline'}" style="background: ${color};">${initial}</div>
+                            <div class="player-row__info">
+                                <div class="player-row__name">${name}</div>
+                                <div class="player-row__role">${isGM ? 'Game Master' : 'Spieler'}${isOnline ? '' : ' · Offline'}</div>
+                            </div>
+                            ${isGM ? '<span class="player-row__badge player-row__badge--gm">GM</span>' : ''}
+                            ${isYou ? '<span class="player-row__badge player-row__badge--you">Du</span>' : ''}
+                            ${!isGM && !isYou ? `
+                                <button class="player-row__action" onclick="GMDash.kickPlayer('${member.id}', '${name}')" title="Spieler entfernen">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="8.5" cy="7" r="4"/>
+                                        <line x1="18" y1="8" x2="23" y2="13"/>
+                                        <line x1="23" y1="8" x2="18" y2="13"/>
+                                    </svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
             },
             
             // Timer Functions
@@ -639,16 +751,28 @@
             
             // Player Functions
             invite() {
-                const code = document.getElementById('roomCode').textContent;
-                const url = `${window.location.origin}?join=${code}`;
+                const code = this.currentRoomCode || document.getElementById('roomCode').textContent.replace('-', '');
+                const url = `${window.location.origin}/login.html?room=${code}`;
                 navigator.clipboard.writeText(url).then(() => {
                     showToast('Einladungslink kopiert!', 'success');
                 });
             },
             
-            kickPlayer(name) {
-                if (confirm(`${name} wirklich aus dem Raum entfernen?`)) {
-                    showToast(`${name} wurde entfernt`, 'info');
+            async kickPlayer(oderId, name) {
+                if (!confirm(`${name} wirklich aus dem Raum entfernen?`)) return;
+                
+                try {
+                    // Delete member from Firebase
+                    const db = RIFT.firebase.getFirestore();
+                    const normalizedCode = this.currentRoomCode.replace('-', '').toUpperCase();
+                    
+                    await db.collection('rooms').doc(normalizedCode)
+                        .collection('members').doc(oderId).delete();
+                    
+                    showToast(`${name} wurde entfernt`, 'success');
+                } catch (e) {
+                    console.error('[GM] Failed to kick player:', e);
+                    showToast('Fehler beim Entfernen', 'error');
                 }
             },
             
@@ -765,25 +889,90 @@
             },
             
             // Danger Zone
-            deleteRoom() {
-                if (confirm('⚠️ ACHTUNG!\n\nDer Raum und ALLE Daten werden unwiderruflich gelöscht!\n\nDiese Aktion kann NICHT rückgängig gemacht werden.\n\nFortfahren?')) {
+            async deleteRoom() {
+                if (!confirm('⚠️ ACHTUNG!\n\nDer Raum und ALLE Daten werden unwiderruflich gelöscht!\n\nDiese Aktion kann NICHT rückgängig gemacht werden.\n\nFortfahren?')) return;
+                
+                try {
+                    const db = RIFT.firebase.getFirestore();
+                    const normalizedCode = this.currentRoomCode.replace('-', '').toUpperCase();
+                    const roomRef = db.collection('rooms').doc(normalizedCode);
+                    
                     showToast('Raum wird gelöscht...', 'warning');
-                    setTimeout(() => window.location.href = 'index.html', 1500);
+                    
+                    // Delete all subcollections first
+                    const subcollections = ['members', 'sessions', 'characters', 'chat', 'dice', 'notes', 'whiteboard'];
+                    
+                    for (const subcol of subcollections) {
+                        const snapshot = await roomRef.collection(subcol).get();
+                        const batch = db.batch();
+                        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                        if (snapshot.docs.length > 0) await batch.commit();
+                    }
+                    
+                    // Delete the room document
+                    await roomRef.delete();
+                    
+                    // Clear local storage
+                    localStorage.removeItem('rift_current_room');
+                    localStorage.removeItem('rift_active_session');
+                    
+                    showToast('Raum gelöscht!', 'success');
+                    setTimeout(() => window.location.href = 'login.html', 1500);
+                } catch (e) {
+                    console.error('[GM] Failed to delete room:', e);
+                    showToast('Fehler beim Löschen', 'error');
                 }
             }
         };
         
-        // Access Check
-        (function() {
-            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+        // Access Check - Only GMs can access this page
+        (async function() {
             const gmContent = document.getElementById('gmContent');
             const accessDenied = document.getElementById('accessDenied');
+            const currentRoomCode = localStorage.getItem('rift_current_room');
             
-            // For testing always show
-            gmContent.style.display = '';
-            accessDenied.style.display = 'none';
+            // Hide content initially
+            gmContent.style.display = 'none';
             
-            GMDash.init();
+            // Wait for Firebase
+            function waitForRIFT() {
+                return new Promise((resolve) => {
+                    const check = () => {
+                        if (typeof RIFT !== 'undefined' && RIFT.rooms && firebase?.auth()?.currentUser) {
+                            resolve();
+                        } else {
+                            setTimeout(check, 200);
+                        }
+                    };
+                    check();
+                });
+            }
+            
+            try {
+                await waitForRIFT();
+                
+                if (!currentRoomCode) {
+                    accessDenied.style.display = 'flex';
+                    return;
+                }
+                
+                const isGM = await RIFT.rooms.isUserGM(currentRoomCode);
+                
+                if (isGM) {
+                    gmContent.style.display = '';
+                    accessDenied.style.display = 'none';
+                    GMDash.init();
+                } else {
+                    gmContent.style.display = 'none';
+                    accessDenied.style.display = 'flex';
+                }
+            } catch (e) {
+                console.error('[GM] Access check failed:', e);
+                // Show for testing
+                gmContent.style.display = '';
+                accessDenied.style.display = 'none';
+                GMDash.init();
+            }
         })();
         
         initLayout();
