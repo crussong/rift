@@ -904,7 +904,7 @@
                 await this.loadRoomInfo();
                 this.subscribeToMembers();
                 this.subscribeToSessions();
-                await this.loadGMNotes();
+                this.loadGMNotes();
             },
             
             // ----------------------------------------
@@ -1405,7 +1405,7 @@
             },
             
             // ----------------------------------------
-            // BROADCAST
+            // BROADCAST (via Room document)
             // ----------------------------------------
             async sendBroadcast() {
                 const input = document.getElementById('broadcastInput');
@@ -1420,18 +1420,16 @@
                 try {
                     const db = RIFT.firebase.getFirestore();
                     const normalizedCode = this.roomCode.replace('-', '').toUpperCase();
-                    const user = firebase.auth().currentUser;
                     
-                    // Add to chat as system message
-                    await db.collection('rooms').doc(normalizedCode)
-                        .collection('chat').add({
-                            type: 'broadcast',
+                    // Write broadcast to room document (GM should have write access)
+                    await db.collection('rooms').doc(normalizedCode).update({
+                        broadcast: {
                             message: message,
-                            senderId: user?.uid,
-                            senderName: 'Game Master',
                             withSound: withSound,
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                        });
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            id: Date.now() // Unique ID to trigger listeners
+                        }
+                    });
                     
                     input.value = '';
                     this.showToast('Broadcast gesendet!', 'success');
@@ -1442,36 +1440,22 @@
             },
             
             // ----------------------------------------
-            // GM NOTES
+            // GM NOTES (localStorage)
             // ----------------------------------------
-            async loadGMNotes() {
-                try {
-                    const db = RIFT.firebase.getFirestore();
-                    const normalizedCode = this.roomCode.replace('-', '').toUpperCase();
-                    
-                    const doc = await db.collection('rooms').doc(normalizedCode)
-                        .collection('gm_data').doc('notes').get();
-                    
-                    if (doc.exists) {
-                        document.getElementById('gmNotesInput').value = doc.data().content || '';
-                    }
-                } catch (e) {
-                    console.error('[GM] Load notes failed:', e);
+            loadGMNotes() {
+                const key = `rift_gm_notes_${this.roomCode}`;
+                const saved = localStorage.getItem(key);
+                if (saved) {
+                    document.getElementById('gmNotesInput').value = saved;
                 }
             },
             
-            async saveGMNotes() {
+            saveGMNotes() {
+                const key = `rift_gm_notes_${this.roomCode}`;
+                const content = document.getElementById('gmNotesInput').value;
+                
                 try {
-                    const db = RIFT.firebase.getFirestore();
-                    const normalizedCode = this.roomCode.replace('-', '').toUpperCase();
-                    const content = document.getElementById('gmNotesInput').value;
-                    
-                    await db.collection('rooms').doc(normalizedCode)
-                        .collection('gm_data').doc('notes').set({
-                            content: content,
-                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        }, { merge: true });
-                    
+                    localStorage.setItem(key, content);
                     document.getElementById('gmNotesStatus').textContent = '✓ Gespeichert';
                     document.getElementById('gmNotesStatus').className = 'gm-notes-status gm-notes-status--saved';
                     
