@@ -733,7 +733,7 @@ function copyRoomCode() {
 function copyInviteLink() {
     const code = getRoomCode();
     if (code) {
-        const link = `${window.location.origin}/join?room=${code.replace('-', '')}`;
+        const link = `${window.location.origin}/login.html?room=${code.replace('-', '')}`;
         navigator.clipboard.writeText(link).then(() => {
             // Close dropdown
             const dropdown = document.getElementById('roomDropdown');
