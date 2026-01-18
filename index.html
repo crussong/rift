@@ -859,33 +859,57 @@
         // LOAD DASHBOARD DATA
         // ========================================
         
+        let firebaseSessions = [];
+        let sessionsUnsubscribe = null;
+        
+        // Initialize Firebase Sessions for Hub
+        function initFirebaseSessions() {
+            if (!currentRoomCode) {
+                console.log('[Hub] No room code - using localStorage for sessions');
+                firebaseSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+                loadDashboardData();
+                return;
+            }
+            
+            // Wait for RIFT.rooms
+            if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+                setTimeout(initFirebaseSessions, 500);
+                return;
+            }
+            
+            console.log('[Hub] Subscribing to Firebase sessions for room:', currentRoomCode);
+            
+            // Subscribe to realtime session updates
+            sessionsUnsubscribe = RIFT.rooms.subscribeToSessions(currentRoomCode, (sessions) => {
+                console.log('[Hub] Firebase sessions update:', sessions.length);
+                firebaseSessions = sessions;
+                loadDashboardData();
+            });
+        }
+        
+        // Start after delay
+        setTimeout(initFirebaseSessions, 800);
+        
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (sessionsUnsubscribe) sessionsUnsubscribe();
+        });
+        
         function loadDashboardData() {
-            const allSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+            // Use Firebase sessions (already filtered by room)
+            const sessions = firebaseSessions;
+            
             // Use CharacterStorage format (object) and convert to array
             const characterData = JSON.parse(localStorage.getItem('rift_characters') || '{}');
             const characters = Object.values(characterData);
             const now = new Date();
             const currentUserId = window.currentUser?.uid || null;
             
-            // Filter sessions for current room AND/OR current user
-            const sessions = allSessions.filter(s => {
-                // If we have a room code, filter by room
-                if (currentRoomCode) {
-                    return s.roomCode === currentRoomCode;
-                }
-                
-                // If no room code, show only sessions without room OR owned by current user
-                if (currentUserId) {
-                    return (!s.roomCode && s.ownerId === currentUserId) || s.ownerId === currentUserId;
-                }
-                
-                // Fallback: show sessions without room code
-                return !s.roomCode;
-            });
-            
             // Check data state
             const hasCharacters = characters.length > 0;
             const hasSessions = sessions.filter(s => s.status !== 'ended').length > 0;
+            
+            console.log('[Hub] Dashboard data: sessions=', sessions.length, 'characters=', characters.length);
             
             // Status Banner (4 Varianten)
             const statusBanner = document.getElementById('statusBanner');

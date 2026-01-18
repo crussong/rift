@@ -702,44 +702,110 @@
         let sessionData = null;
         let timerInterval = null;
         let sessionStartTime = null;
+        let sessionUnsubscribe = null;
         
         // Get session ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('id');
+        const currentRoomCode = localStorage.getItem('rift_current_room') || null;
         
-        // Load session data
-        function loadSession() {
+        // Load session data from Firebase
+        async function loadSession() {
             if (!sessionId) {
-                // No session ID provided
                 showSessionNotFound();
                 return;
             }
             
-            // Load from localStorage (in production: Firebase)
+            // Try Firebase first (if in room)
+            if (currentRoomCode && typeof RIFT !== 'undefined' && RIFT.rooms) {
+                try {
+                    console.log('[Session] Loading from Firebase:', sessionId, 'in room:', currentRoomCode);
+                    sessionData = await RIFT.rooms.getSession(currentRoomCode, sessionId);
+                    
+                    if (sessionData) {
+                        console.log('[Session] Loaded from Firebase:', sessionData.name);
+                        renderSession();
+                        
+                        // Subscribe to realtime updates
+                        subscribeToSession();
+                        
+                        // Load cover image
+                        if (sessionData.hasCover) {
+                            loadCoverImage();
+                        }
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('[Session] Firebase load failed:', err);
+                }
+            }
+            
+            // Fallback to localStorage
+            console.log('[Session] Falling back to localStorage');
             const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
             sessionData = sessions.find(s => s.id === sessionId);
             
             if (!sessionData) {
-                // Session not found
                 showSessionNotFound();
                 return;
             }
             
             renderSession();
             
-            // Load cover image from IndexedDB
             if (sessionData.hasCover) {
-                CoverDB.get(sessionId).then(coverImage => {
-                    if (coverImage) {
-                        const coverEl = document.getElementById('sessionCover');
-                        coverEl.style.backgroundImage = `url(${coverImage})`;
-                        coverEl.style.backgroundSize = 'cover';
-                        coverEl.style.backgroundPosition = 'center';
-                    }
-                }).catch(err => {
-                    console.warn('Failed to load cover:', err);
-                });
+                loadCoverImage();
             }
+        }
+        
+        // Subscribe to session changes (realtime)
+        function subscribeToSession() {
+            if (!currentRoomCode || !RIFT?.rooms) return;
+            
+            const db = RIFT.firebase.getFirestore();
+            if (!db) return;
+            
+            const normalizedCode = currentRoomCode.replace('-', '').toUpperCase();
+            
+            sessionUnsubscribe = db.collection('rooms').doc(normalizedCode)
+                .collection('sessions').doc(sessionId)
+                .onSnapshot(doc => {
+                    if (doc.exists) {
+                        const newData = { id: doc.id, ...doc.data() };
+                        console.log('[Session] Realtime update:', newData.status);
+                        
+                        // Check if status changed
+                        const statusChanged = sessionData?.status !== newData.status;
+                        sessionData = newData;
+                        
+                        renderSession();
+                        
+                        if (statusChanged) {
+                            // Update UI for status changes
+                            updateGMCockpit();
+                        }
+                    }
+                }, err => {
+                    console.error('[Session] Subscription error:', err);
+                });
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (sessionUnsubscribe) sessionUnsubscribe();
+        });
+        
+        // Load cover image from IndexedDB
+        function loadCoverImage() {
+            CoverDB.get(sessionId).then(coverImage => {
+                if (coverImage) {
+                    const coverEl = document.getElementById('sessionCover');
+                    coverEl.style.backgroundImage = `url(${coverImage})`;
+                    coverEl.style.backgroundSize = 'cover';
+                    coverEl.style.backgroundPosition = 'center';
+                }
+            }).catch(err => {
+                console.warn('Failed to load cover:', err);
+            });
         }
         
         function showSessionNotFound() {
@@ -2188,9 +2254,30 @@
             }, 500);
         });
         
-        // Save session to localStorage
-        function saveSession() {
+        // Save session to Firebase (or localStorage as fallback)
+        async function saveSession() {
             if (!sessionData) return;
+            
+            // Try Firebase first
+            if (currentRoomCode && RIFT?.rooms?.updateSession) {
+                try {
+                    await RIFT.rooms.updateSession(currentRoomCode, sessionData.id, {
+                        status: sessionData.status,
+                        startTime: sessionData.startTime || null,
+                        pausedTime: sessionData.pausedTime || null,
+                        totalPausedMs: sessionData.totalPausedMs || 0,
+                        endTime: sessionData.endTime || null,
+                        totalDuration: sessionData.totalDuration || null,
+                        currentSession: sessionData.currentSession || 1
+                    });
+                    console.log('[Session] Saved to Firebase:', sessionData.status);
+                    return;
+                } catch (err) {
+                    console.error('[Session] Firebase save failed:', err);
+                }
+            }
+            
+            // Fallback to localStorage
             const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
             const index = sessions.findIndex(s => s.id === sessionData.id);
             if (index >= 0) {
@@ -2201,8 +2288,10 @@
             localStorage.setItem('rift_sessions', JSON.stringify(sessions));
         }
         
-        // Init
-        loadSession();
+        // Init - wait for Firebase then load
+        setTimeout(() => {
+            loadSession();
+        }, 500);
         
         // Cockpit button event listeners (global, nur einmal registriert)
         document.getElementById('cockpitStartBtn')?.addEventListener('click', () => {

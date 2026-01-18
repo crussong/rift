@@ -593,32 +593,46 @@
         console.log('[Sessions] Current room code:', currentRoomCode);
         
         // ========================================
-        // MIGRATE OLD SESSIONS (add ownerId)
+        // FIREBASE SESSIONS SYNC
         // ========================================
         
-        function migrateSessionsOwnerId() {
-            const currentUserId = window.currentUser?.uid;
-            if (!currentUserId) return;
-            
-            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-            let migrated = 0;
-            
-            sessions.forEach(session => {
-                // Only add ownerId to sessions that don't have one AND match current room
-                if (!session.ownerId && session.roomCode === currentRoomCode) {
-                    session.ownerId = currentUserId;
-                    migrated++;
-                }
-            });
-            
-            if (migrated > 0) {
-                localStorage.setItem('rift_sessions', JSON.stringify(sessions));
-                console.log('[Sessions] Migrated', migrated, 'sessions with ownerId');
+        let firebaseSessions = [];
+        let sessionsUnsubscribe = null;
+        
+        // Initialize Firebase Sessions
+        async function initFirebaseSessions() {
+            if (!currentRoomCode) {
+                console.log('[Sessions] No room code - using local mode');
+                // Fallback to localStorage for solo mode
+                firebaseSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+                renderSessions();
+                return;
             }
+            
+            // Wait for RIFT.rooms to be available
+            if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+                setTimeout(initFirebaseSessions, 500);
+                return;
+            }
+            
+            console.log('[Sessions] Subscribing to Firebase sessions for room:', currentRoomCode);
+            
+            // Subscribe to realtime updates
+            sessionsUnsubscribe = RIFT.rooms.subscribeToSessions(currentRoomCode, (sessions) => {
+                console.log('[Sessions] Firebase update - received', sessions.length, 'sessions');
+                firebaseSessions = sessions;
+                renderSessions();
+                loadSessionCovers();
+            });
         }
         
-        // Run migration after a short delay to ensure auth is ready
-        setTimeout(migrateSessionsOwnerId, 1500);
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (sessionsUnsubscribe) sessionsUnsubscribe();
+        });
+        
+        // Start initialization
+        setTimeout(initFirebaseSessions, 500);
         
         // ========================================
         // INDEXEDDB FOR COVER IMAGES
@@ -1176,15 +1190,13 @@
                 return;
             }
             
-            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+            // Use firebaseSessions for lookup
+            const sessions = firebaseSessions;
             
             if (editingSessionId) {
                 // UPDATE existing session
-                const index = sessions.findIndex(s => s.id === editingSessionId);
-                if (index >= 0) {
-                    // Preserve existing fields like status, createdAt, startTime
-                    const existing = sessions[index];
-                    
+                const existing = sessions.find(s => s.id === editingSessionId);
+                if (existing) {
                     // Determine hasCover: new upload = true, explicitly removed = false, else keep existing
                     let hasCover;
                     if (coverPreviewImg.src && coverPreviewImg.src.startsWith('data:')) {
@@ -1205,8 +1217,7 @@
                         hasThumbnail = existing.hasThumbnail;
                     }
                     
-                    sessions[index] = {
-                        ...existing,
+                    const updates = {
                         ruleset,
                         name,
                         description,
@@ -1221,11 +1232,30 @@
                         visibility,
                         tags,
                         hasCover,
-                        hasThumbnail,
-                        updatedAt: Date.now()
+                        hasThumbnail
                     };
                     
-                    localStorage.setItem('rift_sessions', JSON.stringify(sessions));
+                    // Update in Firebase (if in room) or localStorage (solo mode)
+                    try {
+                        if (currentRoomCode && RIFT?.rooms?.updateSession) {
+                            await RIFT.rooms.updateSession(currentRoomCode, editingSessionId, updates);
+                            console.log('[Sessions] Updated session in Firebase:', editingSessionId);
+                        } else {
+                            // Fallback to localStorage
+                            const localSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+                            const index = localSessions.findIndex(s => s.id === editingSessionId);
+                            if (index >= 0) {
+                                localSessions[index] = { ...existing, ...updates, updatedAt: Date.now() };
+                                localStorage.setItem('rift_sessions', JSON.stringify(localSessions));
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[Sessions] Failed to update session:', err);
+                        if (window.RIFT?.ui?.Toast) {
+                            RIFT.ui.Toast.error('Fehler beim Aktualisieren der Session');
+                        }
+                        return;
+                    }
                     
                     // Save cover image to IndexedDB (if new cover uploaded)
                     if (coverPreviewImg.src && coverPreviewImg.src.startsWith('data:')) {
@@ -1255,16 +1285,13 @@
                         });
                     }
                     
-                    console.log('Session updated:', sessions[index]);
+                    console.log('Session updated:', editingSessionId);
                     
                     closeCreateModal();
                     
                     if (window.RIFT?.ui?.Toast) {
                         RIFT.ui.Toast.success('Session aktualisiert!');
                     }
-                    
-                    // Refresh sessions list without page reload
-                    loadSessions();
                 }
             } else {
                 // CREATE new session
@@ -1295,14 +1322,29 @@
                     startLevel: startLevel ? parseInt(startLevel) : null,
                     visibility,
                     tags,
-                    createdAt: Date.now(),
                     status: 'planned',
                     hasCover: coverPreviewImg.src && coverPreviewImg.src.startsWith('data:') ? true : false,
                     hasThumbnail: thumbnailPreviewImg.src && thumbnailPreviewImg.src.startsWith('data:') ? true : false
                 };
                 
-                sessions.push(sessionData);
-                localStorage.setItem('rift_sessions', JSON.stringify(sessions));
+                // Save to Firebase (if in room) or localStorage (solo mode)
+                try {
+                    if (currentRoomCode && RIFT?.rooms?.createSession) {
+                        await RIFT.rooms.createSession(currentRoomCode, sessionData);
+                        console.log('[Sessions] Created session in Firebase:', sessionId);
+                    } else {
+                        // Fallback to localStorage
+                        sessions.push(sessionData);
+                        localStorage.setItem('rift_sessions', JSON.stringify(sessions));
+                        console.log('[Sessions] Created session in localStorage:', sessionId);
+                    }
+                } catch (err) {
+                    console.error('[Sessions] Failed to create session:', err);
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.error('Fehler beim Erstellen der Session');
+                    }
+                    return;
+                }
                 
                 // Save cover image to IndexedDB (if exists)
                 if (coverPreviewImg.src && coverPreviewImg.src.startsWith('data:')) {
@@ -1433,27 +1475,11 @@
         }
         
         function renderSessions() {
-            // Get sessions from localStorage
-            const allSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+            // Use Firebase sessions (already filtered by room via subscription)
+            const sessions = firebaseSessions;
             const currentUserId = window.currentUser?.uid || null;
             
-            // Filter sessions for current room AND/OR current user
-            const sessions = allSessions.filter(s => {
-                // If we have a room code, filter by room
-                if (currentRoomCode) {
-                    return s.roomCode === currentRoomCode;
-                }
-                
-                // If no room code, show only sessions without room OR owned by current user
-                if (currentUserId) {
-                    return (!s.roomCode && s.ownerId === currentUserId) || s.ownerId === currentUserId;
-                }
-                
-                // Fallback: show sessions without room code
-                return !s.roomCode;
-            });
-            
-            console.log('[Sessions] Showing', sessions.length, 'of', allSessions.length, 'sessions for room:', currentRoomCode, 'user:', currentUserId);
+            console.log('[Sessions] Rendering', sessions.length, 'sessions');
             
             // Separate upcoming and past sessions
             const today = new Date();
@@ -1508,9 +1534,9 @@
             }
         }
         
-        // Initial render
-        renderSessions();
-        loadSessionCovers();
+        // Initial render will be triggered by initFirebaseSessions callback
+        // renderSessions();
+        // loadSessionCovers();
         
         // ========================================
         // ACTIVE SESSION

@@ -593,6 +593,140 @@ function setupPresence(code, oderId) {
 }
 
 // ========================================
+// SESSION OPERATIONS
+// ========================================
+
+/**
+ * Create a new session in a room
+ */
+async function createSession(roomCode, sessionData) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) throw new Error('Firebase nicht initialisiert');
+    
+    const normalizedCode = normalizeRoomCode(roomCode);
+    const sessionId = sessionData.id || `session_${Date.now()}`;
+    
+    const data = {
+        ...sessionData,
+        id: sessionId,
+        roomCode: normalizedCode,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    await db.collection('rooms').doc(normalizedCode)
+        .collection('sessions').doc(sessionId).set(data);
+    
+    console.log('[RoomService] Created session:', sessionId);
+    return { id: sessionId, ...data };
+}
+
+/**
+ * Get all sessions in a room
+ */
+async function getSessions(roomCode) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) return [];
+    
+    const normalizedCode = normalizeRoomCode(roomCode);
+    const snapshot = await db.collection('rooms').doc(normalizedCode)
+        .collection('sessions')
+        .orderBy('date', 'asc')
+        .get();
+    
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+/**
+ * Get a single session
+ */
+async function getSession(roomCode, sessionId) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) return null;
+    
+    const normalizedCode = normalizeRoomCode(roomCode);
+    const doc = await db.collection('rooms').doc(normalizedCode)
+        .collection('sessions').doc(sessionId).get();
+    
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data() };
+}
+
+/**
+ * Update a session
+ */
+async function updateSession(roomCode, sessionId, updates) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) throw new Error('Firebase nicht initialisiert');
+    
+    const normalizedCode = normalizeRoomCode(roomCode);
+    await db.collection('rooms').doc(normalizedCode)
+        .collection('sessions').doc(sessionId).update({
+            ...updates,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    
+    console.log('[RoomService] Updated session:', sessionId);
+}
+
+/**
+ * Delete a session
+ */
+async function deleteSession(roomCode, sessionId) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) throw new Error('Firebase nicht initialisiert');
+    
+    const normalizedCode = normalizeRoomCode(roomCode);
+    await db.collection('rooms').doc(normalizedCode)
+        .collection('sessions').doc(sessionId).delete();
+    
+    console.log('[RoomService] Deleted session:', sessionId);
+}
+
+/**
+ * Subscribe to sessions (realtime)
+ */
+function subscribeToSessions(roomCode, callback) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) return () => {};
+    
+    const normalizedCode = normalizeRoomCode(roomCode);
+    return db.collection('rooms').doc(normalizedCode)
+        .collection('sessions')
+        .orderBy('date', 'asc')
+        .onSnapshot(snapshot => {
+            const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            callback(sessions);
+        }, error => {
+            console.error('[RoomService] Sessions subscription error:', error);
+            callback([]);
+        });
+}
+
+/**
+ * Get next upcoming session
+ */
+async function getNextSession(roomCode) {
+    const db = RIFT.firebase.getFirestore();
+    if (!db) return null;
+    
+    const normalizedCode = normalizeRoomCode(roomCode);
+    const today = new Date().toISOString().split('T')[0];
+    
+    const snapshot = await db.collection('rooms').doc(normalizedCode)
+        .collection('sessions')
+        .where('date', '>=', today)
+        .where('status', 'in', ['planned', 'live'])
+        .orderBy('date', 'asc')
+        .limit(1)
+        .get();
+    
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() };
+}
+
+// ========================================
 // EXPORT
 // ========================================
 
@@ -622,6 +756,15 @@ if (typeof window !== 'undefined') {
         subscribeToRoom,
         subscribeToMembers,
         subscribeToCharacters,
+        subscribeToSessions,
+        
+        // Sessions
+        createSession,
+        getSessions,
+        getSession,
+        updateSession,
+        deleteSession,
+        getNextSession,
         
         // Characters in room
         addCharacterToRoom,
