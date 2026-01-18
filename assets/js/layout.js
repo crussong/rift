@@ -606,6 +606,7 @@ function updatePartyUI(members) {
 function updatePartyFromStorage() {
     // Try to subscribe to Firebase instead
     subscribeToPartyMembers();
+}
 
 /**
  * Update user display in topbar and sidebar
