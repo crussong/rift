@@ -213,13 +213,6 @@ async function roomExists(code) {
 }
 
 /**
- * Get room members
- */
-async function getRoomMembers(code) {
-    const db = RIFT.firebase.getFirestore();
-    if (!db) throw new Error('Firebase nicht initialisiert');
-
-/**
  * Get current user's role in a room
  * @returns {Promise<'gm'|'player'|null>} Role or null if not a member
  */
