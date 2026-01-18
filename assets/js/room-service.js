@@ -243,18 +243,44 @@ async function getUserRole(code, userId) {
 async function isUserGM(code, userId) {
     // Default to current user
     if (!userId) {
+        // Wait for auth if needed
+        if (!firebase?.auth()?.currentUser) {
+            await new Promise(resolve => {
+                const unsubscribe = firebase.auth().onAuthStateChanged(user => {
+                    unsubscribe();
+                    resolve(user);
+                });
+                // Timeout after 3 seconds
+                setTimeout(() => resolve(null), 3000);
+            });
+        }
         userId = firebase?.auth()?.currentUser?.uid;
     }
-    if (!userId) return false;
+    
+    console.log('[RoomService] isUserGM check - code:', code, 'userId:', userId);
+    
+    if (!userId) {
+        console.warn('[RoomService] isUserGM - No userId available');
+        return false;
+    }
     
     try {
         // First check room's gmId (faster)
         const room = await getRoom(code);
-        if (room && room.gmId === userId) return true;
+        console.log('[RoomService] Room data:', room ? { gmId: room.gmId, name: room.name } : null);
+        
+        if (room && room.gmId === userId) {
+            console.log('[RoomService] isUserGM - Match via gmId');
+            return true;
+        }
         
         // Fallback to member role check
         const role = await getUserRole(code, userId);
-        return role === 'gm';
+        console.log('[RoomService] Member role:', role);
+        
+        const isGM = role === 'gm';
+        console.log('[RoomService] isUserGM result:', isGM);
+        return isGM;
     } catch (e) {
         console.error('[RoomService] isUserGM error:', e);
         return false;

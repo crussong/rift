@@ -842,6 +842,7 @@
             }
             
             function showDenied() {
+                console.log('[GM] Showing denied');
                 loadingState.style.cssText = 'display: none !important;';
                 gmContent.style.cssText = 'display: none !important;';
                 accessDenied.style.cssText = 'display: flex !important;';
@@ -867,14 +868,39 @@
                 });
             }
             
+            // Wait for Firebase Auth
+            function waitForAuth(timeout = 5000) {
+                return new Promise((resolve) => {
+                    if (firebase?.auth()?.currentUser) {
+                        resolve(firebase.auth().currentUser);
+                        return;
+                    }
+                    
+                    const unsubscribe = firebase.auth().onAuthStateChanged(user => {
+                        unsubscribe();
+                        resolve(user);
+                    });
+                    
+                    setTimeout(() => resolve(null), timeout);
+                });
+            }
+            
             try {
                 await waitForRIFT();
+                console.log('[GM] RIFT ready');
                 
-                // Wait a bit more for auth
-                await new Promise(r => setTimeout(r, 500));
+                // Wait for auth
+                const user = await waitForAuth();
+                console.log('[GM] Auth user:', user?.uid);
                 
                 if (!currentRoomCode) {
                     console.log('[GM] No room code');
+                    showDenied();
+                    return;
+                }
+                
+                if (!user) {
+                    console.log('[GM] No authenticated user');
                     showDenied();
                     return;
                 }
@@ -884,7 +910,7 @@
                 
                 try {
                     isGM = await RIFT.rooms.isUserGM(currentRoomCode);
-                    console.log('[GM] Firebase GM check:', isGM);
+                    console.log('[GM] Firebase GM check result:', isGM);
                 } catch (e) {
                     console.warn('[GM] Firebase check failed, using localStorage:', e);
                     isGM = userData.isGM === true;
