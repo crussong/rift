@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="RIFT - Dein digitaler Begleiter für Pen & Paper Rollenspiele">
+    <meta name="theme-color" content="#161616" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f5f5f5" media="(prefers-color-scheme: light)">
+    <title>RIFT</title>
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="assets/icons/icon_rift_r.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RIFT">
+    <meta name="view-transition" content="same-origin">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/topbar.css">
+    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="assets/css/hub.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+</head>
+<body>
+    <div class="app">
+        <main class="main main--hub">
+            <div class="main__content">
+                
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="page-header__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M2.5192 7.82274C2 8.77128 2 9.91549 2 12.2039V13.725C2 17.6258 2 19.5763 3.17157 20.7881C4.34315 22 6.22876 22 10 22H14C17.7712 22 19.6569 22 20.8284 20.7881C22 19.5763 22 17.6258 22 13.725V12.2039C22 9.91549 22 8.77128 21.4808 7.82274C20.9616 6.87421 20.0131 6.28551 18.116 5.10812L16.116 3.86687C14.1106 2.62229 13.1079 2 12 2C10.8921 2 9.88939 2.62229 7.88403 3.86687L5.88403 5.10813C3.98695 6.28551 3.0384 6.87421 2.5192 7.82274ZM9 17.25C8.58579 17.25 8.25 17.5858 8.25 18C8.25 18.4142 8.58579 18.75 9 18.75H15C15.4142 18.75 15.75 18.4142 15.75 18C15.75 17.5858 15.4142 17.25 15 17.25H9Z"/>
+                        </svg>
+                    </div>
+                    <div class="page-header__divider"></div>
+                    <h1 class="page-header__title">Hub</h1>
+                    <span class="page-header__tagline">Dein Abenteuer beginnt hier</span>
+                </div>
+                
+                <!-- Divider -->
+                <div class="section-divider"></div>
+                
+                <!-- Hero Section -->
+                <div class="hero-section" id="heroSection">
+                    <!-- Dynamisch befüllt via JS -->
+                    
+                    <!-- Empty State (wird angezeigt wenn keine Sessions/Charaktere) -->
+                    <div class="hero-empty" id="heroEmpty">
+                        <div class="hero-empty__content">
+                            <div class="hero-empty__icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                    <path d="M2 17l10 5 10-5"/>
+                                    <path d="M2 12l10 5 10-5"/>
+                                </svg>
+                            </div>
+                            <h2 class="hero-empty__title">Willkommen bei RIFT</h2>
+                            <p class="hero-empty__text">Erstelle deinen ersten Charakter oder plane eine Session um loszulegen!</p>
+                            <div class="hero-empty__actions">
+                                <a href="sheet.html" class="hero-empty__btn hero-empty__btn--primary">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 5v14M5 12h14"/>
+                                    </svg>
+                                    Charakter erstellen
+                                </a>
+                                <a href="sessions.html" class="hero-empty__btn hero-empty__btn--secondary">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                        <line x1="16" y1="2" x2="16" y2="6"/>
+                                        <line x1="8" y1="2" x2="8" y2="6"/>
+                                    </svg>
+                                    Session planen
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Container für dynamische Karten (initial versteckt) -->
+                    <div id="continueCardsContainer" style="display: none;"></div>
+                    
+                    <!-- Nächste Session Card (initial versteckt, dynamisch befüllt) -->
+                    <a href="sessions.html" class="next-session-card" id="nextSessionCard" style="display: none;">
+                        <div class="next-session-card__header">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <span>Nächste Session</span>
+                        </div>
+                        <div class="next-session-card__date">
+                            <span class="next-session-card__day" id="nextSessionDay">--</span>
+                            <span class="next-session-card__num" id="nextSessionNum">--</span>
+                            <span class="next-session-card__month" id="nextSessionMonth">---</span>
+                        </div>
+                        <div class="next-session-card__time" id="nextSessionTime">--:-- Uhr</div>
+                        <div class="next-session-card__countdown" id="sessionCountdown">
+                            <span class="countdown__value" id="countdownDays">-</span>
+                            <span class="countdown__label">Tage</span>
+                            <span class="countdown__sep">:</span>
+                            <span class="countdown__value" id="countdownHours">-</span>
+                            <span class="countdown__label">Std</span>
+                            <span class="countdown__sep">:</span>
+                            <span class="countdown__value" id="countdownMins">-</span>
+                            <span class="countdown__label">Min</span>
+                        </div>
+                    </a>
+                </div>
+                
+                <!-- Quick Action Bar -->
+                <div class="quick-action-bar">
+                    <a href="sheet.html" class="quick-action">
+                        <div class="quick-action__icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                        </div>
+                        <span class="quick-action__label">Neuer Charakter</span>
+                    </a>
+                    <a href="dice.html" class="quick-action">
+                        <div class="quick-action__icon quick-action__icon--gold">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/>
+                            </svg>
+                        </div>
+                        <span class="quick-action__label">Würfeln</span>
+                    </a>
+                    <a href="chat.html" class="quick-action">
+                        <div class="quick-action__icon quick-action__icon--blue">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22Z"/>
+                            </svg>
+                        </div>
+                        <span class="quick-action__label">Chat</span>
+                    </a>
+                    <a href="notes.html" class="quick-action">
+                        <div class="quick-action__icon quick-action__icon--green">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14,10V4.5L19.5,10M5,3C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V9L15,3H5Z"/>
+                            </svg>
+                        </div>
+                        <span class="quick-action__label">Notizen</span>
+                    </a>
+                    <a href="map.html" class="quick-action">
+                        <div class="quick-action__icon quick-action__icon--purple">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                                <line x1="8" y1="2" x2="8" y2="18"/>
+                                <line x1="16" y1="6" x2="16" y2="22"/>
+                            </svg>
+                        </div>
+                        <span class="quick-action__label">Karte</span>
+                    </a>
+                    <a href="whiteboard.html" class="quick-action">
+                        <div class="quick-action__icon quick-action__icon--cyan">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                                <path d="M2 2l7.586 7.586"/>
+                                <circle cx="11" cy="11" r="2"/>
+                            </svg>
+                        </div>
+                        <span class="quick-action__label">Whiteboard</span>
+                    </a>
+                </div>
+                
+                <!-- Section Divider -->
+                <div class="section-divider"></div>
+                
+                <!-- News Section -->
+                <h2 class="section-title section-title--news">Neuigkeiten</h2>
+                
+                <div class="news-grid">
+                    <!-- News Card 1 -->
+                    <section class="news-card-medium" id="newsCard">
+                        <button class="news-card-medium__edit" data-news="1" data-admin-only title="Artikel bearbeiten">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        <div class="news-card-medium__image">
+                            <img id="newsCardImage" src="assets/img/news/news_placeholder.svg" alt="" onerror="this.parentElement.classList.add('no-image')">
+                            <div class="news-card-medium__image-fallback">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10zm-8-7L4 6h16l-8 5z"/></svg>
+                            </div>
+                        </div>
+                        <div class="news-card-medium__content">
+                            <span class="news-card-medium__date" id="newsCardDate">11. Januar 2026</span>
+                            <h3 class="news-card-medium__title" id="newsCardTitle">RIFT ist released, yay!</h3>
+                            <p class="news-card-medium__desc" id="newsCardDesc">Willkommen bei RIFT – deinem digitalen Begleiter für Pen & Paper Abenteuer. Entdecke alle Features!</p>
+                        </div>
+                        <a href="news1.html" class="news-card-medium__link">
+                            Lesen
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </a>
+                    </section>
+                    
+                    <!-- News Card 2 -->
+                    <section class="news-card-medium" id="newsCard2">
+                        <button class="news-card-medium__edit" data-news="2" data-admin-only title="Artikel bearbeiten">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        <div class="news-card-medium__image">
+                            <img id="newsCard2Image" src="assets/img/news/news_placeholder.svg" alt="" onerror="this.parentElement.classList.add('no-image')">
+                            <div class="news-card-medium__image-fallback">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10zm-8-7L4 6h16l-8 5z"/></svg>
+                            </div>
+                        </div>
+                        <div class="news-card-medium__content">
+                            <span class="news-card-medium__date" id="newsCard2Date">8. Januar 2026</span>
+                            <h3 class="news-card-medium__title" id="newsCard2Title">Update 1.1 kommt!</h3>
+                            <p class="news-card-medium__desc" id="newsCard2Desc">Neue Features, Bugfixes und mehr – das nächste Update steht vor der Tür.</p>
+                        </div>
+                        <a href="news2.html" class="news-card-medium__link">
+                            Lesen
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </a>
+                    </section>
+                </div>
+                
+                <!-- Section Divider -->
+                <div class="section-divider"></div>
+                
+                <!-- GM Message Board -->
+                <section class="message-board" id="messageBoard">
+                    <div class="message-board__header">
+                        <div class="message-board__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="message-board__meta">
+                            <span class="message-board__label">GM Nachricht</span>
+                            <span class="message-board__date" id="messageBoardDate">Heute</span>
+                        </div>
+                        <button class="message-board__edit" data-admin-only title="Nachricht bearbeiten">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="message-board__content" id="messageBoardContent">
+                        <p>Willkommen bei <strong>RIFT</strong> – deinem digitalen Begleiter für Pen & Paper Abenteuer! 🎲</p>
+                    </div>
+                </section>
+                
+                <!-- Section Divider -->
+                <div class="section-divider"></div>
+                
+                <!-- Widget Grid -->
+                <div class="widgets">
+                    
+                    <!-- Widget: Letzte Sessions -->
+                    <div class="widget">
+                        <div class="widget__header">
+                            <h2 class="widget__title">Letzte Sessions</h2>
+                            <a href="sessions.html" class="widget__action">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Neu
+                            </a>
+                        </div>
+                        <div class="widget__content">
+                            <div class="widget__list" id="recentSessionsList">
+                                <!-- Dynamisch befüllt -->
+                            </div>
+                            <!-- Empty State -->
+                            <div class="widget__empty" id="sessionsEmpty">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                    <line x1="16" y1="2" x2="16" y2="6"/>
+                                    <line x1="8" y1="2" x2="8" y2="6"/>
+                                    <line x1="3" y1="10" x2="21" y2="10"/>
+                                </svg>
+                                <p>Noch keine Sessions</p>
+                                <a href="sessions.html" class="widget__empty-btn">Session erstellen</a>
+                            </div>
+                        </div>
+                        <div class="widget__footer" id="sessionsFooter" style="display: none;">
+                            <a href="sessions.html" class="widget__link">
+                                Alle Sessions anzeigen
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget: Aktive Charaktere -->
+                    <div class="widget">
+                        <div class="widget__header">
+                            <h2 class="widget__title">Aktive Charaktere</h2>
+                            <a href="sheet.html" class="widget__action">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Neu
+                            </a>
+                        </div>
+                        <div class="widget__content">
+                            <div class="widget__list" id="charactersList">
+                                <!-- Dynamisch befüllt -->
+                            </div>
+                            <!-- Empty State -->
+                            <div class="widget__empty" id="charactersEmpty">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                <p>Noch keine Charaktere</p>
+                                <a href="sheet.html" class="widget__empty-btn">Charakter erstellen</a>
+                            </div>
+                        </div>
+                        <div class="widget__footer" id="charactersFooter" style="display: none;">
+                            <a href="sheet.html" class="widget__link">
+                                Alle Charaktere
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget: Deine Party -->
+                    <div class="widget">
+                        <div class="widget__header">
+                            <h2 class="widget__title">Deine Party</h2>
+                            <button class="widget__action" id="invitePartyBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                                Einladen
+                            </button>
+                        </div>
+                        <div class="widget__content">
+                            <div class="widget__list" id="partyList">
+                                <!-- Dynamisch befüllt -->
+                            </div>
+                            <!-- Empty State -->
+                            <div class="widget__empty" id="partyEmpty">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                </svg>
+                                <p>Noch keine Mitspieler</p>
+                                <span class="widget__empty-hint">Teile deinen Raum-Code um Spieler einzuladen</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget: Aktivitäts-Feed -->
+                    <div class="widget">
+                        <div class="widget__header">
+                            <h2 class="widget__title">Aktivität</h2>
+                        </div>
+                        <div class="widget__content">
+                            <div class="widget__feed" id="activityFeed">
+                                <!-- Dynamisch befüllt -->
+                            </div>
+                            <!-- Empty State -->
+                            <div class="widget__empty" id="activityEmpty">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                </svg>
+                                <p>Noch keine Aktivität</p>
+                                <span class="widget__empty-hint">Hier erscheinen Würfe, Nachrichten und mehr</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget: Würfelglück -->
+                    <div class="widget widget--compact">
+                        <div class="widget__header">
+                            <h2 class="widget__title">Würfelglück</h2>
+                            <span class="widget__period">Diese Woche</span>
+                        </div>
+                        <div class="widget__content">
+                            <div class="dice-luck">
+                                <div class="dice-luck__stat">
+                                    <span class="dice-luck__value dice-luck__value--crit" id="statNat20">0</span>
+                                    <span class="dice-luck__label">Nat 20s</span>
+                                </div>
+                                <div class="dice-luck__stat">
+                                    <span class="dice-luck__value dice-luck__value--fumble" id="statFumbles">0</span>
+                                    <span class="dice-luck__label">Fumbles</span>
+                                </div>
+                                <div class="dice-luck__stat">
+                                    <span class="dice-luck__value" id="statTotalRolls">0</span>
+                                    <span class="dice-luck__label">Würfe</span>
+                                </div>
+                                <div class="dice-luck__stat">
+                                    <span class="dice-luck__value" id="statAvgD20">--</span>
+                                    <span class="dice-luck__label">Ø D20</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget: Session Timer -->
+                    <div class="widget widget--compact" id="sessionTimerWidget" style="display: none;">
+                        <div class="widget__header">
+                            <h2 class="widget__title">Session läuft</h2>
+                            <span class="session-timer__live">● Live</span>
+                        </div>
+                        <div class="widget__content">
+                            <div class="session-timer">
+                                <div class="session-timer__display">
+                                    <span class="session-timer__value" id="sessionTimerValue">0:00:00</span>
+                                </div>
+                                <div class="session-timer__controls">
+                                    <button class="session-timer__btn" id="pauseSessionBtn" title="Pause">
+                                        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                                    </button>
+                                    <button class="session-timer__btn session-timer__btn--stop" id="stopSessionBtn" title="Session beenden">
+                                        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget: Achievements -->
+                    <div class="widget widget--compact">
+                        <div class="widget__header">
+                            <h2 class="widget__title">Achievements</h2>
+                        </div>
+                        <div class="widget__content">
+                            <div class="achievements">
+                                <div class="achievement achievement--unlocked" title="Erste Schritte: Erste Session gespielt">
+                                    <div class="achievement__icon">🎲</div>
+                                </div>
+                                <div class="achievement achievement--unlocked" title="Würfelmeister: 100 Würfe">
+                                    <div class="achievement__icon">🎯</div>
+                                </div>
+                                <div class="achievement achievement--unlocked" title="Kritischer Treffer: Nat 20 gewürfelt">
+                                    <div class="achievement__icon">⚔️</div>
+                                </div>
+                                <div class="achievement achievement--unlocked" title="Geschichtenerzähler: 10 Sessions">
+                                    <div class="achievement__icon">📖</div>
+                                </div>
+                                <div class="achievement" title="Veteran: 50 Sessions">
+                                    <div class="achievement__icon">🏆</div>
+                                </div>
+                                <div class="achievement" title="Glückspilz: 5 Nat 20s in einer Session">
+                                    <div class="achievement__icon">🍀</div>
+                                </div>
+                            </div>
+                            <a href="#" class="widget__link widget__link--small">
+                                Alle anzeigen (12/24)
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </main>
+        
+        <!-- GM Floating Action Button -->
+        <a href="gm.html" class="gm-fab" id="gmFab" style="display: none;" title="GM Optionen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span>GM</span>
+        </a>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- RIFT Services -->
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/room-service.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/settings.js"></script>
+    <script src="assets/js/admin.js"></script>
+    <script src="assets/js/news.js"></script>
+    <script src="assets/js/data-manager.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        initLayout();
+        
+        // Get current room code for filtering
+        var currentRoomCode = localStorage.getItem('rift_current_room') || null;
+        
+        // Show GM FAB if user is GM
+        (function() {
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            const gmFab = document.getElementById('gmFab');
+            if (gmFab && userData.isGM) {
+                gmFab.style.display = 'flex';
+            }
+        })();
+        
+        // Random background image
+        (function() {
+            const bgNum = String(Math.floor(Math.random() * 12) + 1).padStart(3, '0');
+            const style = document.createElement('style');
+            style.textContent = `.main--hub::before { background-image: url('assets/bg/bg_${bgNum}.jpg'); }`;
+            document.head.appendChild(style);
+        })();
+        
+        // News Edit Button Handler
+        (function() {
+            document.querySelectorAll('.news-card-medium__edit').forEach(editBtn => {
+                editBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const newsId = this.dataset.news;
+                    window.location.href = `news${newsId}.html?edit=true`;
+                });
+            });
+        })();
+        
+        // Load News Cards from localStorage
+        (function() {
+            // Card 1
+            const meta1 = JSON.parse(localStorage.getItem('rift_news_meta_news_1') || 'null');
+            if (meta1) {
+                const titleEl = document.getElementById('newsCardTitle');
+                const descEl = document.getElementById('newsCardDesc');
+                const dateEl = document.getElementById('newsCardDate');
+                const imageEl = document.getElementById('newsCardImage');
+                const imageContainer = imageEl?.parentElement;
+                
+                if (titleEl && meta1.title) titleEl.textContent = meta1.title;
+                if (descEl && meta1.description) descEl.textContent = meta1.description;
+                if (dateEl && meta1.date) dateEl.textContent = meta1.date;
+                if (imageEl && meta1.image) {
+                    imageContainer?.classList.remove('no-image');
+                    imageEl.onerror = () => imageContainer?.classList.add('no-image');
+                    imageEl.src = meta1.image;
+                }
+            }
+            
+            // Card 2
+            const meta2 = JSON.parse(localStorage.getItem('rift_news_meta_news_2') || 'null');
+            if (meta2) {
+                const titleEl = document.getElementById('newsCard2Title');
+                const descEl = document.getElementById('newsCard2Desc');
+                const dateEl = document.getElementById('newsCard2Date');
+                const imageEl = document.getElementById('newsCard2Image');
+                const imageContainer = imageEl?.parentElement;
+                
+                if (titleEl && meta2.title) titleEl.textContent = meta2.title;
+                if (descEl && meta2.description) descEl.textContent = meta2.description;
+                if (dateEl && meta2.date) dateEl.textContent = meta2.date;
+                if (imageEl && meta2.image) {
+                    imageContainer?.classList.remove('no-image');
+                    imageEl.onerror = () => imageContainer?.classList.add('no-image');
+                    imageEl.src = meta2.image;
+                }
+            }
+        })();
+        
+        // Random Character Image for Continue Cards
+        (function() {
+            const characterImages = {
+                'dnd5e': ['char_5e2024_01', 'char_5e2024_02', 'char_5e2024_03', 'char_5e2024_04', 'char_5e2024_05', 'char_5e2024_06', 'char_5e2024_07'],
+                'worldsapart': ['char_worldsapart_01', 'char_worldsapart_02', 'char_worldsapart_03', 'char_worldsapart_04', 'char_worldsapart_05', 'char_worldsapart_06', 'char_worldsapart_07'],
+                'htbah': ['char_htbah_01', 'char_htbah_02', 'char_htbah_03', 'char_htbah_04', 'char_htbah_05', 'char_htbah_06', 'char_htbah_07'],
+                'cyberpunkred': ['char_cyberpunk_01', 'char_cyberpunk_02', 'char_cyberpunk_03', 'char_cyberpunk_04']
+            };
+            
+            // Load images for all continue cards
+            document.querySelectorAll('.continue-card[data-rulebook]').forEach(card => {
+                const rulebookId = card.dataset.rulebook;
+                const images = characterImages[rulebookId];
+                
+                if (images && images.length > 0) {
+                    const randomImg = images[Math.floor(Math.random() * images.length)];
+                    const imgEl = card.querySelector('.continue-card__character img');
+                    
+                    if (imgEl) {
+                        imgEl.onload = () => imgEl.classList.add('loaded');
+                        imgEl.onerror = () => imgEl.style.display = 'none';
+                        imgEl.src = `assets/img/rift_chars/hero_card/${randomImg}.png`;
+                    }
+                }
+            });
+        })();
+        
+        // Session Timer (for active sessions)
+        (function() {
+            let sessionStartTime = null;
+            let timerInterval = null;
+            const timerWidget = document.getElementById('sessionTimerWidget');
+            const timerValue = document.getElementById('sessionTimerValue');
+            const pauseBtn = document.getElementById('pauseSessionBtn');
+            const stopBtn = document.getElementById('stopSessionBtn');
+            let isPaused = false;
+            let pausedTime = 0;
+            
+            // Check if there's an active session
+            const activeSession = JSON.parse(localStorage.getItem('rift_active_session') || 'null');
+            if (activeSession && timerWidget) {
+                sessionStartTime = new Date(activeSession.startTime);
+                pausedTime = activeSession.pausedTime || 0;
+                timerWidget.style.display = 'block';
+                startTimer();
+            }
+            
+            function startTimer() {
+                timerInterval = setInterval(updateTimer, 1000);
+            }
+            
+            function updateTimer() {
+                if (isPaused) return;
+                const now = new Date();
+                const elapsed = now - sessionStartTime - pausedTime;
+                const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                const mins = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((elapsed % (1000 * 60)) / 1000);
+                if (timerValue) {
+                    timerValue.textContent = `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                }
+            }
+            
+            if (pauseBtn) {
+                pauseBtn.addEventListener('click', () => {
+                    isPaused = !isPaused;
+                    pauseBtn.classList.toggle('active', isPaused);
+                });
+            }
+            
+            if (stopBtn) {
+                stopBtn.addEventListener('click', () => {
+                    if (confirm('Session wirklich beenden?')) {
+                        clearInterval(timerInterval);
+                        localStorage.removeItem('rift_active_session');
+                        if (timerWidget) timerWidget.style.display = 'none';
+                    }
+                });
+            }
+        })();
+        
+        // Service Worker deaktiviert - verursachte Caching-Probleme
+        // Falls ein alter SW noch läuft, deregistrieren:
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(registration => {
+                    registration.unregister();
+                    console.log('[SW] Alte Registrierung entfernt');
+                });
+            });
+        }
+        
+        // ========================================
+        // LOAD DASHBOARD DATA
+        // ========================================
+        
+        function loadDashboardData() {
+            const allSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+            // Use CharacterStorage format (object) and convert to array
+            const characterData = JSON.parse(localStorage.getItem('rift_characters') || '{}');
+            const characters = Object.values(characterData);
+            const now = new Date();
+            const currentUserId = window.currentUser?.uid || null;
+            
+            // Filter sessions for current room AND/OR current user
+            const sessions = allSessions.filter(s => {
+                // If we have a room code, filter by room
+                if (currentRoomCode) {
+                    return s.roomCode === currentRoomCode;
+                }
+                
+                // If no room code, show only sessions without room OR owned by current user
+                if (currentUserId) {
+                    return (!s.roomCode && s.ownerId === currentUserId) || s.ownerId === currentUserId;
+                }
+                
+                // Fallback: show sessions without room code
+                return !s.roomCode;
+            });
+            
+            // Check if we have any data
+            const hasData = sessions.length > 0 || characters.length > 0;
+            
+            // Hero Section
+            const heroEmpty = document.getElementById('heroEmpty');
+            const continueContainer = document.getElementById('continueCardsContainer');
+            const nextSessionCard = document.getElementById('nextSessionCard');
+            
+            if (!hasData) {
+                // Show empty state
+                heroEmpty.style.display = 'flex';
+            } else {
+                heroEmpty.style.display = 'none';
+                
+                // Find next upcoming session
+                const upcomingSessions = sessions.filter(s => {
+                    const sessionDate = new Date(s.date + 'T' + (s.time || '00:00'));
+                    return sessionDate >= now && s.status !== 'ended';
+                }).sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                if (upcomingSessions.length > 0) {
+                    const next = upcomingSessions[0];
+                    const date = new Date(next.date);
+                    const weekdays = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA'];
+                    const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+                    
+                    nextSessionCard.style.display = 'flex';
+                    nextSessionCard.href = `session.html?id=${next.id}`;
+                    document.getElementById('nextSessionDay').textContent = weekdays[date.getDay()];
+                    document.getElementById('nextSessionNum').textContent = String(date.getDate()).padStart(2, '0');
+                    document.getElementById('nextSessionMonth').textContent = months[date.getMonth()];
+                    document.getElementById('nextSessionTime').textContent = `${next.time || '20:00'} Uhr`;
+                    
+                    // Countdown
+                    const sessionDateTime = new Date(next.date + 'T' + (next.time || '20:00'));
+                    updateCountdown(sessionDateTime);
+                    setInterval(() => updateCountdown(sessionDateTime), 60000);
+                }
+                
+                // Generate Continue Cards for active sessions with selected character
+                // Session-basiert: Max 2 Sessions, jeweils mit dem ausgewählten Charakter
+                if (sessions.length > 0) {
+                    const rulesetConfig = {
+                        '5e2024': { name: 'D&D 5E', class: '5e' },
+                        'worldsapart': { name: 'WORLDS APART', class: 'worldsapart' },
+                        'htbah': { name: 'HTBAH', class: 'htbah' },
+                        'cyberpunk': { name: 'CYBERPUNK', class: 'cyberpunk' }
+                    };
+                    
+                    // Get upcoming/active sessions (max 2)
+                    const activeSessions = sessions
+                        .filter(s => s.status !== 'ended')
+                        .slice(0, 2);
+                    
+                    const continueCards = activeSessions.map(session => {
+                        // Find selected character for this session
+                        const selectedChar = session.selectedCharacterId 
+                            ? characters.find(c => c.id === session.selectedCharacterId)
+                            : characters.find(c => c.sessionId === session.id) || characters[0];
+                        
+                        const charName = selectedChar?.name || 'Kein Charakter';
+                        const charPortrait = selectedChar?.portrait || null;
+                        const charInitial = charName.charAt(0).toUpperCase();
+                        const sessionNum = session.currentSession || 1;
+                        const totalSessions = session.sessionCount || '?';
+                        const ruleset = rulesetConfig[session.ruleset] || rulesetConfig['worldsapart'];
+                        
+                        // Medaillon: Portrait oder Initial
+                        const avatarContent = charPortrait 
+                            ? `<img src="${charPortrait}" alt="${charName}" onload="this.classList.add('loaded')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                               <span class="continue-card__avatar-initial" style="display:none;">${charInitial}</span>`
+                            : `<span class="continue-card__avatar-initial">${charInitial}</span>`;
+                        
+                        return `
+                            <a href="session.html?id=${session.id}" class="continue-card continue-card--${ruleset.class}" data-rulebook="${session.ruleset}">
+                                <div class="continue-card__badge">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                    ${charName}
+                                </div>
+                                <div class="continue-card__avatar">
+                                    ${avatarContent}
+                                </div>
+                                <div class="continue-card__glass">
+                                    <div class="continue-card__glass-content">
+                                        <div class="continue-card__info">
+                                            <span class="continue-card__label">Weiterspielen</span>
+                                            <h3 class="continue-card__title">${session.name || 'Unbenannte Session'}</h3>
+                                            <div class="continue-card__meta">
+                                                <span class="ruleset-badge ruleset-badge--${ruleset.class} ruleset-badge--sm">
+                                                    <span>${ruleset.name}</span>
+                                                </span>
+                                                <span class="continue-card__session">Session ${sessionNum}/${totalSessions}</span>
+                                            </div>
+                                        </div>
+                                        <div class="continue-card__actions">
+                                            <span class="continue-card__btn continue-card__btn--primary">
+                                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                                </svg>
+                                                Fortsetzen
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        `;
+                    }).join('');
+                    
+                    continueContainer.innerHTML = continueCards;
+                    continueContainer.style.display = 'flex';
+                    continueContainer.style.gap = '24px';
+                }
+            }
+            
+            // Sessions Widget
+            const recentSessions = sessions.slice(-3).reverse();
+            const sessionsList = document.getElementById('recentSessionsList');
+            const sessionsEmpty = document.getElementById('sessionsEmpty');
+            const sessionsFooter = document.getElementById('sessionsFooter');
+            
+            if (recentSessions.length > 0) {
+                sessionsEmpty.style.display = 'none';
+                sessionsFooter.style.display = 'block';
+                sessionsList.innerHTML = recentSessions.map(renderSessionItem).join('');
+            } else {
+                sessionsEmpty.style.display = 'flex';
+                sessionsFooter.style.display = 'none';
+            }
+            
+            // Characters Widget
+            const charactersList = document.getElementById('charactersList');
+            const charactersEmpty = document.getElementById('charactersEmpty');
+            const charactersFooter = document.getElementById('charactersFooter');
+            
+            if (characters.length > 0) {
+                charactersEmpty.style.display = 'none';
+                charactersFooter.style.display = 'block';
+                charactersList.innerHTML = characters.slice(0, 3).map(renderCharacterItem).join('');
+            } else {
+                charactersEmpty.style.display = 'flex';
+                charactersFooter.style.display = 'none';
+            }
+        }
+        
+        function updateCountdown(targetDate) {
+            const now = new Date();
+            const diff = targetDate - now;
+            
+            if (diff <= 0) {
+                document.getElementById('countdownDays').textContent = '0';
+                document.getElementById('countdownHours').textContent = '0';
+                document.getElementById('countdownMins').textContent = '0';
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            document.getElementById('countdownDays').textContent = days;
+            document.getElementById('countdownHours').textContent = hours;
+            document.getElementById('countdownMins').textContent = mins;
+        }
+        
+        function renderSessionItem(session) {
+            const rulesetConfig = {
+                '5e2024': { name: 'D&D 5e', badge: '5e', icon: 'assets/img/rulesets/ruleset_5e_2024.svg' },
+                'worldsapart': { name: 'Worlds Apart', badge: 'worldsapart', icon: 'assets/img/rulesets/ruleset_worldsapart.svg' },
+                'htbah': { name: 'How To Be A Hero', badge: 'htbah', icon: 'assets/img/rulesets/ruleset_htbah.svg' },
+                'cyberpunk': { name: 'Cyberpunk Red', badge: 'cyberpunk', icon: 'assets/img/rulesets/ruleset_cyberpunkred.svg' }
+            };
+            const ruleset = rulesetConfig[session.ruleset] || { name: session.ruleset, badge: '', icon: '' };
+            
+            return `
+                <a href="session.html?id=${session.id}" class="widget__item session-item">
+                    <div class="session-item__left">
+                        <div class="ruleset-badge ruleset-badge--${ruleset.badge}">
+                            <img src="${ruleset.icon}" alt="">
+                            <span>${ruleset.name}</span>
+                        </div>
+                        <span class="session-item__title">${session.name}</span>
+                        <span class="session-item__meta">${session.date} · ${session.maxPlayers || 4} Spieler</span>
+                    </div>
+                </a>
+            `;
+        }
+        
+        function renderCharacterItem(char) {
+            return `
+                <a href="sheet.html?id=${char.id}" class="widget__item character-item">
+                    <div class="character-item__portrait" style="background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);">
+                        <span class="character-item__initial">${char.name ? char.name.charAt(0).toUpperCase() : '?'}</span>
+                    </div>
+                    <div class="widget__item-info">
+                        <span class="character-item__name">${char.name || 'Unbenannt'}</span>
+                        <span class="widget__item-meta">${char.race || ''} · ${char.class || ''}</span>
+                    </div>
+                </a>
+            `;
+        }
+        
+        // Load dashboard data on page load
+        loadDashboardData();
+    </script>
+</body>
+</html>

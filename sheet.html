@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>RIFT – Charakterbogen</title>
+    
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/topbar.css">
+    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="assets/css/sheet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <style>
+        /* Character Status Preview Bars */
+        .rulebook-panel__char-status {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 60px;
+            margin-right: 8px;
+        }
+        .rulebook-panel__char-status-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+        .rulebook-panel__char-status-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .rulebook-panel__char-status-fill.health {
+            background: linear-gradient(90deg, #166534, #22c55e);
+        }
+        .rulebook-panel__char-status-fill.moral {
+            background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+        }
+        .rulebook-panel__char-status-label {
+            font-size: 8px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Recent strip status */
+        .recent-strip__status {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .recent-strip__status-bar {
+            flex: 1;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .recent-strip__status-fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+        .recent-strip__status-fill.health {
+            background: #22c55e;
+        }
+        .recent-strip__status-fill.moral {
+            background: #60a5fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <main class="main">
+            <div class="main__content">
+                
+                <div class="sheet-page">
+                    <!-- Header -->
+                    <div class="page-header">
+                        <div class="page-header__icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M4.17157 3.17157C3 4.34315 3 6.22876 3 10V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V10C21 6.22876 21 4.34315 19.8284 3.17157C18.6569 2 16.7712 2 13 2H11C7.22876 2 5.34315 2 4.17157 3.17157ZM7.25 8C7.25 7.58579 7.58579 7.25 8 7.25H16C16.4142 7.25 16.75 7.58579 16.75 8C16.75 8.41421 16.4142 8.75 16 8.75H8C7.58579 8.75 7.25 8.41421 7.25 8ZM7.25 12C7.25 11.5858 7.58579 11.25 8 11.25H16C16.4142 11.25 16.75 11.5858 16.75 12C16.75 12.4142 16.4142 12.75 16 12.75H8C7.58579 12.75 7.25 12.4142 7.25 12ZM8 15.25C7.58579 15.25 7.25 15.5858 7.25 16C7.25 16.4142 7.58579 16.75 8 16.75H13C13.4142 16.75 13.75 16.4142 13.75 16C13.75 15.5858 13.4142 15.25 13 15.25H8Z"/>
+                            </svg>
+                        </div>
+                        <div class="page-header__divider"></div>
+                        <h1 class="page-header__title">Charakterbogen</h1>
+                        <span class="page-header__tagline">Dein Held, deine Geschichte</span>
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="sheet-stats">
+                        <div class="sheet-stat">
+                            <div class="sheet-stat__value" id="statTotalChars">0</div>
+                            <div class="sheet-stat__label">Charaktere</div>
+                        </div>
+                        <div class="sheet-stat">
+                            <div class="sheet-stat__value" id="statRulesets">4</div>
+                            <div class="sheet-stat__label">Regelwerke</div>
+                        </div>
+                        <div class="sheet-stat">
+                            <div class="sheet-stat__value" id="statLastPlayed">–</div>
+                            <div class="sheet-stat__label">Letzte Session</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Divider -->
+                    <div class="section-divider"></div>
+                    
+                    <!-- Rulebooks Section -->
+                    <section class="sheet-section">
+                        <div class="sheet-section__header">
+                            <h2 class="sheet-section__title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                                </svg>
+                                Regelwerke
+                            </h2>
+                        </div>
+                        
+                        <!-- Rulebook Selection Grid -->
+                        <div class="rulebook-grid" id="rulebookGrid">
+                        
+                            <!-- D&D 5e -->
+                            <div class="rulebook-wrapper" data-rulebook="dnd5e">
+                                <div class="rulebook-card rulebook-card--red" onclick="SheetManager.toggleRulebook('dnd5e')">
+                                    <div class="rulebook-card__bg"></div>
+                                    
+                                    <!-- Character Badge -->
+                                    <div class="rulebook-card__badge">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                        <span class="rulebook-card__count">3 Charaktere</span>
+                                    </div>
+                                    
+                                    <!-- Expand Indicator -->
+                                    <div class="rulebook-card__expand">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="6 9 12 15 18 9"/>
+                                        </svg>
+                                    </div>
+                                    
+                                    <!-- Character Clip Container -->
+                                    <div class="rulebook-card__clip">
+                                        <img class="rulebook-card__character" src="" alt="" 
+                                             onload="this.src && this.classList.add('loaded')" 
+                                             onerror="this.classList.remove('loaded')">
+                                    </div>
+                                    
+                                    <!-- Glass Info Panel -->
+                                    <div class="rulebook-card__glass">
+                                        <div class="rulebook-card__glass-content">
+                                            <h3 class="rulebook-card__name">D&D 5e</h3>
+                                            <div class="rulebook-card__meta">
+                                                <span class="rulebook-card__meta-item">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                                                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                                                    </svg>
+                                                    Dungeons & Dragons
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_5e_2024.svg" alt="" onerror="this.style.display='none'">
+                                    </div>
+                                </div>
+                                
+                                <!-- Character Panel (Accordion) -->
+                                <div class="rulebook-panel">
+                                    <div class="rulebook-panel__content">
+                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('dnd5e')">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                            </svg>
+                                            Neuer Charakterbogen
+                                        </button>
+                                        <div class="rulebook-panel__list" data-rulebook="dnd5e">
+                                            <!-- Characters loaded via JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        
+                            <!-- Worlds Apart -->
+                            <div class="rulebook-wrapper" data-rulebook="worldsapart">
+                                <div class="rulebook-card rulebook-card--purple" onclick="SheetManager.toggleRulebook('worldsapart')">
+                                    <div class="rulebook-card__bg"></div>
+                                    
+                                    <div class="rulebook-card__badge">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                        <span class="rulebook-card__count">1 Charakter</span>
+                                    </div>
+                                    
+                                    <div class="rulebook-card__expand">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="6 9 12 15 18 9"/>
+                                        </svg>
+                                    </div>
+                                    
+                                    <div class="rulebook-card__clip">
+                                        <img class="rulebook-card__character" src="" alt="" 
+                                             onload="this.src && this.classList.add('loaded')" 
+                                             onerror="this.classList.remove('loaded')">
+                                    </div>
+                                    
+                                    <div class="rulebook-card__glass">
+                                        <div class="rulebook-card__glass-content">
+                                            <h3 class="rulebook-card__name">Worlds Apart</h3>
+                                            <div class="rulebook-card__meta">
+                                                <span class="rulebook-card__meta-item">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                                        <path d="M12 2L4 7v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V7l-8-5z"/>
+                                                    </svg>
+                                                    Modulares Piraten RPG
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_worldsapart.svg" alt="" onerror="this.style.display='none'">
+                                    </div>
+                                </div>
+                                
+                                <div class="rulebook-panel">
+                                    <div class="rulebook-panel__content">
+                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('worldsapart')">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                            </svg>
+                                            Neuer Charakterbogen
+                                        </button>
+                                        <div class="rulebook-panel__list" data-rulebook="worldsapart">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        
+                            <!-- How To Be A Hero -->
+                            <div class="rulebook-wrapper" data-rulebook="htbah">
+                                <div class="rulebook-card rulebook-card--green" onclick="SheetManager.toggleRulebook('htbah')">
+                                    <div class="rulebook-card__bg"></div>
+                                    
+                                    <div class="rulebook-card__badge">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                        <span class="rulebook-card__count">0 Charaktere</span>
+                                    </div>
+                                    
+                                    <div class="rulebook-card__expand">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="6 9 12 15 18 9"/>
+                                        </svg>
+                                    </div>
+                                    
+                                    <div class="rulebook-card__clip">
+                                        <img class="rulebook-card__character" src="" alt="" 
+                                             onload="this.src && this.classList.add('loaded')" 
+                                             onerror="this.classList.remove('loaded')">
+                                    </div>
+                                    
+                                    <div class="rulebook-card__glass">
+                                        <div class="rulebook-card__glass-content">
+                                            <h3 class="rulebook-card__name">How To Be A Hero</h3>
+                                            <div class="rulebook-card__meta">
+                                                <span class="rulebook-card__meta-item">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                                    </svg>
+                                                    Einsteiger-freundlich
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_htbah.svg" alt="" onerror="this.style.display='none'">
+                                    </div>
+                                </div>
+                                
+                                <div class="rulebook-panel">
+                                    <div class="rulebook-panel__content">
+                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('htbah')">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                            </svg>
+                                            Neuer Charakterbogen
+                                        </button>
+                                        <div class="rulebook-panel__list" data-rulebook="htbah">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        
+                            <!-- Cyberpunk RED -->
+                            <div class="rulebook-wrapper" data-rulebook="cyberpunkred">
+                                <div class="rulebook-card rulebook-card--yellow" onclick="SheetManager.toggleRulebook('cyberpunkred')">
+                                    <div class="rulebook-card__bg"></div>
+                                    
+                                    <div class="rulebook-card__badge">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                        <span class="rulebook-card__count">0 Charaktere</span>
+                                    </div>
+                                    
+                                    <div class="rulebook-card__expand">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="6 9 12 15 18 9"/>
+                                        </svg>
+                                    </div>
+                                    
+                                    <div class="rulebook-card__clip">
+                                        <img class="rulebook-card__character" src="" alt="" 
+                                             onload="this.src && this.classList.add('loaded')" 
+                                             onerror="this.classList.remove('loaded')">
+                                    </div>
+                                    
+                                    <div class="rulebook-card__glass">
+                                        <div class="rulebook-card__glass-content">
+                                            <h3 class="rulebook-card__name">Cyberpunk RED</h3>
+                                            <div class="rulebook-card__meta">
+                                                <span class="rulebook-card__meta-item">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                                        <path d="M2 17l10 5 10-5"/>
+                                                        <path d="M2 12l10 5 10-5"/>
+                                                    </svg>
+                                                    Dystopisches Sci-Fi RPG
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_cyberpunkred.svg" alt="" onerror="this.style.display='none'">
+                                    </div>
+                                </div>
+                                
+                                <div class="rulebook-panel">
+                                    <div class="rulebook-panel__content">
+                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('cyberpunkred')">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                            </svg>
+                                            Neuer Charakterbogen
+                                        </button>
+                                        <div class="rulebook-panel__list" data-rulebook="cyberpunkred">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        
+                        </div>
+                    </section>
+                    
+                    <!-- Divider -->
+                    <div class="section-divider"></div>
+                    
+                    <!-- Recently Played Section (Kompakter) -->
+                    <section class="sheet-section">
+                        <div class="sheet-section__header">
+                            <h2 class="sheet-section__title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                                Zuletzt gespielt
+                            </h2>
+                        </div>
+                        <div class="recent-strip" id="recentCharacters">
+                            <!-- Compact recent characters - loaded via JS -->
+                        </div>
+                    </section>
+                    
+                </div>
+                
+            </div>
+        </main>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- RIFT Services -->
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/room-service.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/settings.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script src="assets/js/character-storage.js"></script>
+    <script src="assets/js/app.js"></script>
+    
+    <script>
+        // Initialize Layout
+        initLayout();
+        
+        // Sheet Manager
+        const SheetManager = {
+            // Currently open rulebook
+            openRulebookId: null,
+            
+            // Available character images per rulebook
+            characterImages: {
+                'dnd5e': ['char_5e2024_01', 'char_5e2024_02', 'char_5e2024_03', 'char_5e2024_04', 'char_5e2024_05', 'char_5e2024_06', 'char_5e2024_07'],
+                'worldsapart': ['char_worldsapart_01', 'char_worldsapart_02', 'char_worldsapart_03', 'char_worldsapart_04', 'char_worldsapart_05', 'char_worldsapart_06', 'char_worldsapart_07'],
+                'htbah': ['char_htbah_01', 'char_htbah_02', 'char_htbah_03', 'char_htbah_04', 'char_htbah_05', 'char_htbah_06', 'char_htbah_07'],
+                'cyberpunkred': ['char_cyberpunk_01', 'char_cyberpunk_02', 'char_cyberpunk_03', 'char_cyberpunk_04']
+            },
+            
+            // Sheet URLs per rulebook
+            sheetUrls: {
+                'dnd5e': 'sheet-5e.html',
+                'worldsapart': 'sheet-worldsapart.html',
+                'htbah': 'sheet-htbah.html',
+                'cyberpunkred': 'sheet-cyberpunkred.html'
+            },
+            
+            // Ruleset display names
+            rulesetNames: {
+                'dnd5e': 'D&D 5e',
+                'worldsapart': 'Worlds Apart',
+                'htbah': 'How To Be A Hero',
+                'cyberpunkred': 'Cyberpunk RED'
+            },
+            
+            // Ruleset colors
+            rulesetColors: {
+                'dnd5e': '#FF4655',
+                'worldsapart': '#8B5CF6',
+                'htbah': '#10B981',
+                'cyberpunkred': '#FACC15'
+            },
+            
+            // Initialize
+            init() {
+                this.loadRandomCharacterImages();
+                this.loadCharacterCounts();
+                this.loadRecentCharacters();
+                this.loadAllCharacterLists();
+            },
+            
+            // Refresh all data
+            refresh() {
+                this.loadCharacterCounts();
+                this.loadRecentCharacters();
+                this.loadAllCharacterLists();
+            },
+            
+            // Toggle rulebook accordion
+            toggleRulebook(rulebookId) {
+                const wrapper = document.querySelector(`.rulebook-wrapper[data-rulebook="${rulebookId}"]`);
+                if (!wrapper) return;
+                
+                const isOpen = wrapper.classList.contains('open');
+                
+                // Close all other panels
+                document.querySelectorAll('.rulebook-wrapper.open').forEach(w => {
+                    if (w !== wrapper) {
+                        w.classList.remove('open');
+                    }
+                });
+                
+                // Toggle current
+                if (isOpen) {
+                    wrapper.classList.remove('open');
+                    this.openRulebookId = null;
+                } else {
+                    wrapper.classList.add('open');
+                    this.openRulebookId = rulebookId;
+                    
+                    // Scroll into view if needed
+                    setTimeout(() => {
+                        const panel = wrapper.querySelector('.rulebook-panel');
+                        if (panel) {
+                            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 350);
+                }
+            },
+            
+            // Load random character image for each rulebook card
+            loadRandomCharacterImages() {
+                document.querySelectorAll('.rulebook-card[onclick]').forEach(card => {
+                    const wrapper = card.closest('.rulebook-wrapper');
+                    if (!wrapper) return;
+                    
+                    const rulebookId = wrapper.dataset.rulebook;
+                    const images = this.characterImages[rulebookId];
+                    
+                    if (images && images.length > 0) {
+                        const randomImg = images[Math.floor(Math.random() * images.length)];
+                        const imgEl = card.querySelector('.rulebook-card__character');
+                        
+                        if (imgEl) {
+                            imgEl.src = `assets/img/rift_chars/hero_card/${randomImg}.png`;
+                        }
+                    }
+                });
+            },
+            
+            // Load character counts from storage
+            loadCharacterCounts() {
+                const counts = CharacterStorage.getCounts();
+                
+                // Update each rulebook badge
+                ['dnd5e', 'worldsapart', 'htbah', 'cyberpunkred'].forEach(rulebookId => {
+                    const wrapper = document.querySelector(`.rulebook-wrapper[data-rulebook="${rulebookId}"]`);
+                    if (wrapper) {
+                        const countEl = wrapper.querySelector('.rulebook-card__count');
+                        if (countEl) {
+                            const count = counts[rulebookId] || 0;
+                            countEl.textContent = count === 1 ? '1 Charakter' : `${count} Charaktere`;
+                        }
+                    }
+                });
+                
+                // Update total stat
+                const totalEl = document.getElementById('statTotalChars');
+                if (totalEl) totalEl.textContent = counts.total;
+                
+                // Update last played stat
+                const lastPlayedEl = document.getElementById('statLastPlayed');
+                if (lastPlayedEl) {
+                    const recent = CharacterStorage.getRecent(1);
+                    if (recent.length > 0 && recent[0].lastPlayed) {
+                        const lastDate = new Date(recent[0].lastPlayed);
+                        const now = new Date();
+                        const diffMs = now - lastDate;
+                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                        
+                        if (diffHours < 1) {
+                            lastPlayedEl.textContent = 'gerade';
+                        } else if (diffHours < 24) {
+                            lastPlayedEl.textContent = `${diffHours}h`;
+                        } else if (diffDays < 30) {
+                            lastPlayedEl.textContent = `${diffDays}d`;
+                        } else {
+                            lastPlayedEl.textContent = `${Math.floor(diffDays / 30)}m`;
+                        }
+                    } else {
+                        lastPlayedEl.textContent = '–';
+                    }
+                }
+            },
+            
+            // Load all character lists into panels
+            loadAllCharacterLists() {
+                ['dnd5e', 'worldsapart', 'htbah', 'cyberpunkred'].forEach(rulebookId => {
+                    this.loadCharacterList(rulebookId);
+                });
+            },
+            
+            // Load character list for a specific rulebook
+            loadCharacterList(rulebookId) {
+                const listEl = document.querySelector(`.rulebook-panel__list[data-rulebook="${rulebookId}"]`);
+                if (!listEl) return;
+                
+                const chars = CharacterStorage.getByRuleset(rulebookId);
+                console.log('[SheetManager] loadCharacterList for', rulebookId, ':', chars.length, 'characters');
+                
+                if (chars.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="rulebook-panel__empty">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <span>Noch keine Charaktere</span>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort by lastPlayed/updatedAt
+                chars.sort((a, b) => {
+                    const dateA = new Date(a.lastPlayed || a.updatedAt);
+                    const dateB = new Date(b.lastPlayed || b.updatedAt);
+                    return dateB - dateA;
+                });
+                
+                listEl.innerHTML = chars.map(char => {
+                    // Validate and log character ID
+                    const charId = char.id;
+                    console.log('[SheetManager] Character:', char.name, 'ID:', charId, 'Type:', typeof charId);
+                    
+                    if (!charId || charId === 'undefined' || charId === 'null') {
+                        console.error('[SheetManager] Character has invalid ID:', char);
+                        return ''; // Skip characters without valid IDs
+                    }
+                    
+                    const displayClass = char.race ? `${char.race} ${char.class}` : char.class;
+                    
+                    // Build status preview for Worlds Apart characters
+                    let statusHtml = '';
+                    if (rulebookId === 'worldsapart' && char.data) {
+                        const health = char.data.status?.health ?? 100;
+                        const moral = char.data.status?.moral ?? 100;
+                        statusHtml = `
+                            <div class="rulebook-panel__char-status">
+                                <div class="rulebook-panel__char-status-bar" title="LP: ${health}/100">
+                                    <div class="rulebook-panel__char-status-fill health" style="width: ${health}%"></div>
+                                </div>
+                                <div class="rulebook-panel__char-status-bar" title="Moral: ${moral}/100">
+                                    <div class="rulebook-panel__char-status-fill moral" style="width: ${moral}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Escape the character name for use in onclick
+                    const escapedName = char.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                    
+                    // Determine portrait source - base64 or preset filename
+                    const portrait = char.portrait || 'char_5e2024_01';
+                    const portraitSrc = portrait.startsWith('data:') 
+                        ? portrait 
+                        : `assets/img/rift_chars/hero_card/${portrait}.png`;
+                    
+                    return `
+                    <div class="rulebook-panel__char" data-char-id="${charId}">
+                        <div class="rulebook-panel__char-portrait" onclick="SheetManager.openCharacter('${charId}')">
+                            <img src="${portraitSrc}" alt="" onerror="this.style.display='none'">
+                        </div>
+                        <div class="rulebook-panel__char-info" onclick="SheetManager.openCharacter('${charId}')">
+                            <span class="rulebook-panel__char-name">${char.name}</span>
+                            <span class="rulebook-panel__char-meta">${displayClass}</span>
+                        </div>
+                        ${statusHtml}
+                        ${rulebookId !== 'worldsapart' ? `<div class="rulebook-panel__char-level">Lvl ${char.level || '?'}</div>` : ''}
+                        <button class="rulebook-panel__char-delete" onclick="event.stopPropagation(); SheetManager.confirmDelete('${charId}', '${escapedName}', event)" title="Löschen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <line x1="10" y1="11" x2="10" y2="17"/>
+                                <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                        </button>
+                        <svg class="rulebook-panel__char-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" onclick="SheetManager.openCharacter('${charId}')">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </div>
+                `}).join('');
+            },
+            
+            // Load recent characters strip
+            loadRecentCharacters() {
+                const stripEl = document.getElementById('recentCharacters');
+                if (!stripEl) return;
+                
+                const recent = CharacterStorage.getRecent(6);
+                
+                if (recent.length === 0) {
+                    stripEl.innerHTML = `
+                        <div class="recent-strip__empty">
+                            <span>Keine kürzlich gespielten Charaktere</span>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                stripEl.innerHTML = recent.map(char => {
+                    const color = this.rulesetColors[char.ruleset] || '#8B5CF6';
+                    const displayClass = char.race ? `${char.race} ${char.class}` : char.class;
+                    
+                    // Build status preview for Worlds Apart characters
+                    let statusHtml = '';
+                    if (char.ruleset === 'worldsapart' && char.data) {
+                        const health = char.data.status?.health ?? 100;
+                        const moral = char.data.status?.moral ?? 100;
+                        statusHtml = `
+                            <div class="recent-strip__status">
+                                <div class="recent-strip__status-bar" title="LP: ${health}/100">
+                                    <div class="recent-strip__status-fill health" style="width: ${health}%"></div>
+                                </div>
+                                <div class="recent-strip__status-bar" title="Moral: ${moral}/100">
+                                    <div class="recent-strip__status-fill moral" style="width: ${moral}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Determine portrait source - base64 or preset filename
+                    const portrait = char.portrait || 'char_5e2024_01';
+                    const portraitSrc = portrait.startsWith('data:') 
+                        ? portrait 
+                        : `assets/img/rift_chars/hero_card/${portrait}.png`;
+                    
+                    return `
+                    <div class="recent-strip__item" onclick="SheetManager.openCharacter('${char.id}')" style="--accent-color: ${color}">
+                        <div class="recent-strip__portrait">
+                            <img src="${portraitSrc}" alt="" onerror="this.style.display='none'">
+                        </div>
+                        <div class="recent-strip__info">
+                            <span class="recent-strip__name">${char.name}</span>
+                            <span class="recent-strip__meta">${displayClass}</span>
+                            ${statusHtml}
+                        </div>
+                    </div>
+                `}).join('');
+            },
+            
+            // Create new character
+            createCharacter(rulebookId) {
+                const url = this.sheetUrls[rulebookId];
+                if (url) {
+                    window.location.href = `${url}?new=true`;
+                } else {
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.info('Dieses Regelwerk wird bald unterstützt!');
+                    }
+                }
+            },
+            
+            // Open existing character
+            openCharacter(charId) {
+                const char = CharacterStorage.getById(charId);
+                if (!char) {
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.error('Charakter nicht gefunden');
+                    }
+                    return;
+                }
+                
+                // Update last played
+                CharacterStorage.updateLastPlayed(charId);
+                
+                const url = this.sheetUrls[char.ruleset];
+                if (url) {
+                    window.location.href = `${url}?id=${charId}`;
+                }
+            },
+            
+            // Confirm delete dialog
+            confirmDelete(charId, charName, e) {
+                // Stop event propagation
+                if (e) e.stopPropagation();
+                
+                // Use custom modal or confirm
+                const confirmed = confirm(`Möchtest du "${charName}" wirklich unwiderruflich löschen?`);
+                
+                if (confirmed) {
+                    this.deleteCharacter(charId);
+                }
+            },
+            
+            // Delete character
+            deleteCharacter(charId) {
+                console.log('[SheetManager] Attempting to delete character:', charId);
+                console.log('[SheetManager] CharId type:', typeof charId);
+                
+                // Validate charId
+                if (!charId || charId === 'undefined' || charId === 'null') {
+                    console.error('[SheetManager] Invalid charId:', charId);
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.error('Ungültige Charakter-ID');
+                    }
+                    return;
+                }
+                
+                const success = CharacterStorage.delete(charId);
+                
+                if (success) {
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.success('Charakter gelöscht');
+                    }
+                    // Refresh UI
+                    this.refresh();
+                } else {
+                    console.error('[SheetManager] CharacterStorage.delete returned false');
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.error('Fehler beim Löschen');
+                    }
+                }
+            },
+            
+            // Export all characters
+            exportAll() {
+                CharacterStorage.exportAll();
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.success('Export gestartet');
+                }
+            },
+            
+            // Import characters
+            importCharacters() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const count = CharacterStorage.importFromJson(event.target.result);
+                        if (count > 0) {
+                            if (window.RIFT?.ui?.Toast) {
+                                RIFT.ui.Toast.success(`${count} Charakter(e) importiert`);
+                            }
+                            this.refresh();
+                        } else {
+                            if (window.RIFT?.ui?.Toast) {
+                                RIFT.ui.Toast.error('Import fehlgeschlagen');
+                            }
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+                
+                input.click();
+            }
+        };
+        
+        // Make globally available
+        window.SheetManager = SheetManager;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            SheetManager.init();
+        });
+    </script>
+</body>
+</html>

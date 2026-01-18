@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <meta name="description" content="RIFT - Tabletop Companion">
+    <meta name="theme-color" content="#161616">
+    <title>RIFT - Login</title>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/login.css">
+    
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- Firebase SDK (v9 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- RIFT Services -->
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/room-service.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    
+    <style>
+        /* ========================================
+           LANGUAGE TOGGLE
+           ======================================== */
+        .lang-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.5s ease 0.5s, transform 0.5s ease 0.5s;
+        }
+        
+        body.ready .lang-toggle {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .lang-toggle__btn {
+            padding: 8px 14px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .lang-toggle__btn:hover {
+            color: var(--text);
+        }
+        
+        .lang-toggle__btn.active {
+            background: var(--accent);
+            color: white;
+        }
+        
+        /* ========================================
+           RESUME SESSION BANNER
+           ======================================== */
+        .resume-banner {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            animation: slideUp 0.5s ease forwards;
+            animation-delay: 2s;
+        }
+        
+        .resume-banner.show {
+            display: flex;
+        }
+        
+        @keyframes slideUp {
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        .resume-banner__icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+        
+        .resume-banner__icon svg {
+            width: 20px;
+            height: 20px;
+            color: #818cf8;
+        }
+        
+        .resume-banner__text {
+            flex: 1;
+        }
+        
+        .resume-banner__title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+        
+        .resume-banner__subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .resume-banner__actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .resume-banner__btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+        
+        .resume-banner__btn--primary {
+            background: #6366f1;
+            color: white;
+        }
+        
+        .resume-banner__btn--primary:hover {
+            background: #4f46e5;
+        }
+        
+        .resume-banner__btn--secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+        }
+        
+        .resume-banner__btn--secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--text);
+        }
+        
+        /* ========================================
+           ENHANCED FEATURE PILLS
+           ======================================== */
+        .feature-pill {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-pill::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 0%, rgba(255, 70, 85, 0.1) 50%, transparent 100%);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+        
+        .feature-pill:hover::before {
+            transform: translateX(100%);
+        }
+        
+        .feature-pill:hover svg {
+            transform: scale(1.2) rotate(5deg);
+            transition: transform 0.3s ease;
+        }
+        
+        /* ========================================
+           STAGGER ANIMATIONS
+           ======================================== */
+        .login-hero.intro-complete .login-hero__tagline {
+            animation: staggerReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.1s;
+        }
+        
+        .login-hero.intro-complete .login-hero__features {
+            animation: staggerReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.25s;
+        }
+        
+        .login-hero.intro-complete .login-hero__features .feature-pill:nth-child(1) {
+            animation: pillReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.3s;
+            opacity: 0;
+            transform: translateY(10px) scale(0.9);
+        }
+        
+        .login-hero.intro-complete .login-hero__features .feature-pill:nth-child(2) {
+            animation: pillReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.4s;
+            opacity: 0;
+            transform: translateY(10px) scale(0.9);
+        }
+        
+        .login-hero.intro-complete .login-hero__features .feature-pill:nth-child(3) {
+            animation: pillReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.5s;
+            opacity: 0;
+            transform: translateY(10px) scale(0.9);
+        }
+        
+        @keyframes pillReveal {
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .login-hero.intro-complete .login-hero__actions {
+            animation: staggerReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.4s;
+        }
+        
+        .login-hero.intro-complete .login-hero__actions .btn-hero:nth-child(1) {
+            animation: buttonReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.5s;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .login-hero.intro-complete .login-hero__actions .btn-hero:nth-child(2) {
+            animation: buttonReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.6s;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .login-hero.intro-complete .login-hero__actions .btn-hero:nth-child(4) {
+            animation: buttonReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.8s;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .login-hero.intro-complete .login-hero__actions .login-divider {
+            animation: buttonReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.7s;
+            opacity: 0;
+        }
+        
+        @keyframes buttonReveal {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes staggerReveal {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* ========================================
+           SOLO MODE BUTTON
+           ======================================== */
+        .btn-hero--solo {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: var(--text);
+        }
+        
+        .btn-hero--solo:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+            transform: translateY(-3px);
+        }
+        
+        .btn-hero--solo .btn-hero__icon {
+            background: rgba(99, 102, 241, 0.2);
+        }
+        
+        .btn-hero--solo .btn-hero__icon svg {
+            color: #818cf8;
+        }
+        
+        /* ========================================
+           QR CODE DISPLAY
+           ======================================== */
+        .qr-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .qr-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .qr-toggle:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+        
+        .qr-toggle svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .qr-display {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin-top: 20px;
+            padding: 24px;
+            background: white;
+            border-radius: 16px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .qr-display.show {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .qr-display__code {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+        }
+        
+        .qr-display__hint {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        
+        /* ========================================
+           DIVIDER
+           ======================================== */
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 8px 0;
+            color: var(--text-dim);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        
+        /* ========================================
+           RULESET GRID
+           ======================================== */
+        .ruleset-grid {
+            display: grid;
+            gap: 12px;
+            margin: 24px 0;
+        }
+        
+        .ruleset-option {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s ease;
+        }
+        
+        .ruleset-option:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--border-hover);
+            transform: translateX(4px);
+        }
+        
+        .ruleset-option__icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        
+        .ruleset-option__title {
+            font-weight: 600;
+        }
+        
+        .ruleset-option__subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        /* ========================================
+           RESPONSIVE
+           ======================================== */
+        @media (max-width: 540px) {
+            .lang-toggle {
+                top: 12px;
+                right: 12px;
+            }
+            
+            .resume-banner {
+                left: 16px;
+                right: 16px;
+                transform: translateX(0) translateY(20px);
+                flex-wrap: wrap;
+                bottom: 80px;
+            }
+            
+            @keyframes slideUp {
+                to {
+                    opacity: 1;
+                    transform: translateX(0) translateY(0);
+                }
+            }
+            
+            .resume-banner__actions {
+                width: 100%;
+                justify-content: stretch;
+            }
+            
+            .resume-banner__btn {
+                flex: 1;
+            }
+        }
+        
+        /* ========================================
+           OAUTH BUTTONS
+           ======================================== */
+        .oauth-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        
+        .btn--oauth {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        
+        .btn--oauth svg {
+            flex-shrink: 0;
+        }
+        
+        .btn--google {
+            background: #ffffff;
+            color: #3c4043;
+            border-color: #dadce0;
+        }
+        
+        .btn--google:hover {
+            background: #f8f9fa;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn--discord {
+            background: #5865F2;
+            color: white;
+        }
+        
+        .btn--discord:hover {
+            background: #4752c4;
+            box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
+        }
+        
+        .btn--oauth:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn--oauth .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .oauth-divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 8px 0 20px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        
+        .oauth-divider::before,
+        .oauth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        
+        /* OAuth Success State */
+        .oauth-connected {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .oauth-connected__avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .oauth-connected__info {
+            flex: 1;
+        }
+        
+        .oauth-connected__name {
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .oauth-connected__provider {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .oauth-connected__check {
+            width: 24px;
+            height: 24px;
+            background: #22c55e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .oauth-connected__check svg {
+            width: 14px;
+            height: 14px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background -->
+    <div class="login-bg"></div>
+    
+    <!-- Particles -->
+    <div class="particles" id="particles"></div>
+    
+    <!-- Language Toggle -->
+    <div class="lang-toggle">
+        <button class="lang-toggle__btn active" data-lang="de">DE</button>
+        <button class="lang-toggle__btn" data-lang="en">EN</button>
+    </div>
+    
+    <!-- Resume Session Banner -->
+    <div class="resume-banner" id="resumeBanner">
+        <div class="resume-banner__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </div>
+        <div class="resume-banner__text">
+            <div class="resume-banner__title" data-i18n="resume.title">Letzte Session gefunden</div>
+            <div class="resume-banner__subtitle" id="resumeInfo">Raum: XXX-XXX</div>
+        </div>
+        <div class="resume-banner__actions">
+            <button class="resume-banner__btn resume-banner__btn--secondary" id="btnResumeDismiss" data-i18n="resume.dismiss">Verwerfen</button>
+            <button class="resume-banner__btn resume-banner__btn--primary" id="btnResumeJoin" data-i18n="resume.continue">Fortsetzen</button>
+        </div>
+    </div>
+    
+    <div class="login-page">
+        <div class="login-container">
+            
+            <!-- ========================================
+                 STEP 1: WELCOME - EPIC HERO
+                 ======================================== -->
+            <div id="step-welcome" class="login-step active">
+                <div class="login-hero">
+                    <!-- Logo -->
+                    <div class="login-hero__logo">
+                        <img src="assets/img/logo_rift.png" alt="RIFT" class="login-hero__logo-img">
+                    </div>
+                    
+                    <!-- Tagline with Typing Effect -->
+                    <div class="login-hero__tagline">
+                        <span class="login-hero__tagline-static" data-i18n="hero.your">Your</span>
+                        <span class="login-hero__tagline-dynamic" id="dynamicText">Adventure</span>
+                        <span class="login-hero__tagline-static" data-i18n="hero.awaits">Awaits</span>
+                    </div>
+                    
+                    <!-- Feature Pills -->
+                    <div class="login-hero__features">
+                        <span class="feature-pill">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/></svg>
+                            <span data-i18n="feature.dice">3D Würfel</span>
+                        </span>
+                        <span class="feature-pill">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                            <span data-i18n="feature.multiplayer">Multiplayer</span>
+                        </span>
+                        <span class="feature-pill">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14,10V4.5L19.5,10M5,3C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V9L15,3H5Z"/></svg>
+                            <span data-i18n="feature.sheets">Charakterbögen</span>
+                        </span>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="login-hero__actions">
+                        <button id="btn-create-room" class="btn-hero btn-hero--primary">
+                            <span class="btn-hero__icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <line x1="12" y1="5" x2="12" y2="19"/>
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                            </span>
+                            <span class="btn-hero__text">
+                                <span class="btn-hero__title" data-i18n="action.create">Raum erstellen</span>
+                                <span class="btn-hero__desc" data-i18n="action.create.desc">Starte ein neues Abenteuer</span>
+                            </span>
+                        </button>
+                        
+                        <button id="btn-join-room" class="btn-hero btn-hero--secondary">
+                            <span class="btn-hero__icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                                    <polyline points="10 17 15 12 10 7"/>
+                                    <line x1="15" y1="12" x2="3" y2="12"/>
+                                </svg>
+                            </span>
+                            <span class="btn-hero__text">
+                                <span class="btn-hero__title" data-i18n="action.join">Raum beitreten</span>
+                                <span class="btn-hero__desc" data-i18n="action.join.desc">Mit Code einsteigen</span>
+                            </span>
+                        </button>
+                        
+                        <div class="login-divider" data-i18n="divider.or">oder</div>
+                        
+                        <button id="btn-solo-mode" class="btn-hero btn-hero--solo">
+                            <span class="btn-hero__icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                            </span>
+                            <span class="btn-hero__text">
+                                <span class="btn-hero__title" data-i18n="action.solo">Solo Modus</span>
+                                <span class="btn-hero__desc" data-i18n="action.solo.desc">Direkt zu deinen Charakteren</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ========================================
+                 STEP 2a: CREATE ROOM
+                 ======================================== -->
+            <div id="step-create" class="login-step">
+                <div class="login-card">
+                    <div class="login-header">
+                        <button class="btn-back">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                            <span data-i18n="nav.back">Zurück</span>
+                        </button>
+                    </div>
+                    
+                    <div class="login-card__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    
+                    <h1 class="login-title" data-i18n="create.title">Dein Raum</h1>
+                    <p class="login-subtitle" data-i18n="create.subtitle">Teile diesen Code mit deinen Mitspielern</p>
+                    
+                    <!-- Generated Code -->
+                    <div class="code-display">
+                        <div class="code-display__label" data-i18n="create.code">Raum-Code</div>
+                        <div id="generated-code" class="code-display__value">XXX-XXX</div>
+                        <div class="code-display__copy">
+                            <button id="btn-copy-code" class="btn btn--glass">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                </svg>
+                                <span data-i18n="create.copy">Code kopieren</span>
+                            </button>
+                        </div>
+                        <p class="code-display__hint">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                            <span data-i18n="create.hint">Der Raum bleibt bestehen bis er gelöscht wird</span>
+                        </p>
+                    </div>
+                    
+                    <!-- QR Code Section -->
+                    <div class="qr-section">
+                        <button class="qr-toggle" id="btnToggleQR">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"/>
+                                <rect x="14" y="3" width="7" height="7"/>
+                                <rect x="3" y="14" width="7" height="7"/>
+                                <rect x="14" y="14" width="7" height="7"/>
+                            </svg>
+                            <span data-i18n="create.qr">QR-Code anzeigen</span>
+                        </button>
+                        <div class="qr-display" id="qrDisplay">
+                            <div class="qr-display__code" id="qrCode"></div>
+                            <div class="qr-display__hint" data-i18n="create.qr.hint">Scanne diesen Code mit deinem Handy</div>
+                        </div>
+                    </div>
+                    
+                    <div class="login-actions">
+                        <button id="btn-continue-setup" class="btn btn--primary btn--large btn--full btn--glow">
+                            <span data-i18n="nav.continue">Weiter</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ========================================
+                 STEP 2b: JOIN ROOM
+                 ======================================== -->
+            <div id="step-join" class="login-step">
+                <div class="login-card">
+                    <div class="login-header">
+                        <button class="btn-back">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                            <span data-i18n="nav.back">Zurück</span>
+                        </button>
+                    </div>
+                    
+                    <div class="login-card__icon login-card__icon--blue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                            <polyline points="10 17 15 12 10 7"/>
+                            <line x1="15" y1="12" x2="3" y2="12"/>
+                        </svg>
+                    </div>
+                    
+                    <h1 class="login-title" data-i18n="join.title">Beitreten</h1>
+                    <p class="login-subtitle" data-i18n="join.subtitle">Gib den Raum-Code deines Spielleiters ein</p>
+                    
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="join.code">Raum-Code</label>
+                        <input type="text" id="room-code-input" class="form-input form-input--code" 
+                               placeholder="XXX-XXX" maxlength="7" autocomplete="off" spellcheck="false">
+                        <p class="form-error" id="code-error" data-i18n="join.error">Raum nicht gefunden</p>
+                    </div>
+                    
+                    <div class="login-actions">
+                        <button id="btn-check-code" class="btn btn--primary btn--large btn--full btn--glow" disabled>
+                            <span data-i18n="join.check">Code prüfen</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ========================================
+                 STEP 2c: SOLO MODE - CHARACTER SELECT
+                 ======================================== -->
+            <div id="step-solo" class="login-step">
+                <div class="login-card">
+                    <div class="login-header">
+                        <button class="btn-back">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                            <span data-i18n="nav.back">Zurück</span>
+                        </button>
+                    </div>
+                    
+                    <div class="login-card__icon" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.1) 100%); border-color: rgba(99, 102, 241, 0.3);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="1.5">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    
+                    <h1 class="login-title" data-i18n="solo.title">Solo Modus</h1>
+                    <p class="login-subtitle" data-i18n="solo.subtitle">Wähle ein Regelwerk für deinen Charakter</p>
+                    
+                    <div class="ruleset-grid">
+                        <a href="sheet.html?system=5e2024&solo=true" class="ruleset-option">
+                            <img src="assets/icons/icon_5e2024.png" alt="D&D 5e" class="ruleset-option__icon">
+                            <div>
+                                <div class="ruleset-option__title">D&D 5e (2024)</div>
+                                <div class="ruleset-option__subtitle">Dungeons & Dragons</div>
+                            </div>
+                        </a>
+                        <a href="sheet.html?system=worldsapart&solo=true" class="ruleset-option">
+                            <img src="assets/icons/icon_worldsapart.png" alt="Worlds Apart" class="ruleset-option__icon">
+                            <div>
+                                <div class="ruleset-option__title">Worlds Apart</div>
+                                <div class="ruleset-option__subtitle">Sci-Fi Adventure</div>
+                            </div>
+                        </a>
+                        <a href="sheet.html?system=htbah&solo=true" class="ruleset-option">
+                            <img src="assets/icons/icon_htbah.png" alt="HTBAH" class="ruleset-option__icon">
+                            <div>
+                                <div class="ruleset-option__title">How To Be A Hero</div>
+                                <div class="ruleset-option__subtitle">Universelles System</div>
+                            </div>
+                        </a>
+                        <a href="sheet.html?system=cyberpunk&solo=true" class="ruleset-option">
+                            <img src="assets/icons/icon_character.png" alt="Cyberpunk" class="ruleset-option__icon">
+                            <div>
+                                <div class="ruleset-option__title">Cyberpunk Red</div>
+                                <div class="ruleset-option__subtitle">Night City</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ========================================
+                 STEP 3: PROFILE SETUP
+                 ======================================== -->
+            <div id="step-setup" class="login-step">
+                <div class="login-card">
+                    <div class="login-header">
+                        <button class="btn-back" id="btn-back-to-room">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                            <span data-i18n="nav.back">Zurück</span>
+                        </button>
+                    </div>
+                    
+                    <div class="login-card__icon login-card__icon--green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    
+                    <h1 class="login-title" data-i18n="profile.title">Dein Profil</h1>
+                    <p class="login-subtitle" data-i18n="profile.subtitle">Wie möchtest du genannt werden?</p>
+                    
+                    <!-- OAuth Login Options -->
+                    <div class="oauth-section">
+                        <button id="btn-google-login" class="btn btn--oauth btn--google">
+                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            <span data-i18n="profile.google">Mit Google anmelden</span>
+                        </button>
+                        
+                        <button id="btn-discord-login" class="btn btn--oauth btn--discord">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                            </svg>
+                            <span data-i18n="profile.discord">Mit Discord anmelden</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Divider -->
+                    <div class="oauth-divider">
+                        <span data-i18n="profile.or">oder als Gast</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="profile.name">Spielername</label>
+                        <div class="input-group">
+                            <input type="text" id="username-input" class="form-input" 
+                                   placeholder="Dein Name" maxlength="30" autocomplete="off">
+                            <button id="btn-random-name" class="btn btn--glass btn--icon" title="Zufälliger Name">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                    <circle cx="12" cy="12" r="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="form-hint">Format: Name#0000</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="profile.color">Farbe wählen</label>
+                        <div class="color-palette" id="color-palette">
+                            <!-- Wird dynamisch vom LoginController generiert -->
+                        </div>
+                    </div>
+                    
+                    <!-- Preview -->
+                    <div class="preview-section">
+                        <div id="avatar-preview" class="avatar-preview">?</div>
+                        <div class="preview-info">
+                            <div class="preview-label" data-i18n="profile.preview">Vorschau</div>
+                            <div id="name-preview" class="preview-name">Spieler</div>
+                        </div>
+                        <div class="preview-badge" data-i18n="profile.ready">Bereit!</div>
+                    </div>
+                    
+                    <div class="login-actions">
+                        <button id="btn-enter-room" class="btn btn--primary btn--large btn--full btn--glow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                                <polyline points="10 17 15 12 10 7"/>
+                                <line x1="15" y1="12" x2="3" y2="12"/>
+                            </svg>
+                            <span data-i18n="profile.enter">Raum betreten</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- Minimal Footer -->
+        <footer class="login-footer">
+            <div class="login-footer__links">
+                <a href="about.html" data-i18n="footer.about">Über RIFT</a>
+                <span class="login-footer__dot">•</span>
+                <a href="privacy.html" data-i18n="footer.privacy">Datenschutz</a>
+                <span class="login-footer__dot">•</span>
+                <a href="imprint.html" data-i18n="footer.imprint">Impressum</a>
+            </div>
+            <p class="login-footer__copy">© 2025 RIFT</p>
+        </footer>
+    </div>
+    
+    <!-- Scripts (loaded from head) -->
+    <script src="assets/js/auth.js"></script>
+    <script>
+        // ========================================
+        // INTERNATIONALIZATION
+        // ========================================
+        const i18n = {
+            de: {
+                'hero.your': 'Your',
+                'hero.awaits': 'Awaits',
+                'feature.dice': '3D Würfel',
+                'feature.multiplayer': 'Multiplayer',
+                'feature.sheets': 'Charakterbögen',
+                'action.create': 'Raum erstellen',
+                'action.create.desc': 'Starte ein neues Abenteuer',
+                'action.join': 'Raum beitreten',
+                'action.join.desc': 'Mit Code einsteigen',
+                'action.solo': 'Solo Modus',
+                'action.solo.desc': 'Direkt zu deinen Charakteren',
+                'divider.or': 'oder',
+                'nav.back': 'Zurück',
+                'nav.continue': 'Weiter',
+                'create.title': 'Dein Raum',
+                'create.subtitle': 'Teile diesen Code mit deinen Mitspielern',
+                'create.code': 'Raum-Code',
+                'create.copy': 'Code kopieren',
+                'create.hint': 'Der Raum bleibt bestehen bis er gelöscht wird',
+                'create.qr': 'QR-Code anzeigen',
+                'create.qr.hint': 'Scanne diesen Code mit deinem Handy',
+                'join.title': 'Beitreten',
+                'join.subtitle': 'Gib den Raum-Code deines Spielleiters ein',
+                'join.code': 'Raum-Code',
+                'join.check': 'Code prüfen',
+                'join.error': 'Raum nicht gefunden',
+                'solo.title': 'Solo Modus',
+                'solo.subtitle': 'Wähle ein Regelwerk für deinen Charakter',
+                'profile.title': 'Dein Profil',
+                'profile.subtitle': 'Wie möchtest du genannt werden?',
+                'profile.google': 'Mit Google anmelden',
+                'profile.discord': 'Mit Discord anmelden',
+                'profile.or': 'oder als Gast',
+                'profile.name': 'Spielername',
+                'profile.color': 'Farbe wählen',
+                'profile.preview': 'Vorschau',
+                'profile.ready': 'Bereit!',
+                'profile.enter': 'Raum betreten',
+                'resume.title': 'Letzte Session gefunden',
+                'resume.dismiss': 'Verwerfen',
+                'resume.continue': 'Fortsetzen',
+                'footer.about': 'Über RIFT',
+                'footer.privacy': 'Datenschutz',
+                'footer.imprint': 'Impressum'
+            },
+            en: {
+                'hero.your': 'Your',
+                'hero.awaits': 'Awaits',
+                'feature.dice': '3D Dice',
+                'feature.multiplayer': 'Multiplayer',
+                'feature.sheets': 'Character Sheets',
+                'action.create': 'Create Room',
+                'action.create.desc': 'Start a new adventure',
+                'action.join': 'Join Room',
+                'action.join.desc': 'Enter with code',
+                'action.solo': 'Solo Mode',
+                'action.solo.desc': 'Go to your characters',
+                'divider.or': 'or',
+                'nav.back': 'Back',
+                'nav.continue': 'Continue',
+                'create.title': 'Your Room',
+                'create.subtitle': 'Share this code with your players',
+                'create.code': 'Room Code',
+                'create.copy': 'Copy code',
+                'create.hint': 'Room persists until deleted',
+                'create.qr': 'Show QR Code',
+                'create.qr.hint': 'Scan this code with your phone',
+                'join.title': 'Join',
+                'join.subtitle': 'Enter your game master\'s room code',
+                'join.code': 'Room Code',
+                'join.check': 'Check code',
+                'join.error': 'Room not found',
+                'solo.title': 'Solo Mode',
+                'solo.subtitle': 'Choose a ruleset for your character',
+                'profile.title': 'Your Profile',
+                'profile.subtitle': 'What should we call you?',
+                'profile.google': 'Sign in with Google',
+                'profile.discord': 'Sign in with Discord',
+                'profile.or': 'or as guest',
+                'profile.name': 'Player name',
+                'profile.color': 'Pick a color',
+                'profile.preview': 'Preview',
+                'profile.ready': 'Ready!',
+                'profile.enter': 'Enter room',
+                'resume.title': 'Last session found',
+                'resume.dismiss': 'Dismiss',
+                'resume.continue': 'Continue',
+                'footer.about': 'About RIFT',
+                'footer.privacy': 'Privacy',
+                'footer.imprint': 'Imprint'
+            }
+        };
+        
+        let currentLang = localStorage.getItem('rift_lang') || 'de';
+        
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('rift_lang', lang);
+            
+            // Update toggle buttons
+            document.querySelectorAll('.lang-toggle__btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            
+            // Update all translatable elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                if (i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+            
+            // Update typing words based on language
+            if (lang === 'en') {
+                typingWords = ['Adventure', 'Journey', 'Quest', 'Story', 'Legend'];
+            } else {
+                typingWords = ['Adventure', 'Journey', 'Quest', 'Story', 'Legend'];
+            }
+        }
+        
+        // ========================================
+        // RESUME SESSION
+        // ========================================
+        function checkLastSession() {
+            const lastSession = localStorage.getItem('rift_last_session');
+            if (lastSession) {
+                try {
+                    const session = JSON.parse(lastSession);
+                    const banner = document.getElementById('resumeBanner');
+                    const info = document.getElementById('resumeInfo');
+                    
+                    // Check if session is less than 24 hours old
+                    const sessionAge = Date.now() - session.timestamp;
+                    if (sessionAge < 24 * 60 * 60 * 1000) {
+                        info.textContent = `Raum: ${session.roomCode} • ${session.playerName}`;
+                        banner.classList.add('show');
+                        
+                        document.getElementById('btnResumeJoin').onclick = () => {
+                            window.location.href = `index.html?room=${session.roomCode}`;
+                        };
+                        
+                        document.getElementById('btnResumeDismiss').onclick = () => {
+                            banner.classList.remove('show');
+                            localStorage.removeItem('rift_last_session');
+                        };
+                    }
+                } catch (e) {
+                    console.error('Error parsing last session:', e);
+                }
+            }
+        }
+        
+        // ========================================
+        // QR CODE
+        // ========================================
+        let qrInstance = null;
+        
+        function generateQRCode(code) {
+            const container = document.getElementById('qrCode');
+            container.innerHTML = '';
+            
+            if (typeof QRCode !== 'undefined') {
+                qrInstance = new QRCode(container, {
+                    text: `${window.location.origin}/login.html?join=${code}`,
+                    width: 180,
+                    height: 180,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
+        }
+        
+        // ========================================
+        // MAIN INITIALIZATION
+        // ========================================
+        let loginController;
+        let typingWords = ['Adventure', 'Journey', 'Quest', 'Story', 'Legend'];
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize Firebase first
+            await RIFT.firebase.init();
+            console.log('[RIFT] Firebase ready');
+            
+            loginController = new RIFT.auth.LoginController();
+            
+            createParticles();
+            initIntroSequence();
+            setLanguage(currentLang);
+            checkLastSession();
+            
+            // Language toggle
+            document.querySelectorAll('.lang-toggle__btn').forEach(btn => {
+                btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+            });
+            
+            // Solo mode button
+            document.getElementById('btn-solo-mode').addEventListener('click', () => {
+                showStep('step-solo');
+            });
+            
+            // QR toggle
+            document.getElementById('btnToggleQR').addEventListener('click', () => {
+                const display = document.getElementById('qrDisplay');
+                display.classList.toggle('show');
+                
+                if (display.classList.contains('show')) {
+                    const code = document.getElementById('generated-code').textContent;
+                    generateQRCode(code);
+                }
+            });
+            
+            // Back button for solo step (nicht vom LoginController verwaltet)
+            document.querySelector('#step-solo .btn-back')?.addEventListener('click', () => {
+                showStep('step-welcome');
+            });
+            
+            // Check URL params for direct join
+            const urlParams = new URLSearchParams(window.location.search);
+            const joinCode = urlParams.get('join');
+            if (joinCode) {
+                document.getElementById('room-code-input').value = joinCode;
+                // Trigger format
+                const input = document.getElementById('room-code-input');
+                input.dispatchEvent(new Event('input'));
+                showStep('step-join');
+            }
+        });
+        
+        function showStep(stepId) {
+            // Wenn stepId schon 'step-' prefix hat, nutze es direkt
+            // Sonst füge 'step-' hinzu (für Kompatibilität mit LoginController)
+            const fullId = stepId.startsWith('step-') ? stepId : `step-${stepId}`;
+            
+            document.querySelectorAll('.login-step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(fullId)?.classList.add('active');
+        }
+        
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 40;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                const size = Math.random() * 4 + 2;
+                const left = Math.random() * 100;
+                const delay = Math.random() * 15;
+                const duration = Math.random() * 10 + 15;
+                const opacity = Math.random() * 0.5 + 0.2;
+                
+                particle.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${left}%;
+                    animation-delay: ${delay}s;
+                    animation-duration: ${duration}s;
+                    --particle-opacity: ${opacity};
+                `;
+                
+                container.appendChild(particle);
+            }
+        }
+        
+        function initIntroSequence() {
+            const hero = document.querySelector('.login-hero');
+            const page = document.querySelector('.login-page');
+            if (!hero) return;
+            
+            hero.classList.add('intro');
+            
+            setTimeout(() => {
+                hero.classList.remove('intro');
+                hero.classList.add('intro-complete');
+                
+                document.body.classList.add('ready');
+                if (page) page.classList.add('ready');
+                
+                setTimeout(() => {
+                    initTypingEffect();
+                    initParallax();
+                }, 500);
+            }, 1800);
+        }
+        
+        function initTypingEffect() {
+            const el = document.getElementById('dynamicText');
+            let wordIndex = 0;
+            let charIndex = 0;
+            let isDeleting = false;
+            let currentWord = typingWords[0];
+            
+            el.textContent = '';
+            typeLoop();
+            
+            function typeLoop() {
+                currentWord = typingWords[wordIndex];
+                
+                if (isDeleting) {
+                    el.textContent = currentWord.substring(0, charIndex - 1);
+                    charIndex--;
+                    
+                    if (charIndex === 0) {
+                        isDeleting = false;
+                        wordIndex = (wordIndex + 1) % typingWords.length;
+                        setTimeout(typeLoop, 300);
+                        return;
+                    }
+                    setTimeout(typeLoop, 50);
+                } else {
+                    el.textContent = currentWord.substring(0, charIndex + 1);
+                    charIndex++;
+                    
+                    if (charIndex === currentWord.length) {
+                        isDeleting = true;
+                        setTimeout(typeLoop, 2000);
+                        return;
+                    }
+                    setTimeout(typeLoop, 100);
+                }
+            }
+        }
+        
+        function initParallax() {
+            const hero = document.querySelector('.login-hero');
+            if (!hero) return;
+            
+            hero.setAttribute('data-parallax', 'true');
+            
+            const logo = hero.querySelector('.login-hero__logo');
+            const tagline = hero.querySelector('.login-hero__tagline');
+            const features = hero.querySelector('.login-hero__features');
+            const actions = hero.querySelector('.login-hero__actions');
+            
+            document.addEventListener('mousemove', (e) => {
+                const x = (e.clientX - window.innerWidth / 2) / window.innerWidth;
+                const y = (e.clientY - window.innerHeight / 2) / window.innerHeight;
+                
+                if (logo) logo.style.transform = `translate(${x * -15}px, ${y * -10}px)`;
+                if (tagline) tagline.style.transform = `translate(${x * -8}px, ${y * -5}px)`;
+                if (features) features.style.transform = `translate(${x * -5}px, ${y * -3}px)`;
+                if (actions) actions.style.transform = `translate(${x * -3}px, ${y * -2}px)`;
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>RIFT – Würfel</title>
+    
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/topbar.css">
+    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="assets/css/dice.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@1,900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <main class="main">
+            <div class="main__content">
+                
+                <div class="dice-page">
+                    
+                    <!-- 3D Arena -->
+                    <div class="dice-arena empty" id="diceArena">
+                        <!-- Pulse Effects Container (UNDER dice) -->
+                        <div class="dice-pulses" id="dicePulses"></div>
+                        
+                        <!-- Empty State -->
+                        <div class="dice-arena__empty">
+                            <svg class="dice-arena__empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                <circle cx="12" cy="12" r="2"/>
+                            </svg>
+                            <p>Wähle Würfel oder wische zum Werfen</p>
+                        </div>
+                        
+                        <!-- Swipe Hint -->
+                        <div class="dice-arena__swipe-hint">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                            Wischen zum Würfeln
+                        </div>
+                        
+                        <!-- Dice Value Labels (overlay) -->
+                        <div class="dice-labels" id="diceLabels"></div>
+                        
+                        <!-- Result Display -->
+                        <div class="dice-result" id="diceResult">
+                            <div class="dice-result__player" id="resultPlayer"></div>
+                            <div class="dice-result__total" id="resultTotal">0</div>
+                            <div class="dice-result__breakdown" id="resultBreakdown"></div>
+                        </div>
+                        
+                        <!-- Multiplayer Feed -->
+                        <div class="dice-feed" id="diceFeed"></div>
+                        
+                        <!-- Particles -->
+                        <div class="dice-particles" id="particlesContainer"></div>
+                    </div>
+                    
+                    <!-- Controls -->
+                    <div class="dice-controls">
+                        
+                        <!-- Toolbar -->
+                        <div class="dice-toolbar">
+                            <div class="dice-toolbar__left">
+                                <!-- Theme Selector -->
+                                <div class="dice-themes">
+                                    <button class="dice-theme-btn dice-theme-btn--classic active" data-theme="classic" title="Classic"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--blood" data-theme="blood" title="Blood"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--ice" data-theme="ice" title="Ice"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--nature" data-theme="nature" title="Nature"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--royal" data-theme="royal" title="Royal"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--gold" data-theme="gold" title="Gold"></button>
+                                </div>
+                            </div>
+                            <div class="dice-toolbar__right">
+                                <!-- Sound Toggle -->
+                                <button class="dice-toggle active" id="soundToggle" onclick="DiceRoller.toggleSound()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                    </svg>
+                                    Sound
+                                </button>
+                                <!-- Secret Roll Toggle -->
+                                <button class="dice-toggle" id="secretToggle" onclick="DiceRoller.toggleSecret()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                    Geheim
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Dice Orbit - Linksklick: hinzufügen, Rechtsklick: entfernen -->
+                        <div class="dice-orbit">
+                            <!-- Reset Button -->
+                            <button class="dice-orbit__action dice-orbit__reset" onclick="DiceRoller.clearDice()" title="Zurücksetzen">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                    <path d="M3 3v5h5"/>
+                                </svg>
+                            </button>
+                            
+                            <!-- Dice Buttons - Hero Cards -->
+                            <div class="dice-orbit__dice">
+                                <!-- D4 -->
+                                <button class="dice-btn" data-dice="d4" onclick="DiceRoller.addDice('d4')" title="D4 - Linksklick: +1 / Rechtsklick: -1">
+                                    <div class="dice-btn__badge"><span id="count-d4">0</span>x</div>
+                                    <div class="dice-btn__icon">
+                                        <img src="assets/icons/dice/d4.svg" alt="D4">
+                                    </div>
+                                    <div class="dice-btn__glass">
+                                        <span class="dice-btn__label">D4</span>
+                                    </div>
+                                </button>
+                                
+                                <!-- D6 -->
+                                <button class="dice-btn" data-dice="d6" onclick="DiceRoller.addDice('d6')" title="D6 - Linksklick: +1 / Rechtsklick: -1">
+                                    <div class="dice-btn__badge"><span id="count-d6">0</span>x</div>
+                                    <div class="dice-btn__icon">
+                                        <img src="assets/icons/dice/d6.svg" alt="D6">
+                                    </div>
+                                    <div class="dice-btn__glass">
+                                        <span class="dice-btn__label">D6</span>
+                                    </div>
+                                </button>
+                                
+                                <!-- D8 -->
+                                <button class="dice-btn" data-dice="d8" onclick="DiceRoller.addDice('d8')" title="D8 - Linksklick: +1 / Rechtsklick: -1">
+                                    <div class="dice-btn__badge"><span id="count-d8">0</span>x</div>
+                                    <div class="dice-btn__icon">
+                                        <img src="assets/icons/dice/d8.svg" alt="D8">
+                                    </div>
+                                    <div class="dice-btn__glass">
+                                        <span class="dice-btn__label">D8</span>
+                                    </div>
+                                </button>
+                                
+                                <!-- D10 -->
+                                <button class="dice-btn" data-dice="d10" onclick="DiceRoller.addDice('d10')" title="D10 - Linksklick: +1 / Rechtsklick: -1">
+                                    <div class="dice-btn__badge"><span id="count-d10">0</span>x</div>
+                                    <div class="dice-btn__icon">
+                                        <img src="assets/icons/dice/d10.svg" alt="D10">
+                                    </div>
+                                    <div class="dice-btn__glass">
+                                        <span class="dice-btn__label">D10</span>
+                                    </div>
+                                </button>
+                                
+                                <!-- D12 -->
+                                <button class="dice-btn" data-dice="d12" onclick="DiceRoller.addDice('d12')" title="D12 - Linksklick: +1 / Rechtsklick: -1">
+                                    <div class="dice-btn__badge"><span id="count-d12">0</span>x</div>
+                                    <div class="dice-btn__icon">
+                                        <img src="assets/icons/dice/d12.svg" alt="D12">
+                                    </div>
+                                    <div class="dice-btn__glass">
+                                        <span class="dice-btn__label">D12</span>
+                                    </div>
+                                </button>
+                                
+                                <!-- D20 -->
+                                <button class="dice-btn" data-dice="d20" onclick="DiceRoller.addDice('d20')" title="D20 - Linksklick: +1 / Rechtsklick: -1">
+                                    <div class="dice-btn__badge"><span id="count-d20">0</span>x</div>
+                                    <div class="dice-btn__icon">
+                                        <img src="assets/icons/dice/d20.svg" alt="D20">
+                                    </div>
+                                    <div class="dice-btn__glass">
+                                        <span class="dice-btn__label">D20</span>
+                                    </div>
+                                </button>
+                                
+                                <!-- D100 -->
+                                <button class="dice-btn" data-dice="d100" onclick="DiceRoller.addDice('d100')" title="D100 - Linksklick: +1 / Rechtsklick: -1">
+                                    <div class="dice-btn__badge"><span id="count-d100">0</span>x</div>
+                                    <div class="dice-btn__icon">
+                                        <img src="assets/icons/dice/d100.svg" alt="D100">
+                                    </div>
+                                    <div class="dice-btn__glass">
+                                        <span class="dice-btn__label">D100</span>
+                                    </div>
+                                </button>
+                            </div>
+                            
+                            <!-- Settings Button -->
+                            <button class="dice-orbit__action dice-orbit__settings" onclick="document.querySelector('.dice-settings-drawer').classList.toggle('open')" title="Einstellungen">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Quick Actions -->
+                        <div class="dice-quick-row">
+                            <button class="dice-preset" onclick="DiceRoller.quickRoll('1w20')">1W20</button>
+                            <button class="dice-preset" onclick="DiceRoller.quickRoll('2w6')">2W6</button>
+                            <button class="dice-preset" onclick="DiceRoller.quickRoll('1w20+5')">1W20+5</button>
+                            <button class="dice-preset" onclick="DiceRoller.quickRoll('4w6')">4W6</button>
+                            <button class="dice-preset" onclick="DiceRoller.quickRoll('1w100')">1W100</button>
+                            
+                            <button class="dice-adv-btn" onclick="DiceRoller.rollAdvantage()" title="2W20, höchsten nehmen">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                                Vorteil
+                            </button>
+                            <button class="dice-adv-btn dice-adv-btn--dis" onclick="DiceRoller.rollDisadvantage()" title="2W20, niedrigsten nehmen">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                Nachteil
+                            </button>
+                            
+                            <button class="dice-repeat-btn" id="repeatBtn" onclick="DiceRoller.repeatLast()" disabled title="Letzten Wurf wiederholen">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="1 4 1 10 7 10"/>
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                                </svg>
+                                Nochmal
+                            </button>
+                        </div>
+                        
+                        <!-- Roll Zone -->
+                        <div class="dice-roll-zone">
+                            <!-- Custom Notation Input (hidden by default) -->
+                            <div class="dice-notation">
+                                <input type="text" 
+                                       class="dice-notation__input" 
+                                       id="notationInput" 
+                                       placeholder="z.B. 2W6+3, 1W20+1W4..."
+                                       onkeydown="if(event.key==='Enter') DiceRoller.rollFromNotation()">
+                                <button class="dice-notation__clear" onclick="document.getElementById('notationInput').value=''; DiceRoller.clearDice();">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                            </div>
+                            
+                            <!-- Modifier -->
+                            <div class="dice-modifier">
+                                <button class="dice-modifier__btn dice-modifier__btn--lg" onclick="DiceRoller.adjustModifier(-20)">−20</button>
+                                <button class="dice-modifier__btn dice-modifier__btn--md" onclick="DiceRoller.adjustModifier(-10)">−10</button>
+                                <button class="dice-modifier__btn" onclick="DiceRoller.adjustModifier(-5)">−5</button>
+                                <button class="dice-modifier__btn dice-modifier__btn--sm" onclick="DiceRoller.adjustModifier(-1)">−</button>
+                                <input type="number" class="dice-modifier__value" id="modifierInput" value="0" min="-99" max="99">
+                                <button class="dice-modifier__btn dice-modifier__btn--sm" onclick="DiceRoller.adjustModifier(1)">+</button>
+                                <button class="dice-modifier__btn" onclick="DiceRoller.adjustModifier(5)">+5</button>
+                                <button class="dice-modifier__btn dice-modifier__btn--md" onclick="DiceRoller.adjustModifier(10)">+10</button>
+                                <button class="dice-modifier__btn dice-modifier__btn--lg" onclick="DiceRoller.adjustModifier(20)">+20</button>
+                            </div>
+                            
+                            <!-- Roll Button -->
+                            <button class="dice-roll-btn" id="rollBtn" onclick="DiceRoller.roll()" disabled>
+                                Würfeln!
+                            </button>
+                            
+                            <!-- Quick Actions -->
+                            <div class="dice-action-group">
+                                <button class="dice-action-btn dice-action-btn--adv" onclick="DiceRoller.rollAdvantage()" title="Vorteil (2W20↑)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                                </button>
+                                <button class="dice-action-btn dice-action-btn--dis" onclick="DiceRoller.rollDisadvantage()" title="Nachteil (2W20↓)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Settings Drawer (hidden by default) -->
+                        <div class="dice-settings-drawer">
+                            <div class="dice-settings-drawer__section">
+                                <span class="dice-settings-drawer__label">Würfelfarbe</span>
+                                <div class="dice-themes">
+                                    <button class="dice-theme-btn dice-theme-btn--classic active" data-theme="classic" title="Classic"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--blood" data-theme="blood" title="Blood"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--ice" data-theme="ice" title="Ice"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--nature" data-theme="nature" title="Nature"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--royal" data-theme="royal" title="Royal"></button>
+                                    <button class="dice-theme-btn dice-theme-btn--gold" data-theme="gold" title="Gold"></button>
+                                </div>
+                            </div>
+                            <div class="dice-settings-drawer__section">
+                                <button class="dice-toggle active" id="soundToggle2" onclick="DiceRoller.toggleSound()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                    </svg>
+                                    Sound
+                                </button>
+                                <button class="dice-toggle" id="secretToggle2" onclick="DiceRoller.toggleSecret()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                    Geheim
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- History -->
+                        <div class="dice-history">
+                            <div class="dice-history__header">
+                                <span class="dice-history__title">Verlauf</span>
+                                <button class="dice-history__clear" onclick="DiceRoller.clearHistory()">Löschen</button>
+                            </div>
+                            <div class="dice-history__list" id="historyList">
+                                <div class="dice-history__empty">Noch keine Würfe</div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </main>
+    </div>
+    
+    <!-- 3D Dice Libraries -->
+    <script src="assets/libs/dice/teal.js"></script>
+    <script src="assets/libs/dice/three.min.js"></script>
+    <script src="assets/libs/dice/cannon.min.js"></script>
+    <script src="assets/libs/dice/dice.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- RIFT Services -->
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/room-service.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    
+    <!-- Core Scripts -->
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="assets/js/settings.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script src="assets/js/app.js"></script>
+    
+    <script>
+        // ========================================
+        // RIFT DICE ROLLER - FULL FEATURED
+        // ========================================
+        
+        // Global sound toggle for library
+        window.RIFT_DICE_SOUND = true;
+        
+        const DiceRoller = {
+            // State
+            box: null,
+            currentDice: {},
+            history: [],
+            lastRoll: null,
+            isRolling: false,
+            resultTimeout: null,
+            
+            // Settings
+            soundEnabled: true,
+            secretRoll: false,
+            currentTheme: 'classic',
+            
+            // Theme colors for 3D dice
+            themeColors: {
+                classic: { primary: '#1a1a1a', secondary: '#f0f0f0' },
+                blood: { primary: '#8b0000', secondary: '#ffd700' },
+                ice: { primary: '#1a3a5c', secondary: '#a8d8ff' },
+                nature: { primary: '#2d4a1c', secondary: '#c8e6c9' },
+                royal: { primary: '#2a1a4a', secondary: '#e8d5ff' },
+                gold: { primary: '#3d2c0a', secondary: '#ffd700' }
+            },
+            
+            // Firebase
+            roomRef: null,
+            diceRef: null,
+            
+            // ========================================
+            // INITIALIZATION
+            // ========================================
+            
+            init() {
+                console.log('[DiceRoller] Initializing...');
+                
+                const container = document.getElementById('diceArena');
+                if (!container) {
+                    console.error('[DiceRoller] Container not found');
+                    return;
+                }
+                
+                // Wait for container to have dimensions
+                if (container.clientWidth === 0 || container.clientHeight === 0) {
+                    setTimeout(() => this.init(), 200);
+                    return;
+                }
+                
+                // Initialize 3D Dice
+                if (typeof DICE !== 'undefined') {
+                    try {
+                        this.box = new DICE.dice_box(container);
+                        this.initSwipe(container);
+                        console.log('[DiceRoller] 3D Dice initialized');
+                    } catch (e) {
+                        console.error('[DiceRoller] 3D init failed:', e);
+                    }
+                }
+                
+                // Load settings
+                this.loadSettings();
+                this.loadHistory();
+                this.initThemes();
+                this.initRightClick();
+                this.initMultiplayer();
+                this.updateUI();
+            },
+            
+            // ========================================
+            // SWIPE HANDLING
+            // ========================================
+            
+            initSwipe(container) {
+                let startPos = null;
+                let startTime = null;
+                
+                const onStart = (e) => {
+                    if (this.isRolling) return;
+                    startPos = this.getEventPos(e);
+                    startTime = Date.now();
+                };
+                
+                const onEnd = (e) => {
+                    if (!startPos || this.isRolling) return;
+                    
+                    const endPos = this.getEventPos(e);
+                    const dx = endPos.x - startPos.x;
+                    const dy = endPos.y - startPos.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const elapsed = Date.now() - startTime;
+                    
+                    startPos = null;
+                    
+                    // Minimum swipe distance
+                    if (dist < 50) return;
+                    
+                    // Check if we have dice to roll
+                    const hasDice = Object.values(this.currentDice).some(c => c > 0);
+                    const hasNotation = document.getElementById('notationInput').value.trim().length > 0;
+                    
+                    if (!hasDice && !hasNotation) {
+                        // Default to 1d20 if nothing selected
+                        this.currentDice = { d20: 1 };
+                        this.updateNotationFromDice();
+                        this.updateUI();
+                    }
+                    
+                    // Calculate boost based on speed
+                    const speed = dist / Math.max(elapsed, 100);
+                    console.log('[DiceRoller] Swipe detected, speed:', speed);
+                    
+                    this.roll();
+                };
+                
+                container.addEventListener('mousedown', onStart);
+                container.addEventListener('mouseup', onEnd);
+                container.addEventListener('touchstart', (e) => { e.preventDefault(); onStart(e); });
+                container.addEventListener('touchend', (e) => { e.preventDefault(); onEnd(e); });
+            },
+            
+            getEventPos(e) {
+                if (e.touches && e.touches.length > 0) {
+                    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+                }
+                return { x: e.clientX, y: e.clientY };
+            },
+            
+            // ========================================
+            // RIGHT CLICK TO REMOVE DICE
+            // ========================================
+            
+            initRightClick() {
+                document.querySelectorAll('.dice-btn').forEach(btn => {
+                    btn.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        const type = btn.dataset.dice;
+                        if (type) this.removeDice(type);
+                    });
+                });
+            },
+            
+            // ========================================
+            // THEMES
+            // ========================================
+            
+            initThemes() {
+                document.querySelectorAll('.dice-theme-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const theme = btn.dataset.theme;
+                        this.setTheme(theme, true); // true = show toast
+                    });
+                });
+                
+                // Load saved theme (no toast on initial load)
+                const saved = localStorage.getItem('rift_dice_theme') || 'classic';
+                this.setTheme(saved, false);
+            },
+            
+            setTheme(theme, showNotification = false) {
+                // Skip if already this theme
+                if (this.currentTheme === theme && !showNotification) return;
+                
+                this.currentTheme = theme;
+                
+                // Set data attribute for CSS
+                document.body.dataset.diceTheme = theme;
+                
+                // Update buttons
+                document.querySelectorAll('.dice-theme-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.theme === theme);
+                });
+                
+                // Update arena background gradient based on theme
+                const arena = document.getElementById('diceArena');
+                if (arena) {
+                    const colors = this.themeColors[theme] || this.themeColors.classic;
+                    arena.style.setProperty('--theme-primary', colors.primary);
+                    arena.style.setProperty('--theme-secondary', colors.secondary);
+                }
+                
+                localStorage.setItem('rift_dice_theme', theme);
+                
+                // Only show toast when explicitly changing theme
+                if (showNotification && window.RIFT?.ui?.Toast) {
+                    const names = { classic: 'Klassisch', blood: 'Blut', ice: 'Eis', nature: 'Natur', royal: 'Royal', gold: 'Gold' };
+                    RIFT.ui.Toast.info(`Theme: ${names[theme] || theme}`);
+                }
+            },
+            
+            // ========================================
+            // SOUND
+            // ========================================
+            
+            toggleSound() {
+                this.soundEnabled = !this.soundEnabled;
+                window.RIFT_DICE_SOUND = this.soundEnabled;
+                
+                // Update both toggle buttons
+                document.getElementById('soundToggle')?.classList.toggle('active', this.soundEnabled);
+                document.getElementById('soundToggle2')?.classList.toggle('active', this.soundEnabled);
+                localStorage.setItem('rift_dice_sound', this.soundEnabled);
+                
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info(this.soundEnabled ? 'Sound an' : 'Sound aus');
+                }
+            },
+            
+            // ========================================
+            // SECRET ROLL
+            // ========================================
+            
+            toggleSecret() {
+                this.secretRoll = !this.secretRoll;
+                
+                // Update both toggle buttons
+                document.getElementById('secretToggle')?.classList.toggle('active', this.secretRoll);
+                document.getElementById('secretToggle2')?.classList.toggle('active', this.secretRoll);
+                
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info(this.secretRoll ? 'Geheimer Wurf aktiviert' : 'Normaler Wurf');
+                }
+            },
+            
+            // ========================================
+            // DICE SELECTION
+            // ========================================
+            
+            addDice(type) {
+                if (!this.currentDice[type]) this.currentDice[type] = 0;
+                this.currentDice[type]++;
+                this.updateNotationFromDice();
+                this.updateUI();
+            },
+            
+            removeDice(type) {
+                if (this.currentDice[type]) {
+                    this.currentDice[type]--;
+                    if (this.currentDice[type] <= 0) delete this.currentDice[type];
+                }
+                this.updateNotationFromDice();
+                this.updateUI();
+            },
+            
+            clearDice() {
+                this.currentDice = {};
+                document.getElementById('modifierInput').value = 0;
+                document.getElementById('notationInput').value = '';
+                this.updateUI();
+            },
+            
+            updateNotationFromDice() {
+                const parts = [];
+                for (const [type, count] of Object.entries(this.currentDice)) {
+                    if (count > 0) {
+                        // Use German W notation
+                        const wType = type.replace('d', 'W');
+                        parts.push(`${count}${wType}`);
+                    }
+                }
+                const mod = parseInt(document.getElementById('modifierInput').value) || 0;
+                let notation = parts.join('+');
+                if (mod > 0) notation += `+${mod}`;
+                else if (mod < 0) notation += `${mod}`;
+                
+                document.getElementById('notationInput').value = notation;
+            },
+            
+            // Parse notation - supports both D and W (German)
+            parseDiceFromNotation(notation) {
+                this.currentDice = {};
+                let modifier = 0;
+                
+                // Normalize: replace W with D (case insensitive)
+                const normalized = notation.toUpperCase().replace(/W/g, 'D');
+                
+                // Match dice patterns (now only D since we normalized)
+                const diceRegex = /(\d*)D(\d+)/g;
+                let match;
+                while ((match = diceRegex.exec(normalized)) !== null) {
+                    const count = parseInt(match[1]) || 1;
+                    const sides = parseInt(match[2]);
+                    const type = `d${sides}`;
+                    this.currentDice[type] = (this.currentDice[type] || 0) + count;
+                }
+                
+                // Match modifier at end (after all dice)
+                const modMatch = normalized.match(/([+-]\d+)(?!D)(?:\s*$|\s*\()/);
+                if (modMatch) {
+                    modifier = parseInt(modMatch[1]);
+                }
+                
+                document.getElementById('modifierInput').value = modifier;
+                this.updateUI();
+            },
+            
+            adjustModifier(delta) {
+                const input = document.getElementById('modifierInput');
+                let val = parseInt(input.value) || 0;
+                val = Math.max(-99, Math.min(99, val + delta));
+                input.value = val;
+                this.updateNotationFromDice();
+            },
+            
+            // ========================================
+            // ROLLING
+            // ========================================
+            
+            roll() {
+                if (this.isRolling) return;
+                
+                // Hide previous result
+                this.hideResult();
+                
+                // Get notation from input or build from dice
+                let notationStr = document.getElementById('notationInput').value.trim();
+                
+                if (notationStr) {
+                    this.parseDiceFromNotation(notationStr);
+                }
+                
+                // Build from selected dice
+                const parts = [];
+                for (const [type, count] of Object.entries(this.currentDice)) {
+                    if (count > 0) parts.push(`${count}${type}`);
+                }
+                if (parts.length === 0) return;
+                
+                const mod = parseInt(document.getElementById('modifierInput').value) || 0;
+                notationStr = parts.join('+');
+                if (mod !== 0) notationStr += (mod > 0 ? '+' : '') + mod;
+                
+                this.executeRoll(notationStr);
+            },
+            
+            rollFromNotation() {
+                const notation = document.getElementById('notationInput').value.trim();
+                if (!notation) return;
+                this.parseDiceFromNotation(notation);
+                this.roll();
+            },
+            
+            quickRoll(notation) {
+                this.hideResult();
+                this.parseDiceFromNotation(notation);
+                document.getElementById('notationInput').value = notation;
+                setTimeout(() => this.roll(), 50);
+            },
+            
+            rollAdvantage() {
+                this.hideResult();
+                this.currentDice = { d20: 2 };
+                document.getElementById('modifierInput').value = 0;
+                document.getElementById('notationInput').value = '2D20 (Vorteil)';
+                this.updateUI();
+                this.executeRoll('2d20', 'advantage');
+            },
+            
+            rollDisadvantage() {
+                this.hideResult();
+                this.currentDice = { d20: 2 };
+                document.getElementById('modifierInput').value = 0;
+                document.getElementById('notationInput').value = '2D20 (Nachteil)';
+                this.updateUI();
+                this.executeRoll('2d20', 'disadvantage');
+            },
+            
+            repeatLast() {
+                if (!this.lastRoll) return;
+                this.hideResult();
+                document.getElementById('notationInput').value = this.lastRoll.notation;
+                this.parseDiceFromNotation(this.lastRoll.notation);
+                this.executeRoll(this.lastRoll.notationClean, this.lastRoll.special);
+            },
+            
+            hideResult() {
+                const result = document.getElementById('diceResult');
+                result.classList.remove('visible', 'critical', 'secret');
+                this.clearDiceLabels();
+                if (this.resultTimeout) {
+                    clearTimeout(this.resultTimeout);
+                    this.resultTimeout = null;
+                }
+            },
+            
+            executeRoll(notationStr, special = null) {
+                if (this.isRolling) return;
+                this.isRolling = true;
+                
+                const arena = document.getElementById('diceArena');
+                const result = document.getElementById('diceResult');
+                const btn = document.getElementById('rollBtn');
+                
+                // UI Feedback
+                arena.classList.remove('empty');
+                arena.classList.add('throwing');
+                result.classList.remove('visible', 'critical', 'secret');
+                btn.classList.add('rolling');
+                
+                setTimeout(() => arena.classList.remove('throwing'), 300);
+                
+                // Save for repeat
+                const displayNotation = document.getElementById('notationInput').value || notationStr;
+                this.lastRoll = { notation: displayNotation, notationClean: notationStr, special };
+                document.getElementById('repeatBtn').disabled = false;
+                
+                // Handle W100/D100 specially: Convert to d100 (tens) + d10 (ones) for library
+                let libraryNotation = notationStr;
+                const d100Count = this.currentDice.d100 || 0;
+                if (d100Count > 0) {
+                    libraryNotation = notationStr.replace(/(\d*)d100/gi, (match, count) => {
+                        const c = parseInt(count) || 1;
+                        return `${c}d100+${c}d10`;
+                    });
+                }
+                
+                console.log('[DiceRoller] Library notation:', libraryNotation);
+                
+                // Track when roll started for minimum animation time
+                const rollStartTime = Date.now();
+                const MIN_ANIMATION_TIME = 1500; // Minimum 1.5 seconds
+                
+                // Roll with 3D or fallback
+                if (this.box) {
+                    this.box.setDice(libraryNotation);
+                    
+                    // Use a flag to prevent double-callback
+                    let resultHandled = false;
+                    
+                    this.box.start_throw(null, (notation) => {
+                        if (resultHandled) return;
+                        resultHandled = true;
+                        
+                        // Calculate how long animation actually took
+                        const elapsed = Date.now() - rollStartTime;
+                        const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsed);
+                        
+                        console.log('[DiceRoller] Animation took', elapsed, 'ms, waiting additional', remainingTime, 'ms');
+                        
+                        // Ensure minimum animation time before showing result
+                        setTimeout(() => {
+                            btn.classList.remove('rolling');
+                            
+                            let rolls = notation.result;
+                            let total = notation.resultTotal;
+                            const rawRolls = [...notation.result]; // Keep original for labels
+                            
+                            console.log('[DiceRoller] Raw results:', rolls);
+                            
+                            if (d100Count > 0) {
+                                const d100Result = this.calculateD100Result(rolls, d100Count);
+                                rolls = d100Result.rolls;
+                                total = d100Result.total;
+                                
+                                const mod = parseInt(document.getElementById('modifierInput').value) || 0;
+                                total += mod;
+                            }
+                            
+                            this.handleResult(rolls, total, notation, special, rawRolls);
+                        }, remainingTime);
+                    });
+                    
+                    // Fallback timeout in case callback never fires
+                    setTimeout(() => {
+                        if (!resultHandled) {
+                            console.warn('[DiceRoller] Callback timeout - using fallback');
+                            resultHandled = true;
+                            btn.classList.remove('rolling');
+                            const results = this.simulateRoll(notationStr);
+                            this.handleResult(results.rolls, results.total, { resultString: results.breakdown }, special, null);
+                        }
+                    }, 10000); // 10 second timeout
+                    
+                } else {
+                    // Fallback without 3D
+                    setTimeout(() => {
+                        btn.classList.remove('rolling');
+                        const results = this.simulateRoll(notationStr);
+                        this.handleResult(results.rolls, results.total, { resultString: results.breakdown }, special, null);
+                    }, MIN_ANIMATION_TIME);
+                }
+            },
+            
+            calculateD100Result(rawRolls, d100Count) {
+                // Library returns:
+                // - d100 (tens): 0, 10, 20, 30, 40, 50, 60, 70, 80, 90
+                // - d10 (ones): 1-10 (where 10 means the "0" face was rolled)
+                const rolls = [];
+                let total = 0;
+                let rollIndex = 0;
+                
+                for (let i = 0; i < d100Count; i++) {
+                    const tens = rawRolls[rollIndex] || 0;           // 0, 10, 20, 30...90
+                    const onesRaw = rawRolls[rollIndex + 1] || 1;    // 1-10
+                    const ones = onesRaw === 10 ? 0 : onesRaw;       // Convert 10 back to 0
+                    
+                    let value = tens + ones;
+                    // Special case: 00 + 0 = 100 (not 0)
+                    if (value === 0) value = 100;
+                    
+                    console.log(`[DiceRoller] D100 #${i+1}: tens=${tens}, onesRaw=${onesRaw}, ones=${ones}, value=${value}`);
+                    
+                    rolls.push(value);
+                    total += value;
+                    rollIndex += 2;
+                }
+                
+                // Add remaining rolls (non-d100 dice)
+                while (rollIndex < rawRolls.length) {
+                    rolls.push(rawRolls[rollIndex]);
+                    total += rawRolls[rollIndex];
+                    rollIndex++;
+                }
+                
+                return { rolls, total };
+            },
+            
+            simulateRoll(notation) {
+                const rolls = [];
+                let total = 0;
+                
+                // Normalize W to D
+                const normalized = notation.toUpperCase().replace(/W/g, 'D');
+                
+                const diceRegex = /(\d*)D(\d+)/g;
+                let match;
+                while ((match = diceRegex.exec(normalized)) !== null) {
+                    const count = parseInt(match[1]) || 1;
+                    const sides = parseInt(match[2]);
+                    
+                    if (sides === 100) {
+                        // D100: tens (00-90) + ones (0-9)
+                        for (let i = 0; i < count; i++) {
+                            const tens = Math.floor(Math.random() * 10) * 10; // 0, 10, 20...90
+                            const ones = Math.floor(Math.random() * 10);       // 0-9
+                            let value = tens + ones;
+                            if (value === 0) value = 100; // 00 + 0 = 100
+                            rolls.push(value);
+                            total += value;
+                        }
+                    } else {
+                        for (let i = 0; i < count; i++) {
+                            const roll = Math.floor(Math.random() * sides) + 1;
+                            rolls.push(roll);
+                            total += roll;
+                        }
+                    }
+                }
+                
+                const modMatch = normalized.match(/([+-]\d+)(?!D)(?:\s*$|\s*\()/);
+                const mod = modMatch ? parseInt(modMatch[1]) : 0;
+                total += mod;
+                
+                return { rolls, total, breakdown: `[${rolls.join(', ')}]${mod !== 0 ? (mod > 0 ? '+' : '') + mod : ''} = ${total}` };
+            },
+            
+            handleResult(rolls, total, notation, special = null, rawRolls = null) {
+                const arena = document.getElementById('diceArena');
+                const resultEl = document.getElementById('diceResult');
+                const totalEl = document.getElementById('resultTotal');
+                const breakdownEl = document.getElementById('resultBreakdown');
+                const playerEl = document.getElementById('resultPlayer');
+                
+                // Handle advantage/disadvantage
+                let finalTotal = total;
+                let displayRolls = rolls;
+                
+                if (special === 'advantage' && rolls.length >= 2) {
+                    finalTotal = Math.max(rolls[0], rolls[1]);
+                } else if (special === 'disadvantage' && rolls.length >= 2) {
+                    finalTotal = Math.min(rolls[0], rolls[1]);
+                }
+                
+                // Check critical
+                const isCritical = this.checkCritical(rolls, special);
+                
+                // Show dice labels above each die
+                this.showDiceLabels(rolls, rawRolls);
+                
+                // Get user info
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                const playerName = userData.name || 'Spieler';
+                
+                // Display
+                playerEl.textContent = playerName;
+                totalEl.textContent = finalTotal;
+                
+                if (special === 'advantage') {
+                    breakdownEl.textContent = `[${rolls[0]}, ${rolls[1]}] → höchste: ${finalTotal}`;
+                } else if (special === 'disadvantage') {
+                    breakdownEl.textContent = `[${rolls[0]}, ${rolls[1]}] → niedrigste: ${finalTotal}`;
+                } else {
+                    breakdownEl.textContent = `[${rolls.join(', ')}] = ${total}`;
+                }
+                
+                // Secret roll styling
+                if (this.secretRoll) {
+                    resultEl.classList.add('secret');
+                }
+                
+                // Scan-line effect through arena
+                arena.classList.add('resolving');
+                setTimeout(() => arena.classList.remove('resolving'), 1500);
+                
+                // Critical styling
+                if (isCritical) {
+                    resultEl.classList.add('critical');
+                    arena.classList.add('shake');
+                    this.spawnParticles(30);
+                    setTimeout(() => arena.classList.remove('shake'), 500);
+                }
+                
+                resultEl.classList.add('visible');
+                
+                // Auto-hide result after 8 seconds
+                this.resultTimeout = setTimeout(() => {
+                    resultEl.classList.remove('visible');
+                    this.clearDiceLabels();
+                }, 8000);
+                
+                // Build notation string for history (German W notation)
+                const parts = [];
+                for (const [type, count] of Object.entries(this.currentDice)) {
+                    if (count > 0) {
+                        const wType = type.replace('d', 'W');
+                        parts.push(`${count}${wType}`);
+                    }
+                }
+                const mod = parseInt(document.getElementById('modifierInput').value) || 0;
+                let histNotation = parts.join('+');
+                if (mod !== 0) histNotation += (mod > 0 ? '+' : '') + mod;
+                if (special) histNotation += ` (${special === 'advantage' ? 'V' : 'N'})`;
+                
+                // Add to history
+                this.addToHistory({
+                    player: playerName,
+                    total: finalTotal,
+                    notation: histNotation,
+                    rolls: displayRolls,
+                    critical: isCritical,
+                    secret: this.secretRoll,
+                    special,
+                    timestamp: Date.now()
+                });
+                
+                // Sync to multiplayer
+                this.syncRoll({
+                    player: playerName,
+                    color: userData.color || '#FF4655',
+                    total: finalTotal,
+                    notation: histNotation,
+                    rolls: displayRolls,
+                    critical: isCritical,
+                    secret: this.secretRoll,
+                    timestamp: Date.now()
+                });
+                
+                this.isRolling = false;
+            },
+            
+            checkCritical(rolls, special) {
+                // Nat 20 on d20
+                if (rolls.length === 1 && rolls[0] === 20) return true;
+                if (rolls.length === 2 && special && (rolls[0] === 20 || rolls[1] === 20)) return true;
+                // 100 on d100
+                if (rolls.length === 1 && rolls[0] === 100) return true;
+                return false;
+            },
+            
+            // ========================================
+            // MULTIPLAYER
+            // ========================================
+            
+            initMultiplayer() {
+                const roomCode = localStorage.getItem('rift_current_room');
+                if (!roomCode || typeof firebase === 'undefined') {
+                    console.log('[DiceRoller] No room or Firebase, skipping multiplayer');
+                    return;
+                }
+                
+                try {
+                    this.roomRef = firebase.database().ref(`rooms/${roomCode}`);
+                    this.diceRef = this.roomRef.child('dice_rolls');
+                    
+                    // Listen for new rolls
+                    this.diceRef.orderByChild('timestamp').limitToLast(10).on('child_added', (snapshot) => {
+                        const roll = snapshot.val();
+                        if (roll && Date.now() - roll.timestamp < 30000) {
+                            this.showFeedItem(roll);
+                        }
+                    });
+                    
+                    console.log('[DiceRoller] Multiplayer connected');
+                } catch (e) {
+                    console.error('[DiceRoller] Multiplayer init failed:', e);
+                }
+            },
+            
+            syncRoll(rollData) {
+                if (!this.diceRef) return;
+                
+                // Don't sync if secret and not GM
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                if (rollData.secret && !userData.isGM) {
+                    return;
+                }
+                
+                try {
+                    this.diceRef.push(rollData);
+                } catch (e) {
+                    console.error('[DiceRoller] Sync failed:', e);
+                }
+            },
+            
+            showFeedItem(roll) {
+                const feed = document.getElementById('diceFeed');
+                if (!feed) return;
+                
+                // Don't show own rolls in feed
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                if (roll.player === userData.name) return;
+                
+                const item = document.createElement('div');
+                item.className = 'dice-feed__item' + (roll.secret ? ' secret' : '');
+                
+                const initial = roll.player.charAt(0).toUpperCase();
+                
+                item.innerHTML = `
+                    <div class="dice-feed__avatar" style="background: ${roll.color}">${initial}</div>
+                    <div class="dice-feed__info">
+                        <div class="dice-feed__name">${roll.player}</div>
+                        <div class="dice-feed__roll">${roll.notation}</div>
+                    </div>
+                    <div class="dice-feed__result">${roll.secret ? '?' : roll.total}${roll.critical ? '!' : ''}</div>
+                `;
+                
+                feed.insertBefore(item, feed.firstChild);
+                
+                // Remove after 10s
+                setTimeout(() => {
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateX(20px)';
+                    setTimeout(() => item.remove(), 300);
+                }, 10000);
+                
+                // Keep max 5 items
+                while (feed.children.length > 5) {
+                    feed.lastChild.remove();
+                }
+            },
+            
+            // ========================================
+            // DICE VALUE LABELS
+            // ========================================
+            
+            clearDiceLabels() {
+                const container = document.getElementById('diceLabels');
+                const pulseContainer = document.getElementById('dicePulses');
+                if (container) container.innerHTML = '';
+                if (pulseContainer) pulseContainer.innerHTML = '';
+            },
+            
+            showDiceLabels(rolls, rawRolls = null) {
+                this.clearDiceLabels();
+                
+                if (!this.box) return;
+                
+                const container = document.getElementById('diceLabels');
+                const pulseContainer = document.getElementById('dicePulses');
+                if (!container) return;
+                
+                // Clear pulse container
+                if (pulseContainer) pulseContainer.innerHTML = '';
+                
+                // Get screen positions from the library
+                const positions = this.box.getDiceScreenPositions();
+                if (!positions || positions.length === 0) return;
+                
+                console.log('[DiceRoller] Dice positions:', positions);
+                console.log('[DiceRoller] Rolls to display:', rolls, 'Raw:', rawRolls);
+                
+                // Use rawRolls if available (for d100 we need the individual dice values)
+                const valuesToShow = rawRolls || rolls;
+                
+                // Create labels and pulses for each die
+                for (let i = 0; i < Math.min(positions.length, valuesToShow.length); i++) {
+                    const pos = positions[i];
+                    const value = valuesToShow[i];
+                    
+                    if (pos.x < 0 || pos.y < 0) continue; // Skip if off-screen
+                    
+                    // Create pulse effect in separate container (UNDER dice)
+                    if (pulseContainer) {
+                        const pulse = document.createElement('div');
+                        pulse.className = `dice-pulse dice-pulse--${pos.type}`;
+                        pulse.style.left = `${pos.x}px`;
+                        pulse.style.top = `${pos.y + 40}px`;
+                        pulse.style.animationDelay = `${i * 0.08}s`;
+                        pulseContainer.appendChild(pulse);
+                    }
+                    
+                    // Create label
+                    const label = document.createElement('div');
+                    label.className = `dice-label dice-label--${pos.type}`;
+                    
+                    // Check for critical (nat 20 or nat 1 on d20)
+                    if (pos.type === 'd20' && (value === 20 || value === 1)) {
+                        label.classList.add('dice-label--crit');
+                    }
+                    
+                    // Format value for display
+                    let displayValue = value;
+                    if (pos.type === 'd100') {
+                        // Tens die: 0, 10, 20... display as "00", "10", "20"...
+                        displayValue = value === 0 ? '00' : value;
+                    } else if (pos.type === 'd10') {
+                        // Ones die: library returns 1-10, display 0-9 (10 becomes 0)
+                        displayValue = value === 10 ? '0' : value;
+                    }
+                    
+                    label.textContent = displayValue;
+                    label.style.left = `${pos.x}px`;
+                    label.style.top = `${pos.y}px`;
+                    label.style.animationDelay = `${i * 0.1}s`;
+                    
+                    container.appendChild(label);
+                }
+            },
+            
+            // ========================================
+            // PARTICLES
+            // ========================================
+            
+            spawnParticles(count = 20) {
+                const container = document.getElementById('particlesContainer');
+                if (!container) return;
+                
+                const colors = ['#FF4655', '#FF6B6B', '#FFE66D', '#4ECDC4', '#45B7D1', '#DDA0DD'];
+                
+                for (let i = 0; i < count; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'dice-particle';
+                    
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 80 + Math.random() * 120;
+                    
+                    particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+                    particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    particle.style.width = particle.style.height = `${5 + Math.random() * 8}px`;
+                    
+                    container.appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            },
+            
+            // ========================================
+            // UI
+            // ========================================
+            
+            updateUI() {
+                // Update button counts
+                ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'].forEach(type => {
+                    const countEl = document.getElementById(`count-${type}`);
+                    const btn = document.querySelector(`.dice-btn[data-dice="${type}"]`);
+                    const count = this.currentDice[type] || 0;
+                    
+                    if (countEl) countEl.textContent = count;
+                    if (btn) btn.classList.toggle('has-count', count > 0);
+                });
+                
+                // Update roll button
+                const btn = document.getElementById('rollBtn');
+                const hasInput = document.getElementById('notationInput').value.trim().length > 0;
+                const hasDice = Object.values(this.currentDice).some(c => c > 0);
+                btn.disabled = !hasInput && !hasDice;
+            },
+            
+            // ========================================
+            // HISTORY
+            // ========================================
+            
+            addToHistory(roll) {
+                this.history.unshift(roll);
+                if (this.history.length > 50) this.history = this.history.slice(0, 50);
+                this.saveHistory();
+                this.renderHistory();
+            },
+            
+            renderHistory() {
+                const list = document.getElementById('historyList');
+                if (!list) return;
+                
+                if (this.history.length === 0) {
+                    list.innerHTML = '<div class="dice-history__empty">Noch keine Würfe</div>';
+                    return;
+                }
+                
+                list.innerHTML = this.history.slice(0, 15).map(roll => {
+                    const time = new Date(roll.timestamp);
+                    const timeStr = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                    const critClass = roll.critical ? ' dice-history__item--crit' : '';
+                    const playerName = roll.player || 'Spieler';
+                    
+                    return `
+                        <div class="dice-history__item${critClass}" title="${playerName} • ${roll.notation} • ${timeStr}">
+                            <div class="dice-history__player">${playerName}</div>
+                            <div class="dice-history__value">${roll.total}${roll.critical ? '!' : ''}</div>
+                            <div class="dice-history__notation">${roll.notation}</div>
+                        </div>
+                    `;
+                }).join('');
+            },
+            
+            // ========================================
+            // PERSISTENCE
+            // ========================================
+            
+            loadSettings() {
+                // Sound
+                this.soundEnabled = localStorage.getItem('rift_dice_sound') !== 'false';
+                window.RIFT_DICE_SOUND = this.soundEnabled;
+                document.getElementById('soundToggle')?.classList.toggle('active', this.soundEnabled);
+                document.getElementById('soundToggle2')?.classList.toggle('active', this.soundEnabled);
+            },
+            
+            saveHistory() {
+                localStorage.setItem('rift_dice_history', JSON.stringify(this.history));
+            },
+            
+            loadHistory() {
+                try {
+                    this.history = JSON.parse(localStorage.getItem('rift_dice_history') || '[]');
+                } catch { this.history = []; }
+                this.renderHistory();
+            },
+            
+            clearHistory() {
+                this.history = [];
+                this.saveHistory();
+                this.renderHistory();
+                if (typeof showToast === 'function') showToast('Verlauf gelöscht', 'info');
+            }
+        };
+        
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        
+        initLayout();
+        
+        // Init after layout is ready
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                DiceRoller.init();
+            });
+        });
+        
+        // Update UI when notation input changes
+        document.getElementById('notationInput')?.addEventListener('input', (e) => {
+            // Parse as user types
+            DiceRoller.parseDiceFromNotation(e.target.value);
+        });
+    </script>
+</body>
+</html>

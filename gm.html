@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>RIFT – GM Dashboard</title>
+    
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/topbar.css">
+    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="assets/css/gm.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+</head>
+<body>
+    <div class="app">
+        <main class="main">
+            <div class="main__content">
+                
+                <!-- GM Dashboard -->
+                <div class="gm-dashboard" id="gmContent">
+                    
+                    <!-- Hero Section -->
+                    <div class="gm-hero">
+                        <div class="gm-hero__info">
+                            <div class="gm-hero__badge">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                </svg>
+                                Game Master
+                            </div>
+                            <h1 class="gm-hero__title">Mission Control</h1>
+                            <p class="gm-hero__session">Aktive Session: <strong id="sessionName">Keine aktive Session</strong></p>
+                        </div>
+                        <div class="gm-hero__actions">
+                            <button class="gm-pause-btn" id="pauseBtn" onclick="GMDash.togglePause()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="6" y="4" width="4" height="16"/>
+                                    <rect x="14" y="4" width="4" height="16"/>
+                                </svg>
+                                Pausieren
+                            </button>
+                            <button class="gm-code-btn" onclick="GMDash.copyCode()">
+                                <span id="roomCode">G4SCP</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Bento Grid -->
+                    <div class="gm-grid">
+                        
+                        <!-- Room Info Card -->
+                        <div class="gm-card gm-card--wide">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--blue">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                        <polyline points="9 22 9 12 15 12 15 22"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Raum-Info</span>
+                            </div>
+                            <div class="room-info-grid">
+                                <div class="room-info-item">
+                                    <span class="room-info-item__label">Erstellt am</span>
+                                    <span class="room-info-item__value" id="roomCreated">08.01.2026, 19:16</span>
+                                </div>
+                                <div class="room-info-item">
+                                    <span class="room-info-item__label">Läuft ab in</span>
+                                    <span class="room-info-item__value room-info-item__value--warning" id="roomExpires">6 Tage</span>
+                                </div>
+                                <div class="room-info-item">
+                                    <span class="room-info-item__label">Letzte Aktivität</span>
+                                    <span class="room-info-item__value" id="roomActivity">gerade eben</span>
+                                </div>
+                                <div class="room-info-item">
+                                    <span class="room-info-item__label">Spieler online</span>
+                                    <span class="room-info-item__value room-info-item__value--success" id="roomPlayers">3 / 4</span>
+                                </div>
+                                <div class="room-info-item">
+                                    <span class="room-info-item__label">Chat-Nachrichten</span>
+                                    <span class="room-info-item__value" id="roomMessages">48</span>
+                                </div>
+                                <div class="room-info-item">
+                                    <span class="room-info-item__label">Würfelwürfe</span>
+                                    <span class="room-info-item__value" id="roomRolls">127</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Timer Card -->
+                        <div class="gm-card gm-card--wide gm-card--timer">
+                            <div class="gm-card__header" style="justify-content: center;">
+                                <div class="gm-card__icon gm-card__icon--red">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Timer</span>
+                            </div>
+                            <div class="timer-display" id="timerDisplay">
+                                <div class="timer-display__time" id="timerTime">05:00</div>
+                                <div class="timer-display__status" id="timerStatus">Bereit</div>
+                            </div>
+                            <div class="timer-presets">
+                                <button class="timer-preset" onclick="GMDash.setTimer(1)">1 min</button>
+                                <button class="timer-preset" onclick="GMDash.setTimer(3)">3 min</button>
+                                <button class="timer-preset" onclick="GMDash.setTimer(5)">5 min</button>
+                                <button class="timer-preset" onclick="GMDash.setTimer(10)">10 min</button>
+                            </div>
+                            <div class="timer-controls">
+                                <button class="timer-btn" id="timerBtn" onclick="GMDash.toggleTimer()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="5 3 19 12 5 21 5 3"/>
+                                    </svg>
+                                    Starten
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Modules Card -->
+                        <div class="gm-card gm-card--wide">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--purple">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="7" height="7"/>
+                                        <rect x="14" y="3" width="7" height="7"/>
+                                        <rect x="14" y="14" width="7" height="7"/>
+                                        <rect x="3" y="14" width="7" height="7"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Module</span>
+                                <span class="gm-card__subtitle">Deaktivierte Module werden im Hub ausgegraut</span>
+                            </div>
+                            <div class="modules-grid">
+                                <div class="module-toggle active" data-module="map" onclick="GMDash.toggleModule(this)">
+                                    <div class="module-toggle__icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                                        </svg>
+                                    </div>
+                                    <span class="module-toggle__name">Karte</span>
+                                    <div class="module-toggle__status"></div>
+                                </div>
+                                <div class="module-toggle active" data-module="whiteboard" onclick="GMDash.toggleModule(this)">
+                                    <div class="module-toggle__icon" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                            <path d="M3 9h18"/>
+                                        </svg>
+                                    </div>
+                                    <span class="module-toggle__name">Whiteboard</span>
+                                    <div class="module-toggle__status"></div>
+                                </div>
+                                <div class="module-toggle active" data-module="notes" onclick="GMDash.toggleModule(this)">
+                                    <div class="module-toggle__icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14 2 14 8 20 8"/>
+                                        </svg>
+                                    </div>
+                                    <span class="module-toggle__name">Notizen</span>
+                                    <div class="module-toggle__status"></div>
+                                </div>
+                                <div class="module-toggle active" data-module="chat" onclick="GMDash.toggleModule(this)">
+                                    <div class="module-toggle__icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="module-toggle__name">Chat</span>
+                                    <div class="module-toggle__status"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Players Card -->
+                        <div class="gm-card gm-card--tall">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--green">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Spieler</span>
+                            </div>
+                            <div class="players-list" id="playersList">
+                                <div class="player-row">
+                                    <div class="player-row__avatar" style="background: #8b5cf6;">M</div>
+                                    <div class="player-row__info">
+                                        <div class="player-row__name">Mike</div>
+                                        <div class="player-row__role">Game Master</div>
+                                    </div>
+                                    <span class="player-row__badge player-row__badge--gm">GM</span>
+                                    <span class="player-row__badge player-row__badge--you">Du</span>
+                                </div>
+                                <!-- Weitere Spieler werden dynamisch geladen -->
+                            </div>
+                            <div class="players-empty" id="playersEmpty" style="display: none; padding: 20px; text-align: center; color: rgba(255,255,255,0.4);">
+                                <p>Noch keine weiteren Spieler</p>
+                            </div>
+                            <button class="invite-row" onclick="GMDash.invite()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"/>
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                Spieler einladen
+                            </button>
+                        </div>
+                        
+                        <!-- Characters Card -->
+                        <div class="gm-card gm-card--tall">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--yellow">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Charakterbögen</span>
+                            </div>
+                            <div class="characters-list" id="charactersList">
+                                <!-- Dynamisch befüllt -->
+                                <div class="characters-empty" id="charactersEmpty">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M8 15h8M9 9h.01M15 9h.01"/>
+                                    </svg>
+                                    <span>Keine Charaktere vorhanden</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Activity Feed Card -->
+                        <div class="gm-card gm-card--wide gm-card--tall">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--red">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Session-Protokoll</span>
+                                <div class="gm-card__actions">
+                                    <button class="gm-card__action-btn" onclick="GMDash.exportLog()" title="Exportieren">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="7 10 12 15 17 10"/>
+                                            <line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                    </button>
+                                    <button class="gm-card__action-btn gm-card__action-btn--danger" onclick="GMDash.clearLog()" title="Löschen">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"/>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="log-filters">
+                                <button class="log-filter active" data-filter="all" onclick="GMDash.filterLog('all', this)">Alle</button>
+                                <button class="log-filter" data-filter="dice" onclick="GMDash.filterLog('dice', this)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+                                    Würfel
+                                </button>
+                                <button class="log-filter" data-filter="chat" onclick="GMDash.filterLog('chat', this)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    Chat
+                                </button>
+                                <button class="log-filter" data-filter="player" onclick="GMDash.filterLog('player', this)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    Spieler
+                                </button>
+                            </div>
+                            <div class="activity-feed" id="activityFeed">
+                                <div class="activity-item" data-type="dice">
+                                    <span class="activity-item__time">02:23</span>
+                                    <div class="activity-item__icon gm-card__icon--red">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+                                    </div>
+                                    <span class="activity-item__text"><strong>Julia</strong> würfelt W20: <span class="activity-item__highlight">20</span> <span class="activity-item__crit">🎲 KRIT!</span></span>
+                                </div>
+                                <div class="activity-item" data-type="chat">
+                                    <span class="activity-item__time">02:21</span>
+                                    <div class="activity-item__icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    </div>
+                                    <span class="activity-item__text"><strong>Tom</strong> schrieb eine Nachricht</span>
+                                </div>
+                                <div class="activity-item" data-type="dice">
+                                    <span class="activity-item__time">02:18</span>
+                                    <div class="activity-item__icon gm-card__icon--red">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+                                    </div>
+                                    <span class="activity-item__text"><strong>Julia</strong> würfelt W20: <span class="activity-item__highlight">14</span></span>
+                                </div>
+                                <div class="activity-item" data-type="player">
+                                    <span class="activity-item__time">02:15</span>
+                                    <div class="activity-item__icon" style="background: var(--green-dim); color: var(--success);">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                                    </div>
+                                    <span class="activity-item__text"><strong>Sarah</strong> ist beigetreten</span>
+                                </div>
+                                <div class="activity-item" data-type="dice">
+                                    <span class="activity-item__time">02:10</span>
+                                    <div class="activity-item__icon gm-card__icon--red">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+                                    </div>
+                                    <span class="activity-item__text"><strong>Tom</strong> würfelt W100: <span class="activity-item__highlight">73</span></span>
+                                </div>
+                                <div class="activity-item" data-type="dice">
+                                    <span class="activity-item__time">02:05</span>
+                                    <div class="activity-item__icon gm-card__icon--red">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+                                    </div>
+                                    <span class="activity-item__text"><strong>Mike</strong> würfelt 2W6: <span class="activity-item__highlight">9</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Adventure Catalog Card -->
+                        <div class="gm-card">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--purple">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Abenteuer</span>
+                            </div>
+                            <div class="catalog-list">
+                                <div class="catalog-item active" onclick="GMDash.selectCatalog(this)">
+                                    <span class="catalog-item__icon">⚓</span>
+                                    <span class="catalog-item__name">Rum & Rache</span>
+                                    <svg class="catalog-item__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="catalog-item" onclick="GMDash.selectCatalog(this)">
+                                    <span class="catalog-item__icon">⚔️</span>
+                                    <span class="catalog-item__name">Fantasy Classic</span>
+                                    <svg class="catalog-item__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="catalog-item" onclick="GMDash.selectCatalog(this)">
+                                    <span class="catalog-item__icon">🌃</span>
+                                    <span class="catalog-item__name">Neon Abyss</span>
+                                    <svg class="catalog-item__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="catalog-item" onclick="GMDash.selectCatalog(this)">
+                                    <span class="catalog-item__icon">📋</span>
+                                    <span class="catalog-item__name">Basis</span>
+                                    <svg class="catalog-item__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Data Management Card -->
+                        <div class="gm-card gm-card--wide">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--yellow">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Daten löschen</span>
+                            </div>
+                            <div class="data-chips">
+                                <button class="data-chip" onclick="GMDash.deleteData('chat')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    Chat
+                                </button>
+                                <button class="data-chip" onclick="GMDash.deleteData('dice')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+                                    Würfelhistorie
+                                </button>
+                                <button class="data-chip" onclick="GMDash.deleteData('whiteboard')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                                    Whiteboard
+                                </button>
+                                <button class="data-chip" onclick="GMDash.deleteData('markers')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                    Karten-Marker
+                                </button>
+                                <button class="data-chip" onclick="GMDash.deleteData('characters')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    Charakterbögen
+                                </button>
+                                <button class="data-chip" onclick="GMDash.deleteData('notes')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    Notizen
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Export/Import Card -->
+                        <div class="gm-card gm-card--wide">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon gm-card__icon--blue">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Export / Import</span>
+                            </div>
+                            <div class="export-import-grid">
+                                <div class="export-section">
+                                    <span class="export-section__label">Export</span>
+                                    <div class="export-buttons">
+                                        <button class="export-btn" onclick="GMDash.exportChat()">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                            Chat
+                                        </button>
+                                        <button class="export-btn" onclick="GMDash.exportBackup()">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                            Session-Backup
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="import-section">
+                                    <span class="import-section__label">Import</span>
+                                    <div class="import-dropzone" id="importDropzone" onclick="document.getElementById('importFile').click()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <span>Session-Backup importieren</span>
+                                        <small>JSON-Datei auswählen oder hierher ziehen</small>
+                                        <input type="file" id="importFile" accept=".json" hidden onchange="GMDash.handleImport(this)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Danger Zone Card -->
+                        <div class="gm-card gm-card--wide gm-card--danger">
+                            <div class="gm-card__header">
+                                <div class="gm-card__icon" style="background: rgba(255, 70, 85, 0.15); color: var(--accent);">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                </div>
+                                <span class="gm-card__title">Gefahrenzone</span>
+                            </div>
+                            <div class="danger-content">
+                                <div class="danger-info">
+                                    <div class="danger-info__title">Raum endgültig löschen</div>
+                                    <div class="danger-info__text">Der Raum und alle Daten (Chat, Würfel, Whiteboard, Marker, Charaktere) werden unwiderruflich gelöscht. Alle Spieler werden ausgeloggt.</div>
+                                </div>
+                                <button class="danger-btn" onclick="GMDash.deleteRoom()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                    Raum löschen
+                                </button>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                    <!-- Back Link -->
+                    <a href="index.html" class="gm-back">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="19" y1="12" x2="5" y2="12"/>
+                            <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        Zurück zum Hub
+                    </a>
+                    
+                </div>
+                
+                <!-- Access Denied -->
+                <div class="access-denied" id="accessDenied" style="display: none;">
+                    <svg style="width: 64px; height: 64px; color: var(--accent); margin-bottom: 24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <h2 style="font-family: var(--font-display); font-size: 2rem; margin-bottom: 8px;">Kein Zugriff</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 24px;">Nur der Game Master hat Zugriff auf diese Seite.</p>
+                    <a href="index.html" class="btn btn--primary">Zurück zum Hub</a>
+                </div>
+                
+            </div>
+        </main>
+    </div>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- RIFT Services -->
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/room-service.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="assets/js/settings.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // GM Dashboard Logic
+        const GMDash = {
+            timerInterval: null,
+            timerRunning: false,
+            timerSeconds: 300,
+            isPaused: false,
+            
+            init() {
+                this.updateTimerDisplay();
+                this.initDropzone();
+            },
+            
+            // Timer Functions
+            togglePause() {
+                this.isPaused = !this.isPaused;
+                const btn = document.getElementById('pauseBtn');
+                
+                if (this.isPaused) {
+                    btn.classList.add('gm-pause-btn--active');
+                    btn.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Fortsetzen
+                    `;
+                    showToast('Spiel pausiert', 'info');
+                } else {
+                    btn.classList.remove('gm-pause-btn--active');
+                    btn.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="6" y="4" width="4" height="16"/>
+                            <rect x="14" y="4" width="4" height="16"/>
+                        </svg>
+                        Pausieren
+                    `;
+                    showToast('Spiel fortgesetzt', 'success');
+                }
+            },
+            
+            copyCode() {
+                const code = document.getElementById('roomCode').textContent;
+                navigator.clipboard.writeText(code).then(() => {
+                    showToast('Raum-Code kopiert!', 'success');
+                });
+            },
+            
+            setTimer(minutes) {
+                this.timerSeconds = minutes * 60;
+                this.updateTimerDisplay();
+            },
+            
+            toggleTimer() {
+                if (this.timerRunning) {
+                    this.stopTimer();
+                } else {
+                    this.startTimer();
+                }
+            },
+            
+            startTimer() {
+                if (this.timerSeconds <= 0) return;
+                
+                this.timerRunning = true;
+                document.getElementById('timerDisplay').classList.add('timer-display--active');
+                document.getElementById('timerStatus').textContent = 'Läuft...';
+                
+                const btn = document.getElementById('timerBtn');
+                btn.classList.add('timer-btn--stop');
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="6" y="4" width="4" height="16"/>
+                        <rect x="14" y="4" width="4" height="16"/>
+                    </svg>
+                    Stoppen
+                `;
+                
+                this.timerInterval = setInterval(() => {
+                    this.timerSeconds--;
+                    this.updateTimerDisplay();
+                    
+                    if (this.timerSeconds <= 0) {
+                        this.stopTimer();
+                        showToast('⏰ Zeit abgelaufen!', 'warning');
+                    }
+                }, 1000);
+            },
+            
+            stopTimer() {
+                this.timerRunning = false;
+                clearInterval(this.timerInterval);
+                
+                document.getElementById('timerDisplay').classList.remove('timer-display--active');
+                document.getElementById('timerStatus').textContent = 'Gestoppt';
+                
+                const btn = document.getElementById('timerBtn');
+                btn.classList.remove('timer-btn--stop');
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    Starten
+                `;
+            },
+            
+            updateTimerDisplay() {
+                const mins = Math.floor(this.timerSeconds / 60);
+                const secs = this.timerSeconds % 60;
+                document.getElementById('timerTime').textContent = 
+                    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            },
+            
+            // Module Functions
+            toggleModule(el) {
+                el.classList.toggle('active');
+                const moduleName = el.dataset.module;
+                const isActive = el.classList.contains('active');
+                showToast(`${el.querySelector('.module-toggle__name').textContent} ${isActive ? 'aktiviert' : 'deaktiviert'}`, 'info');
+            },
+            
+            // Player Functions
+            invite() {
+                const code = document.getElementById('roomCode').textContent;
+                const url = `${window.location.origin}?join=${code}`;
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('Einladungslink kopiert!', 'success');
+                });
+            },
+            
+            kickPlayer(name) {
+                if (confirm(`${name} wirklich aus dem Raum entfernen?`)) {
+                    showToast(`${name} wurde entfernt`, 'info');
+                }
+            },
+            
+            // Character Functions
+            viewCharacter(id) {
+                showToast('Charakterbogen wird geöffnet...', 'info');
+                // window.location.href = `sheet.html?id=${id}`;
+            },
+            
+            // Activity Log Functions
+            filterLog(filter, btn) {
+                document.querySelectorAll('.log-filter').forEach(f => f.classList.remove('active'));
+                btn.classList.add('active');
+                
+                document.querySelectorAll('.activity-item').forEach(item => {
+                    if (filter === 'all' || item.dataset.type === filter) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            },
+            
+            exportLog() {
+                showToast('Protokoll wird exportiert...', 'info');
+            },
+            
+            clearLog() {
+                if (confirm('Session-Protokoll wirklich löschen?')) {
+                    document.getElementById('activityFeed').innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">Keine Aktivitäten</div>';
+                    showToast('Protokoll gelöscht', 'info');
+                }
+            },
+            
+            // Catalog Functions
+            selectCatalog(el) {
+                document.querySelectorAll('.catalog-item').forEach(i => i.classList.remove('active'));
+                el.classList.add('active');
+                showToast(`Abenteuer "${el.querySelector('.catalog-item__name').textContent}" ausgewählt`, 'success');
+            },
+            
+            // Data Functions
+            deleteData(type) {
+                const names = {
+                    chat: 'Chat',
+                    dice: 'Würfelhistorie',
+                    whiteboard: 'Whiteboard',
+                    markers: 'Karten-Marker',
+                    characters: 'Charakterbögen',
+                    notes: 'Notizen'
+                };
+                
+                if (confirm(`${names[type]} wirklich löschen?`)) {
+                    showToast(`${names[type]} gelöscht`, 'info');
+                }
+            },
+            
+            // Export/Import Functions
+            exportChat() {
+                showToast('Chat wird exportiert...', 'info');
+            },
+            
+            exportBackup() {
+                showToast('Session-Backup wird erstellt...', 'info');
+            },
+            
+            initDropzone() {
+                const dropzone = document.getElementById('importDropzone');
+                if (!dropzone) return;
+                
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+                    dropzone.addEventListener(event, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+                
+                ['dragenter', 'dragover'].forEach(event => {
+                    dropzone.addEventListener(event, () => dropzone.classList.add('dragover'));
+                });
+                
+                ['dragleave', 'drop'].forEach(event => {
+                    dropzone.addEventListener(event, () => dropzone.classList.remove('dragover'));
+                });
+                
+                dropzone.addEventListener('drop', (e) => {
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type === 'application/json') {
+                        this.processImport(file);
+                    } else {
+                        showToast('Bitte nur JSON-Dateien!', 'error');
+                    }
+                });
+            },
+            
+            handleImport(input) {
+                const file = input.files[0];
+                if (file) {
+                    this.processImport(file);
+                }
+            },
+            
+            processImport(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        showToast('Session erfolgreich importiert!', 'success');
+                    } catch {
+                        showToast('Ungültige Datei!', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            },
+            
+            // Danger Zone
+            deleteRoom() {
+                if (confirm('⚠️ ACHTUNG!\n\nDer Raum und ALLE Daten werden unwiderruflich gelöscht!\n\nDiese Aktion kann NICHT rückgängig gemacht werden.\n\nFortfahren?')) {
+                    showToast('Raum wird gelöscht...', 'warning');
+                    setTimeout(() => window.location.href = 'index.html', 1500);
+                }
+            }
+        };
+        
+        // Access Check
+        (function() {
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            const gmContent = document.getElementById('gmContent');
+            const accessDenied = document.getElementById('accessDenied');
+            
+            // For testing always show
+            gmContent.style.display = '';
+            accessDenied.style.display = 'none';
+            
+            GMDash.init();
+        })();
+        
+        initLayout();
+    </script>
+</body>
+</html>
