@@ -852,16 +852,24 @@
                         
                         const charName = selectedChar?.name || 'Kein Charakter';
                         const charPortrait = selectedChar?.portrait || null;
-                        const charInitial = charName.charAt(0).toUpperCase();
+                        const charInitial = selectedChar ? charName.charAt(0).toUpperCase() : null;
                         const sessionNum = session.currentSession || 1;
                         const totalSessions = session.sessionCount || '?';
                         const ruleset = rulesetConfig[session.ruleset] || rulesetConfig['worldsapart'];
                         
-                        // Medaillon: Portrait oder Initial
-                        const avatarContent = charPortrait 
-                            ? `<img src="${charPortrait}" alt="${charName}" onload="this.classList.add('loaded')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                               <span class="continue-card__avatar-initial" style="display:none;">${charInitial}</span>`
-                            : `<span class="continue-card__avatar-initial">${charInitial}</span>`;
+                        // Medaillon: Portrait, Initial oder Regelwerk-Icon
+                        let avatarContent;
+                        if (charPortrait) {
+                            // Hat Portrait
+                            avatarContent = `<img src="${charPortrait}" alt="${charName}" onload="this.classList.add('loaded')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                               <span class="continue-card__avatar-initial" style="display:none;">${charInitial}</span>`;
+                        } else if (selectedChar) {
+                            // Hat Charakter aber kein Portrait
+                            avatarContent = `<span class="continue-card__avatar-initial">${charInitial}</span>`;
+                        } else {
+                            // Kein Charakter - zeige Regelwerk-Icon
+                            avatarContent = `<img src="assets/img/rulesets/${ruleset.icon}" alt="${ruleset.name}" class="continue-card__avatar-ruleset">`;
+                        }
                         
                         return `
                             <a href="session.html?id=${session.id}" class="continue-card continue-card--${ruleset.class}" data-rulebook="${session.ruleset}">
