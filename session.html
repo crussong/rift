@@ -1055,27 +1055,69 @@
             // Show select button if there are compatible characters
             selectBtn.style.display = compatibleCharacters.length > 0 ? 'inline-flex' : 'none';
             
-            // Check if user is GM - use room-based isGM from currentUser
-            const isGM = window.currentUser?.isGM === true;
+            // Check if user is GM - check multiple sources
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            let isGM = userData.isGM === true;
             
-            // Show/hide GM elements
-            const gmActionsCard = document.getElementById('gmActions');
-            const playerInfoCard = document.getElementById('playerInfo');
+            // Function to update GM visibility
+            function updateGMVisibility(gmStatus) {
+                const gmActionsCard = document.getElementById('gmActions');
+                const playerInfoCard = document.getElementById('playerInfo');
+                
+                if (gmActionsCard) {
+                    gmActionsCard.style.display = gmStatus ? 'block' : 'none';
+                }
+                if (playerInfoCard) {
+                    playerInfoCard.style.display = gmStatus ? 'none' : 'block';
+                }
+                if (gmViewBtn) {
+                    gmViewBtn.style.display = gmStatus ? 'inline-flex' : 'none';
+                }
+                if (gmViewBtnLoaded) {
+                    gmViewBtnLoaded.style.display = gmStatus ? 'inline-flex' : 'none';
+                }
+                
+                console.log('[Session] User isGM:', gmStatus);
+            }
             
-            if (gmActionsCard) {
-                gmActionsCard.style.display = isGM ? 'block' : 'none';
-            }
-            if (playerInfoCard) {
-                playerInfoCard.style.display = isGM ? 'none' : 'block';
-            }
-            if (gmViewBtn) {
-                gmViewBtn.style.display = isGM ? 'inline-flex' : 'none';
-            }
-            if (gmViewBtnLoaded) {
-                gmViewBtnLoaded.style.display = isGM ? 'inline-flex' : 'none';
+            // Initial update from localStorage
+            updateGMVisibility(isGM);
+            
+            // Check room membership async (more reliable)
+            async function checkRoomMembership() {
+                if (typeof RIFT === 'undefined' || !RIFT.rooms || !RIFT.user) {
+                    return false; // Services not loaded yet
+                }
+                
+                const roomCode = RIFT.user.getCurrentRoom();
+                if (!roomCode) return true; // No room, done
+                
+                try {
+                    const membership = await RIFT.rooms.getCurrentMembership(roomCode);
+                    if (membership) {
+                        const roomIsGM = membership.isGM === true;
+                        if (roomIsGM !== isGM) {
+                            console.log('[Session] Updated isGM from room membership:', roomIsGM);
+                            isGM = roomIsGM;
+                            updateGMVisibility(isGM);
+                            
+                            // Also update localStorage
+                            userData.isGM = isGM;
+                            localStorage.setItem('rift_user', JSON.stringify(userData));
+                        }
+                        return true; // Done
+                    }
+                } catch (e) {
+                    console.warn('[Session] Could not check room membership:', e);
+                }
+                return false;
             }
             
-            console.log('[Session] User isGM:', isGM);
+            // Try to check membership after delays (Firebase init takes time)
+            setTimeout(async () => {
+                const done = await checkRoomMembership();
+                if (!done) setTimeout(checkRoomMembership, 1000);
+            }, 300);
             
             // Check if session has a character assigned
             const myCharacterId = sessionData.myCharacterId;
