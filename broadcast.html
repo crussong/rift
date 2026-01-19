@@ -12,31 +12,31 @@
     <link rel="stylesheet" href="assets/css/topbar.css">
     <link rel="stylesheet" href="assets/css/footer.css">
     <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
-        :root {
-            --accent: #8b5cf6;
-            --accent-light: #a78bfa;
-            --bg-dark: #0a0a0a;
-            --bg-card: #111111;
-            --bg-elevated: #1a1a1a;
-            --border: rgba(255,255,255,0.08);
-            --text: rgba(255,255,255,0.9);
-            --text-muted: rgba(255,255,255,0.5);
-            
-            /* Broadcast Type Colors */
+        /* Use existing RIFT CSS variables */
+        
+        /* Broadcast-specific overrides */
+        .bc-accent { --accent: #8b5cf6; --accent-light: #a78bfa; }
+        
+        /* Broadcast Type Colors */
+        .broadcast-page {
             --type-info: #3b82f6;
             --type-warning: #f59e0b;
             --type-danger: #ef4444;
             --type-success: #22c55e;
             --type-epic: #8b5cf6;
             --type-mystery: #6366f1;
+            --bg-card: var(--bg-secondary, #111111);
+            --bg-elevated: var(--bg-tertiary, #1a1a1a);
+            --border: var(--border-primary, rgba(255,255,255,0.08));
+            --text: var(--text-primary, rgba(255,255,255,0.9));
+            --text-muted: var(--text-secondary, rgba(255,255,255,0.5));
         }
         
         /* ==================== LAYOUT ==================== */
         .broadcast-page {
-            min-height: 100vh;
-            background: var(--bg-dark);
             padding: 24px;
         }
         
@@ -52,7 +52,7 @@
         .broadcast-header__title {
             font-size: 28px;
             font-weight: 700;
-            color: white;
+            color: var(--text-primary, white);
             margin: 0 0 8px 0;
             display: flex;
             align-items: center;
@@ -1576,13 +1576,23 @@
         </main>
     </div>
     
-    <!-- Scripts -->
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
-    <script src="assets/js/auth.js"></script>
-    <script src="assets/js/layout.js"></script>
     <script src="assets/js/room-service.js"></script>
-    <script src="assets/js/transitions.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    <script src="assets/js/auth.js"></script>
     <script src="assets/js/ui.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/settings.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>initLayout();</script>
     
     <script>
         // ==================== BROADCAST CENTER ====================
@@ -1608,43 +1618,50 @@
             async init() {
                 console.log('[BC] Initializing Broadcast Center...');
                 
-                // Wait for Firebase
-                await new Promise(resolve => {
-                    const check = () => {
-                        if (window.firebase?.firestore && window.firebase?.auth) resolve();
-                        else setTimeout(check, 100);
-                    };
-                    check();
-                });
+                // Wait for Firebase to be ready
+                let attempts = 0;
+                while (!window.firebase?.firestore || !window.firebase?.auth) {
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                    if (attempts > 50) {
+                        console.error('[BC] Firebase not available after 5s');
+                        return;
+                    }
+                }
                 
                 console.log('[BC] Firebase ready');
+                this.db = firebase.firestore();
                 
                 // Wait for auth state
-                await new Promise(resolve => {
-                    const unsubscribe = firebase.auth().onAuthStateChanged(user => {
-                        console.log('[BC] Auth state:', user?.uid || 'no user');
+                const user = await new Promise(resolve => {
+                    const unsubscribe = firebase.auth().onAuthStateChanged(u => {
                         unsubscribe();
-                        resolve();
+                        resolve(u);
                     });
                 });
                 
-                this.db = firebase.firestore();
-                this.roomCode = localStorage.getItem('rift_room_code');
+                console.log('[BC] Auth user:', user?.uid);
                 
+                if (!user) {
+                    console.log('[BC] No user logged in');
+                    this.toast('Bitte einloggen!', 'error');
+                    return;
+                }
+                
+                this.roomCode = localStorage.getItem('rift_room_code');
                 console.log('[BC] Room code:', this.roomCode);
                 
                 if (!this.roomCode) {
-                    console.log('[BC] No room code, redirecting...');
-                    window.location.href = 'index.html';
+                    console.log('[BC] No room code');
+                    this.toast('Kein Raum aktiv!', 'error');
                     return;
                 }
                 
                 // Check if user is GM
-                const isGM = await this.checkGM();
+                const isGM = await this.checkGM(user.uid);
                 console.log('[BC] Is GM:', isGM);
                 
                 if (!isGM) {
-                    console.log('[BC] Not GM, redirecting...');
                     this.toast('Nur für Spielleiter!', 'error');
                     setTimeout(() => {
                         window.location.href = 'index.html';
@@ -1659,26 +1676,22 @@
                 this.subPoll();
                 
                 // Setup countdown toggle
-                document.getElementById('pollCountdown').addEventListener('change', (e) => {
-                    document.getElementById('countdownField').style.display = e.target.checked ? 'block' : 'none';
-                });
-                
-                console.log('[BC] Initialized successfully');
-            },
-            
-            async checkGM() {
-                const uid = firebase.auth().currentUser?.uid;
-                console.log('[BC] Checking GM - uid:', uid, 'roomCode:', this.roomCode);
-                
-                if (!uid) {
-                    console.log('[BC] No uid');
-                    return false;
+                const countdownCheckbox = document.getElementById('pollCountdown');
+                if (countdownCheckbox) {
+                    countdownCheckbox.addEventListener('change', (e) => {
+                        document.getElementById('countdownField').style.display = e.target.checked ? 'block' : 'none';
+                    });
                 }
                 
+                console.log('[BC] Initialized successfully');
+                this.toast('Broadcast Center bereit!', 'success');
+            },
+            
+            async checkGM(uid) {
                 try {
                     const doc = await this.db.collection('rooms').doc(this.roomCode).get();
                     const gmId = doc.data()?.gmId;
-                    console.log('[BC] Room gmId:', gmId);
+                    console.log('[BC] Room gmId:', gmId, 'User uid:', uid);
                     return doc.exists && gmId === uid;
                 } catch (e) {
                     console.error('[BC] Error checking GM:', e);
@@ -1687,14 +1700,27 @@
             },
             
             ref() {
+                if (!this.db) {
+                    console.error('[BC] Database not initialized!');
+                    this.toast('Datenbank nicht bereit!', 'error');
+                    return null;
+                }
                 return this.db.collection('rooms').doc(this.roomCode);
             },
             
             // ============ MEMBERS ============
             async loadMembers() {
-                const snap = await this.ref().collection('members').get();
-                this.members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                this.renderPlayerSelectors();
+                const ref = this.ref();
+                if (!ref) return;
+                
+                try {
+                    const snap = await ref.collection('members').get();
+                    this.members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderPlayerSelectors();
+                    console.log('[BC] Loaded members:', this.members.length);
+                } catch (e) {
+                    console.error('[BC] Error loading members:', e);
+                }
             },
             
             renderPlayerSelectors() {
