@@ -534,7 +534,11 @@
                 });
             },
             
-            ref() { return this.db.collection('rooms').doc(this.roomCode.replace('-','').toUpperCase()); },
+            ref() { 
+                const code = this.roomCode.replace('-','').toUpperCase();
+                console.log('[GM] ref() using room code:', code);
+                return this.db.collection('rooms').doc(code); 
+            },
             
             // ============ TABS ============
             setupTabs() {
@@ -569,7 +573,9 @@
             
             // ============ MEMBERS ============
             subMembers() {
+                console.log('[GM] Subscribing to members for room:', this.roomCode);
                 const u = RIFT.rooms.subscribeToMembers(this.roomCode, m => {
+                    console.log('[GM] Members received:', m.length, m);
                     // Track presence changes
                     m.forEach(mem => {
                         const old = this.members.find(o => o.id === mem.id);
@@ -615,11 +621,19 @@
             
             // ============ CHARACTERS ============
             subCharacters() {
+                console.log('[GM] Subscribing to characters for room:', this.roomCode);
                 const u = this.ref().collection('characters').onSnapshot(snap => {
-                    this.characters = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    console.log('[GM] Characters received:', snap.docs.length);
+                    this.characters = snap.docs.map(d => {
+                        const data = { id: d.id, ...d.data() };
+                        console.log('[GM] Character:', data);
+                        return data;
+                    });
                     this.renderChars();
                     document.getElementById('statChars').textContent = this.characters.length;
-                }, () => {});
+                }, (err) => {
+                    console.error('[GM] Characters error:', err);
+                });
                 this.unsubs.push(u);
             },
             
@@ -855,28 +869,49 @@
             
             // ============ POLL ============
             subPoll() {
+                // Subscribe to room for poll config
                 const u = this.ref().onSnapshot(doc => {
                     const poll = doc.data()?.poll;
                     if (poll?.active) {
                         document.getElementById('pollActive').style.display = 'block';
                         document.getElementById('pollCreate').style.display = 'none';
                         document.getElementById('pollQuestion').textContent = poll.question;
-                        this.renderPollResults(poll);
+                        this.currentPoll = poll;
+                        this.updatePollResults();
                     } else {
                         document.getElementById('pollActive').style.display = 'none';
                         document.getElementById('pollCreate').style.display = 'flex';
+                        this.currentPoll = null;
                     }
                 });
                 this.unsubs.push(u);
+                
+                // Subscribe to poll_votes subcollection
+                const v = this.ref().collection('poll_votes').onSnapshot(snap => {
+                    this.pollVotes = snap.docs.map(d => d.data());
+                    this.updatePollResults();
+                });
+                this.unsubs.push(v);
             },
             
-            renderPollResults(poll) {
+            updatePollResults() {
+                if (!this.currentPoll) return;
                 const el = document.getElementById('pollResults');
-                const votes = poll.votes || {};
-                const options = poll.options || [];
-                const total = Object.values(votes).reduce((a,b) => a + b, 0) || 1;
+                const options = this.currentPoll.options || [];
+                
+                // Count votes from subcollection
+                const voteCounts = {};
+                options.forEach(opt => voteCounts[opt] = 0);
+                (this.pollVotes || []).forEach(vote => {
+                    if (vote.option && voteCounts.hasOwnProperty(vote.option)) {
+                        voteCounts[vote.option]++;
+                    }
+                });
+                
+                const total = Object.values(voteCounts).reduce((a, b) => a + b, 0) || 1;
+                
                 el.innerHTML = options.map(opt => {
-                    const count = votes[opt] || 0;
+                    const count = voteCounts[opt] || 0;
                     const pct = Math.round((count / total) * 100);
                     return `<div class="poll-result">
                         <span class="poll-result__label">${opt}</span>
@@ -886,6 +921,11 @@
                         </div>
                     </div>`;
                 }).join('');
+            },
+            
+            renderPollResults(poll) {
+                // Legacy - now handled by updatePollResults
+                this.updatePollResults();
             },
             
             toggleCustomOptions() {
@@ -918,6 +958,12 @@
                     if (opt4) options.push(opt4);
                 }
                 try {
+                    // Delete old votes first
+                    const votesSnap = await this.ref().collection('poll_votes').get();
+                    const batch = this.db.batch();
+                    votesSnap.docs.forEach(doc => batch.delete(doc.ref));
+                    if (votesSnap.docs.length) await batch.commit();
+                    
                     await this.ref().update({
                         poll: { question: q, options, votes: {}, active: true, timestamp: firebase.firestore.FieldValue.serverTimestamp() }
                     });
