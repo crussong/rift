@@ -71,7 +71,21 @@
                         }
                     }
                     
-                    // Handle Poll (GM doesn't see poll popup, they have their own UI)
+                    // Handle Poll Results (when GM resolves poll)
+                    if (poll && poll.resolved && !poll.active) {
+                        const resolveId = poll.resolvedAt?.seconds || poll.resolvedAt || 0;
+                        const lastResolveId = localStorage.getItem('rift_poll_resolved_' + normalizedCode);
+                        
+                        if (!isGM && String(resolveId) !== lastResolveId) {
+                            localStorage.setItem('rift_poll_resolved_' + normalizedCode, String(resolveId));
+                            const alreadyShowing = document.querySelector('.poll-result-overlay');
+                            if (!alreadyShowing) {
+                                this.showPollResults(poll);
+                            }
+                        }
+                    }
+                    
+                    // Handle Active Poll (GM doesn't see poll popup, they have their own UI)
                     if (poll && poll.active) {
                         console.log('[Broadcast] Poll detected:', poll);
                         const pollId = poll.timestamp?.seconds || poll.timestamp || Date.now();
@@ -241,6 +255,79 @@
         
         skipPoll(pollId, btn) {
             localStorage.setItem('rift_poll_voted_' + pollId, 'skipped');
+            const overlay = btn.closest('.broadcast-overlay');
+            overlay.classList.remove('broadcast-overlay--visible');
+            setTimeout(() => overlay.remove(), 300);
+        },
+        
+        showPollResults(poll) {
+            // Build results HTML
+            const results = poll.results || [];
+            const totalVotes = poll.totalVotes || 0;
+            
+            const resultsHtml = results.map(r => {
+                const pct = totalVotes > 0 ? Math.round((r.votes / totalVotes) * 100) : 0;
+                const label = r.emoji ? `${r.emoji} ${this.escapeHtml(r.option)}` : this.escapeHtml(r.option);
+                const winnerClass = r.isWinner ? 'poll-result-bar--winner' : '';
+                return `
+                    <div class="poll-result-item">
+                        <div class="poll-result-info">
+                            <span class="poll-result-label">${label}</span>
+                            <span class="poll-result-count">${r.votes} Stimme${r.votes !== 1 ? 'n' : ''}</span>
+                        </div>
+                        <div class="poll-result-bar">
+                            <div class="poll-result-fill ${winnerClass}" style="width:${pct}%"></div>
+                            <span class="poll-result-pct">${pct}%</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Build image HTML if present
+            const imageHtml = poll.image ? `<img src="${poll.image}" alt="Poll" style="width:100%; border-radius:10px; margin-bottom:16px;">` : '';
+            
+            // Create overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay poll-result-overlay';
+            overlay.innerHTML = `
+                <div class="broadcast-modal poll-result-modal">
+                    <div class="broadcast-modal__header">
+                        <div class="broadcast-modal__icon" style="background:rgba(34,197,94,0.15)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#22c55e">
+                                <path d="M12 15l-3-3m0 0l3-3m-3 3h12M19 12a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <span class="broadcast-modal__badge" style="color:#22c55e">Umfrage-Ergebnis</span>
+                    </div>
+                    <div class="broadcast-modal__content">
+                        ${imageHtml}
+                        <p class="broadcast-modal__message" style="font-size:18px;font-weight:600;margin-bottom:16px;">${this.escapeHtml(poll.question)}</p>
+                        <div class="poll-results-list">
+                            ${resultsHtml}
+                        </div>
+                        <p style="text-align:center;color:rgba(255,255,255,0.4);font-size:12px;margin-top:12px;">
+                            ${totalVotes} Stimme${totalVotes !== 1 ? 'n' : ''} insgesamt
+                        </p>
+                    </div>
+                    <button class="broadcast-modal__btn" onclick="BroadcastListener.closePollResults(this)">
+                        OK
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            requestAnimationFrame(() => {
+                overlay.classList.add('broadcast-overlay--visible');
+            });
+            
+            // Play sound
+            if (poll.withSound !== false) {
+                this.playSound();
+            }
+        },
+        
+        closePollResults(btn) {
             const overlay = btn.closest('.broadcast-overlay');
             overlay.classList.remove('broadcast-overlay--visible');
             setTimeout(() => overlay.remove(), 300);
@@ -434,6 +521,68 @@
         
         .poll-skip-btn:hover {
             color: rgba(255, 255, 255, 0.8);
+        }
+        
+        /* Poll Results Styles */
+        .poll-result-modal {
+            border-color: rgba(34, 197, 94, 0.3);
+            box-shadow: 0 0 60px rgba(34, 197, 94, 0.2);
+        }
+        
+        .poll-results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .poll-result-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .poll-result-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .poll-result-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .poll-result-count {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .poll-result-bar {
+            height: 28px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .poll-result-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+            transition: width 0.5s ease;
+        }
+        
+        .poll-result-fill.poll-result-bar--winner {
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+        }
+        
+        .poll-result-pct {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
         }
     `;
     document.head.appendChild(style);
