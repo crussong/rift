@@ -1611,24 +1611,44 @@
                 // Wait for Firebase
                 await new Promise(resolve => {
                     const check = () => {
-                        if (window.firebase?.firestore) resolve();
+                        if (window.firebase?.firestore && window.firebase?.auth) resolve();
                         else setTimeout(check, 100);
                     };
                     check();
                 });
                 
+                console.log('[BC] Firebase ready');
+                
+                // Wait for auth state
+                await new Promise(resolve => {
+                    const unsubscribe = firebase.auth().onAuthStateChanged(user => {
+                        console.log('[BC] Auth state:', user?.uid || 'no user');
+                        unsubscribe();
+                        resolve();
+                    });
+                });
+                
                 this.db = firebase.firestore();
                 this.roomCode = localStorage.getItem('rift_room_code');
                 
+                console.log('[BC] Room code:', this.roomCode);
+                
                 if (!this.roomCode) {
+                    console.log('[BC] No room code, redirecting...');
                     window.location.href = 'index.html';
                     return;
                 }
                 
                 // Check if user is GM
                 const isGM = await this.checkGM();
+                console.log('[BC] Is GM:', isGM);
+                
                 if (!isGM) {
-                    window.location.href = 'index.html';
+                    console.log('[BC] Not GM, redirecting...');
+                    this.toast('Nur für Spielleiter!', 'error');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1500);
                     return;
                 }
                 
@@ -1643,15 +1663,27 @@
                     document.getElementById('countdownField').style.display = e.target.checked ? 'block' : 'none';
                 });
                 
-                console.log('[BC] Initialized');
+                console.log('[BC] Initialized successfully');
             },
             
             async checkGM() {
                 const uid = firebase.auth().currentUser?.uid;
-                if (!uid) return false;
+                console.log('[BC] Checking GM - uid:', uid, 'roomCode:', this.roomCode);
                 
-                const doc = await this.db.collection('rooms').doc(this.roomCode).get();
-                return doc.exists && doc.data()?.gmId === uid;
+                if (!uid) {
+                    console.log('[BC] No uid');
+                    return false;
+                }
+                
+                try {
+                    const doc = await this.db.collection('rooms').doc(this.roomCode).get();
+                    const gmId = doc.data()?.gmId;
+                    console.log('[BC] Room gmId:', gmId);
+                    return doc.exists && gmId === uid;
+                } catch (e) {
+                    console.error('[BC] Error checking GM:', e);
+                    return false;
+                }
             },
             
             ref() {
