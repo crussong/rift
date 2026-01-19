@@ -567,6 +567,32 @@
                 holy: { 
                     css: `background: radial-gradient(ellipse at top, rgba(255,215,0,0.2) 0%, transparent 60%);`,
                     particles: 'sparkle'
+                },
+                sea: { 
+                    css: `background: linear-gradient(rgba(0,80,120,0.15) 0%, rgba(0,50,80,0.25) 100%);`,
+                    particles: 'wave',
+                    sway: true
+                },
+                forest: { 
+                    css: `background: linear-gradient(rgba(34,139,34,0.1) 0%, rgba(0,50,0,0.15) 100%);`,
+                    particles: 'leaf'
+                },
+                desert: { 
+                    css: `background: linear-gradient(rgba(255,200,100,0.15) 0%, rgba(200,150,50,0.2) 100%);`,
+                    particles: 'sand',
+                    shimmer: true
+                },
+                cave: { 
+                    css: `background: radial-gradient(ellipse at center, rgba(30,30,30,0.3) 0%, rgba(0,0,0,0.7) 80%);`,
+                    particles: 'drip'
+                },
+                stars: { 
+                    css: `background: linear-gradient(rgba(10,10,30,0.3) 0%, rgba(5,5,20,0.4) 100%);`,
+                    particles: 'star'
+                },
+                ash: { 
+                    css: `background: linear-gradient(rgba(80,80,80,0.15) 0%, rgba(50,50,50,0.25) 100%);`,
+                    particles: 'ash'
                 }
             };
             
@@ -594,7 +620,12 @@
                 'fog': () => this.createFogParticles(),
                 'dust': () => this.createDustEffect(),
                 'drip': () => this.createDripEffect(),
-                'smoke': () => this.createSmokeEffect()
+                'smoke': () => this.createSmokeEffect(),
+                'wave': () => this.createWaveEffect(),
+                'leaf': () => this.createLeafEffect(),
+                'sand': () => this.createSandEffect(),
+                'star': () => this.createStarEffect(),
+                'ash': () => this.createAshEffect()
             };
             
             if (effect.particles && particleMap[effect.particles]) {
@@ -604,6 +635,16 @@
             // Add lightning flash for storm
             if (effect.flash) {
                 this.startLightningEffect();
+            }
+            
+            // Add sway effect for sea
+            if (effect.sway) {
+                overlay.style.animation = 'seaSway 4s ease-in-out infinite';
+            }
+            
+            // Add shimmer for desert
+            if (effect.shimmer) {
+                overlay.style.animation = 'heatShimmer 3s ease-in-out infinite';
             }
             
             document.body.appendChild(overlay);
@@ -793,6 +834,105 @@
                 "></div>`;
             }
             return smoke;
+        },
+        
+        // Wave effect for sea
+        createWaveEffect() {
+            let waves = '';
+            for (let i = 0; i < 5; i++) {
+                const top = 60 + i * 8;
+                const delay = i * 0.5;
+                waves += `<div style="
+                    position: absolute; bottom: ${100 - top}%; left: -10%;
+                    width: 120%; height: 60px;
+                    background: linear-gradient(transparent, rgba(100,180,220,0.15), transparent);
+                    border-radius: 50%;
+                    animation: waveMove ${3 + i * 0.5}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return waves;
+        },
+        
+        // Leaf effect for forest
+        createLeafEffect() {
+            let leaves = '';
+            const leafColors = ['rgba(34,139,34,0.6)', 'rgba(50,150,50,0.5)', 'rgba(80,180,80,0.4)'];
+            for (let i = 0; i < 25; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 5;
+                const duration = 8 + Math.random() * 8;
+                const size = 6 + Math.random() * 8;
+                const color = leafColors[Math.floor(Math.random() * leafColors.length)];
+                leaves += `<div style="
+                    position: absolute; top: -20px; left: ${left}%;
+                    width: ${size}px; height: ${size * 0.6}px;
+                    background: ${color};
+                    border-radius: 0 50% 50% 50%;
+                    transform: rotate(45deg);
+                    animation: leafFall ${duration}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return leaves;
+        },
+        
+        // Sand effect for desert
+        createSandEffect() {
+            let sand = '';
+            for (let i = 0; i < 50; i++) {
+                const left = Math.random() * 100;
+                const top = Math.random() * 100;
+                const delay = Math.random() * 3;
+                const duration = 2 + Math.random() * 2;
+                const size = 1 + Math.random() * 2;
+                sand += `<div style="
+                    position: absolute; top: ${top}%; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: rgba(200,180,140,0.5);
+                    border-radius: 50%;
+                    animation: sandDrift ${duration}s linear ${delay}s infinite;
+                "></div>`;
+            }
+            return sand;
+        },
+        
+        // Star effect for night sky
+        createStarEffect() {
+            let stars = '';
+            for (let i = 0; i < 60; i++) {
+                const left = Math.random() * 100;
+                const top = Math.random() * 70;
+                const delay = Math.random() * 3;
+                const duration = 2 + Math.random() * 3;
+                const size = 1 + Math.random() * 2;
+                stars += `<div style="
+                    position: absolute; top: ${top}%; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: rgba(255,255,255,0.8);
+                    border-radius: 50%;
+                    box-shadow: 0 0 ${size * 2}px rgba(255,255,255,0.5);
+                    animation: starTwinkle ${duration}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return stars;
+        },
+        
+        // Ash effect
+        createAshEffect() {
+            let ash = '';
+            for (let i = 0; i < 40; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 4;
+                const duration = 6 + Math.random() * 6;
+                const size = 2 + Math.random() * 4;
+                ash += `<div style="
+                    position: absolute; top: -20px; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: rgba(80,80,80,0.6);
+                    border-radius: 50%;
+                    animation: ashFall ${duration}s ease-in ${delay}s infinite;
+                "></div>`;
+            }
+            return ash;
         },
         
         // Lightning flash for storm
@@ -1745,6 +1885,49 @@
         @keyframes fireGlow {
             0%, 100% { opacity: 0.3; }
             50% { opacity: 0.5; }
+        }
+        
+        /* New ambient effect animations */
+        @keyframes seaSway {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-5px) rotate(0.5deg); }
+            50% { transform: translateY(0) rotate(0deg); }
+            75% { transform: translateY(5px) rotate(-0.5deg); }
+        }
+        
+        @keyframes waveMove {
+            0%, 100% { transform: translateX(-5%) scaleY(1); }
+            50% { transform: translateX(5%) scaleY(1.2); }
+        }
+        
+        @keyframes leafFall {
+            0% { top: -20px; opacity: 0.8; transform: rotate(45deg) translateX(0); }
+            25% { transform: rotate(90deg) translateX(30px); }
+            50% { transform: rotate(135deg) translateX(-20px); }
+            75% { transform: rotate(180deg) translateX(20px); }
+            100% { top: 100vh; opacity: 0.3; transform: rotate(225deg) translateX(-10px); }
+        }
+        
+        @keyframes sandDrift {
+            0% { transform: translateX(0); opacity: 0.5; }
+            50% { transform: translateX(20px); opacity: 0.3; }
+            100% { transform: translateX(40px); opacity: 0.5; }
+        }
+        
+        @keyframes heatShimmer {
+            0%, 100% { filter: blur(0px); }
+            50% { filter: blur(1px); }
+        }
+        
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+        
+        @keyframes ashFall {
+            0% { top: -20px; opacity: 0.6; transform: translateX(0) rotate(0deg); }
+            50% { transform: translateX(15px) rotate(180deg); }
+            100% { top: 100vh; opacity: 0.2; transform: translateX(-10px) rotate(360deg); }
         }
         
         /* Secondary button style */
