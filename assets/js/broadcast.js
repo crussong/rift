@@ -205,7 +205,7 @@
                 // Write vote to subcollection instead of updating room doc
                 await db.collection('rooms').doc(roomCode).collection('poll_votes').doc(uid).set({
                     option: option,
-                    odllId: pollId,
+                    pollId: pollId,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
