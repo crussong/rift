@@ -128,44 +128,399 @@
             return isGM;
         },
         
+        // Check if current user is targeted
+        isTargeted(broadcast) {
+            if (!broadcast.targets) return true; // No targets = all players
+            const uid = window.firebase?.auth?.()?.currentUser?.uid;
+            return broadcast.targets.includes(uid);
+        },
+        
         showBroadcast(broadcast) {
-            // Play sound if enabled
-            if (broadcast.withSound) {
-                this.playSound();
+            // Check if this broadcast is targeted at current user
+            if (!this.isTargeted(broadcast)) {
+                console.log('[Broadcast] Not targeted at this user');
+                return;
             }
             
-            // Create overlay
+            // Route to appropriate handler based on type
+            const type = broadcast.type || 'info';
+            
+            switch(type) {
+                case 'spotlight':
+                    this.showSpotlight(broadcast);
+                    break;
+                case 'secret':
+                    this.showSecretMessage(broadcast);
+                    break;
+                case 'diceRequest':
+                    this.showDiceRequest(broadcast);
+                    break;
+                case 'handout':
+                    this.showHandout(broadcast);
+                    break;
+                case 'scene':
+                    this.showSceneTransition(broadcast);
+                    break;
+                case 'reveal':
+                    this.showReveal(broadcast);
+                    break;
+                case 'combat':
+                    this.showCombatStart(broadcast);
+                    break;
+                case 'ambient':
+                    this.showAmbientChange(broadcast);
+                    break;
+                case 'reaction':
+                    this.showReaction(broadcast);
+                    break;
+                default:
+                    this.showStandardBroadcast(broadcast);
+            }
+        },
+        
+        // Standard broadcast with types
+        showStandardBroadcast(broadcast) {
+            const typeConfig = {
+                info: { icon: '💡', color: '#3b82f6', label: 'Info' },
+                warning: { icon: '⚠️', color: '#f59e0b', label: 'Warnung' },
+                danger: { icon: '🚨', color: '#ef4444', label: 'Gefahr' },
+                success: { icon: '✅', color: '#22c55e', label: 'Erfolg' },
+                epic: { icon: '⚔️', color: '#8b5cf6', label: 'Episch' },
+                mystery: { icon: '🔮', color: '#6366f1', label: 'Mysteriös' }
+            };
+            
+            const config = typeConfig[broadcast.type] || typeConfig.info;
+            
+            // Play sound
+            this.playBroadcastSound(broadcast.sound);
+            
+            // Build image HTML
+            const imageHtml = broadcast.image ? `<img src="${broadcast.image}" alt="" style="width:100%; border-radius:10px; margin-bottom:16px;">` : '';
+            
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay';
             overlay.innerHTML = `
-                <div class="broadcast-modal">
+                <div class="broadcast-modal" style="border-color: ${config.color}40; box-shadow: 0 0 60px ${config.color}30;">
                     <div class="broadcast-modal__header">
-                        <div class="broadcast-modal__icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                <polyline points="22 4 12 14.01 9 11.01"/>
-                            </svg>
+                        <div class="broadcast-modal__icon" style="background: ${config.color}20;">
+                            <span style="font-size: 24px;">${config.icon}</span>
                         </div>
-                        <span class="broadcast-modal__badge">GM Nachricht</span>
+                        <span class="broadcast-modal__badge" style="color: ${config.color};">GM ${config.label}</span>
                     </div>
                     <div class="broadcast-modal__content">
-                        <p class="broadcast-modal__message">${this.escapeHtml(broadcast.message)}</p>
+                        ${imageHtml}
+                        <p class="broadcast-modal__message">${this.escapeHtml(broadcast.message || '')}</p>
                     </div>
-                    <button class="broadcast-modal__btn" onclick="BroadcastListener.closeBroadcast(this)">
+                    <button class="broadcast-modal__btn" style="background: ${config.color};" onclick="BroadcastListener.closeBroadcast(this)">
                         Verstanden
                     </button>
                 </div>
             `;
             
             document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('broadcast-overlay--visible'));
+        },
+        
+        // Spotlight
+        showSpotlight(broadcast) {
+            const uid = window.firebase?.auth?.()?.currentUser?.uid;
+            const isTarget = broadcast.targetId === uid;
             
-            // Animate in
-            requestAnimationFrame(() => {
-                overlay.classList.add('broadcast-overlay--visible');
-            });
+            this.playBroadcastSound('fanfare');
             
-            // Focus trap
-            overlay.querySelector('.broadcast-modal__btn').focus();
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay spotlight-overlay';
+            
+            if (isTarget) {
+                overlay.innerHTML = `
+                    <div class="spotlight-modal spotlight-modal--target">
+                        <div class="spotlight-glow"></div>
+                        <div class="spotlight-content">
+                            <div class="spotlight-icon">🌟</div>
+                            <h2 class="spotlight-title">${this.escapeHtml(broadcast.message || 'Du bist dran!')}</h2>
+                            <p class="spotlight-subtitle">Alle Augen sind auf dich gerichtet!</p>
+                        </div>
+                        <button class="broadcast-modal__btn" onclick="BroadcastListener.closeBroadcast(this)">
+                            Los geht's!
+                        </button>
+                    </div>
+                `;
+            } else {
+                overlay.innerHTML = `
+                    <div class="spotlight-modal spotlight-modal--other">
+                        <div class="spotlight-content">
+                            <div class="spotlight-icon">👀</div>
+                            <h2 class="spotlight-title">${this.escapeHtml(broadcast.targetName)} ist dran!</h2>
+                            <p class="spotlight-subtitle">${this.escapeHtml(broadcast.message || '')}</p>
+                        </div>
+                        <button class="broadcast-modal__btn broadcast-modal__btn--secondary" onclick="BroadcastListener.closeBroadcast(this)">
+                            OK
+                        </button>
+                    </div>
+                `;
+            }
+            
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('broadcast-overlay--visible'));
+        },
+        
+        // Secret message
+        showSecretMessage(broadcast) {
+            this.playBroadcastSound('mystery');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay';
+            overlay.innerHTML = `
+                <div class="broadcast-modal secret-modal">
+                    <div class="broadcast-modal__header">
+                        <div class="broadcast-modal__icon" style="background: rgba(99,102,241,0.2);">
+                            <span style="font-size: 24px;">🤫</span>
+                        </div>
+                        <span class="broadcast-modal__badge" style="color: #6366f1;">Geheime Nachricht</span>
+                    </div>
+                    <div class="broadcast-modal__content">
+                        <p class="broadcast-modal__message" style="font-style: italic;">${this.escapeHtml(broadcast.message)}</p>
+                        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 12px;">Nur du kannst diese Nachricht sehen.</p>
+                    </div>
+                    <button class="broadcast-modal__btn" style="background: #6366f1;" onclick="BroadcastListener.closeBroadcast(this)">
+                        Verstanden
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('broadcast-overlay--visible'));
+        },
+        
+        // Dice request
+        showDiceRequest(broadcast) {
+            this.playBroadcastSound('notification');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay';
+            overlay.innerHTML = `
+                <div class="broadcast-modal dice-modal">
+                    <div class="broadcast-modal__header">
+                        <div class="broadcast-modal__icon" style="background: rgba(245,158,11,0.2);">
+                            <span style="font-size: 24px;">🎲</span>
+                        </div>
+                        <span class="broadcast-modal__badge" style="color: #f59e0b;">Würfelanforderung</span>
+                    </div>
+                    <div class="broadcast-modal__content">
+                        <p class="broadcast-modal__message" style="font-size: 20px; font-weight: 600;">${this.escapeHtml(broadcast.description || 'Würfelprobe')}</p>
+                        <p style="color: rgba(255,255,255,0.5); margin-top: 8px;">Der GM möchte, dass du würfelst!</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="broadcast-modal__btn" style="flex: 1; background: #f59e0b;" onclick="BroadcastListener.openDiceRoller(); BroadcastListener.closeBroadcast(this);">
+                            🎲 Zum Würfeln
+                        </button>
+                        <button class="broadcast-modal__btn broadcast-modal__btn--secondary" style="flex: 1;" onclick="BroadcastListener.closeBroadcast(this)">
+                            Später
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('broadcast-overlay--visible'));
+        },
+        
+        openDiceRoller() {
+            window.location.href = 'dice.html';
+        },
+        
+        // Handout
+        showHandout(broadcast) {
+            this.playBroadcastSound('notification');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay';
+            overlay.innerHTML = `
+                <div class="broadcast-modal handout-modal" style="max-width: 600px;">
+                    <div class="broadcast-modal__header">
+                        <div class="broadcast-modal__icon" style="background: rgba(34,197,94,0.2);">
+                            <span style="font-size: 24px;">📜</span>
+                        </div>
+                        <span class="broadcast-modal__badge" style="color: #22c55e;">Handout</span>
+                    </div>
+                    <div class="broadcast-modal__content">
+                        <img src="${broadcast.image}" alt="Handout" style="width: 100%; border-radius: 10px; cursor: zoom-in;" onclick="BroadcastListener.zoomImage(this.src)">
+                    </div>
+                    <button class="broadcast-modal__btn" style="background: #22c55e;" onclick="BroadcastListener.closeBroadcast(this)">
+                        Schließen
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('broadcast-overlay--visible'));
+        },
+        
+        zoomImage(src) {
+            const zoom = document.createElement('div');
+            zoom.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+            zoom.innerHTML = `<img src="${src}" style="max-width:95%;max-height:95%;object-fit:contain;">`;
+            zoom.onclick = () => zoom.remove();
+            document.body.appendChild(zoom);
+        },
+        
+        // Scene transition
+        showSceneTransition(broadcast) {
+            this.playBroadcastSound('dramatic');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'cinematic-overlay scene-transition';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: #000; display: flex; align-items: center; justify-content: center;
+                animation: fadeIn 1s ease;
+            `;
+            overlay.innerHTML = `
+                <div class="scene-text" style="
+                    font-size: 32px; font-weight: 300; color: white; text-align: center;
+                    font-style: italic; letter-spacing: 2px;
+                    animation: sceneTextIn 2s ease;
+                ">${this.escapeHtml(broadcast.text)}</div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            // Auto-close after animation
+            setTimeout(() => {
+                overlay.style.animation = 'fadeOut 1s ease forwards';
+                setTimeout(() => overlay.remove(), 1000);
+            }, 3000);
+        },
+        
+        // Dramatic reveal
+        showReveal(broadcast) {
+            this.playBroadcastSound('dramatic');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'cinematic-overlay reveal';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: #000; display: flex; flex-direction: column;
+                align-items: center; justify-content: center;
+                animation: fadeIn 0.5s ease;
+            `;
+            overlay.innerHTML = `
+                ${broadcast.title ? `<h2 style="font-size: 24px; color: white; margin-bottom: 24px; animation: revealTitle 1s ease;">${this.escapeHtml(broadcast.title)}</h2>` : ''}
+                <img src="${broadcast.image}" alt="" style="
+                    max-width: 80%; max-height: 70vh; object-fit: contain;
+                    border-radius: 12px; animation: revealImage 1.5s ease;
+                    box-shadow: 0 0 100px rgba(139,92,246,0.5);
+                ">
+                <button style="
+                    margin-top: 32px; padding: 14px 32px;
+                    background: #8b5cf6; border: none; border-radius: 10px;
+                    color: white; font-size: 16px; font-weight: 600; cursor: pointer;
+                " onclick="this.closest('.cinematic-overlay').remove()">Weiter</button>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        // Combat start
+        showCombatStart(broadcast) {
+            this.playBroadcastSound('combat');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'cinematic-overlay combat-start';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: linear-gradient(135deg, #1a0a0a, #2d1b1b);
+                display: flex; flex-direction: column;
+                align-items: center; justify-content: center;
+                animation: combatFlash 0.5s ease;
+            `;
+            overlay.innerHTML = `
+                <div style="animation: combatTitle 0.8s ease;">
+                    <h1 style="
+                        font-size: 64px; font-weight: 900; color: #ef4444;
+                        text-transform: uppercase; letter-spacing: 8px;
+                        text-shadow: 0 0 60px rgba(239,68,68,0.8);
+                    ">${this.escapeHtml(broadcast.title || 'INITIATIVE!')}</h1>
+                    ${broadcast.subtitle ? `<p style="font-size: 24px; color: rgba(255,255,255,0.7); margin-top: 16px;">${this.escapeHtml(broadcast.subtitle)}</p>` : ''}
+                </div>
+                <button style="
+                    margin-top: 48px; padding: 16px 40px;
+                    background: #ef4444; border: none; border-radius: 10px;
+                    color: white; font-size: 18px; font-weight: 700;
+                    text-transform: uppercase; letter-spacing: 2px; cursor: pointer;
+                    animation: combatBtn 1s ease;
+                " onclick="this.closest('.cinematic-overlay').remove()">⚔️ Kämpfen!</button>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        // Ambient change
+        showAmbientChange(broadcast) {
+            this.playBroadcastSound('mystery');
+            
+            const effects = {
+                rain: { emoji: '🌧️', name: 'Regen', css: 'background: linear-gradient(to bottom, #1a2a3a, #0a1520);' },
+                fire: { emoji: '🔥', name: 'Feuer', css: 'background: linear-gradient(to bottom, #2d1a0a, #1a0a00);' },
+                darkness: { emoji: '🌑', name: 'Dunkelheit', css: 'background: #000;' },
+                snow: { emoji: '❄️', name: 'Schnee', css: 'background: linear-gradient(to bottom, #2a3a4a, #1a2535);' },
+                fog: { emoji: '🌫️', name: 'Nebel', css: 'background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);' },
+                clear: { emoji: '☀️', name: 'Klar', css: 'background: linear-gradient(to bottom, #1a3a5a, #0a2040);' }
+            };
+            
+            const effect = effects[broadcast.effect] || effects.clear;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'cinematic-overlay ambient-change';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                ${effect.css}
+                display: flex; flex-direction: column;
+                align-items: center; justify-content: center;
+                animation: fadeIn 1s ease;
+            `;
+            overlay.innerHTML = `
+                <span style="font-size: 80px; animation: ambientPulse 2s ease infinite;">${effect.emoji}</span>
+                <h2 style="font-size: 28px; color: white; margin-top: 24px;">${effect.name}</h2>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            setTimeout(() => {
+                overlay.style.animation = 'fadeOut 1s ease forwards';
+                setTimeout(() => overlay.remove(), 1000);
+            }, 2500);
+        },
+        
+        // Reaction
+        showReaction(broadcast) {
+            this.playBroadcastSound('notification');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'reaction-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                display: flex; align-items: center; justify-content: center;
+                pointer-events: none;
+            `;
+            overlay.innerHTML = `
+                <span style="
+                    font-size: 120px;
+                    animation: reactionPop 1.5s ease forwards;
+                ">${broadcast.emoji}</span>
+            `;
+            
+            document.body.appendChild(overlay);
+            setTimeout(() => overlay.remove(), 1500);
+        },
+        
+        // Sound player
+        playBroadcastSound(soundType) {
+            if (!soundType || soundType === 'none') return;
+            
+            // For now, use the default sound
+            // TODO: Implement different sounds
+            this.playSound();
         },
         
         closeBroadcast(btn) {
@@ -592,6 +947,123 @@
             font-size: 13px;
             font-weight: 600;
             color: white;
+        }
+        
+        /* Spotlight Styles */
+        .spotlight-modal {
+            text-align: center;
+            padding: 48px;
+        }
+        
+        .spotlight-modal--target {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 2px solid #8b5cf6;
+            box-shadow: 0 0 100px rgba(139,92,246,0.5);
+        }
+        
+        .spotlight-glow {
+            position: absolute;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,215,0,0.3), transparent);
+            animation: spotlightPulse 2s ease infinite;
+        }
+        
+        .spotlight-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            animation: spotlightBounce 1s ease;
+        }
+        
+        .spotlight-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            margin: 0 0 8px 0;
+        }
+        
+        .spotlight-subtitle {
+            font-size: 16px;
+            color: rgba(255,255,255,0.6);
+            margin: 0;
+        }
+        
+        /* Cinematic Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        
+        @keyframes sceneTextIn {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.02); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes revealTitle {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes revealImage {
+            0% { opacity: 0; transform: scale(0.5); }
+            70% { transform: scale(1.05); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes combatFlash {
+            0% { background: #fff; }
+            100% { background: linear-gradient(135deg, #1a0a0a, #2d1b1b); }
+        }
+        
+        @keyframes combatTitle {
+            0% { opacity: 0; transform: scale(2) rotate(-5deg); }
+            50% { transform: scale(0.9) rotate(2deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0); }
+        }
+        
+        @keyframes combatBtn {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes ambientPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        @keyframes reactionPop {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(1.5) translateY(-50px); }
+        }
+        
+        @keyframes spotlightPulse {
+            0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(1); }
+            50% { opacity: 0.6; transform: translateX(-50%) scale(1.2); }
+        }
+        
+        @keyframes spotlightBounce {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Secondary button style */
+        .broadcast-modal__btn--secondary {
+            background: rgba(255,255,255,0.1) !important;
+        }
+        
+        .broadcast-modal__btn--secondary:hover {
+            background: rgba(255,255,255,0.2) !important;
         }
     `;
     document.head.appendChild(style);
