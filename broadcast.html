@@ -381,6 +381,8 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
         }
         
         .bc-image-upload:hover {
@@ -408,8 +410,10 @@
         }
         
         .bc-image-upload__preview {
+            position: absolute;
+            inset: 0;
             width: 100%;
-            aspect-ratio: 16/9;
+            height: 100%;
             object-fit: cover;
             border-radius: 10px;
         }
@@ -921,6 +925,10 @@
                         <button class="broadcast-tab" data-tab="spotlight" onclick="BC.switchTab('spotlight')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                             <span>Spotlight</span>
+                        </button>
+                        <button class="broadcast-tab" data-tab="combat" onclick="BC.switchTab('combat')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M15 21l6-6M19 3l2 2-9 9-2-2z"/></svg>
+                            <span>Kampf</span>
                         </button>
                         <button class="broadcast-tab" data-tab="cinematic" onclick="BC.switchTab('cinematic')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
@@ -1468,35 +1476,9 @@
                         </div>
                     </div>
                     
-                    <!-- ==================== CINEMATIC PANEL ==================== -->
-                    <div class="broadcast-panel" id="panel-cinematic">
+                    <!-- ==================== COMBAT PANEL ==================== -->
+                    <div class="broadcast-panel" id="panel-combat">
                         <div class="broadcast-grid">
-                            <!-- Scene Transition Card -->
-                            <div class="bc-card" id="sceneCard">
-                                <div class="bc-card__header">
-                                    <div class="bc-card__title">🎬 Szenen-Übergang</div>
-                                </div>
-                                <div class="bc-card__body">
-                                    <div class="bc-field">
-                                        <input type="text" class="bc-input" id="sceneText" placeholder="z.B. 3 Tage später...">
-                                    </div>
-                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
-                                        <button class="bc-countdown-btn active" data-style="fade" onclick="BC.setSceneStyle('fade')">Fade</button>
-                                        <button class="bc-countdown-btn" data-style="slide" onclick="BC.setSceneStyle('slide')">Slide</button>
-                                        <button class="bc-countdown-btn" data-style="zoom" onclick="BC.setSceneStyle('zoom')">Zoom</button>
-                                        <button class="bc-countdown-btn" data-style="blur" onclick="BC.setSceneStyle('blur')">Blur</button>
-                                        <button class="bc-countdown-btn" data-style="glitch" onclick="BC.setSceneStyle('glitch')">Glitch</button>
-                                        <button class="bc-countdown-btn" data-style="curtain" onclick="BC.setSceneStyle('curtain')">Vorhang</button>
-                                        <label class="bc-toggle" style="margin-left: auto;">
-                                            <input type="checkbox" id="sceneSound">
-                                            <span class="bc-toggle__switch"></span>
-                                            <span class="bc-toggle__label">🔊</span>
-                                        </label>
-                                    </div>
-                                    <button class="bc-btn bc-btn--full" onclick="BC.sendSceneTransition()">Abspielen</button>
-                                </div>
-                            </div>
-                            
                             <!-- Combat Start Card -->
                             <div class="bc-card">
                                 <div class="bc-card__header">
@@ -1547,6 +1529,93 @@
                                             <span class="bc-toggle__label">🔊</span>
                                         </label>
                                     </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Boss Intro Card -->
+                            <div class="bc-card">
+                                <div class="bc-card__header">
+                                    <div class="bc-card__title">👹 Boss Intro</div>
+                                </div>
+                                <div class="bc-card__body">
+                                    <div class="bc-field">
+                                        <div class="bc-image-upload" id="bossImageUpload" onclick="document.getElementById('bossImageInput').click()" style="height: 100px;">
+                                            <div class="bc-image-upload__placeholder">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:24px;height:24px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 15l-5-5L5 21"/></svg>
+                                                <span>Boss-Bild hochladen</span>
+                                            </div>
+                                            <img id="bossImagePreview" class="bc-image-upload__preview" style="display:none;">
+                                        </div>
+                                        <input type="file" id="bossImageInput" accept="image/*" onchange="BC.handleImageUpload(event, 'boss')">
+                                    </div>
+                                    <div class="bc-field">
+                                        <input type="text" class="bc-input" id="bossName" placeholder="Name z.B. Zorgath">
+                                    </div>
+                                    <div class="bc-field">
+                                        <input type="text" class="bc-input" id="bossTitle" placeholder="Titel z.B. Verschlinger der Seelen">
+                                    </div>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <button class="bc-btn bc-btn--full bc-btn--danger" onclick="BC.sendBossIntro()">👹 Einführen!</button>
+                                        <label class="bc-toggle">
+                                            <input type="checkbox" id="bossSound">
+                                            <span class="bc-toggle__switch"></span>
+                                            <span class="bc-toggle__label">🔊</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Quick Handout Card -->
+                            <div class="bc-card">
+                                <div class="bc-card__header">
+                                    <div class="bc-card__title">📜 Schnelles Handout</div>
+                                </div>
+                                <div class="bc-card__body">
+                                    <div class="bc-field">
+                                        <div class="bc-image-upload" id="quickHandoutUpload" onclick="document.getElementById('quickHandoutInput').click()" style="height: 100px;">
+                                            <div class="bc-image-upload__placeholder">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:24px;height:24px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 15l-5-5L5 21"/></svg>
+                                                <span>Bild hochladen</span>
+                                            </div>
+                                            <img id="quickHandoutPreview" class="bc-image-upload__preview" style="display:none;">
+                                        </div>
+                                        <input type="file" id="quickHandoutInput" accept="image/*" onchange="BC.handleImageUpload(event, 'quickHandout')">
+                                    </div>
+                                    <div class="bc-field">
+                                        <input type="text" class="bc-input" id="quickHandoutTitle" placeholder="Titel (optional)">
+                                    </div>
+                                    <button class="bc-btn bc-btn--full" onclick="BC.sendQuickHandout()">📜 Zeigen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ==================== CINEMATIC PANEL ==================== -->
+                    <div class="broadcast-panel" id="panel-cinematic">
+                        <div class="broadcast-grid">
+                            <!-- Scene Transition Card -->
+                            <div class="bc-card" id="sceneCard">
+                                <div class="bc-card__header">
+                                    <div class="bc-card__title">🎬 Szenen-Übergang</div>
+                                </div>
+                                <div class="bc-card__body">
+                                    <div class="bc-field">
+                                        <input type="text" class="bc-input" id="sceneText" placeholder="z.B. 3 Tage später...">
+                                    </div>
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+                                        <button class="bc-countdown-btn active" data-style="fade" onclick="BC.setSceneStyle('fade')">Fade</button>
+                                        <button class="bc-countdown-btn" data-style="slide" onclick="BC.setSceneStyle('slide')">Slide</button>
+                                        <button class="bc-countdown-btn" data-style="zoom" onclick="BC.setSceneStyle('zoom')">Zoom</button>
+                                        <button class="bc-countdown-btn" data-style="blur" onclick="BC.setSceneStyle('blur')">Blur</button>
+                                        <button class="bc-countdown-btn" data-style="glitch" onclick="BC.setSceneStyle('glitch')">Glitch</button>
+                                        <button class="bc-countdown-btn" data-style="curtain" onclick="BC.setSceneStyle('curtain')">Vorhang</button>
+                                        <label class="bc-toggle" style="margin-left: auto;">
+                                            <input type="checkbox" id="sceneSound">
+                                            <span class="bc-toggle__switch"></span>
+                                            <span class="bc-toggle__label">🔊</span>
+                                        </label>
+                                    </div>
+                                    <button class="bc-btn bc-btn--full" onclick="BC.sendSceneTransition()">Abspielen</button>
                                 </div>
                             </div>
                             
@@ -1642,39 +1711,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Boss Intro Card -->
-                            <div class="bc-card">
-                                <div class="bc-card__header">
-                                    <div class="bc-card__title">👹 Boss Intro</div>
-                                </div>
-                                <div class="bc-card__body">
-                                    <div class="bc-field">
-                                        <div class="bc-image-upload" id="bossImageUpload" onclick="document.getElementById('bossImageInput').click()" style="height: 100px;">
-                                            <div class="bc-image-upload__placeholder">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:24px;height:24px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 15l-5-5L5 21"/></svg>
-                                                <span>Boss-Bild hochladen</span>
-                                            </div>
-                                            <img id="bossImagePreview" class="bc-image-upload__preview" style="display:none;">
-                                        </div>
-                                        <input type="file" id="bossImageInput" accept="image/*" onchange="BC.handleImageUpload(event, 'boss')">
-                                    </div>
-                                    <div class="bc-field">
-                                        <input type="text" class="bc-input" id="bossName" placeholder="Name z.B. Zorgath">
-                                    </div>
-                                    <div class="bc-field">
-                                        <input type="text" class="bc-input" id="bossTitle" placeholder="Titel z.B. Verschlinger der Seelen">
-                                    </div>
-                                    <div style="display: flex; gap: 10px; align-items: center;">
-                                        <button class="bc-btn bc-btn--full bc-btn--danger" onclick="BC.sendBossIntro()">👹 Einführen!</button>
-                                        <label class="bc-toggle">
-                                            <input type="checkbox" id="bossSound">
-                                            <span class="bc-toggle__switch"></span>
-                                            <span class="bc-toggle__label">🔊</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <!-- Loot Drop Card -->
                             <div class="bc-card">
                                 <div class="bc-card__header">
@@ -1682,11 +1718,11 @@
                                 </div>
                                 <div class="bc-card__body">
                                     <div class="bc-field">
-                                        <label class="bc-label">Items (eines pro Zeile)</label>
+                                        <label class="bc-label">Items (eines pro Zeile, optional)</label>
                                         <textarea class="bc-textarea" id="lootItems" placeholder="Schwert des Lichts&#10;Heiltrank x3&#10;Mysteriöse Karte" style="height: 80px;"></textarea>
                                     </div>
                                     <div class="bc-field">
-                                        <label class="bc-label">Gold (optional)</label>
+                                        <label class="bc-label">Münzen (optional)</label>
                                         <input type="number" class="bc-input" id="lootGold" placeholder="0" min="0">
                                     </div>
                                     <button class="bc-btn bc-btn--full bc-btn--success" onclick="BC.sendLootDrop()">💰 Loot zeigen!</button>
@@ -1760,7 +1796,10 @@
                                         <button class="bc-btn bc-btn--small" onclick="BC.setBreakMinutes(15)">+15min</button>
                                         <button class="bc-btn bc-btn--small" onclick="BC.setBreakMinutes(30)">+30min</button>
                                     </div>
-                                    <button class="bc-btn bc-btn--full" onclick="BC.sendBreakTimer()">☕ Pause starten</button>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button class="bc-btn bc-btn--full" onclick="BC.sendBreakTimer()">☕ Pause starten</button>
+                                        <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.endBreak()" title="Pause beenden">✕</button>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -1799,9 +1838,10 @@
                                         <button class="bc-btn bc-btn--small" onclick="BC.sendTimeOfDay('dusk')" style="background: linear-gradient(135deg, #f97316, #dc2626);">🌆 Abend</button>
                                         <button class="bc-btn bc-btn--small" onclick="BC.sendTimeOfDay('midnight')" style="background: linear-gradient(135deg, #1e3a5f, #0f172a);">🌙 Nacht</button>
                                     </div>
-                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px;">
+                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px;">
                                         <button class="bc-btn bc-btn--small" onclick="BC.sendTimeOfDay('flashback')" style="background: linear-gradient(135deg, #92400e, #78350f);">📜 Flashback</button>
                                         <button class="bc-btn bc-btn--small" onclick="BC.sendTimeOfDay('vision')" style="background: linear-gradient(135deg, #7c3aed, #4c1d95);">👁️ Vision</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.sendTimeOfDay('clear')" style="background: rgba(255,255,255,0.1);">❌ Aus</button>
                                     </div>
                                 </div>
                             </div>
@@ -2161,6 +2201,11 @@
                         document.getElementById('bossImagePreview').src = data;
                         document.getElementById('bossImagePreview').style.display = 'block';
                         document.getElementById('bossImageUpload').querySelector('.bc-image-upload__placeholder').style.display = 'none';
+                    } else if (target === 'quickHandout') {
+                        this.quickHandoutImageData = data;
+                        document.getElementById('quickHandoutPreview').src = data;
+                        document.getElementById('quickHandoutPreview').style.display = 'block';
+                        document.getElementById('quickHandoutUpload').querySelector('.bc-image-upload__placeholder').style.display = 'none';
                     }
                 } catch (e) {
                     console.error('[BC] Image processing error:', e);
@@ -3268,6 +3313,41 @@
                 container.innerHTML = html || '<span style="color: var(--text-muted); font-size: 13px;">Keine Spieler</span>';
             },
             
+            // ============ QUICK HANDOUT ============
+            quickHandoutImageData: null,
+            
+            async sendQuickHandout() {
+                if (!this.quickHandoutImageData) {
+                    this.toast('Bild hochladen!', 'error');
+                    return;
+                }
+                
+                const title = document.getElementById('quickHandoutTitle').value.trim();
+                
+                try {
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'handout',
+                            image: this.quickHandoutImageData,
+                            title,
+                            sound: 'none',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    
+                    document.getElementById('quickHandoutTitle').value = '';
+                    this.quickHandoutImageData = null;
+                    document.getElementById('quickHandoutPreview').style.display = 'none';
+                    document.getElementById('quickHandoutUpload').querySelector('.bc-image-upload__placeholder').style.display = 'flex';
+                    
+                    this.addToHistory('handout', `Handout${title ? ': ' + title : ''}`);
+                    this.toast('Handout gesendet!', 'success');
+                } catch (e) {
+                    this.toast('Fehler', 'error');
+                }
+            },
+            
             // ============ LOCATION BANNER ============
             locationImageData: null,
             
@@ -3347,13 +3427,14 @@
             // ============ LOOT DROP ============
             async sendLootDrop() {
                 const itemsText = document.getElementById('lootItems').value.trim();
-                if (!itemsText) {
-                    this.toast('Items eingeben!', 'error');
+                const gold = parseInt(document.getElementById('lootGold').value) || 0;
+                
+                const items = itemsText ? itemsText.split('\n').filter(i => i.trim()) : [];
+                
+                if (items.length === 0 && gold === 0) {
+                    this.toast('Items oder Münzen eingeben!', 'error');
                     return;
                 }
-                
-                const items = itemsText.split('\n').filter(i => i.trim());
-                const gold = parseInt(document.getElementById('lootGold').value) || 0;
                 
                 try {
                     await this.ref().update({
@@ -3370,7 +3451,10 @@
                     document.getElementById('lootItems').value = '';
                     document.getElementById('lootGold').value = '';
                     
-                    this.addToHistory('loot', `Loot: ${items.length} Items${gold > 0 ? ` + ${gold} Gold` : ''}`);
+                    const historyText = items.length > 0 
+                        ? `Loot: ${items.length} Items${gold > 0 ? ` + ${gold} Münzen` : ''}`
+                        : `Loot: ${gold} Münzen`;
+                    this.addToHistory('loot', historyText);
                     this.toast('Loot Drop gesendet!', 'success');
                 } catch (e) {
                     this.toast('Fehler', 'error');
@@ -3543,7 +3627,8 @@
                     dusk: '🌆 Abenddämmerung',
                     midnight: '🌙 Mitternacht',
                     flashback: '📜 Flashback',
-                    vision: '👁️ Vision'
+                    vision: '👁️ Vision',
+                    clear: '❌ Effekt aus'
                 };
                 
                 try {
@@ -3551,14 +3636,30 @@
                         broadcast: {
                             type: 'timeofday',
                             timeType,
-                            label: labels[timeType],
+                            label: labels[timeType] || timeType,
                             id: Date.now(),
                             timestamp: firebase.firestore.FieldValue.serverTimestamp()
                         }
                     });
                     
-                    this.addToHistory('timeofday', labels[timeType]);
-                    this.toast(`${labels[timeType]} aktiviert!`, 'success');
+                    this.addToHistory('timeofday', labels[timeType] || timeType);
+                    this.toast(`${labels[timeType] || 'Effekt'} aktiviert!`, 'success');
+                } catch (e) {
+                    this.toast('Fehler', 'error');
+                }
+            },
+            
+            // ============ END BREAK ============
+            async endBreak() {
+                try {
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'endbreak',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    this.toast('Pause beendet!', 'success');
                 } catch (e) {
                     this.toast('Fehler', 'error');
                 }
