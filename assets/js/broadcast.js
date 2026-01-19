@@ -206,6 +206,9 @@
                 case 'break':
                     this.showBreakTimer(broadcast);
                     break;
+                case 'endbreak':
+                    this.endBreak();
+                    break;
                 case 'sound':
                     this.playGlobalSound(broadcast);
                     break;
@@ -1405,8 +1408,8 @@
                 ${imageHtml}
                 <h1 style="font-size: clamp(36px, 8vw, 72px); font-weight: 900; color: #ef4444; margin: 0; text-transform: uppercase; letter-spacing: 4px; text-shadow: 0 0 40px rgba(239,68,68,0.5); animation: bossTitle 1s ease;">${this.escapeHtml(broadcast.name)}</h1>
                 ${broadcast.title ? `<p style="font-size: 24px; color: rgba(255,255,255,0.7); margin-top: 12px; font-style: italic; animation: bossSubtitle 1s ease 0.3s both;">${this.escapeHtml(broadcast.title)}</p>` : ''}
-                <button class="broadcast-modal__btn" style="margin-top: 32px; background: #ef4444; animation: bossBtn 1s ease 0.6s both;" onclick="this.closest('.broadcast-overlay').remove()">
-                    ⚔️ Zum Kampf!
+                <button class="broadcast-modal__btn" style="margin-top: 32px; background: #ef4444; animation: bossBtn 1s ease 0.6s both; padding: 12px 24px;" onclick="this.closest('.broadcast-overlay').remove()">
+                    Los geht's!
                 </button>
             `;
             
@@ -1426,7 +1429,8 @@
                 animation: fadeIn 0.3s ease;
             `;
             
-            const itemsHtml = broadcast.items.map((item, i) => `
+            const items = broadcast.items || [];
+            const itemsHtml = items.map((item, i) => `
                 <div style="
                     padding: 12px 20px; background: rgba(255,255,255,0.1);
                     border-radius: 8px; margin: 6px 0;
@@ -1440,13 +1444,13 @@
             
             const goldHtml = broadcast.gold > 0 ? `
                 <div style="
-                    margin-top: 16px; padding: 16px 24px;
+                    margin-top: ${items.length > 0 ? '16px' : '0'}; padding: 16px 24px;
                     background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(234,179,8,0.2));
                     border-radius: 12px; border: 2px solid #f59e0b;
-                    animation: lootItem 0.5s ease ${broadcast.items.length * 0.1}s both;
+                    animation: lootItem 0.5s ease ${items.length * 0.1}s both;
                 ">
                     <span style="font-size: 24px;">🪙</span>
-                    <span style="font-size: 28px; font-weight: 700; color: #f59e0b; margin-left: 12px;">${broadcast.gold} Gold</span>
+                    <span style="font-size: 28px; font-weight: 700; color: #f59e0b; margin-left: 12px;">${broadcast.gold} Münzen</span>
                 </div>
             ` : '';
             
@@ -1565,27 +1569,74 @@
             
             const isHeads = broadcast.result === 'heads';
             
+            // 3D Coin with two sides
             overlay.innerHTML = `
                 <div style="text-align: center;">
                     ${broadcast.question ? `<p style="font-size: 18px; color: rgba(255,255,255,0.6); margin-bottom: 24px;">${this.escapeHtml(broadcast.question)}</p>` : ''}
-                    <div style="font-size: 120px; animation: coinSpin 1s ease-out;">🪙</div>
-                    <h1 style="font-size: 48px; color: ${isHeads ? '#f59e0b' : '#8b5cf6'}; margin: 24px 0; animation: coinResult 0.5s ease 1s both;">
-                        ${isHeads ? '👑 KOPF' : '🔢 ZAHL'}
+                    <div class="coin-container" style="perspective: 1000px; width: 150px; height: 150px; margin: 0 auto;">
+                        <div class="coin-3d" style="
+                            width: 100%; height: 100%;
+                            position: relative;
+                            transform-style: preserve-3d;
+                            animation: coin3dFlip 1.5s ease-out forwards;
+                            --final-rotation: ${isHeads ? '1800deg' : '1980deg'};
+                        ">
+                            <div style="
+                                position: absolute; inset: 0;
+                                background: linear-gradient(145deg, #fcd34d, #b45309);
+                                border-radius: 50%;
+                                display: flex; align-items: center; justify-content: center;
+                                font-size: 60px; font-weight: bold; color: #78350f;
+                                backface-visibility: hidden;
+                                border: 6px solid #92400e;
+                                box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+                            ">👑</div>
+                            <div style="
+                                position: absolute; inset: 0;
+                                background: linear-gradient(145deg, #c4b5fd, #6d28d9);
+                                border-radius: 50%;
+                                display: flex; align-items: center; justify-content: center;
+                                font-size: 48px; font-weight: bold; color: #4c1d95;
+                                backface-visibility: hidden;
+                                transform: rotateY(180deg);
+                                border: 6px solid #5b21b6;
+                                box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+                            ">42</div>
+                        </div>
+                    </div>
+                    <h1 class="coin-result" style="font-size: 48px; color: ${isHeads ? '#f59e0b' : '#8b5cf6'}; margin: 24px 0; opacity: 0; animation: coinResultFade 0.5s ease 1.5s forwards;">
+                        ${isHeads ? 'KOPF' : 'ZAHL'}
                     </h1>
-                    <button class="broadcast-modal__btn" style="animation: fadeIn 0.3s ease 1.5s both;" onclick="this.closest('.broadcast-overlay').remove()">
-                        OK
-                    </button>
                 </div>
             `;
             
             document.body.appendChild(overlay);
+            
+            // Auto fade out after 5 seconds
+            setTimeout(() => {
+                overlay.style.animation = 'fadeOut 0.5s ease forwards';
+                setTimeout(() => overlay.remove(), 500);
+            }, 5000);
         },
         
         // ============ BREAK TIMER ============
         showBreakTimer(broadcast) {
-            // Remove existing break timer
+            // Remove existing break overlays
+            document.querySelectorAll('.break-fullscreen-overlay').forEach(el => el.remove());
             document.querySelectorAll('.break-timer-overlay').forEach(el => el.remove());
             
+            // Fullscreen blur overlay that blocks interaction
+            const blurOverlay = document.createElement('div');
+            blurOverlay.className = 'break-fullscreen-overlay';
+            blurOverlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 99997;
+                backdrop-filter: blur(10px);
+                background: rgba(0,0,0,0.7);
+                animation: fadeIn 0.5s ease;
+            `;
+            document.body.appendChild(blurOverlay);
+            
+            // Timer card on top
             const overlay = document.createElement('div');
             overlay.className = 'break-timer-overlay';
             overlay.style.cssText = `
@@ -1609,6 +1660,8 @@
             const countdownEl = overlay.querySelector('.break-countdown');
             
             const updateCountdown = () => {
+                if (!document.body.contains(overlay)) return; // Check if removed
+                
                 const remaining = Math.max(0, broadcast.endTime - Date.now());
                 const minutes = Math.floor(remaining / 60000);
                 const seconds = Math.floor((remaining % 60000) / 1000);
@@ -1619,11 +1672,15 @@
                     overlay.style.borderColor = 'rgba(34,197,94,0.5)';
                     overlay.style.animation = 'breakPulse 1s ease infinite';
                     
-                    // Auto-close after 30 seconds
+                    // Auto-close after 10 seconds when done
                     setTimeout(() => {
+                        blurOverlay.style.animation = 'fadeOut 0.5s ease forwards';
                         overlay.style.animation = 'fadeOut 0.5s ease forwards';
-                        setTimeout(() => overlay.remove(), 500);
-                    }, 30000);
+                        setTimeout(() => {
+                            blurOverlay.remove();
+                            overlay.remove();
+                        }, 500);
+                    }, 10000);
                     return;
                 }
                 
@@ -1634,6 +1691,18 @@
             updateCountdown();
         },
         
+        // End break early
+        endBreak() {
+            document.querySelectorAll('.break-fullscreen-overlay').forEach(el => {
+                el.style.animation = 'fadeOut 0.5s ease forwards';
+                setTimeout(() => el.remove(), 500);
+            });
+            document.querySelectorAll('.break-timer-overlay').forEach(el => {
+                el.style.animation = 'fadeOut 0.5s ease forwards';
+                setTimeout(() => el.remove(), 500);
+            });
+        },
+        
         // ============ GLOBAL SOUND ============
         playGlobalSound(broadcast) {
             const soundType = broadcast.soundType || broadcast;
@@ -1642,6 +1711,13 @@
         
         // ============ TIME OF DAY ============
         showTimeOfDay(broadcast) {
+            // Handle clear immediately without transition
+            if (broadcast.timeType === 'clear') {
+                document.querySelectorAll('.ambient-timeofday-overlay').forEach(el => el.remove());
+                document.body.style.filter = '';
+                return;
+            }
+            
             const configs = {
                 dawn: {
                     gradient: 'linear-gradient(to bottom, rgba(251,191,36,0.2) 0%, rgba(249,115,22,0.15) 50%, rgba(0,0,0,0) 100%)',
@@ -3128,13 +3204,13 @@
         }
         
         /* Coin Flip animations */
-        @keyframes coinSpin {
+        @keyframes coin3dFlip {
             0% { transform: rotateY(0deg) scale(0.5); }
-            100% { transform: rotateY(1800deg) scale(1); }
+            100% { transform: rotateY(var(--final-rotation, 1800deg)) scale(1); }
         }
         
-        @keyframes coinResult {
-            from { opacity: 0; transform: scale(2); }
+        @keyframes coinResultFade {
+            from { opacity: 0; transform: scale(1.5); }
             to { opacity: 1; transform: scale(1); }
         }
         
