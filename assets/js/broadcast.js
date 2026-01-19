@@ -185,6 +185,33 @@
                 case 'statusRequest':
                     this.showStatusRequest(broadcast);
                     break;
+                case 'location':
+                    this.showLocationBanner(broadcast);
+                    break;
+                case 'boss':
+                    this.showBossIntro(broadcast);
+                    break;
+                case 'loot':
+                    this.showLootDrop(broadcast);
+                    break;
+                case 'levelup':
+                    this.showLevelUp(broadcast);
+                    break;
+                case 'death':
+                    this.showDeathScreen(broadcast);
+                    break;
+                case 'coinflip':
+                    this.showCoinFlip(broadcast);
+                    break;
+                case 'break':
+                    this.showBreakTimer(broadcast);
+                    break;
+                case 'sound':
+                    this.playGlobalSound(broadcast);
+                    break;
+                case 'timeofday':
+                    this.showTimeOfDay(broadcast);
+                    break;
                 default:
                     this.showStandardBroadcast(broadcast);
             }
@@ -1313,6 +1340,393 @@
             overlay?.remove();
         },
         
+        // ============ LOCATION BANNER ============
+        showLocationBanner(broadcast) {
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay location-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: rgba(0,0,0,0.9); display: flex;
+                align-items: center; justify-content: center;
+                animation: fadeIn 0.5s ease;
+            `;
+            
+            const hasImage = broadcast.image ? `
+                <div style="position: absolute; inset: 0; opacity: 0.3;">
+                    <img src="${broadcast.image}" style="width: 100%; height: 100%; object-fit: cover; filter: blur(3px);">
+                </div>
+            ` : '';
+            
+            overlay.innerHTML = `
+                ${hasImage}
+                <div style="text-align: center; z-index: 1; animation: locationSlide 1s ease;">
+                    <div style="font-size: 14px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 4px; margin-bottom: 12px;">Ihr betretet</div>
+                    <h1 style="font-size: clamp(32px, 6vw, 64px); font-weight: 700; color: white; margin: 0; text-shadow: 0 4px 20px rgba(0,0,0,0.5);">${this.escapeHtml(broadcast.name)}</h1>
+                    ${broadcast.subtitle ? `<p style="font-size: 18px; color: rgba(255,255,255,0.7); margin-top: 16px; font-style: italic;">${this.escapeHtml(broadcast.subtitle)}</p>` : ''}
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            // Auto-close after 4 seconds
+            setTimeout(() => {
+                overlay.style.animation = 'fadeOut 0.5s ease forwards';
+                setTimeout(() => overlay.remove(), 500);
+            }, 4000);
+        },
+        
+        // ============ BOSS INTRO ============
+        showBossIntro(broadcast) {
+            if (broadcast.sound && broadcast.sound !== 'none') {
+                this.playBroadcastSound(broadcast.sound);
+            }
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay boss-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: linear-gradient(135deg, #1a0a0a, #2d0a0a);
+                display: flex; flex-direction: column;
+                align-items: center; justify-content: center;
+                animation: bossFlash 0.5s ease;
+            `;
+            
+            const imageHtml = broadcast.image ? `
+                <img src="${broadcast.image}" style="
+                    width: 200px; height: 200px; object-fit: cover;
+                    border-radius: 50%; border: 4px solid #ef4444;
+                    box-shadow: 0 0 60px rgba(239,68,68,0.5);
+                    animation: bossImagePulse 2s ease-in-out infinite;
+                    margin-bottom: 24px;
+                ">
+            ` : '<div style="font-size: 120px; margin-bottom: 24px; animation: bossImagePulse 2s ease-in-out infinite;">👹</div>';
+            
+            overlay.innerHTML = `
+                ${imageHtml}
+                <h1 style="font-size: clamp(36px, 8vw, 72px); font-weight: 900; color: #ef4444; margin: 0; text-transform: uppercase; letter-spacing: 4px; text-shadow: 0 0 40px rgba(239,68,68,0.5); animation: bossTitle 1s ease;">${this.escapeHtml(broadcast.name)}</h1>
+                ${broadcast.title ? `<p style="font-size: 24px; color: rgba(255,255,255,0.7); margin-top: 12px; font-style: italic; animation: bossSubtitle 1s ease 0.3s both;">${this.escapeHtml(broadcast.title)}</p>` : ''}
+                <button class="broadcast-modal__btn" style="margin-top: 32px; background: #ef4444; animation: bossBtn 1s ease 0.6s both;" onclick="this.closest('.broadcast-overlay').remove()">
+                    ⚔️ Zum Kampf!
+                </button>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        // ============ LOOT DROP ============
+        showLootDrop(broadcast) {
+            this.playBroadcastSound('coin');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay loot-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: rgba(0,0,0,0.9); display: flex;
+                align-items: center; justify-content: center;
+                animation: fadeIn 0.3s ease;
+            `;
+            
+            const itemsHtml = broadcast.items.map((item, i) => `
+                <div style="
+                    padding: 12px 20px; background: rgba(255,255,255,0.1);
+                    border-radius: 8px; margin: 6px 0;
+                    animation: lootItem 0.5s ease ${i * 0.1}s both;
+                    border-left: 3px solid #f59e0b;
+                ">
+                    <span style="color: #f59e0b; margin-right: 8px;">✦</span>
+                    ${this.escapeHtml(item)}
+                </div>
+            `).join('');
+            
+            const goldHtml = broadcast.gold > 0 ? `
+                <div style="
+                    margin-top: 16px; padding: 16px 24px;
+                    background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(234,179,8,0.2));
+                    border-radius: 12px; border: 2px solid #f59e0b;
+                    animation: lootItem 0.5s ease ${broadcast.items.length * 0.1}s both;
+                ">
+                    <span style="font-size: 24px;">🪙</span>
+                    <span style="font-size: 28px; font-weight: 700; color: #f59e0b; margin-left: 12px;">${broadcast.gold} Gold</span>
+                </div>
+            ` : '';
+            
+            overlay.innerHTML = `
+                <div style="text-align: center; max-width: 400px;">
+                    <div style="font-size: 48px; margin-bottom: 16px; animation: lootChest 1s ease;">💰</div>
+                    <h2 style="font-size: 28px; color: white; margin: 0 0 24px;">Ihr habt gefunden:</h2>
+                    <div style="text-align: left;">
+                        ${itemsHtml}
+                        ${goldHtml}
+                    </div>
+                    <button class="broadcast-modal__btn" style="margin-top: 24px; background: #f59e0b;" onclick="this.closest('.broadcast-overlay').remove()">
+                        Einsammeln
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        // ============ LEVEL UP ============
+        showLevelUp(broadcast) {
+            this.playBroadcastSound('fanfare');
+            
+            const uid = window.firebase?.auth?.()?.currentUser?.uid;
+            const isTarget = broadcast.targetId === uid;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay levelup-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(234,179,8,0.1));
+                display: flex; align-items: center; justify-content: center;
+                animation: fadeIn 0.3s ease;
+            `;
+            
+            // Add confetti
+            let confetti = '';
+            for (let i = 0; i < 50; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 2;
+                const duration = 2 + Math.random() * 2;
+                const color = ['#f59e0b', '#eab308', '#fbbf24', '#fcd34d', '#fef3c7'][Math.floor(Math.random() * 5)];
+                confetti += `<div style="
+                    position: absolute; top: -20px; left: ${left}%;
+                    width: 10px; height: 10px; background: ${color};
+                    animation: confettiFall ${duration}s ease ${delay}s infinite;
+                "></div>`;
+            }
+            
+            overlay.innerHTML = `
+                <div style="position: absolute; inset: 0; overflow: hidden; pointer-events: none;">${confetti}</div>
+                <div style="text-align: center; z-index: 1;">
+                    <div style="font-size: 80px; animation: levelUpBounce 0.5s ease;">🎉</div>
+                    <h1 style="font-size: 48px; color: #f59e0b; margin: 16px 0; animation: levelUpTitle 1s ease; text-shadow: 0 0 40px rgba(245,158,11,0.5);">LEVEL UP!</h1>
+                    <p style="font-size: 24px; color: white; margin: 0;">
+                        ${isTarget ? 'Du erreichst' : `${this.escapeHtml(broadcast.targetName)} erreicht`}
+                    </p>
+                    <div style="font-size: 72px; font-weight: 900; color: white; margin: 16px 0; animation: levelNumber 1s ease 0.3s both;">
+                        Level ${broadcast.level}
+                    </div>
+                    <button class="broadcast-modal__btn" style="background: #f59e0b;" onclick="this.closest('.broadcast-overlay').remove()">
+                        🎊 Großartig!
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        // ============ DEATH SCREEN ============
+        showDeathScreen(broadcast) {
+            this.playBroadcastSound('dramatic');
+            
+            const uid = window.firebase?.auth?.()?.currentUser?.uid;
+            const isTarget = broadcast.targetId === uid;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay death-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: #000; display: flex;
+                align-items: center; justify-content: center;
+                animation: deathFadeIn 2s ease;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="text-align: center; animation: deathContent 2s ease;">
+                    <div style="font-size: 120px; opacity: 0.8; animation: deathSkull 3s ease-in-out infinite;">💀</div>
+                    <h1 style="font-size: 48px; color: #ef4444; margin: 24px 0; font-weight: 300; letter-spacing: 8px; text-transform: uppercase;">
+                        ${isTarget ? 'Du bist gefallen' : `${this.escapeHtml(broadcast.targetName)}`}
+                    </h1>
+                    ${!isTarget ? '<p style="font-size: 24px; color: rgba(255,255,255,0.5); margin: 0;">ist gefallen</p>' : ''}
+                    ${broadcast.message ? `<p style="font-size: 18px; color: rgba(255,255,255,0.4); margin-top: 24px; font-style: italic;">"${this.escapeHtml(broadcast.message)}"</p>` : ''}
+                    <button class="broadcast-modal__btn" style="margin-top: 32px; background: #333;" onclick="this.closest('.broadcast-overlay').remove()">
+                        Ruhe in Frieden
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        // ============ COIN FLIP ============
+        showCoinFlip(broadcast) {
+            this.playBroadcastSound('coin');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay coinflip-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: rgba(0,0,0,0.9); display: flex;
+                align-items: center; justify-content: center;
+                animation: fadeIn 0.3s ease;
+            `;
+            
+            const isHeads = broadcast.result === 'heads';
+            
+            overlay.innerHTML = `
+                <div style="text-align: center;">
+                    ${broadcast.question ? `<p style="font-size: 18px; color: rgba(255,255,255,0.6); margin-bottom: 24px;">${this.escapeHtml(broadcast.question)}</p>` : ''}
+                    <div style="font-size: 120px; animation: coinSpin 1s ease-out;">🪙</div>
+                    <h1 style="font-size: 48px; color: ${isHeads ? '#f59e0b' : '#8b5cf6'}; margin: 24px 0; animation: coinResult 0.5s ease 1s both;">
+                        ${isHeads ? '👑 KOPF' : '🔢 ZAHL'}
+                    </h1>
+                    <button class="broadcast-modal__btn" style="animation: fadeIn 0.3s ease 1.5s both;" onclick="this.closest('.broadcast-overlay').remove()">
+                        OK
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        // ============ BREAK TIMER ============
+        showBreakTimer(broadcast) {
+            // Remove existing break timer
+            document.querySelectorAll('.break-timer-overlay').forEach(el => el.remove());
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'break-timer-overlay';
+            overlay.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                z-index: 99998; background: rgba(20,20,20,0.98);
+                padding: 40px 60px; border-radius: 24px; text-align: center;
+                box-shadow: 0 20px 80px rgba(0,0,0,0.8);
+                border: 2px solid rgba(139,92,246,0.3);
+            `;
+            
+            overlay.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 16px;">☕</div>
+                <h2 style="font-size: 24px; color: white; margin: 0 0 8px;">Pause</h2>
+                <p style="color: rgba(255,255,255,0.5); margin: 0 0 24px;">Weiter geht's um</p>
+                <div style="font-size: 64px; font-weight: 700; color: #8b5cf6; font-variant-numeric: tabular-nums;">${broadcast.displayTime}</div>
+                <div class="break-countdown" style="font-size: 32px; color: white; margin-top: 16px;"></div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            const countdownEl = overlay.querySelector('.break-countdown');
+            
+            const updateCountdown = () => {
+                const remaining = Math.max(0, broadcast.endTime - Date.now());
+                const minutes = Math.floor(remaining / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                
+                if (remaining <= 0) {
+                    countdownEl.textContent = 'Weiter geht\'s!';
+                    countdownEl.style.color = '#22c55e';
+                    overlay.style.borderColor = 'rgba(34,197,94,0.5)';
+                    overlay.style.animation = 'breakPulse 1s ease infinite';
+                    
+                    // Auto-close after 30 seconds
+                    setTimeout(() => {
+                        overlay.style.animation = 'fadeOut 0.5s ease forwards';
+                        setTimeout(() => overlay.remove(), 500);
+                    }, 30000);
+                    return;
+                }
+                
+                countdownEl.textContent = `noch ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                requestAnimationFrame(updateCountdown);
+            };
+            
+            updateCountdown();
+        },
+        
+        // ============ GLOBAL SOUND ============
+        playGlobalSound(broadcast) {
+            const soundType = broadcast.soundType || broadcast;
+            this.playBroadcastSound(soundType);
+        },
+        
+        // ============ TIME OF DAY ============
+        showTimeOfDay(broadcast) {
+            const configs = {
+                dawn: {
+                    gradient: 'linear-gradient(to bottom, rgba(251,191,36,0.2) 0%, rgba(249,115,22,0.15) 50%, rgba(0,0,0,0) 100%)',
+                    icon: '🌅',
+                    text: 'Morgengrauen'
+                },
+                noon: {
+                    gradient: 'linear-gradient(to bottom, rgba(251,191,36,0.25) 0%, rgba(0,0,0,0) 60%)',
+                    icon: '☀️',
+                    text: 'Mittag'
+                },
+                dusk: {
+                    gradient: 'linear-gradient(to bottom, rgba(249,115,22,0.2) 0%, rgba(220,38,38,0.15) 50%, rgba(0,0,0,0.1) 100%)',
+                    icon: '🌆',
+                    text: 'Abenddämmerung'
+                },
+                midnight: {
+                    gradient: 'linear-gradient(to bottom, rgba(15,23,42,0.4) 0%, rgba(30,58,95,0.3) 50%, rgba(0,0,0,0.2) 100%)',
+                    icon: '🌙',
+                    text: 'Mitternacht'
+                },
+                flashback: {
+                    gradient: 'none',
+                    filter: 'sepia(0.6) contrast(1.1)',
+                    icon: '📜',
+                    text: 'Flashback'
+                },
+                vision: {
+                    gradient: 'radial-gradient(ellipse at center, rgba(124,58,237,0.2) 0%, rgba(76,29,149,0.3) 100%)',
+                    filter: 'blur(1px) saturate(1.3)',
+                    icon: '👁️',
+                    text: 'Vision'
+                }
+            };
+            
+            const config = configs[broadcast.timeType] || configs.noon;
+            
+            // Show transition overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay timeofday-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: rgba(0,0,0,0.8); display: flex;
+                align-items: center; justify-content: center;
+                animation: fadeIn 0.5s ease;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="text-align: center; animation: timeOfDayContent 1s ease;">
+                    <div style="font-size: 80px;">${config.icon}</div>
+                    <h1 style="font-size: 36px; color: white; margin-top: 16px; font-weight: 300;">${config.text}</h1>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            // Apply ambient effect
+            setTimeout(() => {
+                // Remove existing time overlay
+                document.querySelectorAll('.ambient-timeofday-overlay').forEach(el => el.remove());
+                
+                if (broadcast.timeType !== 'clear') {
+                    const ambientOverlay = document.createElement('div');
+                    ambientOverlay.className = 'ambient-timeofday-overlay';
+                    ambientOverlay.style.cssText = `
+                        position: fixed; inset: 0; z-index: 9997;
+                        pointer-events: none; transition: opacity 1s ease;
+                        ${config.gradient !== 'none' ? `background: ${config.gradient};` : ''}
+                    `;
+                    
+                    if (config.filter) {
+                        // Apply filter to main content instead
+                        document.body.style.filter = config.filter;
+                    }
+                    
+                    document.body.appendChild(ambientOverlay);
+                } else {
+                    document.body.style.filter = '';
+                }
+                
+                overlay.style.animation = 'fadeOut 0.5s ease forwards';
+                setTimeout(() => overlay.remove(), 500);
+            }, 2000);
+        },
+        
         // Sound player with different types
         playBroadcastSound(soundType) {
             if (!soundType || soundType === 'none') return;
@@ -1336,6 +1750,42 @@
                         break;
                     case 'mystery':
                         this.playSoundMystery(audioContext, now);
+                        break;
+                    case 'coin':
+                        this.playSoundCoin(audioContext, now);
+                        break;
+                    case 'doorCreak':
+                        this.playSoundDoorCreak(audioContext, now);
+                        break;
+                    case 'thunder':
+                        this.playSoundThunder(audioContext, now);
+                        break;
+                    case 'explosion':
+                        this.playSoundExplosion(audioContext, now);
+                        break;
+                    case 'wolf':
+                        this.playSoundWolf(audioContext, now);
+                        break;
+                    case 'swordClash':
+                        this.playSoundSwordClash(audioContext, now);
+                        break;
+                    case 'magic':
+                        this.playSoundMagic(audioContext, now);
+                        break;
+                    case 'heartbeat':
+                        this.playSoundHeartbeat(audioContext, now);
+                        break;
+                    case 'laugh':
+                        this.playSoundLaugh(audioContext, now);
+                        break;
+                    case 'glass':
+                        this.playSoundGlass(audioContext, now);
+                        break;
+                    case 'chains':
+                        this.playSoundChains(audioContext, now);
+                        break;
+                    case 'whisper':
+                        this.playSoundWhisper(audioContext, now);
                         break;
                     default:
                         this.playSoundNotification(audioContext, now);
@@ -1458,6 +1908,228 @@
                 osc.start(now);
                 osc.stop(now + 1.5);
             });
+        },
+        
+        // Coin sound - jingling
+        playSoundCoin(ctx, now) {
+            [4000, 5000, 6000, 4500].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(freq, now + i * 0.05);
+                gain.gain.setValueAtTime(0.15, now + i * 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3 + i * 0.05);
+                osc.start(now + i * 0.05);
+                osc.stop(now + 0.4 + i * 0.05);
+            });
+        },
+        
+        // Door creak - low frequency sweep
+        playSoundDoorCreak(ctx, now) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(80, now);
+            osc.frequency.linearRampToValueAtTime(150, now + 0.5);
+            osc.frequency.linearRampToValueAtTime(60, now + 1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 1);
+            osc.start(now);
+            osc.stop(now + 1);
+        },
+        
+        // Thunder - low rumble with noise
+        playSoundThunder(ctx, now) {
+            const bufferSize = ctx.sampleRate * 2;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.5));
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(200, now);
+            const gain = ctx.createGain();
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 2);
+            noise.start(now);
+            noise.stop(now + 2);
+        },
+        
+        // Explosion - noise burst
+        playSoundExplosion(ctx, now) {
+            const bufferSize = ctx.sampleRate;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.15));
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = ctx.createGain();
+            noise.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0.5, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 1);
+            noise.start(now);
+            noise.stop(now + 1);
+        },
+        
+        // Wolf howl - rising tone
+        playSoundWolf(ctx, now) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.linearRampToValueAtTime(400, now + 0.5);
+            osc.frequency.linearRampToValueAtTime(350, now + 1.5);
+            osc.frequency.linearRampToValueAtTime(200, now + 2);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.2, now + 0.3);
+            gain.gain.linearRampToValueAtTime(0.15, now + 1.5);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 2);
+            osc.start(now);
+            osc.stop(now + 2);
+        },
+        
+        // Sword clash - metallic ring
+        playSoundSwordClash(ctx, now) {
+            [2000, 3000, 4000, 2500].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            });
+        },
+        
+        // Magic - sparkly ascending
+        playSoundMagic(ctx, now) {
+            [523, 659, 784, 1047, 1319].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(freq, now + i * 0.1);
+                gain.gain.setValueAtTime(0.15, now + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5 + i * 0.1);
+                osc.start(now + i * 0.1);
+                osc.stop(now + 0.6 + i * 0.1);
+            });
+        },
+        
+        // Heartbeat - two low thuds
+        playSoundHeartbeat(ctx, now) {
+            [0, 0.15, 0.8, 0.95].forEach((t, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(i % 2 === 0 ? 60 : 50, now + t);
+                gain.gain.setValueAtTime(0.3, now + t);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + t + 0.1);
+                osc.start(now + t);
+                osc.stop(now + t + 0.15);
+            });
+        },
+        
+        // Evil laugh - descending
+        playSoundLaugh(ctx, now) {
+            [400, 350, 300, 400, 350, 300, 250].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(freq, now + i * 0.15);
+                gain.gain.setValueAtTime(0.08, now + i * 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.12);
+                osc.start(now + i * 0.15);
+                osc.stop(now + i * 0.15 + 0.15);
+            });
+        },
+        
+        // Glass breaking
+        playSoundGlass(ctx, now) {
+            const bufferSize = ctx.sampleRate * 0.5;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.05));
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.setValueAtTime(3000, now);
+            const gain = ctx.createGain();
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            noise.start(now);
+            noise.stop(now + 0.5);
+        },
+        
+        // Chains rattling
+        playSoundChains(ctx, now) {
+            for (let i = 0; i < 8; i++) {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(1000 + Math.random() * 2000, now + i * 0.08);
+                gain.gain.setValueAtTime(0.1, now + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.06);
+                osc.start(now + i * 0.08);
+                osc.stop(now + i * 0.08 + 0.08);
+            }
+        },
+        
+        // Whisper - filtered noise
+        playSoundWhisper(ctx, now) {
+            const bufferSize = ctx.sampleRate * 1.5;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * 0.3;
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(2000, now);
+            filter.Q.setValueAtTime(5, now);
+            const gain = ctx.createGain();
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.15, now + 0.2);
+            gain.gain.linearRampToValueAtTime(0.1, now + 1);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+            noise.start(now);
+            noise.stop(now + 1.5);
         },
         
         closeBroadcast(btn) {
@@ -2369,6 +3041,113 @@
         @keyframes timerFlash {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
+        }
+        
+        /* Location Banner animations */
+        @keyframes locationSlide {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Boss Intro animations */
+        @keyframes bossFlash {
+            0% { background: #fff; }
+            100% { background: linear-gradient(135deg, #1a0a0a, #2d0a0a); }
+        }
+        
+        @keyframes bossImagePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(239,68,68,0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(239,68,68,0.7); }
+        }
+        
+        @keyframes bossTitle {
+            0% { opacity: 0; transform: scale(2); }
+            50% { transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes bossSubtitle {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes bossBtn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Loot Drop animations */
+        @keyframes lootChest {
+            0% { transform: scale(0) rotate(-20deg); }
+            50% { transform: scale(1.2) rotate(10deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+        
+        @keyframes lootItem {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        /* Level Up animations */
+        @keyframes levelUpBounce {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.3); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes levelUpTitle {
+            0% { opacity: 0; transform: scale(3); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes levelNumber {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes confettiFall {
+            0% { top: -20px; transform: rotate(0deg); }
+            100% { top: 100vh; transform: rotate(720deg); }
+        }
+        
+        /* Death Screen animations */
+        @keyframes deathFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes deathContent {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes deathSkull {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* Coin Flip animations */
+        @keyframes coinSpin {
+            0% { transform: rotateY(0deg) scale(0.5); }
+            100% { transform: rotateY(1800deg) scale(1); }
+        }
+        
+        @keyframes coinResult {
+            from { opacity: 0; transform: scale(2); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Break Timer animations */
+        @keyframes breakPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.02); }
+        }
+        
+        /* Time of Day animations */
+        @keyframes timeOfDayContent {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
         }
         
         /* Secondary button style */
