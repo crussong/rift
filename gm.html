@@ -121,6 +121,9 @@
         .poll-types input { accent-color: var(--accent); }
         .poll-btn { padding: 12px 24px; background: var(--accent); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; align-self: flex-end; }
         .poll-btn:hover { filter: brightness(1.1); }
+        .poll-custom { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; }
+        .poll-custom input { padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white; font-size: 13px; }
+        .poll-custom input:focus { outline: none; border-color: var(--accent); }
         
         /* Active Poll */
         .poll-active { padding: 16px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; margin-bottom: 16px; }
@@ -417,9 +420,16 @@
                             <div class="poll-create" id="pollCreate">
                                 <input type="text" id="pollInput" placeholder="Frage eingeben...">
                                 <div class="poll-types">
-                                    <label><input type="radio" name="pollType" value="yesno" checked> Ja / Nein</label>
-                                    <label><input type="radio" name="pollType" value="abc"> A / B / C</label>
-                                    <label><input type="radio" name="pollType" value="numbers"> 1-5</label>
+                                    <label><input type="radio" name="pollType" value="yesno" checked onchange="GM.toggleCustomOptions()"> Ja / Nein</label>
+                                    <label><input type="radio" name="pollType" value="abc" onchange="GM.toggleCustomOptions()"> A / B / C</label>
+                                    <label><input type="radio" name="pollType" value="numbers" onchange="GM.toggleCustomOptions()"> 1-5</label>
+                                    <label><input type="radio" name="pollType" value="custom" onchange="GM.toggleCustomOptions()"> ✏️ Custom</label>
+                                </div>
+                                <div class="poll-custom" id="pollCustomOptions" style="display:none;">
+                                    <input type="text" id="pollOpt1" placeholder="Option 1">
+                                    <input type="text" id="pollOpt2" placeholder="Option 2">
+                                    <input type="text" id="pollOpt3" placeholder="Option 3 (optional)">
+                                    <input type="text" id="pollOpt4" placeholder="Option 4 (optional)">
                                 </div>
                                 <button class="poll-btn" onclick="GM.startPoll()">Poll starten</button>
                             </div>
@@ -878,6 +888,12 @@
                 }).join('');
             },
             
+            toggleCustomOptions() {
+                const type = document.querySelector('input[name="pollType"]:checked').value;
+                const customBox = document.getElementById('pollCustomOptions');
+                customBox.style.display = type === 'custom' ? 'flex' : 'none';
+            },
+            
             async startPoll() {
                 const q = document.getElementById('pollInput').value.trim();
                 if (!q) { this.toast('Frage eingeben!', 'error'); return; }
@@ -885,14 +901,34 @@
                 let options;
                 if (type === 'yesno') options = ['Ja', 'Nein'];
                 else if (type === 'abc') options = ['A', 'B', 'C'];
-                else options = ['1', '2', '3', '4', '5'];
+                else if (type === 'numbers') options = ['1', '2', '3', '4', '5'];
+                else if (type === 'custom') {
+                    // Custom options
+                    const opt1 = document.getElementById('pollOpt1').value.trim();
+                    const opt2 = document.getElementById('pollOpt2').value.trim();
+                    const opt3 = document.getElementById('pollOpt3').value.trim();
+                    const opt4 = document.getElementById('pollOpt4').value.trim();
+                    
+                    if (!opt1 || !opt2) {
+                        this.toast('Mindestens 2 Optionen!', 'error');
+                        return;
+                    }
+                    options = [opt1, opt2];
+                    if (opt3) options.push(opt3);
+                    if (opt4) options.push(opt4);
+                }
                 try {
                     await this.ref().update({
                         poll: { question: q, options, votes: {}, active: true, timestamp: firebase.firestore.FieldValue.serverTimestamp() }
                     });
                     document.getElementById('pollInput').value = '';
+                    // Clear custom options
+                    ['pollOpt1', 'pollOpt2', 'pollOpt3', 'pollOpt4'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.value = '';
+                    });
                     this.toast('Poll gestartet!', 'success');
-                } catch (e) { this.toast('Fehler', 'error'); }
+                } catch (e) { this.toast('Fehler', 'error'); console.error(e); }
             },
             
             async closePoll() {
