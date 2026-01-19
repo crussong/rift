@@ -58,24 +58,30 @@
                     
                     // Check if current user is GM (GMs don't see their own broadcasts/polls)
                     const isGM = this.checkIfGM(data);
-                    if (isGM) {
-                        console.log('[Broadcast] User is GM, skipping popups');
-                        return;
-                    }
                     
-                    // Handle Broadcast
+                    // Handle Broadcast (GM doesn't see own broadcasts)
                     if (broadcast && broadcast.id && String(broadcast.id) !== this.lastBroadcastId) {
                         this.lastBroadcastId = String(broadcast.id);
                         localStorage.setItem('rift_last_broadcast_id', String(broadcast.id));
-                        this.showBroadcast(broadcast);
+                        
+                        if (!isGM) {
+                            this.showBroadcast(broadcast);
+                        } else {
+                            console.log('[Broadcast] Skipping broadcast for GM');
+                        }
                     }
                     
-                    // Handle Poll
+                    // Handle Poll (GM doesn't see poll popup, they have their own UI)
                     if (poll && poll.active) {
+                        console.log('[Broadcast] Poll detected:', poll);
                         const pollId = poll.timestamp?.seconds || poll.timestamp || Date.now();
                         const hasVoted = localStorage.getItem('rift_poll_voted_' + pollId);
+                        const alreadyShowing = document.querySelector('.poll-overlay');
                         
-                        if (!hasVoted && !document.querySelector('.poll-overlay')) {
+                        console.log('[Broadcast] Poll check - pollId:', pollId, 'hasVoted:', hasVoted, 'alreadyShowing:', !!alreadyShowing, 'isGM:', isGM);
+                        
+                        if (!isGM && !hasVoted && !alreadyShowing) {
+                            console.log('[Broadcast] Showing poll to user');
                             this.showPoll(poll, pollId, normalizedCode);
                         }
                     }
@@ -86,14 +92,17 @@
         
         checkIfGM(roomData) {
             const uid = window.firebase?.auth?.()?.currentUser?.uid;
-            if (!uid) return false;
+            console.log('[Broadcast] Checking GM status - uid:', uid, 'gmId:', roomData.gmId);
             
-            // Check gmId field
-            if (roomData.gmId === uid) return true;
+            if (!uid) {
+                console.log('[Broadcast] No uid, not GM');
+                return false;
+            }
             
-            // Check localStorage fallback
-            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-            return userData.isGM === true;
+            // Only check Firebase gmId - localStorage can be stale
+            const isGM = roomData.gmId === uid;
+            console.log('[Broadcast] Is GM:', isGM);
+            return isGM;
         },
         
         showBroadcast(broadcast) {
