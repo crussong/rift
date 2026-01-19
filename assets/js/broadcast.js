@@ -176,6 +176,15 @@
                 case 'reaction':
                     this.showReaction(broadcast);
                     break;
+                case 'toast':
+                    this.showToast(broadcast);
+                    break;
+                case 'timer':
+                    this.showTimer(broadcast);
+                    break;
+                case 'statusRequest':
+                    this.showStatusRequest(broadcast);
+                    break;
                 default:
                     this.showStandardBroadcast(broadcast);
             }
@@ -340,7 +349,9 @@
         
         // Handout - full screen image display
         showHandout(broadcast) {
-            this.playBroadcastSound('notification');
+            if (broadcast.sound && broadcast.sound !== 'none') {
+                this.playBroadcastSound(broadcast.sound);
+            }
             
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay handout-overlay';
@@ -387,6 +398,7 @@
             let textAnimation = 'sceneTextIn 2s ease';
             let overlayIn = 'fadeIn 1s ease';
             let overlayOut = 'fadeOut 1s ease forwards';
+            let extraStyle = '';
             
             if (style === 'slide') {
                 overlayIn = 'sceneSlideIn 0.8s ease';
@@ -396,15 +408,38 @@
                 overlayIn = 'sceneZoomIn 0.6s ease';
                 overlayOut = 'sceneZoomOut 0.6s ease forwards';
                 textAnimation = 'sceneTextZoom 2s ease';
+            } else if (style === 'blur') {
+                overlayIn = 'sceneBlurIn 1.2s ease';
+                overlayOut = 'sceneBlurOut 1.2s ease forwards';
+                textAnimation = 'sceneTextBlur 2s ease';
+                extraStyle = 'backdrop-filter: blur(20px);';
+            } else if (style === 'glitch') {
+                overlayIn = 'sceneGlitchIn 0.5s steps(10)';
+                overlayOut = 'sceneGlitchOut 0.5s steps(10) forwards';
+                textAnimation = 'sceneTextGlitch 2s ease';
+            } else if (style === 'curtain') {
+                overlayIn = 'sceneCurtainIn 1s ease';
+                overlayOut = 'sceneCurtainOut 1s ease forwards';
+                textAnimation = 'sceneTextCurtain 2s ease';
             }
             
             overlay.style.animation = overlayIn;
+            if (extraStyle) overlay.style.cssText += extraStyle;
+            
+            const glitchExtra = style === 'glitch' ? `
+                <div class="glitch-lines" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">
+                    <div style="position:absolute;left:0;right:0;height:2px;background:rgba(255,0,0,0.3);animation:glitchLine 0.2s infinite;"></div>
+                    <div style="position:absolute;left:0;right:0;height:1px;background:rgba(0,255,255,0.3);animation:glitchLine 0.15s 0.05s infinite;"></div>
+                </div>
+            ` : '';
             
             overlay.innerHTML = `
+                ${glitchExtra}
                 <div class="scene-text" style="
                     font-size: clamp(24px, 5vw, 48px); font-weight: 300; color: white; text-align: center;
                     font-style: italic; letter-spacing: 2px; padding: 20px;
                     animation: ${textAnimation};
+                    ${style === 'glitch' ? 'text-shadow: 2px 0 #ff0000, -2px 0 #00ffff;' : ''}
                 ">${this.escapeHtml(broadcast.text)}</div>
             `;
             
@@ -570,7 +605,7 @@
                 },
                 sea: { 
                     css: `background: linear-gradient(rgba(0,80,120,0.15) 0%, rgba(0,50,80,0.25) 100%);`,
-                    particles: 'wave',
+                    particles: 'seafoam',
                     sway: true
                 },
                 forest: { 
@@ -584,7 +619,7 @@
                 },
                 cave: { 
                     css: `background: radial-gradient(ellipse at center, rgba(30,30,30,0.3) 0%, rgba(0,0,0,0.7) 80%);`,
-                    particles: 'drip'
+                    particles: 'caveDrip'
                 },
                 stars: { 
                     css: `background: linear-gradient(rgba(10,10,30,0.3) 0%, rgba(5,5,20,0.4) 100%);`,
@@ -625,7 +660,9 @@
                 'leaf': () => this.createLeafEffect(),
                 'sand': () => this.createSandEffect(),
                 'star': () => this.createStarEffect(),
-                'ash': () => this.createAshEffect()
+                'ash': () => this.createAshEffect(),
+                'seafoam': () => this.createSeafoamEffect(),
+                'caveDrip': () => this.createCaveDripEffect()
             };
             
             if (effect.particles && particleMap[effect.particles]) {
@@ -935,6 +972,70 @@
             return ash;
         },
         
+        // Seafoam effect for sea - horizontal foam lines
+        createSeafoamEffect() {
+            let foam = '';
+            // Horizontal foam lines
+            for (let i = 0; i < 8; i++) {
+                const bottom = 10 + i * 10;
+                const delay = i * 0.3;
+                const width = 80 + Math.random() * 40;
+                foam += `<div style="
+                    position: absolute; bottom: ${bottom}%; left: ${-20 + Math.random() * 20}%;
+                    width: ${width}%; height: 3px;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), rgba(200,230,255,0.4), rgba(255,255,255,0.3), transparent);
+                    border-radius: 50%;
+                    animation: foamMove ${4 + i * 0.5}s ease-in-out ${delay}s infinite;
+                    filter: blur(1px);
+                "></div>`;
+            }
+            // Floating foam spots
+            for (let i = 0; i < 20; i++) {
+                const left = Math.random() * 100;
+                const bottom = Math.random() * 60;
+                const delay = Math.random() * 4;
+                const size = 3 + Math.random() * 6;
+                foam += `<div style="
+                    position: absolute; bottom: ${bottom}%; left: ${left}%;
+                    width: ${size}px; height: ${size * 0.5}px;
+                    background: rgba(255,255,255,0.4);
+                    border-radius: 50%;
+                    animation: foamBob ${2 + Math.random() * 2}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return foam;
+        },
+        
+        // Cave drip effect - blue/white water drops
+        createCaveDripEffect() {
+            let drips = '';
+            for (let i = 0; i < 15; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 5;
+                const duration = 2.5 + Math.random() * 2;
+                drips += `<div style="
+                    position: absolute; top: -10px; left: ${left}%;
+                    width: 2px; height: 12px;
+                    background: linear-gradient(rgba(180,220,255,0.7), rgba(100,180,220,0.4));
+                    border-radius: 0 0 2px 2px;
+                    animation: caveDrip ${duration}s ease-in ${delay}s infinite;
+                "></div>`;
+            }
+            // Occasional splash at bottom
+            for (let i = 0; i < 5; i++) {
+                const left = 10 + Math.random() * 80;
+                const delay = Math.random() * 6;
+                drips += `<div style="
+                    position: absolute; bottom: 5%; left: ${left}%;
+                    width: 8px; height: 4px;
+                    background: rgba(180,220,255,0.3);
+                    border-radius: 50%;
+                    animation: caveSplash 3s ease-out ${delay}s infinite;
+                "></div>`;
+            }
+            return drips;
+        },
+        
         // Lightning flash for storm
         lightningInterval: null,
         startLightningEffect() {
@@ -992,6 +1093,150 @@
             
             document.body.appendChild(overlay);
             setTimeout(() => overlay.remove(), 1500);
+        },
+        
+        // Quick Toast - simple notification
+        showToast(broadcast) {
+            const toast = document.createElement('div');
+            toast.className = 'broadcast-toast';
+            toast.style.cssText = `
+                position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+                background: rgba(30,30,30,0.95); border: 1px solid rgba(255,255,255,0.1);
+                padding: 16px 32px; border-radius: 12px; z-index: 99999;
+                font-size: 18px; color: white; font-weight: 500;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+                backdrop-filter: blur(10px);
+            `;
+            toast.textContent = broadcast.message;
+            
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        },
+        
+        // Timer - countdown display
+        showTimer(broadcast) {
+            // Remove existing timer
+            document.querySelectorAll('.broadcast-timer-overlay').forEach(el => el.remove());
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-timer-overlay';
+            overlay.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 99998;
+                background: rgba(20,20,20,0.95); border: 2px solid rgba(139,92,246,0.5);
+                padding: 16px 24px; border-radius: 16px;
+                text-align: center; min-width: 150px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                backdrop-filter: blur(10px);
+            `;
+            
+            const label = broadcast.label || 'Timer';
+            const endTime = broadcast.startTime + (broadcast.seconds * 1000);
+            
+            overlay.innerHTML = `
+                <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">${this.escapeHtml(label)}</div>
+                <div class="timer-display" style="font-size: 48px; font-weight: 700; color: white; font-variant-numeric: tabular-nums;"></div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            const timerDisplay = overlay.querySelector('.timer-display');
+            
+            const updateTimer = () => {
+                const remaining = Math.max(0, endTime - Date.now());
+                const seconds = Math.ceil(remaining / 1000);
+                
+                if (seconds <= 0) {
+                    timerDisplay.textContent = '0:00';
+                    timerDisplay.style.color = '#ef4444';
+                    overlay.style.borderColor = 'rgba(239,68,68,0.5)';
+                    overlay.style.animation = 'timerFlash 0.5s ease infinite';
+                    
+                    // Remove after 5 seconds when done
+                    setTimeout(() => {
+                        overlay.style.animation = 'fadeOut 0.3s ease forwards';
+                        setTimeout(() => overlay.remove(), 300);
+                    }, 5000);
+                    return;
+                }
+                
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                timerDisplay.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                
+                // Warning colors
+                if (seconds <= 10) {
+                    timerDisplay.style.color = '#ef4444';
+                    overlay.style.borderColor = 'rgba(239,68,68,0.5)';
+                } else if (seconds <= 30) {
+                    timerDisplay.style.color = '#f59e0b';
+                    overlay.style.borderColor = 'rgba(245,158,11,0.5)';
+                }
+                
+                requestAnimationFrame(updateTimer);
+            };
+            
+            updateTimer();
+        },
+        
+        // Status Request - show status picker for player
+        showStatusRequest(broadcast) {
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay status-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                background: rgba(0,0,0,0.8); display: flex;
+                align-items: center; justify-content: center;
+                animation: fadeIn 0.3s ease;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="background: #1a1a1a; border-radius: 20px; padding: 32px; text-align: center; max-width: 400px;">
+                    <h2 style="margin: 0 0 8px; font-size: 24px; color: white;">Status Update</h2>
+                    <p style="color: rgba(255,255,255,0.6); margin: 0 0 24px;">Wie ist dein Status?</p>
+                    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('ready', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(34,197,94,0.2); border: 2px solid #22c55e; border-radius: 12px; color: white; cursor: pointer;">
+                            ✅ Bereit
+                        </button>
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('thinking', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(245,158,11,0.2); border: 2px solid #f59e0b; border-radius: 12px; color: white; cursor: pointer;">
+                            🤔 Überlege
+                        </button>
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('busy', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(239,68,68,0.2); border: 2px solid #ef4444; border-radius: 12px; color: white; cursor: pointer;">
+                            🔴 Beschäftigt
+                        </button>
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('afk', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(100,100,100,0.2); border: 2px solid #666; border-radius: 12px; color: white; cursor: pointer;">
+                            💤 AFK
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        },
+        
+        async sendStatus(status, btn) {
+            const overlay = btn.closest('.broadcast-overlay');
+            const uid = window.firebase?.auth?.()?.currentUser?.uid;
+            const roomCode = localStorage.getItem('rift_current_room');
+            
+            if (!uid || !roomCode) {
+                overlay?.remove();
+                return;
+            }
+            
+            try {
+                await window.firebase.firestore()
+                    .collection('rooms').doc(roomCode)
+                    .collection('player_status').doc(uid)
+                    .set({
+                        status,
+                        updatedAt: Date.now()
+                    });
+            } catch (e) {
+                console.error('[Status] Error:', e);
+            }
+            
+            overlay?.remove();
         },
         
         // Sound player with different types
@@ -1763,6 +2008,74 @@
             100% { opacity: 1; transform: scale(1); }
         }
         
+        /* Blur scene transitions */
+        @keyframes sceneBlurIn {
+            from { opacity: 0; filter: blur(30px); }
+            to { opacity: 1; filter: blur(0); }
+        }
+        
+        @keyframes sceneBlurOut {
+            from { opacity: 1; filter: blur(0); }
+            to { opacity: 0; filter: blur(30px); }
+        }
+        
+        @keyframes sceneTextBlur {
+            0% { opacity: 0; filter: blur(20px); transform: scale(1.2); }
+            40% { opacity: 1; filter: blur(0); transform: scale(1); }
+            100% { opacity: 1; filter: blur(0); transform: scale(1); }
+        }
+        
+        /* Glitch scene transitions */
+        @keyframes sceneGlitchIn {
+            0% { opacity: 0; transform: translateX(-10px); }
+            10% { opacity: 1; transform: translateX(5px); }
+            20% { transform: translateX(-5px); }
+            30% { transform: translateX(3px); }
+            40% { transform: translateX(-3px); }
+            50% { transform: translateX(2px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes sceneGlitchOut {
+            0% { opacity: 1; transform: translateX(0); }
+            50% { transform: translateX(5px); }
+            60% { transform: translateX(-8px); }
+            70% { transform: translateX(10px); }
+            80% { opacity: 0.5; transform: translateX(-5px); }
+            100% { opacity: 0; transform: translateX(20px); }
+        }
+        
+        @keyframes sceneTextGlitch {
+            0% { opacity: 0; transform: skewX(-20deg); }
+            20% { opacity: 1; transform: skewX(10deg); }
+            40% { transform: skewX(-5deg); }
+            60% { transform: skewX(2deg); }
+            100% { opacity: 1; transform: skewX(0); }
+        }
+        
+        @keyframes glitchLine {
+            0% { top: 0%; }
+            50% { top: 50%; }
+            100% { top: 100%; }
+        }
+        
+        /* Curtain scene transitions */
+        @keyframes sceneCurtainIn {
+            0% { clip-path: inset(50% 0 50% 0); }
+            100% { clip-path: inset(0 0 0 0); }
+        }
+        
+        @keyframes sceneCurtainOut {
+            0% { clip-path: inset(0 0 0 0); }
+            100% { clip-path: inset(0 50% 0 50%); }
+        }
+        
+        @keyframes sceneTextCurtain {
+            0% { opacity: 0; letter-spacing: 20px; }
+            40% { opacity: 1; letter-spacing: 2px; }
+            100% { opacity: 1; letter-spacing: 2px; }
+        }
+        
         @keyframes revealTitle {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -1928,6 +2241,48 @@
             0% { top: -20px; opacity: 0.6; transform: translateX(0) rotate(0deg); }
             50% { transform: translateX(15px) rotate(180deg); }
             100% { top: 100vh; opacity: 0.2; transform: translateX(-10px) rotate(360deg); }
+        }
+        
+        /* Seafoam animations */
+        @keyframes foamMove {
+            0%, 100% { transform: translateX(-5%) scaleX(1); opacity: 0.3; }
+            50% { transform: translateX(10%) scaleX(1.1); opacity: 0.5; }
+        }
+        
+        @keyframes foamBob {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-5px) translateX(3px); }
+            50% { transform: translateY(0) translateX(6px); }
+            75% { transform: translateY(5px) translateX(3px); }
+        }
+        
+        /* Cave drip animations */
+        @keyframes caveDrip {
+            0% { top: -10px; opacity: 0.8; }
+            100% { top: 95vh; opacity: 0.3; }
+        }
+        
+        @keyframes caveSplash {
+            0%, 70% { transform: scale(0); opacity: 0; }
+            75% { transform: scale(1); opacity: 0.5; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        /* Toast animations */
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(-50%) translateY(0); }
+            to { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+        
+        /* Timer animations */
+        @keyframes timerFlash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         /* Secondary button style */
