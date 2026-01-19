@@ -1480,7 +1480,6 @@
                     
                     // Find winner(s)
                     const maxVotes = Math.max(...Object.values(voteCounts), 0);
-                    const winners = options.filter(opt => voteCounts[opt] === maxVotes);
                     
                     // Build results array
                     const results = options.map((opt, i) => ({
@@ -1490,14 +1489,17 @@
                         isWinner: voteCounts[opt] === maxVotes && maxVotes > 0
                     }));
                     
-                    // Update poll with resolved state and results
-                    await this.ref().update({
-                        'poll.active': false,
-                        'poll.resolved': true,
-                        'poll.results': results,
-                        'poll.totalVotes': Object.values(voteCounts).reduce((a, b) => a + b, 0),
-                        'poll.resolvedAt': firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    // Build complete poll object (not dot-notation)
+                    const resolvedPoll = {
+                        ...this.currentPoll,
+                        active: false,
+                        resolved: true,
+                        results: results,
+                        totalVotes: Object.values(voteCounts).reduce((a, b) => a + b, 0),
+                        resolvedAt: Date.now() // Use client timestamp for immediate availability
+                    };
+                    
+                    await this.ref().update({ poll: resolvedPoll });
                     
                     this.toast('Poll aufgelöst!', 'success');
                 } catch (e) { 
