@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="view-transition" content="same-origin">
     <title>RIFT – GM Kontrollzentrum</title>
     
     <link rel="stylesheet" href="assets/css/core.css">
@@ -11,597 +10,207 @@
     <link rel="stylesheet" href="assets/css/sidebar.css">
     <link rel="stylesheet" href="assets/css/topbar.css">
     <link rel="stylesheet" href="assets/css/footer.css">
-    <link rel="stylesheet" href="assets/css/settings.css">
     
     <style>
-        /* ========================================
-           GM KONTROLLZENTRUM - TAB LAYOUT
-           ======================================== */
-        
-        .gm-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .gm { max-width: 900px; margin: 0 auto; padding: 20px; }
         
         /* Header */
-        .gm-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
+        .gm-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .gm-header__icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: rgba(255,70,85,0.15); border-radius: 12px; color: var(--accent); }
+        .gm-header__icon svg { width: 28px; height: 28px; }
+        .gm-header__info { flex: 1; }
+        .gm-header__title { font-size: 24px; font-weight: 700; color: white; margin: 0 0 4px 0; }
+        .gm-header__room { font-size: 14px; color: rgba(255,255,255,0.5); margin: 0; }
+        .gm-header__room code { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-family: monospace; color: var(--accent); cursor: pointer; }
+        .gm-header__room code:hover { background: rgba(255,255,255,0.15); }
         
-        .gm-header__icon {
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,70,85,0.15);
-            border-radius: 12px;
-            color: var(--accent);
-        }
+        /* Tabs */
+        .gm-tabs { display: flex; gap: 4px; margin-bottom: 24px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 12px; overflow-x: auto; }
+        .gm-tab { flex: 1; min-width: 70px; padding: 12px 14px; background: transparent; border: none; border-radius: 8px; color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .gm-tab:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.05); }
+        .gm-tab--active { color: white; background: rgba(255,70,85,0.15); }
         
-        .gm-header__icon svg {
-            width: 28px;
-            height: 28px;
-        }
+        /* Content */
+        .gm-content { display: none; }
+        .gm-content--active { display: block; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .gm-header__info {
-            flex: 1;
-        }
+        /* Section */
+        .gm-section { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .gm-section__title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .gm-section__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .gm-section__header .gm-section__title { margin-bottom: 0; }
         
-        .gm-header__title {
-            font-size: 24px;
-            font-weight: 700;
-            color: white;
-            margin: 0 0 4px 0;
-        }
-        
-        .gm-header__room {
-            font-size: 14px;
-            color: rgba(255,255,255,0.5);
-        }
-        
-        .gm-header__room code {
-            background: rgba(255,255,255,0.1);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-family: monospace;
-            color: var(--accent);
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .gm-header__room code:hover {
-            background: rgba(255,255,255,0.15);
-        }
-        
-        /* Tab Navigation */
-        .gm-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 24px;
-            padding: 4px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            overflow-x: auto;
-        }
-        
-        .gm-tab {
-            flex: 1;
-            min-width: 100px;
-            padding: 12px 16px;
-            background: transparent;
-            border: none;
-            border-radius: 8px;
-            color: rgba(255,255,255,0.5);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-        
-        .gm-tab:hover {
-            color: rgba(255,255,255,0.8);
-            background: rgba(255,255,255,0.05);
-        }
-        
-        .gm-tab--active {
-            color: white;
-            background: rgba(255,70,85,0.15);
-        }
-        
-        /* Tab Content */
-        .gm-content {
-            display: none;
-        }
-        
-        .gm-content--active {
-            display: block;
-            animation: fadeIn 0.2s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Section Styling */
-        .gm-section {
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-        
-        .gm-section__title {
-            font-size: 13px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.4);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 16px;
-        }
-        
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
-        }
-        
-        .stat-card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 10px;
-            padding: 16px;
-            text-align: center;
-        }
-        
-        .stat-card__value {
-            font-size: 28px;
-            font-weight: 700;
-            color: white;
-            line-height: 1;
-        }
-        
-        .stat-card__value--accent { color: var(--accent); }
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; }
+        .stat-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; text-align: center; }
+        .stat-card__value { font-size: 28px; font-weight: 700; color: white; line-height: 1; }
         .stat-card__value--green { color: #22c55e; }
         .stat-card__value--purple { color: #a78bfa; }
+        .stat-card__value--orange { color: #f97316; }
+        .stat-card__label { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 6px; }
         
-        .stat-card__label {
-            font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            margin-top: 6px;
-        }
+        /* Session Timer */
+        .session-timer { display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05)); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; margin-bottom: 16px; }
+        .session-timer__pulse { width: 12px; height: 12px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); } 50% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } }
+        .session-timer__info { flex: 1; }
+        .session-timer__label { font-size: 11px; font-weight: 700; color: #22c55e; letter-spacing: 1px; }
+        .session-timer__name { font-size: 16px; font-weight: 600; color: white; }
+        .session-timer__time { font-size: 28px; font-weight: 700; color: white; font-family: monospace; }
+        .session-timer__stop { padding: 10px 20px; background: rgba(255,70,85,0.15); border: none; border-radius: 8px; color: var(--accent); font-weight: 600; cursor: pointer; }
+        .session-timer__stop:hover { background: rgba(255,70,85,0.25); }
         
         /* Quick Actions */
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 10px;
-        }
+        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
+        .quick-action { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; transition: all 0.2s; }
+        .quick-action:hover { background: rgba(255,255,255,0.06); color: white; }
+        .quick-action svg { width: 24px; height: 24px; opacity: 0.6; }
         
-        .quick-action {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 16px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 10px;
-            color: rgba(255,255,255,0.8);
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
+        /* Character Cards */
+        .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+        .char-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; }
+        .char-card__header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .char-card__avatar { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: white; }
+        .char-card__info { flex: 1; min-width: 0; }
+        .char-card__name { font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .char-card__meta { font-size: 12px; color: rgba(255,255,255,0.5); }
+        .char-card__online { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; }
+        .char-card__online--offline { background: rgba(255,255,255,0.2); }
         
-        .quick-action:hover {
-            background: rgba(255,255,255,0.06);
-            border-color: rgba(255,255,255,0.1);
-            color: white;
-        }
+        /* HP Bar */
+        .hp-section { margin-top: 12px; }
+        .hp-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+        .hp-header__label { color: rgba(255,255,255,0.5); }
+        .hp-header__value { color: white; font-weight: 600; }
+        .hp-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .hp-bar__fill { height: 100%; border-radius: 4px; transition: width 0.3s, background 0.3s; }
+        .hp-bar__fill--high { background: #22c55e; }
+        .hp-bar__fill--mid { background: #f97316; }
+        .hp-bar__fill--low { background: #ef4444; }
+        .hp-controls { display: flex; gap: 6px; margin-top: 10px; }
+        .hp-controls input { width: 50px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white; text-align: center; font-size: 13px; }
+        .hp-controls input:focus { outline: none; border-color: var(--accent); }
+        .hp-btn { padding: 6px 10px; border: none; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; }
+        .hp-btn--dmg { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .hp-btn--dmg:hover { background: rgba(239,68,68,0.3); }
+        .hp-btn--heal { background: rgba(34,197,94,0.2); color: #22c55e; }
+        .hp-btn--heal:hover { background: rgba(34,197,94,0.3); }
         
-        .quick-action svg {
-            width: 20px;
-            height: 20px;
-            opacity: 0.6;
-        }
+        /* Log List */
+        .log-list { max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .log-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; font-size: 13px; }
+        .log-item__time { font-size: 11px; color: rgba(255,255,255,0.3); min-width: 45px; }
+        .log-item__icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; flex-shrink: 0; font-size: 14px; }
+        .log-item__icon--dice { background: rgba(139,92,246,0.2); }
+        .log-item__icon--chat { background: rgba(59,130,246,0.2); }
+        .log-item__icon--join { background: rgba(34,197,94,0.2); }
+        .log-item__icon--leave { background: rgba(239,68,68,0.2); }
+        .log-item__icon--edit { background: rgba(251,191,36,0.2); }
+        .log-item__content { flex: 1; min-width: 0; color: rgba(255,255,255,0.8); }
+        .log-item__user { font-weight: 600; color: white; }
+        .log-item__result { font-weight: 700; color: #a78bfa; margin-left: 4px; }
         
-        /* Player List */
-        .player-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
+        /* Poll */
+        .poll-create { display: flex; flex-direction: column; gap: 12px; }
+        .poll-create input { padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; }
+        .poll-create input:focus { outline: none; border-color: var(--accent); }
+        .poll-create input::placeholder { color: rgba(255,255,255,0.3); }
+        .poll-types { display: flex; gap: 8px; flex-wrap: wrap; }
+        .poll-types label { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 13px; color: rgba(255,255,255,0.7); cursor: pointer; }
+        .poll-types input { accent-color: var(--accent); }
+        .poll-btn { padding: 12px 24px; background: var(--accent); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; align-self: flex-end; }
+        .poll-btn:hover { filter: brightness(1.1); }
         
-        .player-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 10px;
-        }
+        /* Active Poll */
+        .poll-active { padding: 16px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; margin-bottom: 16px; }
+        .poll-active__header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .poll-active__label { font-size: 11px; font-weight: 700; color: #a78bfa; letter-spacing: 1px; }
+        .poll-active__question { font-size: 16px; font-weight: 600; color: white; margin-top: 4px; }
+        .poll-active__close { padding: 6px 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 6px; color: white; font-size: 12px; cursor: pointer; }
+        .poll-results { display: flex; flex-direction: column; gap: 8px; }
+        .poll-result { display: flex; align-items: center; gap: 10px; }
+        .poll-result__label { min-width: 50px; font-size: 14px; color: rgba(255,255,255,0.8); }
+        .poll-result__bar { flex: 1; height: 28px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; position: relative; }
+        .poll-result__fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #a78bfa); transition: width 0.3s; }
+        .poll-result__count { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: white; }
         
-        .player-item__avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            color: white;
-            font-size: 16px;
-        }
+        /* Broadcast */
+        .broadcast-box textarea { width: 100%; min-height: 80px; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 14px; font-family: inherit; resize: vertical; }
+        .broadcast-box textarea:focus { outline: none; border-color: var(--accent); }
+        .broadcast-box textarea::placeholder { color: rgba(255,255,255,0.3); }
+        .broadcast-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+        .broadcast-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: rgba(255,255,255,0.6); cursor: pointer; }
+        .broadcast-check input { accent-color: var(--accent); }
+        .broadcast-btn { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--accent); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
+        .broadcast-btn:hover { filter: brightness(1.1); }
+        .broadcast-btn svg { width: 18px; height: 18px; }
         
-        .player-item__avatar--offline { opacity: 0.4; }
-        
-        .player-item__info { flex: 1; min-width: 0; }
-        
-        .player-item__name {
-            font-weight: 600;
-            color: white;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .player-item__role {
-            font-size: 12px;
-            color: rgba(255,255,255,0.5);
-        }
-        
-        .player-item__badge {
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
-        .player-item__badge--gm { background: rgba(255,70,85,0.15); color: var(--accent); }
-        .player-item__badge--you { background: rgba(139,92,246,0.15); color: #a78bfa; }
-        
-        .player-item__kick {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,70,85,0.1);
-            border: none;
-            border-radius: 8px;
-            color: var(--accent);
-            cursor: pointer;
-            opacity: 0;
-            transition: all 0.2s ease;
-        }
-        
-        .player-item:hover .player-item__kick { opacity: 1; }
-        .player-item__kick:hover { background: rgba(255,70,85,0.2); }
-        .player-item__kick svg { width: 16px; height: 16px; }
-        
-        /* GM Transfer */
-        .transfer-box {
-            display: flex;
-            gap: 10px;
-            padding: 16px;
-            background: rgba(139,92,246,0.05);
-            border: 1px solid rgba(139,92,246,0.15);
-            border-radius: 10px;
-            margin-top: 16px;
-        }
-        
-        .transfer-box select {
-            flex: 1;
-            padding: 10px 12px;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            color: white;
-            font-size: 14px;
-        }
-        
-        .transfer-box select option { background: #1a1a1a; }
-        
-        .transfer-box button {
-            padding: 10px 20px;
-            background: rgba(139,92,246,0.2);
-            border: none;
-            border-radius: 8px;
-            color: #a78bfa;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .transfer-box button:hover:not(:disabled) { background: rgba(139,92,246,0.3); }
-        .transfer-box button:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* Notes */
+        .notes-box { position: relative; }
+        .notes-box textarea { width: 100%; min-height: 150px; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 14px; font-family: inherit; line-height: 1.6; resize: vertical; }
+        .notes-box textarea:focus { outline: none; border-color: rgba(6,182,212,0.5); }
+        .notes-box__status { position: absolute; top: 12px; right: 12px; font-size: 12px; }
+        .notes-box__status--saving { color: #fbbf24; }
+        .notes-box__status--saved { color: #22c55e; }
         
         /* Session List */
-        .session-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        
-        .session-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 10px;
-        }
-        
-        .session-item__date {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 50px;
-            padding: 8px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-        }
-        
+        .session-list { display: flex; flex-direction: column; gap: 8px; }
+        .session-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 10px; }
+        .session-item__date { display: flex; flex-direction: column; align-items: center; min-width: 50px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 8px; }
         .session-item__day { font-size: 20px; font-weight: 700; line-height: 1; color: white; }
-        .session-item__month { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+        .session-item__month { font-size: 11px; color: rgba(255,255,255,0.5); }
         .session-item__info { flex: 1; }
         .session-item__name { font-weight: 600; color: white; }
         .session-item__time { font-size: 12px; color: rgba(255,255,255,0.5); }
-        
-        .session-item__status {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
-        .session-item__status--live { background: rgba(34,197,94,0.2); color: #22c55e; }
-        
-        .session-item__start {
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(34,197,94,0.15);
-            border: none;
-            border-radius: 8px;
-            color: #22c55e;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
+        .session-item__live { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(34,197,94,0.2); color: #22c55e; }
+        .session-item__start { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(34,197,94,0.15); border: none; border-radius: 8px; color: #22c55e; cursor: pointer; }
         .session-item__start:hover:not(:disabled) { background: rgba(34,197,94,0.25); }
         .session-item__start:disabled { opacity: 0.3; cursor: not-allowed; }
         .session-item__start svg { width: 16px; height: 16px; }
         
-        /* Live Session Banner */
-        .live-banner {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 16px;
-            background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
-            border: 1px solid rgba(34,197,94,0.3);
-            border-radius: 12px;
-            margin-bottom: 16px;
-        }
-        
-        .live-banner__pulse {
-            width: 12px;
-            height: 12px;
-            background: #22c55e;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
-            50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(34,197,94,0); }
-        }
-        
-        .live-banner__info { flex: 1; }
-        .live-banner__label { font-size: 11px; font-weight: 700; color: #22c55e; letter-spacing: 1px; }
-        .live-banner__name { font-size: 16px; font-weight: 600; color: white; }
-        
-        .live-banner__stop {
-            padding: 10px 20px;
-            background: rgba(255,70,85,0.15);
-            border: none;
-            border-radius: 8px;
-            color: var(--accent);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .live-banner__stop:hover { background: rgba(255,70,85,0.25); }
-        
-        /* Broadcast */
-        .broadcast-box {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .broadcast-box textarea {
-            width: 100%;
-            min-height: 100px;
-            padding: 14px;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            color: white;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-        }
-        
-        .broadcast-box textarea:focus { outline: none; border-color: var(--accent); }
-        .broadcast-box textarea::placeholder { color: rgba(255,255,255,0.3); }
-        
-        .broadcast-box__actions {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .broadcast-box__checkbox {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            color: rgba(255,255,255,0.6);
-            cursor: pointer;
-        }
-        
-        .broadcast-box__checkbox input { accent-color: var(--accent); }
-        
-        .broadcast-box__send {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            background: var(--accent);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .broadcast-box__send:hover { filter: brightness(1.1); }
-        .broadcast-box__send svg { width: 18px; height: 18px; }
-        
-        /* GM Notes */
-        .notes-box { position: relative; }
-        
-        .notes-box textarea {
-            width: 100%;
-            min-height: 200px;
-            padding: 14px;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            color: white;
-            font-size: 14px;
-            font-family: inherit;
-            line-height: 1.6;
-            resize: vertical;
-        }
-        
-        .notes-box textarea:focus { outline: none; border-color: rgba(6,182,212,0.5); }
-        .notes-box textarea::placeholder { color: rgba(255,255,255,0.25); }
-        
-        .notes-box__status {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.4);
-        }
-        
-        .notes-box__status--saving { color: #fbbf24; }
-        .notes-box__status--saved { color: #22c55e; }
+        /* Transfer */
+        .transfer-box { display: flex; gap: 10px; padding: 16px; background: rgba(139,92,246,0.05); border: 1px solid rgba(139,92,246,0.15); border-radius: 10px; }
+        .transfer-box select { flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; }
+        .transfer-box select option { background: #1a1a1a; }
+        .transfer-box button { padding: 10px 20px; background: rgba(139,92,246,0.2); border: none; border-radius: 8px; color: #a78bfa; font-weight: 600; cursor: pointer; }
+        .transfer-box button:disabled { opacity: 0.4; cursor: not-allowed; }
         
         /* Danger Zone */
         .danger-section { background: rgba(255,70,85,0.03); border-color: rgba(255,70,85,0.15); }
-        
-        .danger-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px;
-            background: rgba(255,70,85,0.05);
-            border: 1px solid rgba(255,70,85,0.1);
-            border-radius: 10px;
-            margin-bottom: 12px;
-        }
-        
+        .danger-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; background: rgba(255,70,85,0.05); border: 1px solid rgba(255,70,85,0.1); border-radius: 10px; margin-bottom: 12px; }
         .danger-item:last-child { margin-bottom: 0; }
         .danger-item__info h4 { margin: 0 0 4px 0; color: white; font-size: 15px; }
         .danger-item__info p { margin: 0; font-size: 13px; color: rgba(255,255,255,0.5); }
+        .danger-btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .danger-btn--warning { background: rgba(255,200,0,0.15); color: #ffc800; }
+        .danger-btn--danger { background: rgba(255,70,85,0.15); color: var(--accent); }
         
-        .danger-item__btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s ease;
-        }
+        /* Empty & Loading */
+        .empty { text-align: center; padding: 30px 20px; color: rgba(255,255,255,0.4); }
+        .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         
-        .danger-item__btn--warning { background: rgba(255,200,0,0.15); color: #ffc800; }
-        .danger-item__btn--warning:hover { background: rgba(255,200,0,0.25); }
-        .danger-item__btn--danger { background: rgba(255,70,85,0.15); color: var(--accent); }
-        .danger-item__btn--danger:hover { background: rgba(255,70,85,0.25); }
-        
-        /* Empty States */
-        .empty-state { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.4); }
-        .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.3; }
-        .empty-state p { margin: 0; }
-        
-        /* Create Button */
-        .create-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            padding: 14px;
-            background: rgba(255,255,255,0.03);
-            border: 1px dashed rgba(255,255,255,0.15);
-            border-radius: 10px;
-            color: rgba(255,255,255,0.6);
-            font-size: 14px;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            margin-top: 12px;
-        }
-        
-        .create-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.25); color: white; }
-        .create-btn svg { width: 18px; height: 18px; }
+        /* Create Link */
+        .create-link { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; color: rgba(255,255,255,0.6); text-decoration: none; margin-top: 12px; }
+        .create-link:hover { background: rgba(255,255,255,0.06); color: white; }
+        .create-link svg { width: 18px; height: 18px; }
         
         /* Access Denied */
-        .access-denied {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 60vh;
-            text-align: center;
-            padding: 40px;
-        }
-        
+        .access-denied { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; padding: 40px; }
         .access-denied svg { width: 64px; height: 64px; color: rgba(255,255,255,0.2); margin-bottom: 20px; }
         .access-denied h2 { margin: 0 0 8px 0; color: white; }
         .access-denied p { color: rgba(255,255,255,0.5); margin: 0 0 24px 0; }
         .access-denied a { padding: 12px 24px; background: var(--accent); border-radius: 8px; color: white; text-decoration: none; font-weight: 600; }
         
-        /* Spinner */
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
-        
-        /* Responsive */
+        /* Mobile */
         @media (max-width: 600px) {
-            .gm-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-            .gm-tab { min-width: 80px; padding: 10px 12px; font-size: 13px; }
+            .gm-tab { min-width: 55px; padding: 10px 8px; font-size: 11px; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .quick-actions { grid-template-columns: 1fr; }
-            .transfer-box { flex-direction: column; }
-            .danger-item { flex-direction: column; align-items: stretch; text-align: center; }
+            .char-grid { grid-template-columns: 1fr; }
+            .transfer-box, .danger-item { flex-direction: column; align-items: stretch; }
+            .session-timer { flex-wrap: wrap; }
+            .session-timer__time { width: 100%; text-align: center; margin-top: 8px; }
         }
     </style>
 </head>
@@ -610,32 +219,46 @@
         <main class="main">
             <div class="main__content">
                 
-                <div class="gm-container" id="gmContent">
+                <div class="gm" id="gmContent">
                     
+                    <!-- Header -->
                     <div class="gm-header">
                         <div class="gm-header__icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                            </svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                         </div>
                         <div class="gm-header__info">
                             <h1 class="gm-header__title">GM Kontrollzentrum</h1>
-                            <p class="gm-header__room">Raum: <code id="roomCodeDisplay" onclick="GMCtrl.copyCode()">---</code></p>
+                            <p class="gm-header__room">Raum: <code id="roomCodeDisplay" onclick="GM.copyCode()">---</code></p>
                         </div>
                     </div>
                     
+                    <!-- Tabs -->
                     <div class="gm-tabs">
                         <button class="gm-tab gm-tab--active" data-tab="overview">Übersicht</button>
                         <button class="gm-tab" data-tab="players">Spieler</button>
+                        <button class="gm-tab" data-tab="logs">Logs</button>
                         <button class="gm-tab" data-tab="sessions">Sessions</button>
                         <button class="gm-tab" data-tab="tools">Tools</button>
-                        <button class="gm-tab" data-tab="settings">Einstellungen</button>
+                        <button class="gm-tab" data-tab="settings">⚙️</button>
                     </div>
                     
-                    <!-- ÜBERSICHT -->
+                    <!-- ==================== ÜBERSICHT ==================== -->
                     <div class="gm-content gm-content--active" id="tab-overview">
+                        
+                        <!-- Session Timer -->
+                        <div class="session-timer" id="sessionTimer" style="display:none;">
+                            <div class="session-timer__pulse"></div>
+                            <div class="session-timer__info">
+                                <div class="session-timer__label">LIVE SESSION</div>
+                                <div class="session-timer__name" id="timerName">-</div>
+                            </div>
+                            <div class="session-timer__time" id="timerDisplay">00:00:00</div>
+                            <button class="session-timer__stop" onclick="GM.stopSession()">Beenden</button>
+                        </div>
+                        
+                        <!-- Stats -->
                         <div class="gm-section">
-                            <div class="gm-section__title">Raum-Statistiken</div>
+                            <div class="gm-section__title">📊 Statistiken</div>
                             <div class="stats-grid">
                                 <div class="stat-card">
                                     <div class="stat-card__value stat-card__value--green" id="statOnline">0</div>
@@ -646,18 +269,19 @@
                                     <div class="stat-card__label">Spieler</div>
                                 </div>
                                 <div class="stat-card">
-                                    <div class="stat-card__value stat-card__value--purple" id="statSessions">0</div>
-                                    <div class="stat-card__label">Sessions</div>
+                                    <div class="stat-card__value stat-card__value--purple" id="statChars">0</div>
+                                    <div class="stat-card__label">Charaktere</div>
                                 </div>
                                 <div class="stat-card">
-                                    <div class="stat-card__value" id="statRuleset">-</div>
-                                    <div class="stat-card__label">Regelwerk</div>
+                                    <div class="stat-card__value stat-card__value--orange" id="statDice">0</div>
+                                    <div class="stat-card__label">Würfe heute</div>
                                 </div>
                             </div>
                         </div>
                         
+                        <!-- Quick Actions -->
                         <div class="gm-section">
-                            <div class="gm-section__title">Schnellzugriff</div>
+                            <div class="gm-section__title">⚡ Schnellzugriff</div>
                             <div class="quick-actions">
                                 <a href="dice.html" class="quick-action">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/></svg>
@@ -668,81 +292,104 @@
                                     Chat
                                 </a>
                                 <a href="map.html" class="quick-action">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
                                     Karte
                                 </a>
-                                <a href="sessions.html" class="quick-action">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                    Sessions
+                                <a href="notes.html" class="quick-action">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    Notizen
                                 </a>
                             </div>
                         </div>
                         
-                        <div class="gm-section">
-                            <div class="gm-section__title">Raum-Info</div>
-                            <p style="margin:0;color:rgba(255,255,255,0.6);font-size:14px;">
-                                <strong>Erstellt:</strong> <span id="roomCreated">-</span><br>
-                                <strong>Raum-Code:</strong> <span id="roomCodeInfo">-</span>
-                            </p>
-                        </div>
                     </div>
                     
-                    <!-- SPIELER -->
+                    <!-- ==================== SPIELER ==================== -->
                     <div class="gm-content" id="tab-players">
+                        
+                        <!-- Charakter-Übersicht mit HP -->
                         <div class="gm-section">
-                            <div class="gm-section__title">Spieler im Raum</div>
-                            <div class="player-list" id="playerList">
-                                <div class="empty-state"><div class="spinner" style="margin:0 auto 12px;"></div><p>Spieler werden geladen...</p></div>
+                            <div class="gm-section__title">🎭 Charaktere & HP</div>
+                            <div class="char-grid" id="charGrid">
+                                <div class="empty"><div class="spinner"></div><p>Lade Charaktere...</p></div>
                             </div>
-                            <a href="#" class="create-btn" id="inviteBtn">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-                                Spieler einladen
-                            </a>
                         </div>
                         
+                        <!-- GM Transfer -->
                         <div class="gm-section">
-                            <div class="gm-section__title">GM übertragen</div>
-                            <p style="margin:0 0 12px;color:rgba(255,255,255,0.5);font-size:13px;">Übertrage deine GM-Rechte an einen anderen Spieler.</p>
+                            <div class="gm-section__title">👑 GM übertragen</div>
                             <div class="transfer-box">
-                                <select id="transferSelect"><option value="">Spieler auswählen...</option></select>
-                                <button id="transferBtn" disabled>Übertragen</button>
+                                <select id="transferSelect"><option value="">Spieler wählen...</option></select>
+                                <button id="transferBtn" onclick="GM.transferGM()" disabled>Übertragen</button>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <!-- SESSIONS -->
-                    <div class="gm-content" id="tab-sessions">
-                        <div class="live-banner" id="liveBanner" style="display:none;">
-                            <div class="live-banner__pulse"></div>
-                            <div class="live-banner__info">
-                                <div class="live-banner__label">LIVE SESSION</div>
-                                <div class="live-banner__name" id="liveSessionName">-</div>
-                            </div>
-                            <button class="live-banner__stop" id="stopSessionBtn">Beenden</button>
                         </div>
                         
-                        <div class="gm-section">
-                            <div class="gm-section__title">Sessions</div>
-                            <div class="session-list" id="sessionList">
-                                <div class="empty-state"><div class="spinner" style="margin:0 auto 12px;"></div><p>Sessions werden geladen...</p></div>
-                            </div>
-                            <a href="sessions.html?create=true" class="create-btn">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                Neue Session erstellen
-                            </a>
-                        </div>
                     </div>
                     
-                    <!-- TOOLS -->
+                    <!-- ==================== LOGS ==================== -->
+                    <div class="gm-content" id="tab-logs">
+                        
+                        <!-- Würfel-Log -->
+                        <div class="gm-section">
+                            <div class="gm-section__title">🎲 Würfel-Log</div>
+                            <div class="log-list" id="diceLog">
+                                <div class="empty"><p>Noch keine Würfe</p></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Chat-Log -->
+                        <div class="gm-section">
+                            <div class="gm-section__title">💬 Chat-Log</div>
+                            <div class="log-list" id="chatLog">
+                                <div class="empty"><p>Noch keine Nachrichten</p></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Anwesenheits-Log -->
+                        <div class="gm-section">
+                            <div class="gm-section__title">🚪 Anwesenheits-Log</div>
+                            <div class="log-list" id="presenceLog">
+                                <div class="empty"><p>Keine Aktivität</p></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Charakterbogen-Log -->
+                        <div class="gm-section">
+                            <div class="gm-section__title">📝 Charakterbogen-Änderungen</div>
+                            <div class="log-list" id="changeLog">
+                                <div class="empty"><p>Keine Änderungen<br><small style="opacity:0.6">Braucht Charakterbogen-Update für Logging</small></p></div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                    <!-- ==================== SESSIONS ==================== -->
+                    <div class="gm-content" id="tab-sessions">
+                        
+                        <div class="gm-section">
+                            <div class="gm-section__title">📅 Sessions</div>
+                            <div class="session-list" id="sessionList">
+                                <div class="empty"><div class="spinner"></div><p>Lade Sessions...</p></div>
+                            </div>
+                            <a href="sessions.html?create=true" class="create-link">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Neue Session
+                            </a>
+                        </div>
+                        
+                    </div>
+                    
+                    <!-- ==================== TOOLS ==================== -->
                     <div class="gm-content" id="tab-tools">
+                        
+                        <!-- Broadcast -->
                         <div class="gm-section">
                             <div class="gm-section__title">📢 Broadcast</div>
-                            <p style="margin:0 0 12px;color:rgba(255,255,255,0.5);font-size:13px;">Sende eine Nachricht an alle Spieler. Ein Popup erscheint auf allen Geräten.</p>
                             <div class="broadcast-box">
                                 <textarea id="broadcastInput" placeholder="Nachricht an alle Spieler..."></textarea>
-                                <div class="broadcast-box__actions">
-                                    <label class="broadcast-box__checkbox"><input type="checkbox" id="broadcastSound"> 🔔 Mit Sound</label>
-                                    <button class="broadcast-box__send" id="broadcastBtn">
+                                <div class="broadcast-actions">
+                                    <label class="broadcast-check"><input type="checkbox" id="broadcastSound"> 🔔 Mit Sound</label>
+                                    <button class="broadcast-btn" onclick="GM.sendBroadcast()">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                                         Senden
                                     </button>
@@ -750,370 +397,582 @@
                             </div>
                         </div>
                         
+                        <!-- Quick-Poll -->
+                        <div class="gm-section">
+                            <div class="gm-section__title">📊 Quick-Poll</div>
+                            
+                            <!-- Active Poll -->
+                            <div class="poll-active" id="pollActive" style="display:none;">
+                                <div class="poll-active__header">
+                                    <div>
+                                        <div class="poll-active__label">AKTIVE UMFRAGE</div>
+                                        <div class="poll-active__question" id="pollQuestion">-</div>
+                                    </div>
+                                    <button class="poll-active__close" onclick="GM.closePoll()">Beenden</button>
+                                </div>
+                                <div class="poll-results" id="pollResults"></div>
+                            </div>
+                            
+                            <!-- Create Poll -->
+                            <div class="poll-create" id="pollCreate">
+                                <input type="text" id="pollInput" placeholder="Frage eingeben...">
+                                <div class="poll-types">
+                                    <label><input type="radio" name="pollType" value="yesno" checked> Ja / Nein</label>
+                                    <label><input type="radio" name="pollType" value="abc"> A / B / C</label>
+                                    <label><input type="radio" name="pollType" value="numbers"> 1-5</label>
+                                </div>
+                                <button class="poll-btn" onclick="GM.startPoll()">Poll starten</button>
+                            </div>
+                        </div>
+                        
+                        <!-- GM Notizen -->
                         <div class="gm-section">
                             <div class="gm-section__title">📝 GM Notizen</div>
-                            <p style="margin:0 0 12px;color:rgba(255,255,255,0.5);font-size:13px;">Private Notizen nur für dich. Wird automatisch lokal gespeichert.</p>
                             <div class="notes-box">
-                                <textarea id="gmNotesInput" placeholder="• Geheime Plot-Twists&#10;• NPC-Geheimnisse&#10;• Encounter-Ideen"></textarea>
+                                <textarea id="gmNotes" placeholder="Geheime Plot-Twists, NPC-Geheimnisse..."></textarea>
                                 <span class="notes-box__status" id="notesStatus"></span>
                             </div>
                         </div>
+                        
                     </div>
                     
-                    <!-- EINSTELLUNGEN -->
+                    <!-- ==================== SETTINGS ==================== -->
                     <div class="gm-content" id="tab-settings">
+                        
                         <div class="gm-section danger-section">
                             <div class="gm-section__title" style="color:var(--accent);">⚠️ Gefahrenzone</div>
                             <div class="danger-item">
                                 <div class="danger-item__info">
                                     <h4>Raum verlassen</h4>
-                                    <p>Du verlässt den Raum. Ein anderer Spieler wird automatisch GM.</p>
+                                    <p>Du verlierst deine GM-Rechte.</p>
                                 </div>
-                                <button class="danger-item__btn danger-item__btn--warning" id="leaveBtn">Verlassen</button>
+                                <button class="danger-btn danger-btn--warning" onclick="GM.leaveRoom()">Verlassen</button>
                             </div>
                             <div class="danger-item">
                                 <div class="danger-item__info">
                                     <h4>Raum löschen</h4>
-                                    <p>Löscht den Raum und alle Daten unwiderruflich.</p>
+                                    <p>Alle Daten werden gelöscht.</p>
                                 </div>
-                                <button class="danger-item__btn danger-item__btn--danger" id="deleteBtn">Löschen</button>
+                                <button class="danger-btn danger-btn--danger" onclick="GM.deleteRoom()">Löschen</button>
                             </div>
                         </div>
+                        
                     </div>
                     
                 </div>
                 
+                <!-- Access Denied -->
                 <div class="access-denied" id="accessDenied" style="display:none;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     <h2>Zugriff verweigert</h2>
-                    <p>Diese Seite ist nur für den Spielleiter (GM) zugänglich.</p>
-                    <a href="index.html">Zurück zum Hub</a>
+                    <p>Nur für den GM zugänglich.</p>
+                    <a href="index.html">Zurück</a>
                 </div>
                 
             </div>
         </main>
     </div>
     
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="assets/js/firebase-config.js"></script>
     <script src="assets/js/app.js"></script>
-    <script src="assets/js/user-service.js"></script>
     <script src="assets/js/room-service.js"></script>
     <script src="assets/js/layout.js"></script>
     
     <script>
-        const GMCtrl = {
+        const GM = {
             roomCode: null,
+            db: null,
+            unsubs: [],
             members: [],
-            sessions: [],
-            unsubscribeMembers: null,
-            unsubscribeSessions: null,
+            characters: [],
+            liveSession: null,
+            timerInterval: null,
+            presenceLog: [],
             
+            // ============ INIT ============
             async init() {
                 this.roomCode = localStorage.getItem('rift_current_room');
                 if (!this.roomCode) return;
                 
-                const formatted = this.roomCode.replace(/(.{3})(.{3})/, '$1-$2');
-                document.getElementById('roomCodeDisplay').textContent = formatted;
-                document.getElementById('roomCodeInfo').textContent = formatted;
-                
+                document.getElementById('roomCodeDisplay').textContent = this.roomCode.replace(/(.{3})(.{3})/, '$1-$2');
                 this.setupTabs();
                 this.setupEvents();
+                
                 await this.waitForFirebase();
-                await this.loadRoomInfo();
-                this.subscribeToMembers();
-                this.subscribeToSessions();
+                this.db = RIFT.firebase.getFirestore();
+                
+                this.subMembers();
+                this.subSessions();
+                this.subCharacters();
+                this.subDice();
+                this.subChat();
+                this.subPoll();
+                this.subChangelog();
                 this.loadNotes();
             },
             
+            waitForFirebase(t=8000) {
+                return new Promise(r => {
+                    const s = Date.now();
+                    const c = () => RIFT?.firebase?.getFirestore?.() ? r(true) : Date.now()-s>t ? r(false) : setTimeout(c,100);
+                    c();
+                });
+            },
+            
+            ref() { return this.db.collection('rooms').doc(this.roomCode.replace('-','').toUpperCase()); },
+            
+            // ============ TABS ============
             setupTabs() {
                 document.querySelectorAll('.gm-tab').forEach(tab => {
                     tab.addEventListener('click', () => {
                         document.querySelectorAll('.gm-tab').forEach(t => t.classList.remove('gm-tab--active'));
                         tab.classList.add('gm-tab--active');
                         document.querySelectorAll('.gm-content').forEach(c => c.classList.remove('gm-content--active'));
-                        document.getElementById('tab-' + tab.dataset.tab).classList.add('gm-content--active');
+                        document.getElementById('tab-' + tab.dataset.tab)?.classList.add('gm-content--active');
                     });
                 });
             },
             
             setupEvents() {
-                document.getElementById('inviteBtn')?.addEventListener('click', (e) => { e.preventDefault(); this.copyInviteLink(); });
-                document.getElementById('transferSelect')?.addEventListener('change', (e) => { document.getElementById('transferBtn').disabled = !e.target.value; });
-                document.getElementById('transferBtn')?.addEventListener('click', () => this.transferGM());
-                document.getElementById('stopSessionBtn')?.addEventListener('click', () => this.stopSession());
-                document.getElementById('broadcastBtn')?.addEventListener('click', () => this.sendBroadcast());
-                document.getElementById('broadcastInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.ctrlKey) this.sendBroadcast(); });
-                let notesTimer;
-                document.getElementById('gmNotesInput')?.addEventListener('input', () => {
-                    clearTimeout(notesTimer);
+                document.getElementById('transferSelect')?.addEventListener('change', e => {
+                    document.getElementById('transferBtn').disabled = !e.target.value;
+                });
+                document.getElementById('broadcastInput')?.addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && e.ctrlKey) this.sendBroadcast();
+                });
+                document.getElementById('pollInput')?.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') this.startPoll();
+                });
+                let nt;
+                document.getElementById('gmNotes')?.addEventListener('input', () => {
+                    clearTimeout(nt);
                     document.getElementById('notesStatus').textContent = 'Speichert...';
                     document.getElementById('notesStatus').className = 'notes-box__status notes-box__status--saving';
-                    notesTimer = setTimeout(() => this.saveNotes(), 800);
-                });
-                document.getElementById('leaveBtn')?.addEventListener('click', () => this.leaveRoom());
-                document.getElementById('deleteBtn')?.addEventListener('click', () => this.deleteRoom());
-            },
-            
-            waitForFirebase(timeout = 8000) {
-                return new Promise((resolve) => {
-                    const start = Date.now();
-                    const check = () => {
-                        if (RIFT?.firebase?.getFirestore?.()) resolve(true);
-                        else if (Date.now() - start > timeout) resolve(false);
-                        else setTimeout(check, 100);
-                    };
-                    check();
+                    nt = setTimeout(() => this.saveNotes(), 800);
                 });
             },
             
-            async loadRoomInfo() {
-                try {
-                    const room = await RIFT.rooms.getRoom(this.roomCode);
-                    if (!room) return;
-                    if (room.createdAt) {
-                        const date = room.createdAt.toDate ? room.createdAt.toDate() : new Date(room.createdAt);
-                        document.getElementById('roomCreated').textContent = date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                    }
-                    const rulesets = { '5e2024': '5E', 'worldsapart': 'WA', 'htbah': 'HTBAH', 'cyberpunk': 'CPR' };
-                    document.getElementById('statRuleset').textContent = rulesets[room.ruleset] || room.ruleset || '-';
-                } catch (e) { console.error('[GM] Load room failed:', e); }
-            },
-            
-            subscribeToMembers() {
-                if (this.unsubscribeMembers) this.unsubscribeMembers();
-                this.unsubscribeMembers = RIFT.rooms.subscribeToMembers(this.roomCode, (members) => {
-                    this.members = members;
-                    this.renderPlayers(members);
-                    this.updateTransferDropdown(members);
-                    document.getElementById('statOnline').textContent = members.filter(m => m.online).length;
-                    document.getElementById('statPlayers').textContent = members.length;
+            // ============ MEMBERS ============
+            subMembers() {
+                const u = RIFT.rooms.subscribeToMembers(this.roomCode, m => {
+                    // Track presence changes
+                    m.forEach(mem => {
+                        const old = this.members.find(o => o.id === mem.id);
+                        if (!old) {
+                            this.addPresence(mem.displayName || mem.name || '?', 'join');
+                        } else if (old.online !== mem.online) {
+                            this.addPresence(mem.displayName || mem.name || '?', mem.online ? 'join' : 'leave');
+                        }
+                    });
+                    this.members.forEach(old => {
+                        if (!m.find(n => n.id === old.id)) {
+                            this.addPresence(old.displayName || old.name || '?', 'leave');
+                        }
+                    });
+                    
+                    this.members = m;
+                    this.updateTransfer();
+                    document.getElementById('statOnline').textContent = m.filter(x => x.online).length;
+                    document.getElementById('statPlayers').textContent = m.length;
                 });
+                this.unsubs.push(u);
             },
             
-            renderPlayers(members) {
-                const list = document.getElementById('playerList');
+            updateTransfer() {
+                const s = document.getElementById('transferSelect');
                 const uid = firebase?.auth()?.currentUser?.uid;
-                if (!members.length) { list.innerHTML = '<div class="empty-state"><p>Noch keine Spieler</p></div>'; return; }
-                list.innerHTML = members.map(m => {
-                    const name = m.displayName || m.name || 'Unbekannt';
-                    const color = m.color || '#8B5CF6';
-                    const isGM = m.role === 'gm', isYou = m.id === uid, isOnline = m.online === true;
-                    return `<div class="player-item">
-                        <div class="player-item__avatar ${isOnline ? '' : 'player-item__avatar--offline'}" style="background:${color};">${name.charAt(0).toUpperCase()}</div>
-                        <div class="player-item__info"><div class="player-item__name">${name}</div><div class="player-item__role">${isGM ? 'Game Master' : 'Spieler'}${isOnline ? '' : ' · Offline'}</div></div>
-                        ${isGM ? '<span class="player-item__badge player-item__badge--gm">GM</span>' : ''}
-                        ${isYou ? '<span class="player-item__badge player-item__badge--you">Du</span>' : ''}
-                        ${!isGM && !isYou ? `<button class="player-item__kick" onclick="GMCtrl.kickPlayer('${m.id}','${name.replace(/'/g, "\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
-                    </div>`;
-                }).join('');
-            },
-            
-            updateTransferDropdown(members) {
-                const select = document.getElementById('transferSelect');
-                const uid = firebase?.auth()?.currentUser?.uid;
-                const nonGM = members.filter(m => m.role !== 'gm' && m.id !== uid);
-                select.innerHTML = '<option value="">Spieler auswählen...</option>' + nonGM.map(m => `<option value="${m.id}">${m.displayName || m.name || 'Unbekannt'}</option>`).join('');
-            },
-            
-            async kickPlayer(id, name) {
-                if (!confirm(`${name} wirklich entfernen?`)) return;
-                try {
-                    const db = RIFT.firebase.getFirestore();
-                    await db.collection('rooms').doc(this.roomCode.replace('-', '').toUpperCase()).collection('members').doc(id).delete();
-                    this.toast(`${name} entfernt`, 'success');
-                } catch (e) { this.toast('Fehler', 'error'); }
+                const list = this.members.filter(m => m.role !== 'gm' && m.id !== uid);
+                s.innerHTML = '<option value="">Spieler wählen...</option>' + list.map(m => `<option value="${m.id}">${m.displayName || m.name || '?'}</option>`).join('');
             },
             
             async transferGM() {
-                const select = document.getElementById('transferSelect');
-                const targetId = select.value, targetName = select.options[select.selectedIndex].text;
-                if (!targetId || !confirm(`GM-Rechte an "${targetName}" übertragen?`)) return;
+                const s = document.getElementById('transferSelect');
+                if (!s.value || !confirm('GM übertragen?')) return;
                 try {
-                    const db = RIFT.firebase.getFirestore();
-                    const code = this.roomCode.replace('-', '').toUpperCase();
                     const uid = firebase.auth().currentUser?.uid;
-                    await db.collection('rooms').doc(code).collection('members').doc(targetId).update({ role: 'gm' });
-                    await db.collection('rooms').doc(code).collection('members').doc(uid).update({ role: 'player' });
-                    await db.collection('rooms').doc(code).update({ gmId: targetId });
-                    const u = JSON.parse(localStorage.getItem('rift_user') || '{}'); u.isGM = false; localStorage.setItem('rift_user', JSON.stringify(u));
-                    this.toast(`GM an ${targetName} übertragen!`, 'success');
-                    setTimeout(() => window.location.href = 'index.html', 1500);
+                    await this.ref().collection('members').doc(s.value).update({ role: 'gm' });
+                    await this.ref().collection('members').doc(uid).update({ role: 'player' });
+                    await this.ref().update({ gmId: s.value });
+                    this.toast('GM übertragen!', 'success');
+                    setTimeout(() => location.href = 'index.html', 1500);
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
-            subscribeToSessions() {
-                if (this.unsubscribeSessions) this.unsubscribeSessions();
-                this.unsubscribeSessions = RIFT.rooms.subscribeToSessions(this.roomCode, (sessions) => {
-                    this.sessions = sessions;
-                    this.renderSessions(sessions);
-                    document.getElementById('statSessions').textContent = sessions.length;
-                    this.updateLiveBanner(sessions.find(s => s.status === 'live'));
-                });
+            // ============ CHARACTERS ============
+            subCharacters() {
+                const u = this.ref().collection('characters').onSnapshot(snap => {
+                    this.characters = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderChars();
+                    document.getElementById('statChars').textContent = this.characters.length;
+                }, () => {});
+                this.unsubs.push(u);
             },
             
-            renderSessions(sessions) {
-                const list = document.getElementById('sessionList');
-                if (!sessions.length) { list.innerHTML = '<div class="empty-state"><p>Noch keine Sessions</p></div>'; return; }
-                const sorted = [...sessions].sort((a, b) => new Date(a.date) - new Date(b.date));
-                const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-                const hasLive = sessions.some(s => s.status === 'live');
-                list.innerHTML = sorted.map(s => {
-                    const date = new Date(s.date);
-                    const isLive = s.status === 'live';
-                    return `<div class="session-item">
-                        <div class="session-item__date"><span class="session-item__day">${date.getDate()}</span><span class="session-item__month">${months[date.getMonth()]}</span></div>
-                        <div class="session-item__info"><div class="session-item__name">${s.name || 'Unbenannt'}</div><div class="session-item__time">${s.time || '20:00'} Uhr</div></div>
-                        ${isLive ? '<span class="session-item__status session-item__status--live">Live</span>' : `<button class="session-item__start" onclick="GMCtrl.startSession('${s.id}','${(s.name || '').replace(/'/g, "\\'")}')" ${hasLive ? 'disabled' : ''}><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`}
+            renderChars() {
+                const g = document.getElementById('charGrid');
+                if (!this.characters.length) { g.innerHTML = '<div class="empty"><p>Keine Charaktere</p></div>'; return; }
+                
+                g.innerHTML = this.characters.map(c => {
+                    const name = c.name || c.characterName || 'Unbenannt';
+                    const cls = c.class || c.characterClass || c.klasse || '-';
+                    const lvl = c.level || c.stufe || '-';
+                    const color = c.color || '#8b5cf6';
+                    const hp = c.hp ?? c.currentHP ?? c.currentHp ?? 0;
+                    const max = c.maxHp ?? c.maxHP ?? c.hpMax ?? hp || 1;
+                    const pct = Math.round((hp / max) * 100);
+                    const hpClass = pct > 50 ? 'high' : pct > 25 ? 'mid' : 'low';
+                    const owner = this.members.find(m => m.id === c.owner || m.id === c.userId);
+                    const online = owner?.online === true;
+                    
+                    return `<div class="char-card">
+                        <div class="char-card__header">
+                            <div class="char-card__avatar" style="background:${color}">${name[0].toUpperCase()}</div>
+                            <div class="char-card__info">
+                                <div class="char-card__name">${name}</div>
+                                <div class="char-card__meta">${cls} Lvl ${lvl}</div>
+                            </div>
+                            <div class="char-card__online ${online ? '' : 'char-card__online--offline'}"></div>
+                        </div>
+                        <div class="hp-section">
+                            <div class="hp-header"><span class="hp-header__label">HP</span><span class="hp-header__value">${hp} / ${max}</span></div>
+                            <div class="hp-bar"><div class="hp-bar__fill hp-bar__fill--${hpClass}" style="width:${pct}%"></div></div>
+                            <div class="hp-controls">
+                                <input type="number" id="hp-${c.id}" value="5" min="1" max="999">
+                                <button class="hp-btn hp-btn--dmg" onclick="GM.modHP('${c.id}',-1)">−Dmg</button>
+                                <button class="hp-btn hp-btn--heal" onclick="GM.modHP('${c.id}',1)">+Heal</button>
+                            </div>
+                        </div>
                     </div>`;
                 }).join('');
             },
             
-            updateLiveBanner(live) {
-                const banner = document.getElementById('liveBanner');
+            async modHP(id, dir) {
+                const input = document.getElementById('hp-' + id);
+                const amt = parseInt(input.value) || 0;
+                const c = this.characters.find(x => x.id === id);
+                if (!c) return;
+                const hp = c.hp ?? c.currentHP ?? c.currentHp ?? 0;
+                const max = c.maxHp ?? c.maxHP ?? c.hpMax ?? 100;
+                const newHP = Math.max(0, Math.min(max, hp + (amt * dir)));
+                try {
+                    await this.ref().collection('characters').doc(id).update({ hp: newHP, currentHP: newHP, currentHp: newHP });
+                } catch (e) { this.toast('Fehler', 'error'); }
+            },
+            
+            // ============ SESSIONS ============
+            subSessions() {
+                const u = RIFT.rooms.subscribeToSessions(this.roomCode, s => {
+                    this.renderSessions(s);
+                    const live = s.find(x => x.status === 'live');
+                    this.updateTimer(live);
+                });
+                this.unsubs.push(u);
+            },
+            
+            renderSessions(sessions) {
+                const l = document.getElementById('sessionList');
+                if (!sessions.length) { l.innerHTML = '<div class="empty"><p>Keine Sessions</p></div>'; return; }
+                const sorted = [...sessions].sort((a,b) => new Date(a.date) - new Date(b.date));
+                const mon = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+                const hasLive = sessions.some(s => s.status === 'live');
+                
+                l.innerHTML = sorted.map(s => {
+                    const d = new Date(s.date);
+                    const live = s.status === 'live';
+                    return `<div class="session-item">
+                        <div class="session-item__date"><span class="session-item__day">${d.getDate()}</span><span class="session-item__month">${mon[d.getMonth()]}</span></div>
+                        <div class="session-item__info"><div class="session-item__name">${s.name || 'Session'}</div><div class="session-item__time">${s.time || '20:00'} Uhr</div></div>
+                        ${live ? '<span class="session-item__live">Live</span>' : `<button class="session-item__start" onclick="GM.startSession('${s.id}','${(s.name||'').replace(/'/g,"\\'")}')" ${hasLive?'disabled':''}><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg></button>`}
+                    </div>`;
+                }).join('');
+            },
+            
+            updateTimer(live) {
+                const t = document.getElementById('sessionTimer');
                 if (live) {
-                    banner.style.display = 'flex';
-                    document.getElementById('liveSessionName').textContent = live.name || 'Aktive Session';
-                    localStorage.setItem('rift_active_session', live.id);
+                    this.liveSession = live;
+                    t.style.display = 'flex';
+                    document.getElementById('timerName').textContent = live.name || 'Session';
+                    if (this.timerInterval) clearInterval(this.timerInterval);
+                    const start = live.startedAt?.toDate?.() || new Date(live.startedAt) || new Date();
+                    this.timerInterval = setInterval(() => {
+                        const diff = Math.floor((Date.now() - start.getTime()) / 1000);
+                        const h = Math.floor(diff/3600).toString().padStart(2,'0');
+                        const m = Math.floor((diff%3600)/60).toString().padStart(2,'0');
+                        const s = (diff%60).toString().padStart(2,'0');
+                        document.getElementById('timerDisplay').textContent = `${h}:${m}:${s}`;
+                    }, 1000);
                 } else {
-                    banner.style.display = 'none';
-                    localStorage.removeItem('rift_active_session');
+                    t.style.display = 'none';
+                    this.liveSession = null;
+                    if (this.timerInterval) clearInterval(this.timerInterval);
                 }
             },
             
             async startSession(id, name) {
                 try {
-                    const db = RIFT.firebase.getFirestore();
-                    const code = this.roomCode.replace('-', '').toUpperCase();
-                    await db.collection('rooms').doc(code).collection('sessions').doc(id).update({ status: 'live', startedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    await db.collection('rooms').doc(code).update({ activeSession: id });
+                    await this.ref().collection('sessions').doc(id).update({ status: 'live', startedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    await this.ref().update({ activeSession: id });
                     this.toast(`"${name}" gestartet!`, 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
             async stopSession() {
-                const activeId = localStorage.getItem('rift_active_session');
-                if (!activeId || !confirm('Session beenden?')) return;
+                if (!this.liveSession || !confirm('Session beenden?')) return;
                 try {
-                    const db = RIFT.firebase.getFirestore();
-                    const code = this.roomCode.replace('-', '').toUpperCase();
-                    await db.collection('rooms').doc(code).collection('sessions').doc(activeId).update({ status: 'completed', endedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    await db.collection('rooms').doc(code).update({ activeSession: null });
+                    await this.ref().collection('sessions').doc(this.liveSession.id).update({ status: 'completed', endedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    await this.ref().update({ activeSession: null });
                     this.toast('Session beendet', 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
+            // ============ DICE LOG ============
+            subDice() {
+                const today = new Date(); today.setHours(0,0,0,0);
+                const u = this.ref().collection('dice').orderBy('timestamp','desc').limit(30).onSnapshot(snap => {
+                    const rolls = snap.docs.map(d => d.data());
+                    this.renderDice(rolls);
+                    document.getElementById('statDice').textContent = rolls.filter(r => r.timestamp?.toDate?.() >= today).length;
+                }, () => {});
+                this.unsubs.push(u);
+            },
+            
+            renderDice(rolls) {
+                const el = document.getElementById('diceLog');
+                if (!rolls.length) { el.innerHTML = '<div class="empty"><p>Noch keine Würfe</p></div>'; return; }
+                el.innerHTML = rolls.map(r => {
+                    const t = r.timestamp?.toDate?.() || new Date();
+                    return `<div class="log-item">
+                        <span class="log-item__time">${t.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
+                        <div class="log-item__icon log-item__icon--dice">🎲</div>
+                        <div class="log-item__content">
+                            <span class="log-item__user">${r.userName || r.user || '?'}</span> würfelt ${r.diceType || r.dice || '?'}:
+                            <span class="log-item__result">${r.result ?? r.total ?? '?'}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+            
+            // ============ CHAT LOG ============
+            subChat() {
+                const u = this.ref().collection('chat').orderBy('timestamp','desc').limit(30).onSnapshot(snap => {
+                    const msgs = snap.docs.map(d => d.data());
+                    this.renderChat(msgs);
+                }, () => {});
+                this.unsubs.push(u);
+            },
+            
+            renderChat(msgs) {
+                const el = document.getElementById('chatLog');
+                if (!msgs.length) { el.innerHTML = '<div class="empty"><p>Noch keine Nachrichten</p></div>'; return; }
+                el.innerHTML = msgs.map(m => {
+                    const t = m.timestamp?.toDate?.() || new Date();
+                    const txt = (m.message || m.text || '').substring(0, 80);
+                    return `<div class="log-item">
+                        <span class="log-item__time">${t.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
+                        <div class="log-item__icon log-item__icon--chat">💬</div>
+                        <div class="log-item__content">
+                            <span class="log-item__user">${m.userName || m.user || '?'}</span>: ${txt}${txt.length >= 80 ? '...' : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+            
+            // ============ PRESENCE LOG ============
+            addPresence(name, type) {
+                this.presenceLog.unshift({ name, type, time: new Date() });
+                if (this.presenceLog.length > 50) this.presenceLog.pop();
+                this.renderPresence();
+            },
+            
+            renderPresence() {
+                const el = document.getElementById('presenceLog');
+                if (!this.presenceLog.length) { el.innerHTML = '<div class="empty"><p>Keine Aktivität</p></div>'; return; }
+                el.innerHTML = this.presenceLog.map(p => {
+                    const isJoin = p.type === 'join';
+                    return `<div class="log-item">
+                        <span class="log-item__time">${p.time.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
+                        <div class="log-item__icon log-item__icon--${isJoin ? 'join' : 'leave'}">${isJoin ? '→' : '←'}</div>
+                        <div class="log-item__content">
+                            <span class="log-item__user">${p.name}</span> ist ${isJoin ? 'beigetreten' : 'gegangen'}
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+            
+            // ============ CHANGELOG ============
+            subChangelog() {
+                const u = this.ref().collection('changelog').orderBy('timestamp','desc').limit(30).onSnapshot(snap => {
+                    const changes = snap.docs.map(d => d.data());
+                    this.renderChangelog(changes);
+                }, () => {});
+                this.unsubs.push(u);
+            },
+            
+            renderChangelog(changes) {
+                const el = document.getElementById('changeLog');
+                if (!changes.length) { el.innerHTML = '<div class="empty"><p>Keine Änderungen<br><small style="opacity:0.6">Braucht Charakterbogen-Update</small></p></div>'; return; }
+                el.innerHTML = changes.map(c => {
+                    const t = c.timestamp?.toDate?.() || new Date();
+                    return `<div class="log-item">
+                        <span class="log-item__time">${t.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
+                        <div class="log-item__icon log-item__icon--edit">✏️</div>
+                        <div class="log-item__content">
+                            <span class="log-item__user">${c.playerName || '?'}</span> änderte <strong>${c.field}</strong>: ${c.oldValue || '-'} → ${c.newValue || '-'}
+                            <br><small style="opacity:0.5">${c.characterName || ''}</small>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+            
+            // ============ BROADCAST ============
             async sendBroadcast() {
-                const input = document.getElementById('broadcastInput');
-                const message = input.value.trim();
-                if (!message) { this.toast('Nachricht eingeben!', 'error'); return; }
+                const msg = document.getElementById('broadcastInput').value.trim();
+                if (!msg) { this.toast('Nachricht eingeben!', 'error'); return; }
                 try {
-                    const db = RIFT.firebase.getFirestore();
-                    await db.collection('rooms').doc(this.roomCode.replace('-', '').toUpperCase()).update({
-                        broadcast: { message, withSound: document.getElementById('broadcastSound').checked, timestamp: firebase.firestore.FieldValue.serverTimestamp(), id: Date.now() }
+                    await this.ref().update({
+                        broadcast: { message: msg, withSound: document.getElementById('broadcastSound').checked, timestamp: firebase.firestore.FieldValue.serverTimestamp(), id: Date.now() }
                     });
-                    input.value = '';
-                    this.toast('Broadcast gesendet!', 'success');
+                    document.getElementById('broadcastInput').value = '';
+                    this.toast('Gesendet!', 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
+            // ============ POLL ============
+            subPoll() {
+                const u = this.ref().onSnapshot(doc => {
+                    const poll = doc.data()?.poll;
+                    if (poll?.active) {
+                        document.getElementById('pollActive').style.display = 'block';
+                        document.getElementById('pollCreate').style.display = 'none';
+                        document.getElementById('pollQuestion').textContent = poll.question;
+                        this.renderPollResults(poll);
+                    } else {
+                        document.getElementById('pollActive').style.display = 'none';
+                        document.getElementById('pollCreate').style.display = 'flex';
+                    }
+                });
+                this.unsubs.push(u);
+            },
+            
+            renderPollResults(poll) {
+                const el = document.getElementById('pollResults');
+                const votes = poll.votes || {};
+                const options = poll.options || [];
+                const total = Object.values(votes).reduce((a,b) => a + b, 0) || 1;
+                el.innerHTML = options.map(opt => {
+                    const count = votes[opt] || 0;
+                    const pct = Math.round((count / total) * 100);
+                    return `<div class="poll-result">
+                        <span class="poll-result__label">${opt}</span>
+                        <div class="poll-result__bar">
+                            <div class="poll-result__fill" style="width:${pct}%"></div>
+                            <span class="poll-result__count">${count}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+            
+            async startPoll() {
+                const q = document.getElementById('pollInput').value.trim();
+                if (!q) { this.toast('Frage eingeben!', 'error'); return; }
+                const type = document.querySelector('input[name="pollType"]:checked').value;
+                let options;
+                if (type === 'yesno') options = ['Ja', 'Nein'];
+                else if (type === 'abc') options = ['A', 'B', 'C'];
+                else options = ['1', '2', '3', '4', '5'];
+                try {
+                    await this.ref().update({
+                        poll: { question: q, options, votes: {}, active: true, timestamp: firebase.firestore.FieldValue.serverTimestamp() }
+                    });
+                    document.getElementById('pollInput').value = '';
+                    this.toast('Poll gestartet!', 'success');
+                } catch (e) { this.toast('Fehler', 'error'); }
+            },
+            
+            async closePoll() {
+                try {
+                    await this.ref().update({ 'poll.active': false });
+                    this.toast('Poll beendet', 'success');
+                } catch (e) { this.toast('Fehler', 'error'); }
+            },
+            
+            // ============ NOTES ============
             loadNotes() {
                 const saved = localStorage.getItem(`rift_gm_notes_${this.roomCode}`);
-                if (saved) document.getElementById('gmNotesInput').value = saved;
+                if (saved) document.getElementById('gmNotes').value = saved;
             },
             
             saveNotes() {
-                localStorage.setItem(`rift_gm_notes_${this.roomCode}`, document.getElementById('gmNotesInput').value);
+                localStorage.setItem(`rift_gm_notes_${this.roomCode}`, document.getElementById('gmNotes').value);
                 document.getElementById('notesStatus').textContent = '✓ Gespeichert';
                 document.getElementById('notesStatus').className = 'notes-box__status notes-box__status--saved';
-                setTimeout(() => { document.getElementById('notesStatus').textContent = ''; }, 2000);
+                setTimeout(() => document.getElementById('notesStatus').textContent = '', 2000);
             },
             
+            // ============ DANGER ZONE ============
             async leaveRoom() {
                 if (!confirm('Raum verlassen?')) return;
                 try {
-                    const db = RIFT.firebase.getFirestore();
-                    await db.collection('rooms').doc(this.roomCode.replace('-', '').toUpperCase()).collection('members').doc(firebase.auth().currentUser?.uid).delete();
+                    await this.ref().collection('members').doc(firebase.auth().currentUser?.uid).delete();
                     localStorage.removeItem('rift_current_room');
-                    const u = JSON.parse(localStorage.getItem('rift_user') || '{}'); u.isGM = false; localStorage.setItem('rift_user', JSON.stringify(u));
                     this.toast('Verlassen', 'success');
-                    setTimeout(() => window.location.href = 'login.html', 1000);
+                    setTimeout(() => location.href = 'login.html', 1000);
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
             async deleteRoom() {
-                if (!confirm('⚠️ Raum und ALLE Daten löschen?')) return;
+                if (!confirm('⚠️ Alles löschen?')) return;
                 try {
-                    const db = RIFT.firebase.getFirestore();
-                    const code = this.roomCode.replace('-', '').toUpperCase();
-                    const ref = db.collection('rooms').doc(code);
-                    this.toast('Wird gelöscht...', 'info');
-                    for (const sub of ['members', 'sessions', 'characters', 'chat', 'dice', 'notes', 'whiteboard', 'markers']) {
-                        const snap = await ref.collection(sub).get();
-                        const batch = db.batch();
+                    const subs = ['members','sessions','characters','chat','dice','notes','whiteboard','markers','changelog'];
+                    for (const sub of subs) {
+                        const snap = await this.ref().collection(sub).get();
+                        const batch = this.db.batch();
                         snap.docs.forEach(d => batch.delete(d.ref));
                         if (snap.docs.length) await batch.commit();
                     }
-                    await ref.delete();
+                    await this.ref().delete();
                     localStorage.removeItem('rift_current_room');
-                    localStorage.removeItem('rift_active_session');
                     this.toast('Gelöscht!', 'success');
-                    setTimeout(() => window.location.href = 'login.html', 1500);
+                    setTimeout(() => location.href = 'login.html', 1500);
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
-            copyCode() { navigator.clipboard.writeText(this.roomCode).then(() => this.toast('Code kopiert!', 'success')); },
-            copyInviteLink() { navigator.clipboard.writeText(`${window.location.origin}/login.html?room=${this.roomCode}`).then(() => this.toast('Einladungslink kopiert!', 'success')); },
-            toast(msg, type = 'info') { if (window.RIFT?.ui?.Toast) RIFT.ui.Toast[type]?.(msg) || RIFT.ui.Toast.info(msg); else console.log(`[Toast] ${type}: ${msg}`); },
-            cleanup() { if (this.unsubscribeMembers) this.unsubscribeMembers(); if (this.unsubscribeSessions) this.unsubscribeSessions(); }
+            // ============ HELPERS ============
+            copyCode() { navigator.clipboard.writeText(this.roomCode).then(() => this.toast('Kopiert!', 'success')); },
+            toast(msg, type='info') { window.RIFT?.ui?.Toast?.[type]?.(msg) || console.log(`[${type}] ${msg}`); },
+            cleanup() { this.unsubs.forEach(u => u?.()); if (this.timerInterval) clearInterval(this.timerInterval); }
         };
         
-        window.addEventListener('beforeunload', () => GMCtrl.cleanup());
+        window.addEventListener('beforeunload', () => GM.cleanup());
         
+        // ============ ACCESS CHECK ============
         (async function() {
-            const gmContent = document.getElementById('gmContent');
-            const accessDenied = document.getElementById('accessDenied');
-            const roomCode = localStorage.getItem('rift_current_room');
-            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            const gm = document.getElementById('gmContent');
+            const denied = document.getElementById('accessDenied');
+            const code = localStorage.getItem('rift_current_room');
+            const user = JSON.parse(localStorage.getItem('rift_user') || '{}');
             
-            function showContent() { gmContent.style.display = 'block'; accessDenied.style.display = 'none'; }
-            function showDenied() { gmContent.style.display = 'none'; accessDenied.style.display = 'flex'; }
-            
-            function waitForRIFT(timeout = 8000) {
-                return new Promise((resolve, reject) => {
-                    const start = Date.now();
-                    const check = () => {
-                        if (RIFT?.rooms && RIFT?.firebase?.getFirestore?.()) resolve(true);
-                        else if (Date.now() - start > timeout) reject(new Error('Timeout'));
-                        else setTimeout(check, 100);
-                    };
-                    check();
-                });
-            }
-            
-            function waitForAuth(timeout = 5000) {
-                return new Promise((resolve) => {
-                    if (firebase?.auth()?.currentUser) { resolve(firebase.auth().currentUser); return; }
-                    const unsub = firebase.auth().onAuthStateChanged(user => { unsub(); resolve(user); });
-                    setTimeout(() => resolve(null), timeout);
-                });
-            }
+            function show() { gm.style.display = 'block'; denied.style.display = 'none'; }
+            function deny() { gm.style.display = 'none'; denied.style.display = 'flex'; }
             
             try {
-                await waitForRIFT();
-                const user = await waitForAuth();
-                if (!roomCode || !user) { showDenied(); return; }
+                await new Promise((r,j) => {
+                    const s = Date.now();
+                    const c = () => RIFT?.rooms && RIFT?.firebase?.getFirestore?.() ? r() : Date.now()-s>8000 ? j() : setTimeout(c,100);
+                    c();
+                });
+                await new Promise(r => firebase?.auth()?.currentUser ? r() : firebase.auth().onAuthStateChanged(u => r(u)));
+                if (!code) { deny(); return; }
                 let isGM = false;
-                try { isGM = await RIFT.rooms.isUserGM(roomCode); } catch (e) { isGM = userData.isGM === true; }
-                if (isGM) { userData.isGM = true; localStorage.setItem('rift_user', JSON.stringify(userData)); showContent(); GMCtrl.init(); }
-                else { showDenied(); }
-            } catch (e) {
-                if (userData.isGM === true && roomCode) { showContent(); GMCtrl.init(); }
-                else { showDenied(); }
-            }
+                try { isGM = await RIFT.rooms.isUserGM(code); } catch { isGM = user.isGM === true; }
+                if (isGM) { show(); GM.init(); } else { deny(); }
+            } catch { if (user.isGM && code) { show(); GM.init(); } else { deny(); } }
         })();
         
         initLayout();
