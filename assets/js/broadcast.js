@@ -196,12 +196,20 @@
                 const db = window.RIFT?.firebase?.getFirestore?.() || window.firebase?.firestore?.();
                 if (!db) return;
                 
-                // Increment vote count
-                await db.collection('rooms').doc(roomCode).update({
-                    [`poll.votes.${option}`]: firebase.firestore.FieldValue.increment(1)
+                const uid = window.firebase?.auth?.()?.currentUser?.uid;
+                if (!uid) {
+                    console.error('[Poll] No user logged in');
+                    return;
+                }
+                
+                // Write vote to subcollection instead of updating room doc
+                await db.collection('rooms').doc(roomCode).collection('poll_votes').doc(uid).set({
+                    option: option,
+                    odllId: pollId,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
-                // Mark as voted
+                // Mark as voted locally
                 localStorage.setItem('rift_poll_voted_' + pollId, 'true');
                 
                 // Close overlay
@@ -209,8 +217,15 @@
                 overlay.classList.remove('broadcast-overlay--visible');
                 setTimeout(() => overlay.remove(), 300);
                 
+                console.log('[Poll] Vote submitted:', option);
+                
             } catch (e) {
                 console.error('[Poll] Vote failed:', e);
+                // Still mark as voted to prevent spam
+                localStorage.setItem('rift_poll_voted_' + pollId, 'error');
+                const overlay = btn.closest('.broadcast-overlay');
+                overlay.classList.remove('broadcast-overlay--visible');
+                setTimeout(() => overlay.remove(), 300);
             }
         },
         
