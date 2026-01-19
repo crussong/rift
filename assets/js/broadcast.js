@@ -604,9 +604,16 @@
                     particles: 'sparkle'
                 },
                 sea: { 
-                    css: `background: linear-gradient(rgba(0,80,120,0.15) 0%, rgba(0,50,80,0.25) 100%);`,
-                    particles: 'seafoam',
-                    sway: true
+                    css: `background: linear-gradient(
+                        rgba(255,220,100,0.15) 0%, 
+                        rgba(255,200,50,0.1) 20%,
+                        rgba(200,230,255,0.05) 45%,
+                        rgba(0,100,150,0.2) 50%, 
+                        rgba(0,80,130,0.3) 70%,
+                        rgba(0,60,100,0.35) 100%
+                    );`,
+                    particles: 'seaBubbles',
+                    sunrays: true
                 },
                 forest: { 
                     css: `background: linear-gradient(rgba(34,139,34,0.1) 0%, rgba(0,50,0,0.15) 100%);`,
@@ -662,7 +669,8 @@
                 'star': () => this.createStarEffect(),
                 'ash': () => this.createAshEffect(),
                 'seafoam': () => this.createSeafoamEffect(),
-                'caveDrip': () => this.createCaveDripEffect()
+                'caveDrip': () => this.createCaveDripEffect(),
+                'seaBubbles': () => this.createSeaBubblesEffect()
             };
             
             if (effect.particles && particleMap[effect.particles]) {
@@ -674,9 +682,9 @@
                 this.startLightningEffect();
             }
             
-            // Add sway effect for sea
-            if (effect.sway) {
-                overlay.style.animation = 'seaSway 4s ease-in-out infinite';
+            // Add sunrays for sea
+            if (effect.sunrays) {
+                overlay.innerHTML += this.createSunraysEffect();
             }
             
             // Add shimmer for desert
@@ -1036,6 +1044,46 @@
             return drips;
         },
         
+        // Sea bubbles - only at bottom edge
+        createSeaBubblesEffect() {
+            let bubbles = '';
+            for (let i = 0; i < 15; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 4;
+                const duration = 3 + Math.random() * 2;
+                const size = 3 + Math.random() * 5;
+                // Bubbles only rise from bottom 30% of screen
+                bubbles += `<div style="
+                    position: absolute; bottom: 0; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(100,180,220,0.3));
+                    border-radius: 50%;
+                    animation: seaBubbleRise ${duration}s ease-out ${delay}s infinite;
+                "></div>`;
+            }
+            return bubbles;
+        },
+        
+        // Sunrays for sea effect
+        createSunraysEffect() {
+            let rays = '';
+            // Create 5 subtle sun rays from top
+            for (let i = 0; i < 5; i++) {
+                const left = 20 + i * 15;
+                const width = 2 + Math.random() * 3;
+                const delay = i * 0.3;
+                rays += `<div style="
+                    position: absolute; top: 0; left: ${left}%;
+                    width: ${width}px; height: 45%;
+                    background: linear-gradient(rgba(255,220,100,0.15), transparent);
+                    transform: rotate(${-10 + i * 5}deg);
+                    transform-origin: top center;
+                    animation: sunrayPulse 4s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return rays;
+        },
+        
         // Lightning flash for storm
         lightningInterval: null,
         startLightningEffect() {
@@ -1191,21 +1239,21 @@
             `;
             
             overlay.innerHTML = `
-                <div style="background: #1a1a1a; border-radius: 20px; padding: 32px; text-align: center; max-width: 400px;">
+                <div style="background: #1a1a1a; border-radius: 20px; padding: 32px; text-align: center; max-width: 420px;">
                     <h2 style="margin: 0 0 8px; font-size: 24px; color: white;">Status Update</h2>
                     <p style="color: rgba(255,255,255,0.6); margin: 0 0 24px;">Wie ist dein Status?</p>
-                    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                        <button class="status-btn" onclick="BroadcastListener.sendStatus('ready', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(34,197,94,0.2); border: 2px solid #22c55e; border-radius: 12px; color: white; cursor: pointer;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('ready', this)" style="padding: 16px 20px; font-size: 15px; background: rgba(34,197,94,0.2); border: 2px solid #22c55e; border-radius: 12px; color: white; cursor: pointer;">
                             ✅ Bereit
                         </button>
-                        <button class="status-btn" onclick="BroadcastListener.sendStatus('thinking', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(245,158,11,0.2); border: 2px solid #f59e0b; border-radius: 12px; color: white; cursor: pointer;">
-                            🤔 Überlege
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('notready', this)" style="padding: 16px 20px; font-size: 15px; background: rgba(239,68,68,0.2); border: 2px solid #ef4444; border-radius: 12px; color: white; cursor: pointer;">
+                            ❌ Nicht bereit
                         </button>
-                        <button class="status-btn" onclick="BroadcastListener.sendStatus('busy', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(239,68,68,0.2); border: 2px solid #ef4444; border-radius: 12px; color: white; cursor: pointer;">
-                            🔴 Beschäftigt
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('editing', this)" style="padding: 16px 20px; font-size: 15px; background: rgba(245,158,11,0.2); border: 2px solid #f59e0b; border-radius: 12px; color: white; cursor: pointer;">
+                            ✏️ Editiere noch
                         </button>
-                        <button class="status-btn" onclick="BroadcastListener.sendStatus('afk', this)" style="padding: 16px 24px; font-size: 16px; background: rgba(100,100,100,0.2); border: 2px solid #666; border-radius: 12px; color: white; cursor: pointer;">
-                            💤 AFK
+                        <button class="status-btn" onclick="BroadcastListener.sendStatus('needsupport', this)" style="padding: 16px 20px; font-size: 15px; background: rgba(139,92,246,0.2); border: 2px solid #8b5cf6; border-radius: 12px; color: white; cursor: pointer;">
+                            🆘 Brauche Hilfe
                         </button>
                     </div>
                 </div>
@@ -1224,14 +1272,40 @@
                 return;
             }
             
+            // Get player name from localStorage or use uid
+            const userData = JSON.parse(localStorage.getItem('rift_user_data') || '{}');
+            const playerName = userData.name || 'Spieler';
+            
+            const statusLabels = {
+                ready: '✅ Bereit',
+                notready: '❌ Nicht bereit',
+                editing: '✏️ Editiere noch',
+                needsupport: '🆘 Brauche Hilfe'
+            };
+            
             try {
+                // Send status as broadcast so GM can see it
                 await window.firebase.firestore()
                     .collection('rooms').doc(roomCode)
-                    .collection('player_status').doc(uid)
-                    .set({
-                        status,
-                        updatedAt: Date.now()
+                    .update({
+                        [`playerStatus.${uid}`]: {
+                            status,
+                            name: playerName,
+                            updatedAt: Date.now()
+                        }
                     });
+                    
+                // Show confirmation toast
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                    background: rgba(30,30,30,0.95); padding: 12px 24px; border-radius: 8px;
+                    color: white; font-size: 14px; z-index: 100001;
+                    animation: toastIn 0.3s ease, toastOut 0.3s ease 2s forwards;
+                `;
+                toast.textContent = `Status: ${statusLabels[status]}`;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2300);
             } catch (e) {
                 console.error('[Status] Error:', e);
             }
@@ -2266,6 +2340,18 @@
             0%, 70% { transform: scale(0); opacity: 0; }
             75% { transform: scale(1); opacity: 0.5; }
             100% { transform: scale(2); opacity: 0; }
+        }
+        
+        /* Sea effect animations */
+        @keyframes seaBubbleRise {
+            0% { bottom: 0; opacity: 0.7; transform: translateX(0); }
+            50% { transform: translateX(10px); }
+            100% { bottom: 35%; opacity: 0; transform: translateX(-5px); }
+        }
+        
+        @keyframes sunrayPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
         }
         
         /* Toast animations */
