@@ -155,6 +155,17 @@
             // Create poll overlay
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay poll-overlay';
+            
+            // Build options HTML with emojis
+            const optionsHtml = (poll.options || []).map((opt, i) => {
+                const emoji = poll.emojis?.[i] || '';
+                const label = emoji ? `${emoji} ${this.escapeHtml(opt)}` : this.escapeHtml(opt);
+                return `<button class="poll-option-btn" onclick="BroadcastListener.votePoll('${opt}', '${pollId}', '${roomCode}', this)">${label}</button>`;
+            }).join('');
+            
+            // Build image HTML if present
+            const imageHtml = poll.image ? `<img src="${poll.image}" alt="Poll" style="width:100%; border-radius:10px; margin-bottom:16px;">` : '';
+            
             overlay.innerHTML = `
                 <div class="broadcast-modal poll-modal">
                     <div class="broadcast-modal__header">
@@ -166,13 +177,10 @@
                         <span class="broadcast-modal__badge" style="color:#a78bfa">GM Umfrage</span>
                     </div>
                     <div class="broadcast-modal__content">
+                        ${imageHtml}
                         <p class="broadcast-modal__message" style="font-size:18px;font-weight:600;margin-bottom:16px;">${this.escapeHtml(poll.question)}</p>
                         <div class="poll-options-list">
-                            ${(poll.options || []).map(opt => `
-                                <button class="poll-option-btn" onclick="BroadcastListener.votePoll('${opt}', '${pollId}', '${roomCode}', this)">
-                                    ${this.escapeHtml(opt)}
-                                </button>
-                            `).join('')}
+                            ${optionsHtml}
                         </div>
                     </div>
                     <button class="poll-skip-btn" onclick="BroadcastListener.skipPoll('${pollId}', this)">
@@ -187,8 +195,10 @@
                 overlay.classList.add('broadcast-overlay--visible');
             });
             
-            // Play sound
-            this.playSound();
+            // Play sound only if enabled in poll settings
+            if (poll.withSound !== false) {
+                this.playSound();
+            }
         },
         
         async votePoll(option, pollId, roomCode, btn) {
