@@ -72,16 +72,25 @@
                     }
                     
                     // Handle Poll Results (when GM resolves poll)
-                    if (poll && poll.resolved && !poll.active) {
-                        const resolveId = poll.resolvedAt?.seconds || poll.resolvedAt || 0;
-                        const lastResolveId = localStorage.getItem('rift_poll_resolved_' + normalizedCode);
+                    if (poll && poll.resolved === true && poll.active === false && poll.results) {
+                        // resolvedAt is now a simple number from Date.now()
+                        const resolveId = poll.resolvedAt || poll.timestamp?.seconds || 'resolved';
+                        const storageKey = 'rift_poll_resolved_' + normalizedCode;
+                        const lastResolveId = localStorage.getItem(storageKey);
                         
-                        if (!isGM && String(resolveId) !== lastResolveId) {
-                            localStorage.setItem('rift_poll_resolved_' + normalizedCode, String(resolveId));
-                            const alreadyShowing = document.querySelector('.poll-result-overlay');
-                            if (!alreadyShowing) {
-                                this.showPollResults(poll);
-                            }
+                        console.log('[Broadcast] Poll resolved detected:', { resolveId, lastResolveId, isGM, hasResults: !!poll.results });
+                        
+                        if (!isGM && String(resolveId) !== String(lastResolveId)) {
+                            console.log('[Broadcast] Showing poll results to player');
+                            localStorage.setItem(storageKey, String(resolveId));
+                            
+                            // Small delay to ensure DOM is ready
+                            setTimeout(() => {
+                                const alreadyShowing = document.querySelector('.poll-result-overlay');
+                                if (!alreadyShowing) {
+                                    this.showPollResults(poll);
+                                }
+                            }, 100);
                         }
                     }
                     
