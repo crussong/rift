@@ -1171,6 +1171,76 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Quick Tools Row -->
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 24px;">
+                            <!-- Quick-Toast -->
+                            <div class="bc-card">
+                                <div class="bc-card__header">
+                                    <div class="bc-card__title">⚡ Quick-Toast</div>
+                                </div>
+                                <div class="bc-card__body" style="padding: 12px;">
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <button class="bc-btn bc-btn--small" onclick="BC.quickToast('☕ Kurze Pause!')">Pause</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.quickToast('🍕 Essen ist da!')">Essen</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.quickToast('✅ Weiter geht\'s!')">Weiter</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.quickToast('🔇 Bitte leise!')">Leise</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.quickToast('📱 AFK Check!')">AFK</button>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                        <input type="text" class="bc-input" id="customToastText" placeholder="Eigener Text..." style="flex: 1;">
+                                        <button class="bc-btn" onclick="BC.sendCustomToast()">Senden</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Timer/Countdown -->
+                            <div class="bc-card">
+                                <div class="bc-card__header">
+                                    <div class="bc-card__title">⏱️ Timer</div>
+                                </div>
+                                <div class="bc-card__body" style="padding: 12px;">
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                                        <button class="bc-btn bc-btn--small" onclick="BC.startTimer(30)">30s</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.startTimer(60)">1min</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.startTimer(180)">3min</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.startTimer(300)">5min</button>
+                                        <button class="bc-btn bc-btn--small" onclick="BC.startTimer(600)">10min</button>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <input type="number" class="bc-input" id="customTimerSeconds" placeholder="Sek." min="5" max="3600" style="width: 70px;">
+                                        <input type="text" class="bc-input" id="timerLabel" placeholder="Label (optional)" style="flex: 1;">
+                                        <button class="bc-btn" onclick="BC.startCustomTimer()">Start</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Templates -->
+                        <div class="bc-card" style="margin-top: 16px;">
+                            <div class="bc-card__header">
+                                <div class="bc-card__title">📋 Templates</div>
+                                <button class="bc-btn bc-btn--small bc-btn--secondary" onclick="BC.saveTemplate()">+ Speichern</button>
+                            </div>
+                            <div class="bc-card__body" style="padding: 12px;">
+                                <div id="templateList" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span style="color: var(--text-muted); font-size: 13px;">Keine Templates gespeichert</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Player Status -->
+                        <div class="bc-card" style="margin-top: 16px;">
+                            <div class="bc-card__header">
+                                <div class="bc-card__title">👥 Spieler-Status</div>
+                                <button class="bc-btn bc-btn--small bc-btn--secondary" onclick="BC.requestStatusUpdate()">🔄 Abfragen</button>
+                            </div>
+                            <div class="bc-card__body" style="padding: 12px;">
+                                <div id="playerStatusList" class="bc-players" style="gap: 8px;">
+                                    <!-- Player statuses loaded dynamically -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- ==================== POLL PANEL ==================== -->
@@ -1402,7 +1472,7 @@
                     <div class="broadcast-panel" id="panel-cinematic">
                         <div class="broadcast-grid">
                             <!-- Scene Transition Card -->
-                            <div class="bc-card">
+                            <div class="bc-card" id="sceneCard">
                                 <div class="bc-card__header">
                                     <div class="bc-card__title">🎬 Szenen-Übergang</div>
                                 </div>
@@ -1410,10 +1480,13 @@
                                     <div class="bc-field">
                                         <input type="text" class="bc-input" id="sceneText" placeholder="z.B. 3 Tage später...">
                                     </div>
-                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
                                         <button class="bc-countdown-btn active" data-style="fade" onclick="BC.setSceneStyle('fade')">Fade</button>
                                         <button class="bc-countdown-btn" data-style="slide" onclick="BC.setSceneStyle('slide')">Slide</button>
                                         <button class="bc-countdown-btn" data-style="zoom" onclick="BC.setSceneStyle('zoom')">Zoom</button>
+                                        <button class="bc-countdown-btn" data-style="blur" onclick="BC.setSceneStyle('blur')">Blur</button>
+                                        <button class="bc-countdown-btn" data-style="glitch" onclick="BC.setSceneStyle('glitch')">Glitch</button>
+                                        <button class="bc-countdown-btn" data-style="curtain" onclick="BC.setSceneStyle('curtain')">Vorhang</button>
                                         <label class="bc-toggle" style="margin-left: auto;">
                                             <input type="checkbox" id="sceneSound">
                                             <span class="bc-toggle__switch"></span>
@@ -1684,6 +1757,12 @@
                 
                 // Load poll history
                 this.loadPollHistory();
+                
+                // Load templates
+                this.loadTemplates();
+                
+                // Render player statuses
+                this.renderPlayerStatuses();
                 
                 // Setup countdown toggle
                 const countdownCheckbox = document.getElementById('pollCountdown');
@@ -2642,15 +2721,15 @@
             },
             
             setSceneStyle(style) {
-                document.querySelectorAll('#cinematicScene .bc-countdown-btn').forEach(b => {
+                document.querySelectorAll('#sceneCard .bc-countdown-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.style === style);
                 });
             },
             
             async sendSceneTransition() {
                 const text = document.getElementById('sceneText').value.trim();
-                const style = document.querySelector('#cinematicScene .bc-countdown-btn.active')?.dataset.style || 'fade';
-                const withSound = document.getElementById('sceneSound')?.checked !== false;
+                const style = document.querySelector('#sceneCard .bc-countdown-btn.active')?.dataset.style || 'fade';
+                const withSound = document.getElementById('sceneSound')?.checked;
                 
                 if (!text) {
                     this.toast('Text eingeben!', 'error');
@@ -2774,6 +2853,186 @@
                 }
             },
             
+            // ============ QUICK-TOAST ============
+            async quickToast(message) {
+                try {
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'toast',
+                            message,
+                            sound: 'none',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    this.addToHistory('toast', `Toast: ${message}`);
+                } catch (e) {
+                    this.toast('Fehler', 'error');
+                }
+            },
+            
+            async sendCustomToast() {
+                const text = document.getElementById('customToastText').value.trim();
+                if (!text) {
+                    this.toast('Text eingeben!', 'error');
+                    return;
+                }
+                await this.quickToast(text);
+                document.getElementById('customToastText').value = '';
+                this.toast('Toast gesendet!', 'success');
+            },
+            
+            // ============ TIMER ============
+            async startTimer(seconds, label = '') {
+                try {
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'timer',
+                            seconds,
+                            label: label || `${seconds}s Timer`,
+                            startTime: Date.now(),
+                            sound: 'none',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    this.addToHistory('timer', `Timer: ${label || seconds + 's'}`);
+                    this.toast(`Timer gestartet: ${seconds}s`, 'success');
+                } catch (e) {
+                    this.toast('Fehler', 'error');
+                }
+            },
+            
+            startCustomTimer() {
+                const seconds = parseInt(document.getElementById('customTimerSeconds').value) || 60;
+                const label = document.getElementById('timerLabel').value.trim();
+                this.startTimer(seconds, label);
+                document.getElementById('customTimerSeconds').value = '';
+                document.getElementById('timerLabel').value = '';
+            },
+            
+            // ============ TEMPLATES ============
+            templates: [],
+            
+            loadTemplates() {
+                const saved = localStorage.getItem('rift_broadcast_templates');
+                this.templates = saved ? JSON.parse(saved) : [];
+                this.renderTemplates();
+            },
+            
+            saveTemplate() {
+                const message = document.getElementById('broadcastMessage').value.trim();
+                const type = this.selectedBroadcastType;
+                
+                if (!message) {
+                    this.toast('Erst eine Nachricht eingeben!', 'error');
+                    return;
+                }
+                
+                const name = prompt('Template-Name:');
+                if (!name) return;
+                
+                this.templates.push({ name, message, type });
+                localStorage.setItem('rift_broadcast_templates', JSON.stringify(this.templates));
+                this.renderTemplates();
+                this.toast('Template gespeichert!', 'success');
+            },
+            
+            renderTemplates() {
+                const container = document.getElementById('templateList');
+                if (!container) return;
+                
+                if (this.templates.length === 0) {
+                    container.innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">Keine Templates gespeichert</span>';
+                    return;
+                }
+                
+                container.innerHTML = this.templates.map((t, i) => `
+                    <div class="bc-template" style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 6px; cursor: pointer;" onclick="BC.useTemplate(${i})">
+                        <span style="font-size: 13px;">${this.escapeHtml(t.name)}</span>
+                        <button class="bc-btn bc-btn--small" style="padding: 2px 6px; font-size: 10px;" onclick="event.stopPropagation(); BC.deleteTemplate(${i})">✕</button>
+                    </div>
+                `).join('');
+            },
+            
+            useTemplate(index) {
+                const t = this.templates[index];
+                if (!t) return;
+                
+                document.getElementById('broadcastMessage').value = t.message;
+                this.selectType(t.type);
+                this.toast('Template geladen!', 'info');
+            },
+            
+            deleteTemplate(index) {
+                this.templates.splice(index, 1);
+                localStorage.setItem('rift_broadcast_templates', JSON.stringify(this.templates));
+                this.renderTemplates();
+                this.toast('Template gelöscht!', 'info');
+            },
+            
+            // ============ PLAYER STATUS ============
+            playerStatuses: {},
+            
+            async requestStatusUpdate() {
+                try {
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'statusRequest',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    this.toast('Status-Abfrage gesendet!', 'success');
+                    
+                    // Listen for status updates
+                    this.listenForStatusUpdates();
+                } catch (e) {
+                    this.toast('Fehler', 'error');
+                }
+            },
+            
+            listenForStatusUpdates() {
+                // Clear after 30 seconds
+                setTimeout(() => this.renderPlayerStatuses(), 30000);
+                
+                // Subscribe to player_status subcollection
+                this.ref().collection('player_status').onSnapshot(snap => {
+                    snap.docs.forEach(doc => {
+                        this.playerStatuses[doc.id] = doc.data();
+                    });
+                    this.renderPlayerStatuses();
+                });
+            },
+            
+            renderPlayerStatuses() {
+                const container = document.getElementById('playerStatusList');
+                if (!container) return;
+                
+                const statusIcons = {
+                    ready: '✅', busy: '🔴', afk: '💤', thinking: '🤔'
+                };
+                
+                let html = '';
+                this.members.forEach(m => {
+                    if (m.isGM) return;
+                    const status = this.playerStatuses[m.id] || { status: 'unknown' };
+                    const icon = statusIcons[status.status] || '❓';
+                    const time = status.updatedAt ? new Date(status.updatedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+                    
+                    html += `
+                        <div class="bc-player" style="pointer-events: none;">
+                            <div class="bc-player__avatar" style="background: ${m.color || '#8b5cf6'};">${m.name?.charAt(0) || '?'}</div>
+                            <span class="bc-player__name">${this.escapeHtml(m.name)}</span>
+                            <span style="margin-left: auto; font-size: 18px;" title="${status.status}">${icon}</span>
+                            ${time ? `<span style="font-size: 11px; color: var(--text-muted);">${time}</span>` : ''}
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<span style="color: var(--text-muted); font-size: 13px;">Keine Spieler</span>';
+            },
+            
             // ============ HISTORY ============
             historyItems: [],
             
@@ -2784,7 +3043,7 @@
                 const icons = {
                     broadcast: '📢', poll: '📊', reaction: '😀', spotlight: '🌟',
                     secret: '🤫', diceRequest: '🎲', handout: '📜', scene: '🎬',
-                    reveal: '✨', combat: '⚔️', ambient: '🌙'
+                    reveal: '✨', combat: '⚔️', ambient: '🌙', toast: '⚡', timer: '⏱️'
                 };
                 
                 this.historyItems.unshift({ type, text, time, icon: icons[type] || '📋' });
