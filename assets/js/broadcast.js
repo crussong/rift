@@ -338,22 +338,29 @@
             window.location.href = 'dice.html';
         },
         
-        // Handout - clean image only
+        // Handout - full screen image display
         showHandout(broadcast) {
             this.playBroadcastSound('notification');
             
             const overlay = document.createElement('div');
-            overlay.className = 'broadcast-overlay';
+            overlay.className = 'broadcast-overlay handout-overlay';
+            overlay.style.cssText = 'cursor: pointer;';
             overlay.innerHTML = `
-                <div class="broadcast-modal handout-modal" style="max-width: 600px; padding: 16px; background: transparent; border: none; box-shadow: none;">
-                    <div class="broadcast-modal__content" style="margin-bottom: 16px;">
-                        <img src="${broadcast.image}" alt="Handout" style="width: 100%; border-radius: 12px; cursor: zoom-in; box-shadow: 0 10px 50px rgba(0,0,0,0.5);" onclick="BroadcastListener.zoomImage(this.src)">
-                    </div>
-                    <button class="broadcast-modal__btn" style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);" onclick="BroadcastListener.closeBroadcast(this)">
-                        Schließen
-                    </button>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; box-sizing: border-box;">
+                    <img src="${broadcast.image}" alt="Handout" style="
+                        max-width: 90vw; max-height: 85vh; object-fit: contain;
+                        border-radius: 12px; box-shadow: 0 20px 80px rgba(0,0,0,0.8);
+                        cursor: zoom-in;
+                    " onclick="event.stopPropagation(); BroadcastListener.zoomImage(this.src)">
+                    <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px;">Klicken zum Vergrößern • Irgendwo klicken zum Schließen</p>
                 </div>
             `;
+            overlay.onclick = (e) => {
+                if (e.target === overlay || e.target.tagName === 'P' || e.target.tagName === 'DIV') {
+                    overlay.classList.remove('broadcast-overlay--visible');
+                    setTimeout(() => overlay.remove(), 300);
+                }
+            };
             
             document.body.appendChild(overlay);
             requestAnimationFrame(() => overlay.classList.add('broadcast-overlay--visible'));
@@ -361,16 +368,14 @@
         
         zoomImage(src) {
             const zoom = document.createElement('div');
-            zoom.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
-            zoom.innerHTML = `<img src="${src}" style="max-width:95%;max-height:95%;object-fit:contain;">`;
+            zoom.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.98);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+            zoom.innerHTML = `<img src="${src}" style="max-width:98vw;max-height:98vh;object-fit:contain;">`;
             zoom.onclick = () => zoom.remove();
             document.body.appendChild(zoom);
         },
         
         // Scene transition
         showSceneTransition(broadcast) {
-            this.playBroadcastSound('dramatic');
-            
             const overlay = document.createElement('div');
             overlay.className = 'cinematic-overlay scene-transition';
             overlay.style.cssText = `
@@ -510,6 +515,11 @@
         applyAmbientEffect(effectName) {
             // Remove existing
             document.querySelectorAll('.ambient-overlay').forEach(el => el.remove());
+            // Stop lightning
+            if (this.lightningInterval) {
+                clearInterval(this.lightningInterval);
+                this.lightningInterval = null;
+            }
             
             if (!effectName || effectName === 'clear') return;
             
@@ -524,37 +534,39 @@
                     flash: true
                 },
                 snow: { 
-                    css: `background: linear-gradient(rgba(200,220,255,0.05) 0%, transparent 100%);`,
+                    css: `background: linear-gradient(rgba(200,220,255,0.08) 0%, transparent 100%);`,
                     particles: 'snow'
                 },
                 fog: { 
-                    css: `background: linear-gradient(transparent 0%, rgba(150,150,150,0.25) 50%, transparent 100%);`,
-                    pulse: true
+                    css: `background: linear-gradient(transparent 0%, rgba(150,150,150,0.3) 50%, transparent 100%);`,
+                    particles: 'fog'
                 },
                 fire: { 
-                    css: `background: linear-gradient(transparent 50%, rgba(255,100,0,0.2) 100%);`,
-                    pulse: true
+                    css: `background: linear-gradient(transparent 40%, rgba(255,100,0,0.25) 100%);`,
+                    particles: 'ember'
                 },
                 darkness: { 
-                    css: `background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0.85) 100%);`
+                    css: `background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0.85) 100%);`,
+                    particles: 'dust'
                 },
                 magic: { 
-                    css: `background: radial-gradient(ellipse at center, rgba(139,92,246,0.1) 0%, transparent 70%);`,
+                    css: `background: radial-gradient(ellipse at center, rgba(139,92,246,0.15) 0%, transparent 70%);`,
                     particles: 'sparkle'
                 },
                 blood: { 
-                    css: `background: linear-gradient(transparent 70%, rgba(180,0,0,0.2) 100%); border-top: 2px solid rgba(180,0,0,0.3);`
+                    css: `background: linear-gradient(transparent 60%, rgba(180,0,0,0.25) 100%);`,
+                    particles: 'drip'
                 },
                 underwater: { 
-                    css: `background: linear-gradient(rgba(0,100,150,0.15) 0%, rgba(0,50,100,0.25) 100%);`,
+                    css: `background: linear-gradient(rgba(0,100,150,0.2) 0%, rgba(0,50,100,0.3) 100%);`,
                     particles: 'bubble'
                 },
                 poison: { 
-                    css: `background: linear-gradient(transparent 60%, rgba(100,180,0,0.2) 100%);`,
-                    pulse: true
+                    css: `background: linear-gradient(transparent 50%, rgba(100,180,0,0.25) 100%);`,
+                    particles: 'smoke'
                 },
                 holy: { 
-                    css: `background: radial-gradient(ellipse at top, rgba(255,215,0,0.15) 0%, transparent 60%);`,
+                    css: `background: radial-gradient(ellipse at top, rgba(255,215,0,0.2) 0%, transparent 60%);`,
                     particles: 'sparkle'
                 }
             };
@@ -574,19 +586,20 @@
             `;
             
             // Add particles based on type
-            if (effect.particles === 'rain') {
-                overlay.innerHTML = this.createRainEffect();
-            } else if (effect.particles === 'snow') {
-                overlay.innerHTML = this.createSnowEffect();
-            } else if (effect.particles === 'sparkle') {
-                overlay.innerHTML = this.createSparkleEffect();
-            } else if (effect.particles === 'bubble') {
-                overlay.innerHTML = this.createBubbleEffect();
-            }
+            const particleMap = {
+                'rain': () => this.createRainEffect(),
+                'snow': () => this.createSnowEffect(),
+                'sparkle': () => this.createSparkleEffect(),
+                'bubble': () => this.createBubbleEffect(),
+                'ember': () => this.createEmberEffect(),
+                'fog': () => this.createFogParticles(),
+                'dust': () => this.createDustEffect(),
+                'drip': () => this.createDripEffect(),
+                'smoke': () => this.createSmokeEffect()
+            };
             
-            // Add pulse animation
-            if (effect.pulse) {
-                overlay.style.animation = 'ambientPulse 4s ease-in-out infinite';
+            if (effect.particles && particleMap[effect.particles]) {
+                overlay.innerHTML = particleMap[effect.particles]();
             }
             
             // Add lightning flash for storm
@@ -684,6 +697,103 @@
                 "></div>`;
             }
             return bubbles;
+        },
+        
+        // Ember effect for fire
+        createEmberEffect() {
+            let embers = '';
+            for (let i = 0; i < 30; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 3;
+                const duration = 3 + Math.random() * 3;
+                const size = 2 + Math.random() * 3;
+                embers += `<div style="
+                    position: absolute; bottom: -10px; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: rgba(255,${100 + Math.random() * 100},0,0.8);
+                    border-radius: 50%;
+                    box-shadow: 0 0 ${size * 2}px rgba(255,100,0,0.5);
+                    animation: emberRise ${duration}s ease-out ${delay}s infinite;
+                "></div>`;
+            }
+            return embers;
+        },
+        
+        // Fog particles
+        createFogParticles() {
+            let fog = '';
+            for (let i = 0; i < 15; i++) {
+                const left = Math.random() * 100;
+                const top = 20 + Math.random() * 60;
+                const delay = Math.random() * 5;
+                const duration = 8 + Math.random() * 8;
+                const size = 100 + Math.random() * 200;
+                fog += `<div style="
+                    position: absolute; top: ${top}%; left: ${left}%;
+                    width: ${size}px; height: ${size * 0.4}px;
+                    background: radial-gradient(ellipse, rgba(180,180,180,0.3), transparent);
+                    border-radius: 50%;
+                    animation: fogFloat ${duration}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return fog;
+        },
+        
+        // Dust particles for darkness
+        createDustEffect() {
+            let dust = '';
+            for (let i = 0; i < 40; i++) {
+                const left = Math.random() * 100;
+                const top = Math.random() * 100;
+                const delay = Math.random() * 4;
+                const duration = 6 + Math.random() * 6;
+                const size = 1 + Math.random() * 2;
+                dust += `<div style="
+                    position: absolute; top: ${top}%; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: rgba(100,100,100,0.4);
+                    border-radius: 50%;
+                    animation: dustFloat ${duration}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return dust;
+        },
+        
+        // Drip effect for blood
+        createDripEffect() {
+            let drips = '';
+            for (let i = 0; i < 20; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 4;
+                const duration = 2 + Math.random() * 2;
+                drips += `<div style="
+                    position: absolute; top: -10px; left: ${left}%;
+                    width: 2px; height: 15px;
+                    background: linear-gradient(rgba(180,0,0,0.6), rgba(120,0,0,0.3));
+                    border-radius: 0 0 2px 2px;
+                    animation: bloodDrip ${duration}s ease-in ${delay}s infinite;
+                "></div>`;
+            }
+            return drips;
+        },
+        
+        // Smoke effect for poison
+        createSmokeEffect() {
+            let smoke = '';
+            for (let i = 0; i < 20; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 3;
+                const duration = 4 + Math.random() * 4;
+                const size = 20 + Math.random() * 40;
+                smoke += `<div style="
+                    position: absolute; bottom: -20px; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: radial-gradient(circle, rgba(100,180,0,0.3), transparent);
+                    border-radius: 50%;
+                    animation: smokeRise ${duration}s ease-out ${delay}s infinite;
+                "></div>`;
+            }
+            return smoke;
         },
         
         // Lightning flash for storm
@@ -1588,6 +1698,37 @@
             0% { opacity: 0.8; }
             50% { opacity: 0.2; }
             100% { opacity: 0; }
+        }
+        
+        @keyframes emberRise {
+            0% { bottom: -10px; opacity: 1; transform: translateX(0); }
+            50% { opacity: 0.8; transform: translateX(10px); }
+            100% { bottom: 60vh; opacity: 0; transform: translateX(-5px); }
+        }
+        
+        @keyframes fogFloat {
+            0% { transform: translateX(-20px); opacity: 0.2; }
+            50% { transform: translateX(20px); opacity: 0.4; }
+            100% { transform: translateX(-20px); opacity: 0.2; }
+        }
+        
+        @keyframes dustFloat {
+            0% { transform: translate(0, 0); opacity: 0.3; }
+            25% { transform: translate(5px, -5px); opacity: 0.5; }
+            50% { transform: translate(0, -10px); opacity: 0.3; }
+            75% { transform: translate(-5px, -5px); opacity: 0.5; }
+            100% { transform: translate(0, 0); opacity: 0.3; }
+        }
+        
+        @keyframes bloodDrip {
+            0% { top: -10px; opacity: 0.8; }
+            100% { top: 100vh; opacity: 0.2; }
+        }
+        
+        @keyframes smokeRise {
+            0% { bottom: -20px; opacity: 0.5; transform: scale(0.5) translateX(0); }
+            50% { opacity: 0.3; transform: scale(1) translateX(15px); }
+            100% { bottom: 70vh; opacity: 0; transform: scale(1.5) translateX(-10px); }
         }
         
         @keyframes fogDrift {
