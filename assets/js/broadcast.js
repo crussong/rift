@@ -54,12 +54,25 @@
                     
                     const data = doc.data();
                     const broadcast = data.broadcast;
+                    const poll = data.poll;
                     
+                    // Handle Broadcast
                     if (broadcast && broadcast.id && String(broadcast.id) !== this.lastBroadcastId) {
-                        // New broadcast!
                         this.lastBroadcastId = String(broadcast.id);
                         localStorage.setItem('rift_last_broadcast_id', String(broadcast.id));
                         this.showBroadcast(broadcast);
+                    }
+                    
+                    // Handle Poll
+                    if (poll && poll.active && poll.timestamp) {
+                        const pollId = poll.timestamp.seconds || poll.timestamp;
+                        const lastPollId = localStorage.getItem('rift_last_poll_id');
+                        const hasVoted = localStorage.getItem('rift_poll_voted_' + pollId);
+                        
+                        if (String(pollId) !== lastPollId && !hasVoted) {
+                            localStorage.setItem('rift_last_poll_id', String(pollId));
+                            this.showPoll(poll, pollId, normalizedCode);
+                        }
                     }
                 }, (error) => {
                     console.error('[Broadcast] Subscribe error:', error);
@@ -107,6 +120,76 @@
         },
         
         closeBroadcast(btn) {
+            const overlay = btn.closest('.broadcast-overlay');
+            overlay.classList.remove('broadcast-overlay--visible');
+            setTimeout(() => overlay.remove(), 300);
+        },
+        
+        showPoll(poll, pollId, roomCode) {
+            // Create poll overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'broadcast-overlay poll-overlay';
+            overlay.innerHTML = `
+                <div class="broadcast-modal poll-modal">
+                    <div class="broadcast-modal__header">
+                        <div class="broadcast-modal__icon" style="background:rgba(139,92,246,0.15)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#a78bfa">
+                                <path d="M18 20V10M12 20V4M6 20v-6"/>
+                            </svg>
+                        </div>
+                        <span class="broadcast-modal__badge" style="color:#a78bfa">GM Umfrage</span>
+                    </div>
+                    <div class="broadcast-modal__content">
+                        <p class="broadcast-modal__message" style="font-size:18px;font-weight:600;margin-bottom:16px;">${this.escapeHtml(poll.question)}</p>
+                        <div class="poll-options-list">
+                            ${(poll.options || []).map(opt => `
+                                <button class="poll-option-btn" onclick="BroadcastListener.votePoll('${opt}', '${pollId}', '${roomCode}', this)">
+                                    ${this.escapeHtml(opt)}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <button class="poll-skip-btn" onclick="BroadcastListener.skipPoll('${pollId}', this)">
+                        Überspringen
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            requestAnimationFrame(() => {
+                overlay.classList.add('broadcast-overlay--visible');
+            });
+            
+            // Play sound
+            this.playSound();
+        },
+        
+        async votePoll(option, pollId, roomCode, btn) {
+            try {
+                const db = window.RIFT?.firebase?.getFirestore?.() || window.firebase?.firestore?.();
+                if (!db) return;
+                
+                // Increment vote count
+                await db.collection('rooms').doc(roomCode).update({
+                    [`poll.votes.${option}`]: firebase.firestore.FieldValue.increment(1)
+                });
+                
+                // Mark as voted
+                localStorage.setItem('rift_poll_voted_' + pollId, 'true');
+                
+                // Close overlay
+                const overlay = btn.closest('.broadcast-overlay');
+                overlay.classList.remove('broadcast-overlay--visible');
+                setTimeout(() => overlay.remove(), 300);
+                
+            } catch (e) {
+                console.error('[Poll] Vote failed:', e);
+            }
+        },
+        
+        skipPoll(pollId, btn) {
+            localStorage.setItem('rift_poll_voted_' + pollId, 'skipped');
             const overlay = btn.closest('.broadcast-overlay');
             overlay.classList.remove('broadcast-overlay--visible');
             setTimeout(() => overlay.remove(), 300);
@@ -253,6 +336,53 @@
         
         .broadcast-modal__btn:active {
             transform: translateY(0);
+        }
+        
+        /* Poll Styles */
+        .poll-options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .poll-option-btn {
+            width: 100%;
+            padding: 14px 20px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 10px;
+            color: white;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .poll-option-btn:hover {
+            background: rgba(139, 92, 246, 0.3);
+            border-color: rgba(139, 92, 246, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .poll-option-btn:active {
+            transform: translateY(0);
+        }
+        
+        .poll-skip-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .poll-skip-btn:hover {
+            color: rgba(255, 255, 255, 0.8);
         }
     `;
     document.head.appendChild(style);
