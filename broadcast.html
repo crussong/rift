@@ -2346,20 +2346,28 @@
                         resolvedAt: Date.now()
                     };
                     
-                    // Save to poll_history subcollection
-                    await this.ref().collection('poll_history').add({
+                    // Save to pollHistory array in room document (keep last 10)
+                    const historyEntry = {
                         question: this.currentPoll.question,
                         options,
                         emojis,
                         results,
                         totalVotes: resolvedPoll.totalVotes,
-                        resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        resolvedAt: Date.now()
+                    };
+                    
+                    // Get current history and add new entry
+                    const currentHistory = this.pollHistory || [];
+                    const newHistory = [historyEntry, ...currentHistory].slice(0, 10);
+                    
+                    await this.ref().update({ 
+                        poll: resolvedPoll,
+                        pollHistory: newHistory
                     });
                     
-                    await this.ref().update({ poll: resolvedPoll });
-                    
-                    // Reload poll history
-                    this.loadPollHistory();
+                    // Update local history
+                    this.pollHistory = newHistory;
+                    this.renderPollHistory();
                     
                     this.toast('Umfrage aufgelöst!', 'success');
                 } catch (e) {
@@ -2368,54 +2376,54 @@
                 }
             },
             
+            pollHistory: [],
+            
             async loadPollHistory() {
                 try {
-                    const snap = await this.ref().collection('poll_history')
-                        .orderBy('resolvedAt', 'desc')
-                        .limit(10)
-                        .get();
-                    
-                    const container = document.getElementById('pollHistory');
-                    if (!container) return;
-                    
-                    if (snap.empty) {
-                        container.innerHTML = `
-                            <div class="bc-empty">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-                                <div class="bc-empty__title">Keine Umfragen</div>
-                                <p>Vergangene Umfragen erscheinen hier</p>
-                            </div>
-                        `;
-                        return;
-                    }
-                    
-                    let html = '';
-                    snap.docs.forEach(doc => {
-                        const poll = doc.data();
-                        const winner = poll.results?.find(r => r.isWinner);
-                        const date = poll.resolvedAt?.toDate?.() || new Date();
-                        const timeStr = date.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-                        
-                        html += `
-                            <div class="bc-history-item" style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                    <div style="flex: 1;">
-                                        <div style="font-weight: 500; color: var(--text-primary);">${this.escapeHtml(poll.question)}</div>
-                                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-                                            ${winner ? `🏆 ${winner.emoji || ''} ${winner.option} (${winner.votes})` : 'Keine Stimmen'}
-                                            • ${poll.totalVotes || 0} Stimmen
-                                        </div>
-                                    </div>
-                                    <div style="font-size: 11px; color: var(--text-muted);">${timeStr}</div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    container.innerHTML = html;
+                    // Load pollHistory from room document
+                    const doc = await this.ref().get();
+                    const data = doc.data();
+                    this.pollHistory = data?.pollHistory || [];
+                    this.renderPollHistory();
                 } catch (e) {
                     console.error('[BC] Load poll history error:', e);
                 }
+            },
+            
+            renderPollHistory() {
+                const container = document.getElementById('pollHistory');
+                if (!container) return;
+                
+                if (!this.pollHistory || this.pollHistory.length === 0) {
+                    container.innerHTML = `
+                        <div class="bc-empty">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                            <div class="bc-empty__title">Keine Umfragen</div>
+                            <p>Vergangene Umfragen erscheinen hier</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                this.pollHistory.forEach(poll => {
+                    const winner = poll.results?.find(r => r.isWinner);
+                    const date = poll.resolvedAt ? new Date(poll.resolvedAt) : new Date();
+                    const timeStr = date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + 
+                                   ' ' + date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                    
+                    html += `
+                        <div style="padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; margin-bottom: 8px;">
+                            <div style="font-weight: 500; color: var(--text-primary);">${this.escapeHtml(poll.question)}</div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--text-muted);">
+                                <span>🏆 ${winner ? `${winner.emoji || ''} ${this.escapeHtml(winner.option)} (${winner.votes})` : 'Unentschieden'}</span>
+                                <span>${poll.totalVotes} Stimmen • ${timeStr}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
             },
             
             async closePoll() {
@@ -2554,7 +2562,7 @@
                 
                 const playerId = selected.dataset.id;
                 const playerName = selected.querySelector('.bc-player__name').textContent;
-                const withSound = document.getElementById('secretSound')?.checked !== false;
+                const withSound = document.getElementById('secretSound')?.checked;
                 
                 try {
                     await this.ref().update({
@@ -2973,6 +2981,7 @@
             
             // ============ PLAYER STATUS ============
             playerStatuses: {},
+            statusUnsubscribe: null,
             
             async requestStatusUpdate() {
                 try {
@@ -2985,7 +2994,7 @@
                     });
                     this.toast('Status-Abfrage gesendet!', 'success');
                     
-                    // Listen for status updates
+                    // Start listening for status updates
                     this.listenForStatusUpdates();
                 } catch (e) {
                     this.toast('Fehler', 'error');
@@ -2993,15 +3002,18 @@
             },
             
             listenForStatusUpdates() {
-                // Clear after 30 seconds
-                setTimeout(() => this.renderPlayerStatuses(), 30000);
+                // Unsubscribe from previous listener
+                if (this.statusUnsubscribe) {
+                    this.statusUnsubscribe();
+                }
                 
-                // Subscribe to player_status subcollection
-                this.ref().collection('player_status').onSnapshot(snap => {
-                    snap.docs.forEach(doc => {
-                        this.playerStatuses[doc.id] = doc.data();
-                    });
-                    this.renderPlayerStatuses();
+                // Subscribe to room document for playerStatus field
+                this.statusUnsubscribe = this.ref().onSnapshot(doc => {
+                    const data = doc.data();
+                    if (data && data.playerStatus) {
+                        this.playerStatuses = data.playerStatus;
+                        this.renderPlayerStatuses();
+                    }
                 });
             },
             
@@ -3010,22 +3022,39 @@
                 if (!container) return;
                 
                 const statusIcons = {
-                    ready: '✅', busy: '🔴', afk: '💤', thinking: '🤔'
+                    ready: '✅', 
+                    notready: '❌', 
+                    editing: '✏️', 
+                    needsupport: '🆘',
+                    unknown: '❓'
+                };
+                
+                const statusLabels = {
+                    ready: 'Bereit',
+                    notready: 'Nicht bereit',
+                    editing: 'Editiert noch',
+                    needsupport: 'Braucht Hilfe',
+                    unknown: 'Unbekannt'
                 };
                 
                 let html = '';
                 this.members.forEach(m => {
                     if (m.isGM) return;
-                    const status = this.playerStatuses[m.id] || { status: 'unknown' };
-                    const icon = statusIcons[status.status] || '❓';
-                    const time = status.updatedAt ? new Date(status.updatedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+                    const statusData = this.playerStatuses[m.id] || { status: 'unknown' };
+                    const icon = statusIcons[statusData.status] || '❓';
+                    const label = statusLabels[statusData.status] || statusData.status;
+                    const time = statusData.updatedAt ? new Date(statusData.updatedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+                    
+                    // Highlight if needs support
+                    const needsHelp = statusData.status === 'needsupport';
+                    const bgStyle = needsHelp ? 'background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.4);' : '';
                     
                     html += `
-                        <div class="bc-player" style="pointer-events: none;">
+                        <div class="bc-player" style="pointer-events: none; ${bgStyle}">
                             <div class="bc-player__avatar" style="background: ${m.color || '#8b5cf6'};">${m.name?.charAt(0) || '?'}</div>
                             <span class="bc-player__name">${this.escapeHtml(m.name)}</span>
-                            <span style="margin-left: auto; font-size: 18px;" title="${status.status}">${icon}</span>
-                            ${time ? `<span style="font-size: 11px; color: var(--text-muted);">${time}</span>` : ''}
+                            <span style="margin-left: auto; font-size: 16px;" title="${label}">${icon}</span>
+                            ${time ? `<span style="font-size: 10px; color: var(--text-muted);">${time}</span>` : ''}
                         </div>
                     `;
                 });
