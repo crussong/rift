@@ -201,15 +201,15 @@
             overlay.className = 'broadcast-overlay';
             overlay.innerHTML = `
                 <div class="broadcast-modal" style="border-color: ${config.color}40; box-shadow: 0 0 60px ${config.color}30;">
-                    <div class="broadcast-modal__header">
+                    <div class="broadcast-modal__header" style="justify-content: center;">
                         <div class="broadcast-modal__icon" style="background: ${config.color}20;">
                             <span style="font-size: 24px;">${config.icon}</span>
                         </div>
-                        <span class="broadcast-modal__badge" style="color: ${config.color};">GM ${config.label}</span>
+                        <span class="broadcast-modal__badge" style="color: ${config.color};">${config.label}</span>
                     </div>
-                    <div class="broadcast-modal__content">
+                    <div class="broadcast-modal__content" style="text-align: center;">
                         ${imageHtml}
-                        <p class="broadcast-modal__message">${this.escapeHtml(broadcast.message || '')}</p>
+                        <p class="broadcast-modal__message" style="text-align: center;">${this.escapeHtml(broadcast.message || '')}</p>
                     </div>
                     <button class="broadcast-modal__btn" style="background: ${config.color};" onclick="BroadcastListener.closeBroadcast(this)">
                         Verstanden
@@ -421,9 +421,9 @@
             document.body.appendChild(overlay);
         },
         
-        // Combat start
+        // Combat start with pulse effect
         showCombatStart(broadcast) {
-            this.playBroadcastSound('combat');
+            this.playBroadcastSound(broadcast.sound);
             
             const overlay = document.createElement('div');
             overlay.className = 'cinematic-overlay combat-start';
@@ -435,13 +435,17 @@
                 animation: combatFlash 0.5s ease;
             `;
             overlay.innerHTML = `
-                <div style="animation: combatTitle 0.8s ease;">
+                <div style="animation: combatTitle 0.8s ease; text-align: center;">
                     <h1 style="
-                        font-size: 64px; font-weight: 900; color: #ef4444;
+                        font-size: clamp(40px, 10vw, 80px); font-weight: 900; color: #ef4444;
                         text-transform: uppercase; letter-spacing: 8px;
                         text-shadow: 0 0 60px rgba(239,68,68,0.8);
+                        animation: combatPulse 1.5s ease-in-out infinite;
                     ">${this.escapeHtml(broadcast.title || 'INITIATIVE!')}</h1>
-                    ${broadcast.subtitle ? `<p style="font-size: 24px; color: rgba(255,255,255,0.7); margin-top: 16px;">${this.escapeHtml(broadcast.subtitle)}</p>` : ''}
+                    ${broadcast.subtitle ? `<p style="
+                        font-size: clamp(16px, 4vw, 28px); color: rgba(255,255,255,0.8); 
+                        margin-top: 20px; text-align: center; letter-spacing: 2px;
+                    ">${this.escapeHtml(broadcast.subtitle)}</p>` : ''}
                 </div>
                 <button style="
                     margin-top: 48px; padding: 16px 40px;
@@ -449,58 +453,134 @@
                     color: white; font-size: 18px; font-weight: 700;
                     text-transform: uppercase; letter-spacing: 2px; cursor: pointer;
                     animation: combatBtn 1s ease;
+                    box-shadow: 0 0 30px rgba(239,68,68,0.5);
                 " onclick="this.closest('.cinematic-overlay').remove()">⚔️ Kämpfen!</button>
             `;
             
             document.body.appendChild(overlay);
         },
         
-        // Ambient change
+        // Ambient change - persistent overlay effect
         showAmbientChange(broadcast) {
-            this.playBroadcastSound('mystery');
+            // Remove any existing ambient overlay
+            document.querySelectorAll('.ambient-overlay').forEach(el => el.remove());
+            
+            // "clear" removes the overlay
+            if (broadcast.effect === 'clear') {
+                return;
+            }
             
             const effects = {
-                rain: { emoji: '🌧️', name: 'Regen', css: 'background: linear-gradient(to bottom, #1a2a3a, #0a1520);' },
-                fire: { emoji: '🔥', name: 'Feuer', css: 'background: linear-gradient(to bottom, #2d1a0a, #1a0a00);' },
-                darkness: { emoji: '🌑', name: 'Dunkelheit', css: 'background: #000;' },
-                snow: { emoji: '❄️', name: 'Schnee', css: 'background: linear-gradient(to bottom, #2a3a4a, #1a2535);' },
-                fog: { emoji: '🌫️', name: 'Nebel', css: 'background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);' },
-                clear: { emoji: '☀️', name: 'Klar', css: 'background: linear-gradient(to bottom, #1a3a5a, #0a2040);' }
+                rain: { 
+                    css: `
+                        background: linear-gradient(transparent 0%, rgba(20,40,60,0.3) 100%);
+                        pointer-events: none;
+                    `,
+                    animation: 'raindrops'
+                },
+                fire: { 
+                    css: `
+                        background: linear-gradient(transparent 60%, rgba(255,100,0,0.15) 100%);
+                        pointer-events: none;
+                    `,
+                    animation: 'fireGlow'
+                },
+                darkness: { 
+                    css: `
+                        background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.8) 100%);
+                        pointer-events: none;
+                    `,
+                    animation: 'none'
+                },
+                snow: { 
+                    css: `
+                        background: linear-gradient(rgba(200,220,255,0.05) 0%, transparent 100%);
+                        pointer-events: none;
+                    `,
+                    animation: 'snowfall'
+                },
+                fog: { 
+                    css: `
+                        background: linear-gradient(transparent 0%, rgba(150,150,150,0.2) 50%, transparent 100%);
+                        pointer-events: none;
+                    `,
+                    animation: 'fogDrift'
+                }
             };
             
-            const effect = effects[broadcast.effect] || effects.clear;
+            const effect = effects[broadcast.effect];
+            if (!effect) return;
             
             const overlay = document.createElement('div');
-            overlay.className = 'cinematic-overlay ambient-change';
+            overlay.className = 'ambient-overlay';
+            overlay.dataset.effect = broadcast.effect;
             overlay.style.cssText = `
-                position: fixed; inset: 0; z-index: 100000;
+                position: fixed; inset: 0; z-index: 9998;
                 ${effect.css}
-                display: flex; flex-direction: column;
-                align-items: center; justify-content: center;
-                animation: fadeIn 1s ease;
+                opacity: 0;
+                transition: opacity 2s ease;
             `;
-            overlay.innerHTML = `
-                <span style="font-size: 80px; animation: ambientPulse 2s ease infinite;">${effect.emoji}</span>
-                <h2 style="font-size: 28px; color: white; margin-top: 24px;">${effect.name}</h2>
-            `;
+            
+            // Add effect-specific elements
+            if (broadcast.effect === 'rain') {
+                overlay.innerHTML = this.createRainEffect();
+            } else if (broadcast.effect === 'snow') {
+                overlay.innerHTML = this.createSnowEffect();
+            }
             
             document.body.appendChild(overlay);
             
-            setTimeout(() => {
-                overlay.style.animation = 'fadeOut 1s ease forwards';
-                setTimeout(() => overlay.remove(), 1000);
-            }, 2500);
+            // Fade in
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+            });
+        },
+        
+        // Rain effect particles
+        createRainEffect() {
+            let drops = '';
+            for (let i = 0; i < 50; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 2;
+                const duration = 0.5 + Math.random() * 0.5;
+                drops += `<div style="
+                    position: absolute; top: -20px; left: ${left}%;
+                    width: 2px; height: 20px;
+                    background: linear-gradient(transparent, rgba(150,200,255,0.4));
+                    animation: rainDrop ${duration}s linear ${delay}s infinite;
+                "></div>`;
+            }
+            return drops;
+        },
+        
+        // Snow effect particles
+        createSnowEffect() {
+            let flakes = '';
+            for (let i = 0; i < 30; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 5;
+                const duration = 5 + Math.random() * 5;
+                const size = 3 + Math.random() * 5;
+                flakes += `<div style="
+                    position: absolute; top: -20px; left: ${left}%;
+                    width: ${size}px; height: ${size}px; border-radius: 50%;
+                    background: rgba(255,255,255,0.6);
+                    animation: snowDrop ${duration}s linear ${delay}s infinite;
+                "></div>`;
+            }
+            return flakes;
         },
         
         // Reaction
         showReaction(broadcast) {
-            this.playBroadcastSound('notification');
+            this.playBroadcastSound(broadcast.sound);
             
             const overlay = document.createElement('div');
             overlay.className = 'reaction-overlay';
             overlay.style.cssText = `
                 position: fixed; inset: 0; z-index: 100000;
                 display: flex; align-items: center; justify-content: center;
+                flex-direction: column; gap: 16px;
                 pointer-events: none;
             `;
             overlay.innerHTML = `
@@ -508,19 +588,162 @@
                     font-size: 120px;
                     animation: reactionPop 1.5s ease forwards;
                 ">${broadcast.emoji}</span>
+                ${broadcast.message ? `<span style="
+                    font-size: 24px; color: white; font-weight: 600;
+                    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+                    animation: reactionPop 1.5s ease forwards;
+                ">${this.escapeHtml(broadcast.message)}</span>` : ''}
             `;
             
             document.body.appendChild(overlay);
             setTimeout(() => overlay.remove(), 1500);
         },
         
-        // Sound player
+        // Sound player with different types
         playBroadcastSound(soundType) {
             if (!soundType || soundType === 'none') return;
             
-            // For now, use the default sound
-            // TODO: Implement different sounds
-            this.playSound();
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const now = audioContext.currentTime;
+                
+                switch(soundType) {
+                    case 'notification':
+                        this.playSoundNotification(audioContext, now);
+                        break;
+                    case 'fanfare':
+                        this.playSoundFanfare(audioContext, now);
+                        break;
+                    case 'dramatic':
+                        this.playSoundDramatic(audioContext, now);
+                        break;
+                    case 'combat':
+                        this.playSoundCombat(audioContext, now);
+                        break;
+                    case 'mystery':
+                        this.playSoundMystery(audioContext, now);
+                        break;
+                    default:
+                        this.playSoundNotification(audioContext, now);
+                }
+            } catch (e) {
+                console.warn('[Broadcast] Sound failed:', e);
+            }
+        },
+        
+        // Standard notification - cheerful ding
+        playSoundNotification(ctx, now) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.frequency.setValueAtTime(587, now);      // D5
+            osc.frequency.setValueAtTime(880, now + 0.1); // A5
+            osc.frequency.setValueAtTime(1175, now + 0.2); // D6
+            
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            
+            osc.start(now);
+            osc.stop(now + 0.5);
+        },
+        
+        // Fanfare - triumphant
+        playSoundFanfare(ctx, now) {
+            const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+            notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.frequency.setValueAtTime(freq, now + i * 0.15);
+                gain.gain.setValueAtTime(0, now + i * 0.15);
+                gain.gain.linearRampToValueAtTime(0.25, now + i * 0.15 + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.4);
+                
+                osc.start(now + i * 0.15);
+                osc.stop(now + i * 0.15 + 0.5);
+            });
+        },
+        
+        // Dramatic - deep suspenseful
+        playSoundDramatic(ctx, now) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.frequency.setValueAtTime(110, now);  // Low A
+            osc.frequency.exponentialRampToValueAtTime(55, now + 1); // Even lower
+            
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0.3, now + 0.3);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+            
+            osc.start(now);
+            osc.stop(now + 1.2);
+        },
+        
+        // Combat - aggressive impact
+        playSoundCombat(ctx, now) {
+            // Impact hit
+            const noise = ctx.createOscillator();
+            const noiseGain = ctx.createGain();
+            noise.type = 'square';
+            noise.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+            
+            noise.frequency.setValueAtTime(150, now);
+            noise.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+            
+            noiseGain.gain.setValueAtTime(0.4, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            
+            noise.start(now);
+            noise.stop(now + 0.2);
+            
+            // Rising tension
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.frequency.setValueAtTime(220, now + 0.1);
+            osc.frequency.linearRampToValueAtTime(440, now + 0.4);
+            
+            gain.gain.setValueAtTime(0.15, now + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            
+            osc.start(now + 0.1);
+            osc.stop(now + 0.5);
+        },
+        
+        // Mystery - ethereal
+        playSoundMystery(ctx, now) {
+            const notes = [330, 392, 494]; // E4, G4, B4 (Em chord)
+            notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.frequency.setValueAtTime(freq, now);
+                osc.frequency.linearRampToValueAtTime(freq * 1.02, now + 1); // Slight detune
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.12, now + 0.3);
+                gain.gain.linearRampToValueAtTime(0.1, now + 0.8);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+                
+                osc.start(now);
+                osc.stop(now + 1.5);
+            });
         },
         
         closeBroadcast(btn) {
@@ -1035,6 +1258,11 @@
             100% { opacity: 1; transform: translateY(0); }
         }
         
+        @keyframes combatPulse {
+            0%, 100% { text-shadow: 0 0 60px rgba(239,68,68,0.8); }
+            50% { text-shadow: 0 0 100px rgba(239,68,68,1), 0 0 150px rgba(239,68,68,0.6); }
+        }
+        
         @keyframes ambientPulse {
             0%, 100% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.1); opacity: 0.8; }
@@ -1055,6 +1283,28 @@
             0% { transform: scale(0); }
             50% { transform: scale(1.3); }
             100% { transform: scale(1); }
+        }
+        
+        /* Ambient effect animations */
+        @keyframes rainDrop {
+            0% { top: -20px; opacity: 1; }
+            100% { top: 100vh; opacity: 0.3; }
+        }
+        
+        @keyframes snowDrop {
+            0% { top: -20px; opacity: 1; transform: translateX(0); }
+            50% { transform: translateX(20px); }
+            100% { top: 100vh; opacity: 0.3; transform: translateX(-10px); }
+        }
+        
+        @keyframes fogDrift {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes fireGlow {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.5; }
         }
         
         /* Secondary button style */
