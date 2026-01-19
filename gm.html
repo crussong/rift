@@ -170,8 +170,8 @@
         .cropper-modal__title { font-weight: 600; color: white; }
         .cropper-modal__close { background: transparent; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; }
         .cropper-modal__close:hover { color: white; }
-        .cropper-modal__canvas-wrap { position: relative; width: 100%; aspect-ratio: 350/160; background: #000; overflow: hidden; }
-        .cropper-modal__canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 100%; max-height: 100%; cursor: move; }
+        .cropper-modal__canvas-wrap { position: relative; width: 100%; aspect-ratio: 350/160; background: #000; overflow: hidden; cursor: move; }
+        .cropper-modal__canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
         .cropper-modal__controls { padding: 16px; display: flex; gap: 12px; align-items: center; }
         .cropper-modal__zoom { flex: 1; accent-color: var(--accent); }
         .cropper-modal__actions { display: flex; gap: 10px; padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); justify-content: flex-end; }
@@ -181,15 +181,20 @@
         
         /* Active Poll */
         .poll-active { padding: 16px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; margin-bottom: 16px; }
-        .poll-active__header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .poll-active__header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; }
         .poll-active__label { font-size: 11px; font-weight: 700; color: #a78bfa; letter-spacing: 1px; }
         .poll-active__question { font-size: 16px; font-weight: 600; color: white; margin-top: 4px; }
-        .poll-active__close { padding: 6px 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 6px; color: white; font-size: 12px; cursor: pointer; }
+        .poll-active__actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .poll-active__resolve { padding: 8px 14px; background: rgba(34,197,94,0.2); border: none; border-radius: 6px; color: #22c55e; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .poll-active__resolve:hover { background: rgba(34,197,94,0.3); }
+        .poll-active__close { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border: none; border-radius: 6px; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .poll-active__close:hover { background: rgba(255,70,85,0.2); color: var(--accent); }
         .poll-results { display: flex; flex-direction: column; gap: 8px; }
         .poll-result { display: flex; align-items: center; gap: 10px; }
-        .poll-result__label { min-width: 50px; font-size: 14px; color: rgba(255,255,255,0.8); }
+        .poll-result__label { min-width: 60px; font-size: 14px; color: rgba(255,255,255,0.8); }
         .poll-result__bar { flex: 1; height: 28px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; position: relative; }
         .poll-result__fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #a78bfa); transition: width 0.3s; }
+        .poll-result__fill--winner { background: linear-gradient(90deg, #22c55e, #4ade80); }
         .poll-result__count { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: white; }
         
         /* Broadcast */
@@ -465,7 +470,10 @@
                                         <div class="poll-active__label">AKTIVE UMFRAGE</div>
                                         <div class="poll-active__question" id="pollQuestion">-</div>
                                     </div>
-                                    <button class="poll-active__close" onclick="GM.closePoll()">Beenden</button>
+                                    <div class="poll-active__actions">
+                                        <button class="poll-active__resolve" onclick="GM.resolvePoll()">🏆 Auflösen</button>
+                                        <button class="poll-active__close" onclick="GM.closePoll()">✕</button>
+                                    </div>
                                 </div>
                                 <div id="pollActiveImage" style="display:none; margin-bottom: 12px;">
                                     <img src="" alt="Poll Image" style="width:100%; border-radius:8px;">
@@ -1155,12 +1163,12 @@
                             <span class="cropper-modal__title">Bild zuschneiden (350×160)</span>
                             <button class="cropper-modal__close" onclick="GM.closeCropper()">✕</button>
                         </div>
-                        <div class="cropper-modal__canvas-wrap">
+                        <div class="cropper-modal__canvas-wrap" id="cropperWrap">
                             <img id="cropperImage" class="cropper-modal__canvas" src="${imageSrc}">
                         </div>
                         <div class="cropper-modal__controls">
                             <span style="font-size:12px;color:rgba(255,255,255,0.5)">Zoom:</span>
-                            <input type="range" class="cropper-modal__zoom" id="cropperZoom" min="0.5" max="3" step="0.1" value="1" oninput="GM.updateCropperZoom(this.value)">
+                            <input type="range" class="cropper-modal__zoom" id="cropperZoom" min="1" max="3" step="0.05" value="1" oninput="GM.updateCropperZoom(this.value)">
                         </div>
                         <div class="cropper-modal__actions">
                             <button class="cropper-modal__btn cropper-modal__btn--cancel" onclick="GM.closeCropper()">Abbrechen</button>
@@ -1170,51 +1178,118 @@
                 `;
                 document.body.appendChild(modal);
                 
-                // Initialize cropper state
-                this.cropperState = {
-                    zoom: 1,
-                    offsetX: 0,
-                    offsetY: 0,
-                    isDragging: false,
-                    startX: 0,
-                    startY: 0
-                };
-                
-                // Setup drag handlers
+                // Wait for image to load
                 const img = document.getElementById('cropperImage');
+                const wrap = document.getElementById('cropperWrap');
+                
                 img.onload = () => {
-                    this.cropperState.imgWidth = img.naturalWidth;
-                    this.cropperState.imgHeight = img.naturalHeight;
+                    const wrapRect = wrap.getBoundingClientRect();
+                    const targetRatio = 350 / 160;
+                    const imgRatio = img.naturalWidth / img.naturalHeight;
+                    
+                    let scale;
+                    if (imgRatio > targetRatio) {
+                        // Image is wider - fit height
+                        scale = wrapRect.height / img.naturalHeight;
+                    } else {
+                        // Image is taller - fit width
+                        scale = wrapRect.width / img.naturalWidth;
+                    }
+                    
+                    this.cropperState = {
+                        baseScale: scale,
+                        zoom: 1,
+                        offsetX: 0,
+                        offsetY: 0,
+                        isDragging: false,
+                        startX: 0,
+                        startY: 0,
+                        imgWidth: img.naturalWidth,
+                        imgHeight: img.naturalHeight,
+                        wrapWidth: wrapRect.width,
+                        wrapHeight: wrapRect.height
+                    };
+                    
+                    // Center image initially
+                    const scaledW = img.naturalWidth * scale;
+                    const scaledH = img.naturalHeight * scale;
+                    this.cropperState.offsetX = (wrapRect.width - scaledW) / 2;
+                    this.cropperState.offsetY = (wrapRect.height - scaledH) / 2;
+                    
+                    this.updateCropperTransform();
                 };
                 
-                img.onmousedown = (e) => {
+                // Drag handlers on wrap, not image
+                wrap.onmousedown = (e) => {
+                    e.preventDefault();
                     this.cropperState.isDragging = true;
                     this.cropperState.startX = e.clientX - this.cropperState.offsetX;
                     this.cropperState.startY = e.clientY - this.cropperState.offsetY;
                 };
                 
                 document.onmousemove = (e) => {
-                    if (!this.cropperState.isDragging) return;
+                    if (!this.cropperState?.isDragging) return;
                     this.cropperState.offsetX = e.clientX - this.cropperState.startX;
                     this.cropperState.offsetY = e.clientY - this.cropperState.startY;
+                    this.constrainCropper();
                     this.updateCropperTransform();
                 };
                 
                 document.onmouseup = () => {
-                    this.cropperState.isDragging = false;
+                    if (this.cropperState) this.cropperState.isDragging = false;
                 };
             },
             
+            constrainCropper() {
+                const s = this.cropperState;
+                if (!s) return;
+                
+                const currentScale = s.baseScale * s.zoom;
+                const scaledW = s.imgWidth * currentScale;
+                const scaledH = s.imgHeight * currentScale;
+                
+                // Don't allow image edges inside the wrap
+                const maxX = 0;
+                const minX = s.wrapWidth - scaledW;
+                const maxY = 0;
+                const minY = s.wrapHeight - scaledH;
+                
+                s.offsetX = Math.min(maxX, Math.max(minX, s.offsetX));
+                s.offsetY = Math.min(maxY, Math.max(minY, s.offsetY));
+            },
+            
             updateCropperZoom(value) {
+                if (!this.cropperState) return;
+                const oldZoom = this.cropperState.zoom;
                 this.cropperState.zoom = parseFloat(value);
+                
+                // Adjust offset to zoom towards center
+                const s = this.cropperState;
+                const centerX = s.wrapWidth / 2;
+                const centerY = s.wrapHeight / 2;
+                
+                const oldScale = s.baseScale * oldZoom;
+                const newScale = s.baseScale * s.zoom;
+                
+                // Point that was at center before zoom
+                const imgCenterX = (centerX - s.offsetX) / oldScale;
+                const imgCenterY = (centerY - s.offsetY) / oldScale;
+                
+                // New offset to keep that point at center
+                s.offsetX = centerX - imgCenterX * newScale;
+                s.offsetY = centerY - imgCenterY * newScale;
+                
+                this.constrainCropper();
                 this.updateCropperTransform();
             },
             
             updateCropperTransform() {
                 const img = document.getElementById('cropperImage');
-                if (img) {
-                    img.style.transform = `translate(calc(-50% + ${this.cropperState.offsetX}px), calc(-50% + ${this.cropperState.offsetY}px)) scale(${this.cropperState.zoom})`;
-                }
+                const s = this.cropperState;
+                if (!img || !s) return;
+                
+                const scale = s.baseScale * s.zoom;
+                img.style.transform = `translate(${s.offsetX}px, ${s.offsetY}px) scale(${scale})`;
             },
             
             closeCropper() {
@@ -1223,11 +1298,13 @@
                 document.getElementById('pollImageInput').value = '';
                 document.onmousemove = null;
                 document.onmouseup = null;
+                this.cropperState = null;
             },
             
             applyCrop() {
-                const wrap = document.querySelector('.cropper-modal__canvas-wrap');
                 const img = document.getElementById('cropperImage');
+                const s = this.cropperState;
+                if (!img || !s) return;
                 
                 // Create canvas with target dimensions
                 const canvas = document.createElement('canvas');
@@ -1235,17 +1312,12 @@
                 canvas.height = 160;
                 const ctx = canvas.getContext('2d');
                 
-                // Calculate crop area
-                const wrapRect = wrap.getBoundingClientRect();
-                const imgRect = img.getBoundingClientRect();
-                
-                const scaleX = img.naturalWidth / imgRect.width;
-                const scaleY = img.naturalHeight / imgRect.height;
-                
-                const sourceX = (wrapRect.left - imgRect.left) * scaleX;
-                const sourceY = (wrapRect.top - imgRect.top) * scaleY;
-                const sourceW = wrapRect.width * scaleX;
-                const sourceH = wrapRect.height * scaleY;
+                // Calculate what part of original image is visible
+                const scale = s.baseScale * s.zoom;
+                const sourceX = -s.offsetX / scale;
+                const sourceY = -s.offsetY / scale;
+                const sourceW = s.wrapWidth / scale;
+                const sourceH = s.wrapHeight / scale;
                 
                 ctx.drawImage(img, sourceX, sourceY, sourceW, sourceH, 0, 0, 350, 160);
                 
@@ -1387,8 +1459,51 @@
             async closePoll() {
                 try {
                     await this.ref().update({ 'poll.active': false });
-                    this.toast('Poll beendet', 'success');
+                    this.toast('Poll geschlossen', 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
+            },
+            
+            async resolvePoll() {
+                if (!this.currentPoll) return;
+                
+                try {
+                    // Calculate results
+                    const options = this.currentPoll.options || [];
+                    const emojis = this.currentPoll.emojis || [];
+                    const voteCounts = {};
+                    options.forEach(opt => voteCounts[opt] = 0);
+                    (this.pollVotes || []).forEach(vote => {
+                        if (vote.option && voteCounts.hasOwnProperty(vote.option)) {
+                            voteCounts[vote.option]++;
+                        }
+                    });
+                    
+                    // Find winner(s)
+                    const maxVotes = Math.max(...Object.values(voteCounts), 0);
+                    const winners = options.filter(opt => voteCounts[opt] === maxVotes);
+                    
+                    // Build results array
+                    const results = options.map((opt, i) => ({
+                        option: opt,
+                        emoji: emojis[i] || '',
+                        votes: voteCounts[opt],
+                        isWinner: voteCounts[opt] === maxVotes && maxVotes > 0
+                    }));
+                    
+                    // Update poll with resolved state and results
+                    await this.ref().update({
+                        'poll.active': false,
+                        'poll.resolved': true,
+                        'poll.results': results,
+                        'poll.totalVotes': Object.values(voteCounts).reduce((a, b) => a + b, 0),
+                        'poll.resolvedAt': firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    this.toast('Poll aufgelöst!', 'success');
+                } catch (e) { 
+                    this.toast('Fehler', 'error'); 
+                    console.error(e);
+                }
             },
             
             // ============ NOTES ============
