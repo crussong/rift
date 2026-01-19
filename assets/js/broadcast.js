@@ -344,23 +344,22 @@
             
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay handout-overlay';
-            overlay.style.cssText = 'cursor: pointer;';
             overlay.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; box-sizing: border-box;">
                     <img src="${broadcast.image}" alt="Handout" style="
-                        max-width: 90vw; max-height: 85vh; object-fit: contain;
+                        max-width: 90vw; max-height: 75vh; object-fit: contain;
                         border-radius: 12px; box-shadow: 0 20px 80px rgba(0,0,0,0.8);
                         cursor: zoom-in;
                     " onclick="event.stopPropagation(); BroadcastListener.zoomImage(this.src)">
-                    <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px;">Klicken zum Vergrößern • Irgendwo klicken zum Schließen</p>
+                    <p style="color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 12px;">Klicken zum Vergrößern</p>
+                    <button class="handout-close-btn" onclick="this.closest('.broadcast-overlay').classList.remove('broadcast-overlay--visible'); setTimeout(() => this.closest('.broadcast-overlay').remove(), 300);" style="
+                        margin-top: 20px; padding: 12px 40px;
+                        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px; color: white; font-size: 14px; font-weight: 500;
+                        cursor: pointer; transition: all 0.2s;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Okay</button>
                 </div>
             `;
-            overlay.onclick = (e) => {
-                if (e.target === overlay || e.target.tagName === 'P' || e.target.tagName === 'DIV') {
-                    overlay.classList.remove('broadcast-overlay--visible');
-                    setTimeout(() => overlay.remove(), 300);
-                }
-            };
             
             document.body.appendChild(overlay);
             requestAnimationFrame(() => overlay.classList.add('broadcast-overlay--visible'));
@@ -824,6 +823,9 @@
         showReaction(broadcast) {
             this.playBroadcastSound(broadcast.sound);
             
+            const hasEmoji = broadcast.emoji && broadcast.emoji.trim();
+            const hasMessage = broadcast.message && broadcast.message.trim();
+            
             const overlay = document.createElement('div');
             overlay.className = 'reaction-overlay';
             overlay.style.cssText = `
@@ -833,14 +835,18 @@
                 pointer-events: none;
             `;
             overlay.innerHTML = `
-                <span style="
+                ${hasEmoji ? `<span style="
                     font-size: 120px;
                     animation: reactionPop 1.5s ease forwards;
-                ">${broadcast.emoji}</span>
-                ${broadcast.message ? `<span style="
-                    font-size: 24px; color: white; font-weight: 600;
-                    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+                ">${broadcast.emoji}</span>` : ''}
+                ${hasMessage ? `<span style="
+                    font-size: ${hasEmoji ? '24px' : '48px'}; color: white; font-weight: 600;
+                    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
                     animation: reactionPop 1.5s ease forwards;
+                    padding: 20px 40px;
+                    background: rgba(0,0,0,0.6);
+                    border-radius: 16px;
+                    backdrop-filter: blur(10px);
                 ">${this.escapeHtml(broadcast.message)}</span>` : ''}
             `;
             
