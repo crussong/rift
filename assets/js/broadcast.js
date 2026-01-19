@@ -56,6 +56,13 @@
                     const broadcast = data.broadcast;
                     const poll = data.poll;
                     
+                    // Check if current user is GM (GMs don't see their own broadcasts/polls)
+                    const isGM = this.checkIfGM(data);
+                    if (isGM) {
+                        console.log('[Broadcast] User is GM, skipping popups');
+                        return;
+                    }
+                    
                     // Handle Broadcast
                     if (broadcast && broadcast.id && String(broadcast.id) !== this.lastBroadcastId) {
                         this.lastBroadcastId = String(broadcast.id);
@@ -64,19 +71,29 @@
                     }
                     
                     // Handle Poll
-                    if (poll && poll.active && poll.timestamp) {
-                        const pollId = poll.timestamp.seconds || poll.timestamp;
-                        const lastPollId = localStorage.getItem('rift_last_poll_id');
+                    if (poll && poll.active) {
+                        const pollId = poll.timestamp?.seconds || poll.timestamp || Date.now();
                         const hasVoted = localStorage.getItem('rift_poll_voted_' + pollId);
                         
-                        if (String(pollId) !== lastPollId && !hasVoted) {
-                            localStorage.setItem('rift_last_poll_id', String(pollId));
+                        if (!hasVoted && !document.querySelector('.poll-overlay')) {
                             this.showPoll(poll, pollId, normalizedCode);
                         }
                     }
                 }, (error) => {
                     console.error('[Broadcast] Subscribe error:', error);
                 });
+        },
+        
+        checkIfGM(roomData) {
+            const uid = window.firebase?.auth?.()?.currentUser?.uid;
+            if (!uid) return false;
+            
+            // Check gmId field
+            if (roomData.gmId === uid) return true;
+            
+            // Check localStorage fallback
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            return userData.isGM === true;
         },
         
         showBroadcast(broadcast) {
