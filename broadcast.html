@@ -519,6 +519,22 @@
             letter-spacing: 0.5px;
         }
         
+        /* Emoji Picker */
+        .emoji-pick {
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        
+        .emoji-pick:hover {
+            background: rgba(139,92,246,0.3);
+        }
+        
         /* ==================== POLL OPTIONS ==================== */
         .bc-poll-options {
             display: flex;
@@ -1177,6 +1193,11 @@
                                                 <span class="bc-toggle__label">👥 Voter anzeigen</span>
                                             </label>
                                             <label class="bc-toggle">
+                                                <input type="checkbox" id="pollNoEmojis">
+                                                <div class="bc-toggle__switch"></div>
+                                                <span class="bc-toggle__label">🚫 Ohne Emojis</span>
+                                            </label>
+                                            <label class="bc-toggle">
                                                 <input type="checkbox" id="pollSound" checked>
                                                 <div class="bc-toggle__switch"></div>
                                                 <span class="bc-toggle__label">🔔 Mit Sound</span>
@@ -1311,8 +1332,8 @@
                                                 <span id="selectedEmoji">🎉</span>
                                             </button>
                                             <div id="emojiPicker" style="display: none; position: absolute; bottom: 54px; left: 0; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; width: 280px; max-height: 200px; overflow-y: auto; z-index: 100;">
-                                                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
-                                                    ${['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾','💪','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💋','👄','👅','👂','👃','👣','👁️','👀','🧠','🗣️','👤','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🐓','🦃','🦚','🦜','🦢','🦩','🕊️','🐇','🦝','🦨','🦡','🦦','🦥','🐁','🐀','🐿️','🦔','🐉','🐲','⚔️','🗡️','🛡️','🏹','🪓','🔱','⚒️','🔨','⛏️','🪚','🔧','🔩','⚙️','🗜️','⚖️','🦯','🔗','⛓️','🧰','🧲','💎','💰','🪙','💵','💴','💶','💷','💳','🧿','🔮','🎲','🎯','🎰','🎴','🃏','🀄','🎭','🖼️','🎨','🧵','🧶','🔥','💧','🌊','💨','⚡','❄️','☀️','🌙','⭐','✨','💫','🌟','🔆','💥','💢','💦','💤','🎵','🎶','🎼','🎹','🥁','🎺','🎸','🪕','🎻','🎤','🎧','📻'].map(e => `<span style="font-size: 20px; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center;" onclick="BC.selectEmoji('${e}')" onmouseover="this.style.background='rgba(139,92,246,0.3)'" onmouseout="this.style.background='transparent'">${e}</span>`).join('')}
+                                                <div id="emojiPickerGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+                                                    <!-- Emojis loaded dynamically -->
                                                 </div>
                                             </div>
                                         </div>
@@ -2215,6 +2236,7 @@
                 const withMultiple = document.getElementById('pollMultiple').checked;
                 const withBlind = document.getElementById('pollBlind').checked;
                 const showVoters = document.getElementById('pollShowVoters').checked;
+                const noEmojis = document.getElementById('pollNoEmojis').checked;
                 const withSound = document.getElementById('pollSound').checked;
                 
                 try {
@@ -2227,7 +2249,7 @@
                     const pollData = {
                         question,
                         options,
-                        emojis,
+                        emojis: noEmojis ? [] : emojis,
                         withSound,
                         withCountdown,
                         multiSelect: withMultiple,
@@ -2318,10 +2340,23 @@
             
             // ============ REACTIONS ============
             selectedCustomEmoji: '🎉',
+            emojiPickerInitialized: false,
             
             toggleEmojiPicker() {
                 const picker = document.getElementById('emojiPicker');
-                picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+                const isHidden = picker.style.display === 'none';
+                
+                // Initialize emoji grid on first open
+                if (!this.emojiPickerInitialized && isHidden) {
+                    const grid = document.getElementById('emojiPickerGrid');
+                    const emojis = ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😍','🥰','😘','😋','😛','😜','🤪','🤗','🤭','🤫','🤔','😏','🙄','😬','😲','😳','🥺','😢','😭','😱','😤','😡','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','💪','👊','✊','👏','🙌','🤝','🙏','👍','👎','👀','🧠','❤️','🔥','⭐','✨','💫','🌟','💥','💢','💦','🎉','🎊','🏆','👑','💎','🎭','🎪','🎯','🎲','🗡️','⚔️','🛡️','🏹','🔮','🧿','📜','📚','🗝️','⚡','💨','🌊','❄️','☀️','🌙','🐉','🐲','🦄','🐺','🦊','🐻','🦁','🐯','🧙','🧝','🧛','🧟','👹','💀','☠️','⚰️','🪦','🕯️'];
+                    grid.innerHTML = emojis.map(e => 
+                        `<span class="emoji-pick" onclick="BC.selectEmoji('${e}')">${e}</span>`
+                    ).join('');
+                    this.emojiPickerInitialized = true;
+                }
+                
+                picker.style.display = isHidden ? 'block' : 'none';
             },
             
             selectEmoji(emoji) {
@@ -2489,26 +2524,63 @@
                 const file = event.target.files[0];
                 if (!file) return;
                 
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const data = e.target.result;
+                // Show loading
+                this.toast('Bild wird verarbeitet...', 'info');
+                
+                try {
+                    // Compress image if needed
+                    const compressedData = await this.compressImage(file, 1200, 0.8);
                     
-                    try {
-                        await this.ref().update({
-                            broadcast: {
-                                type: 'handout',
-                                image: data,
-                                sound: 'notification',
-                                id: Date.now(),
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'handout',
+                            image: compressedData,
+                            sound: 'notification',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    this.addToHistory('handout', 'Handout gesendet');
+                    this.toast('Handout gesendet!', 'success');
+                } catch (e) {
+                    console.error('[Handout]', e);
+                    this.toast('Fehler beim Senden', 'error');
+                }
+            },
+            
+            // Image compression helper
+            compressImage(file, maxSize = 1200, quality = 0.8) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let { width, height } = img;
+                            
+                            // Scale down if larger than maxSize
+                            if (width > maxSize || height > maxSize) {
+                                if (width > height) {
+                                    height = (height / width) * maxSize;
+                                    width = maxSize;
+                                } else {
+                                    width = (width / height) * maxSize;
+                                    height = maxSize;
+                                }
                             }
-                        });
-                        this.toast('Handout gesendet!', 'success');
-                    } catch (e) {
-                        this.toast('Fehler', 'error');
-                    }
-                };
-                reader.readAsDataURL(file);
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            resolve(canvas.toDataURL('image/jpeg', quality));
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
             },
             
             // ============ CINEMATIC ============
