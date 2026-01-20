@@ -24,9 +24,10 @@ function getUserData() {
             color: localData.color || window.currentUser.color || '#FF4655',
             avatar: localData.avatar || localData.photoURL || window.currentUser.photoURL || window.currentUser.avatar || null,
             isGM: localData.isGM !== undefined ? localData.isGM : (window.currentUser.isGM || false),
+            isCogm: localData.isCogm !== undefined ? localData.isCogm : (window.currentUser.isCogm || false),
             uid: window.currentUser.uid || localData.uid
         };
-        console.log('[Layout] getUserData merged (currentUser + localStorage):', data.name, 'isGM:', data.isGM, 'avatar:', data.avatar ? 'yes' : 'no');
+        console.log('[Layout] getUserData merged (currentUser + localStorage):', data.name, 'isGM:', data.isGM, 'isCogm:', data.isCogm, 'avatar:', data.avatar ? 'yes' : 'no');
         return data;
     }
     
@@ -38,9 +39,10 @@ function getUserData() {
             color: localData.color || '#FF4655',
             avatar: localData.avatar || localData.photoURL || null,
             isGM: localData.isGM || false,
+            isCogm: localData.isCogm || false,
             uid: localData.uid
         };
-        console.log('[Layout] getUserData from localStorage only:', data.name, 'isGM:', data.isGM, 'avatar:', data.avatar ? 'yes' : 'no');
+        console.log('[Layout] getUserData from localStorage only:', data.name, 'isGM:', data.isGM, 'isCogm:', data.isCogm, 'avatar:', data.avatar ? 'yes' : 'no');
         return data;
     }
     
@@ -50,7 +52,8 @@ function getUserData() {
         initial: 'G',
         color: '#FF4655',
         avatar: null,
-        isGM: false
+        isGM: false,
+        isCogm: false
     };
 }
 
@@ -59,6 +62,49 @@ function getRoomCode() {
     const code = localStorage.getItem('rift_current_room');
     return code ? code.slice(0, 3) + '-' + code.slice(3) : null;
 }
+
+// Check and update user role (GM/Co-GM) from Firebase
+async function checkAndUpdateUserRole() {
+    const roomCode = localStorage.getItem('rift_current_room');
+    if (!roomCode) return;
+    
+    try {
+        const db = RIFT?.firebase?.getFirestore?.();
+        const uid = firebase?.auth()?.currentUser?.uid;
+        if (!db || !uid) return;
+        
+        const code = roomCode.replace('-', '').toUpperCase();
+        const memberDoc = await db.collection('rooms').doc(code).collection('members').doc(uid).get();
+        if (!memberDoc.exists) return;
+        
+        const role = memberDoc.data()?.role;
+        const stored = JSON.parse(localStorage.getItem('rift_user') || '{}');
+        const isGM = role === 'gm';
+        const isCogm = role === 'cogm';
+        
+        if (stored.isGM !== isGM || stored.isCogm !== isCogm) {
+            stored.isGM = isGM;
+            stored.isCogm = isCogm;
+            localStorage.setItem('rift_user', JSON.stringify(stored));
+            console.log('[Layout] Updated role from Firebase - isGM:', isGM, 'isCogm:', isCogm);
+            
+            // Refresh sidebar/topbar if role changed
+            if (document.querySelector('.sidebar')) {
+                createSidebar();
+            }
+            if (document.querySelector('.topbar')) {
+                createTopbar();
+            }
+        }
+    } catch (e) {
+        console.log('[Layout] Role check failed:', e);
+    }
+}
+
+// Call role check when Firebase is ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => checkAndUpdateUserRole(), 1500);
+});
 
 // Current page detection
 function getCurrentPage() {
@@ -159,7 +205,7 @@ function createSidebar() {
             </nav>
             
             <div class="sidebar__footer">
-                ${userData.isGM ? `
+                ${(userData.isGM || userData.isCogm) ? `
                 <a href="broadcast.html" class="sidebar__link sidebar__link--broadcast ${currentPage === 'broadcast' ? 'active' : ''}" data-tooltip="Broadcast Center">
                     <svg class="sidebar__link-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
@@ -318,7 +364,7 @@ function createTopbar() {
             <!-- Icons Group -->
             <div class="topbar__icons">
                 <div class="topbar__clock" id="topbarClock">00:00</div>
-                ${userData.isGM ? `
+                ${(userData.isGM || userData.isCogm) ? `
                 <a href="gm.html" class="topbar__icon-btn topbar__icon-btn--gm" title="GM Optionen">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"/>
