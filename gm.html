@@ -4327,19 +4327,55 @@
                 
                 grid.innerHTML = approved.map(c => {
                     const name = this.escapeHtml(c.name || c.characterName || 'Unbenannt');
-                    const cls = c.class || c.characterClass || c.klasse || c.data?.class || '–';
-                    const lvl = c.level || c.stufe || c.data?.level || '?';
+                    const d = c.data || {};
+                    
+                    // Extract class/level based on ruleset
+                    let cls = '–', lvl = '?', ac = '–', init = '–';
+                    
+                    if (c.ruleset === 'dnd5e' || d.header) {
+                        // D&D 5e format
+                        cls = c.class || d.header?.charClass || d.class || '–';
+                        lvl = c.level || d.header?.level || d.level || '?';
+                        ac = d.combat?.armorClass || d.ac || c.ac || '–';
+                        init = d.combat?.initiative || d.initiative || c.initiative || '–';
+                    } else if (c.ruleset === 'worldsapart' || d.basics) {
+                        // Worlds Apart format
+                        cls = d.basics?.archetype || c.class || '–';
+                        lvl = d.basics?.rank || c.level || '?';
+                        ac = d.combat?.defense || c.ac || '–';
+                        init = d.combat?.initiative || c.initiative || '–';
+                    } else if (c.ruleset === 'htbah') {
+                        // How To Be A Hero format
+                        cls = d.class || c.class || '–';
+                        lvl = d.level || c.level || '?';
+                    } else {
+                        // Fallback
+                        cls = c.class || d.class || '–';
+                        lvl = c.level || d.level || '?';
+                    }
+                    
                     const color = c.color || '#8b5cf6';
                     
-                    const hp = c.hp || c.currentHP || c.currentHp || c.data?.hp || 10;
-                    const maxHp = c.maxHp || c.maxHP || c.hpMax || c.data?.maxHp || hp || 1;
+                    // Extract HP based on ruleset
+                    let hp = 10, maxHp = 10;
+                    if (c.ruleset === 'dnd5e' || d.combat?.hpCurrent !== undefined) {
+                        // D&D 5e: data.combat.hpCurrent / hpMax
+                        hp = parseInt(d.combat?.hpCurrent) || c.hp || c.currentHP || 10;
+                        maxHp = parseInt(d.combat?.hpMax) || c.maxHp || c.maxHP || hp || 1;
+                    } else if (d.hp !== undefined || d.maxHp !== undefined) {
+                        // Generic format
+                        hp = parseInt(d.hp) || c.hp || 10;
+                        maxHp = parseInt(d.maxHp) || c.maxHp || hp || 1;
+                    } else {
+                        // Fallback
+                        hp = c.hp || c.currentHP || c.currentHp || 10;
+                        maxHp = c.maxHp || c.maxHP || c.hpMax || hp || 1;
+                    }
+                    
                     const hpPct = Math.round((hp / maxHp) * 100);
                     const hpClass = hpPct > 50 ? 'high' : hpPct > 25 ? 'mid' : 'low';
                     
-                    const ac = c.ac || c.armorClass || c.data?.ac || '–';
-                    const init = c.initiative || c.data?.initiative || '–';
-                    
-                    const ownerId = c.owner || c.oderId || c.userId;
+                    const ownerId = c.ownerId || c.owner || c.userId;
                     const owner = this.members.find(m => m.id === ownerId);
                     const ownerName = this.escapeHtml(owner?.displayName || owner?.name || 'Unbekannt');
                     const ownerOnline = this.isOnline(ownerId);
@@ -4398,19 +4434,38 @@
                 const char = this.characters.find(c => c.id === id);
                 if (!char) return;
                 
-                const currentHP = char.hp || char.currentHP || char.currentHp || 0;
-                const maxHP = char.maxHp || char.maxHP || char.hpMax || 100;
+                const d = char.data || {};
+                
+                // Extract current HP based on ruleset
+                let currentHP, maxHP;
+                if (char.ruleset === 'dnd5e' || d.combat?.hpCurrent !== undefined) {
+                    currentHP = parseInt(d.combat?.hpCurrent) || char.hp || 0;
+                    maxHP = parseInt(d.combat?.hpMax) || char.maxHp || 100;
+                } else {
+                    currentHP = char.hp || char.currentHP || char.currentHp || 0;
+                    maxHP = char.maxHp || char.maxHP || char.hpMax || 100;
+                }
+                
                 const newHP = Math.max(0, Math.min(maxHP, currentHP + (amount * direction)));
                 
                 try {
-                    await this.ref().collection('characters').doc(id).update({
+                    // Update in the format the character uses
+                    const updates = {
                         hp: newHP,
                         currentHP: newHP,
                         currentHp: newHP
-                    });
+                    };
+                    
+                    // Also update nested data if it exists
+                    if (d.combat) {
+                        updates['data.combat.hpCurrent'] = newHP;
+                    }
+                    
+                    await this.ref().collection('characters').doc(id).update(updates);
                     this.toast(`HP: ${currentHP} → ${newHP}`, 'success');
                     this.addLog('character', `HP geändert: ${char.name || char.characterName} (${currentHP} → ${newHP})`);
                 } catch (e) {
+                    console.error('HP modify error:', e);
                     this.toast('Fehler', 'error');
                 }
             },
