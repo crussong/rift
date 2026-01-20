@@ -3444,12 +3444,6 @@
         }
     </style>
     
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    
-    <!-- Auth & Navigation -->
-    <!-- Auth -->
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -4600,7 +4594,7 @@
         // Global variable for Firestore unsubscribe
         let firestoreCharListener = null;
         
-        function initializeFirestoreSync() {
+        async function initializeFirestoreSync() {
             // Get room code from URL or localStorage
             const urlParams = new URLSearchParams(window.location.search);
             let roomCode = urlParams.get('room') || localStorage.getItem('rift_current_room');
@@ -4625,25 +4619,44 @@
                 return;
             }
             
-            // Wait for Firebase
-            if (typeof firebase === 'undefined' || !firebase.firestore) {
-                console.log('[WA-Sheet] Firebase not ready, retrying in 500ms...');
+            // Initialize Firebase via RIFT if available
+            if (window.RIFT?.firebase?.init) {
+                try {
+                    await window.RIFT.firebase.init();
+                    console.log('[WA-Sheet] Firebase initialized via RIFT');
+                } catch (e) {
+                    console.warn('[WA-Sheet] RIFT.firebase.init failed:', e);
+                }
+            }
+            
+            // Wait for Firebase to be FULLY initialized (not just loaded)
+            if (typeof firebase === 'undefined' || !firebase.apps || firebase.apps.length === 0) {
+                console.log('[WA-Sheet] Firebase not initialized yet, retrying in 500ms...');
                 setTimeout(() => initializeFirestoreSync(), 500);
                 return;
             }
             
-            // Check auth state
-            const user = firebase.auth().currentUser;
-            if (user) {
-                setupCharacterListener(roomCode, charId);
-            } else {
-                // Wait for auth
-                console.log('[WA-Sheet] Waiting for auth...');
-                firebase.auth().onAuthStateChanged(authUser => {
-                    if (authUser && !firestoreCharListener) {
-                        setupCharacterListener(roomCode, charId);
-                    }
-                });
+            // Now we can safely use firestore
+            try {
+                const db = firebase.firestore();
+                
+                // Check auth state
+                const user = firebase.auth().currentUser;
+                if (user) {
+                    setupCharacterListener(roomCode, charId);
+                } else {
+                    // Wait for auth
+                    console.log('[WA-Sheet] Waiting for auth...');
+                    const unsubAuth = firebase.auth().onAuthStateChanged(authUser => {
+                        if (authUser && !firestoreCharListener) {
+                            setupCharacterListener(roomCode, charId);
+                            unsubAuth(); // Unsubscribe after first auth
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('[WA-Sheet] Firebase error, retrying...', e);
+                setTimeout(() => initializeFirestoreSync(), 1000);
             }
         }
         
