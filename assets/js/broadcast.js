@@ -521,10 +521,6 @@
         showSceneTransition(broadcast) {
             const overlay = document.createElement('div');
             overlay.className = 'cinematic-overlay scene-transition';
-            overlay.style.cssText = `
-                position: fixed; inset: 0; z-index: 100000;
-                background: #000; display: flex; align-items: center; justify-content: center;
-            `;
             
             // Apply different animation styles
             const style = broadcast.style || 'fade';
@@ -532,6 +528,8 @@
             let overlayIn = 'fadeIn 1s ease';
             let overlayOut = 'fadeOut 1s ease forwards';
             let extraStyle = '';
+            let particlesHtml = '';
+            let bgStyle = 'background: #000;';
             
             if (style === 'slide') {
                 overlayIn = 'sceneSlideIn 0.8s ease';
@@ -550,12 +548,148 @@
                 overlayIn = 'sceneGlitchIn 0.5s steps(10)';
                 overlayOut = 'sceneGlitchOut 0.5s steps(10) forwards';
                 textAnimation = 'sceneTextGlitch 2s ease';
-            } else if (style === 'curtain') {
-                overlayIn = 'sceneCurtainIn 1s ease';
-                overlayOut = 'sceneCurtainOut 1s ease forwards';
-                textAnimation = 'sceneTextCurtain 2s ease';
+            } else if (style === 'shatter') {
+                // Shatter effect - glass breaking
+                overlayIn = 'sceneShatterIn 0.8s ease';
+                overlayOut = 'sceneShatterOut 1s ease forwards';
+                textAnimation = 'sceneTextShatter 2s ease';
+                bgStyle = 'background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);';
+                // Create shatter glass pieces
+                for (let i = 0; i < 20; i++) {
+                    const x = Math.random() * 100;
+                    const y = Math.random() * 100;
+                    const size = 20 + Math.random() * 60;
+                    const delay = Math.random() * 0.5;
+                    const rotation = Math.random() * 360;
+                    particlesHtml += `<div style="
+                        position:absolute; left:${x}%; top:${y}%;
+                        width:${size}px; height:${size}px;
+                        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(200,200,255,0.05));
+                        border: 1px solid rgba(255,255,255,0.2);
+                        transform: rotate(${rotation}deg);
+                        animation: shatterPiece 2s ${delay}s ease-out forwards;
+                        clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+                    "></div>`;
+                }
+            } else if (style === 'vortex') {
+                // Vortex/spiral effect
+                overlayIn = 'sceneVortexIn 1s ease';
+                overlayOut = 'sceneVortexOut 1s ease forwards';
+                textAnimation = 'sceneTextVortex 2s ease';
+                bgStyle = 'background: radial-gradient(ellipse at center, #0f0c29 0%, #302b63 50%, #24243e 100%);';
+                // Spiral particles
+                for (let i = 0; i < 30; i++) {
+                    const angle = (i / 30) * 360;
+                    const delay = i * 0.05;
+                    particlesHtml += `<div style="
+                        position:absolute; left:50%; top:50%;
+                        width:8px; height:8px; border-radius:50%;
+                        background: ${i % 2 === 0 ? '#8b5cf6' : '#06b6d4'};
+                        box-shadow: 0 0 10px currentColor;
+                        animation: vortexSpin 3s ${delay}s linear infinite;
+                        transform-origin: ${100 + i * 5}px 0;
+                    "></div>`;
+                }
+            } else if (style === 'flames') {
+                // Flames/fire effect
+                overlayIn = 'sceneFlamesIn 0.8s ease';
+                overlayOut = 'sceneFlamesOut 1s ease forwards';
+                textAnimation = 'sceneTextFlames 2s ease';
+                bgStyle = 'background: linear-gradient(to top, #1a0000 0%, #000 60%);';
+                // Fire particles from bottom
+                for (let i = 0; i < 40; i++) {
+                    const x = Math.random() * 100;
+                    const size = 10 + Math.random() * 30;
+                    const delay = Math.random() * 2;
+                    const duration = 1 + Math.random() * 2;
+                    const color = ['#ff4500', '#ff6600', '#ff8c00', '#ffa500'][Math.floor(Math.random() * 4)];
+                    particlesHtml += `<div style="
+                        position:absolute; left:${x}%; bottom:-20px;
+                        width:${size}px; height:${size * 1.5}px;
+                        background: ${color};
+                        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+                        filter: blur(2px);
+                        animation: flameRise ${duration}s ${delay}s ease-out infinite;
+                        opacity: 0.8;
+                    "></div>`;
+                }
+            } else if (style === 'lightning') {
+                // Lightning storm effect
+                overlayIn = 'sceneLightningIn 0.3s ease';
+                overlayOut = 'sceneLightningOut 0.5s ease forwards';
+                textAnimation = 'sceneTextLightning 2s ease';
+                bgStyle = 'background: linear-gradient(to bottom, #0c0c1e 0%, #1a1a3e 100%);';
+                // Create lightning bolts
+                for (let i = 0; i < 5; i++) {
+                    const x = 10 + Math.random() * 80;
+                    const delay = Math.random() * 1.5;
+                    particlesHtml += `<div style="
+                        position:absolute; left:${x}%; top:0;
+                        width:4px; height:100%;
+                        background: linear-gradient(to bottom, #fff 0%, #00d4ff 20%, transparent 100%);
+                        filter: blur(1px);
+                        animation: lightningBolt 0.2s ${delay}s ease-out;
+                        opacity: 0;
+                        clip-path: polygon(
+                            0% 0%, 100% 0%, 
+                            70% 20%, 100% 20%, 
+                            40% 45%, 80% 45%, 
+                            30% 70%, 60% 70%, 
+                            50% 100%, 40% 100%,
+                            50% 70%, 20% 70%,
+                            30% 45%, 0% 45%,
+                            40% 20%, 0% 20%
+                        );
+                    "></div>`;
+                }
+                // Add flash effect
+                particlesHtml += `<div style="
+                    position:absolute; inset:0;
+                    background: white;
+                    animation: lightningFlash 3s ease infinite;
+                    pointer-events: none;
+                "></div>`;
+            } else if (style === 'portal') {
+                // Portal/dimensional rift effect
+                overlayIn = 'scenePortalIn 1.2s ease';
+                overlayOut = 'scenePortalOut 1s ease forwards';
+                textAnimation = 'sceneTextPortal 2s ease';
+                bgStyle = 'background: radial-gradient(ellipse at center, #1a0a2e 0%, #0a0a1a 100%);';
+                // Portal rings
+                for (let i = 0; i < 5; i++) {
+                    const size = 100 + i * 80;
+                    const delay = i * 0.2;
+                    particlesHtml += `<div style="
+                        position:absolute; left:50%; top:50%;
+                        width:${size}px; height:${size}px;
+                        border: 3px solid ${i % 2 === 0 ? '#8b5cf6' : '#06b6d4'};
+                        border-radius:50%;
+                        transform: translate(-50%, -50%);
+                        animation: portalRing 2s ${delay}s ease-in-out infinite;
+                        box-shadow: 0 0 20px ${i % 2 === 0 ? '#8b5cf6' : '#06b6d4'},
+                                    inset 0 0 20px ${i % 2 === 0 ? '#8b5cf6' : '#06b6d4'};
+                    "></div>`;
+                }
+                // Particles being pulled in
+                for (let i = 0; i < 20; i++) {
+                    const angle = Math.random() * 360;
+                    const distance = 200 + Math.random() * 300;
+                    const delay = Math.random() * 2;
+                    particlesHtml += `<div style="
+                        position:absolute; left:50%; top:50%;
+                        width:4px; height:4px; border-radius:50%;
+                        background: ${Math.random() > 0.5 ? '#8b5cf6' : '#06b6d4'};
+                        animation: portalParticle 2s ${delay}s ease-in infinite;
+                        transform: rotate(${angle}deg) translateX(${distance}px);
+                    "></div>`;
+                }
             }
             
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 100000;
+                ${bgStyle} display: flex; align-items: center; justify-content: center;
+                overflow: hidden;
+            `;
             overlay.style.animation = overlayIn;
             if (extraStyle) overlay.style.cssText += extraStyle;
             
@@ -567,14 +701,71 @@
             ` : '';
             
             overlay.innerHTML = `
+                ${particlesHtml}
                 ${glitchExtra}
                 <div class="scene-text" style="
                     font-size: clamp(24px, 5vw, 48px); font-weight: 300; color: white; text-align: center;
                     font-style: italic; letter-spacing: 2px; padding: 20px;
-                    animation: ${textAnimation};
+                    animation: ${textAnimation}; z-index: 10; position: relative;
+                    text-shadow: 0 0 20px rgba(255,255,255,0.5);
                     ${style === 'glitch' ? 'text-shadow: 2px 0 #ff0000, -2px 0 #00ffff;' : ''}
+                    ${style === 'flames' ? 'text-shadow: 0 0 30px #ff4500, 0 0 60px #ff6600;' : ''}
+                    ${style === 'lightning' ? 'text-shadow: 0 0 20px #00d4ff, 0 0 40px #fff;' : ''}
+                    ${style === 'portal' ? 'text-shadow: 0 0 30px #8b5cf6, 0 0 60px #06b6d4;' : ''}
                 ">${this.escapeHtml(broadcast.text)}</div>
             `;
+            
+            // Add dynamic styles for new effects
+            if (!document.getElementById('scene-effect-styles')) {
+                const styleEl = document.createElement('style');
+                styleEl.id = 'scene-effect-styles';
+                styleEl.textContent = `
+                    @keyframes shatterPiece {
+                        0% { transform: rotate(var(--rot, 0deg)) scale(1); opacity: 0.3; }
+                        100% { transform: rotate(calc(var(--rot, 0deg) + 180deg)) translateY(100vh) scale(0); opacity: 0; }
+                    }
+                    @keyframes sceneShatterIn { from { clip-path: circle(0% at 50% 50%); } to { clip-path: circle(150% at 50% 50%); } }
+                    @keyframes sceneShatterOut { from { opacity: 1; } to { opacity: 0; transform: scale(1.1); } }
+                    @keyframes sceneTextShatter { 0% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1.1); } 100% { transform: scale(1); } }
+                    
+                    @keyframes vortexSpin { from { transform: rotate(0deg) translateX(var(--dist, 150px)); } to { transform: rotate(360deg) translateX(var(--dist, 150px)); } }
+                    @keyframes sceneVortexIn { from { transform: rotate(-180deg) scale(0); opacity: 0; } to { transform: rotate(0) scale(1); opacity: 1; } }
+                    @keyframes sceneVortexOut { from { transform: rotate(0) scale(1); } to { transform: rotate(180deg) scale(0); } }
+                    @keyframes sceneTextVortex { 0% { opacity: 0; transform: rotate(-20deg) scale(0.5); } 100% { opacity: 1; transform: rotate(0) scale(1); } }
+                    
+                    @keyframes flameRise { 
+                        0% { transform: translateY(0) scale(1); opacity: 0.8; } 
+                        100% { transform: translateY(-100vh) scale(0.3); opacity: 0; } 
+                    }
+                    @keyframes sceneFlamesIn { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
+                    @keyframes sceneFlamesOut { from { opacity: 1; } to { opacity: 0; filter: brightness(3); } }
+                    @keyframes sceneTextFlames { 0% { opacity: 0; transform: translateY(50px); filter: blur(10px); } 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
+                    
+                    @keyframes lightningBolt { 
+                        0%, 100% { opacity: 0; } 
+                        10%, 30% { opacity: 1; } 
+                        20%, 40% { opacity: 0.3; } 
+                    }
+                    @keyframes sceneLightningIn { from { filter: brightness(0); } to { filter: brightness(1); } }
+                    @keyframes sceneLightningOut { from { opacity: 1; } to { opacity: 0; } }
+                    @keyframes sceneTextLightning { 0% { opacity: 0; text-shadow: none; } 20% { opacity: 1; text-shadow: 0 0 50px #fff; } 100% { text-shadow: 0 0 20px #00d4ff; } }
+                    @keyframes lightningFlash { 0%, 89%, 91%, 93%, 95%, 100% { opacity: 0; } 90%, 92%, 94% { opacity: 0.3; } }
+                    
+                    @keyframes portalRing { 
+                        0% { transform: translate(-50%, -50%) scale(0.8) rotateX(75deg); opacity: 0.3; }
+                        50% { transform: translate(-50%, -50%) scale(1.2) rotateX(75deg); opacity: 0.8; }
+                        100% { transform: translate(-50%, -50%) scale(0.8) rotateX(75deg); opacity: 0.3; }
+                    }
+                    @keyframes portalParticle { 
+                        0% { opacity: 1; transform: rotate(var(--angle, 0deg)) translateX(var(--dist, 300px)); }
+                        100% { opacity: 0; transform: rotate(var(--angle, 0deg)) translateX(0); }
+                    }
+                    @keyframes scenePortalIn { from { clip-path: circle(0% at 50% 50%); } to { clip-path: circle(100% at 50% 50%); } }
+                    @keyframes scenePortalOut { from { clip-path: circle(100% at 50% 50%); } to { clip-path: circle(0% at 50% 50%); } }
+                    @keyframes sceneTextPortal { 0% { opacity: 0; transform: scale(3); filter: blur(20px); } 100% { opacity: 1; transform: scale(1); filter: blur(0); } }
+                `;
+                document.head.appendChild(styleEl);
+            }
             
             document.body.appendChild(overlay);
             
@@ -778,11 +969,11 @@
                 },
                 poison: { 
                     css: `background: linear-gradient(transparent 50%, rgba(100,180,0,0.25) 100%);`,
-                    particles: 'smoke'
+                    particles: 'poisonSmoke'
                 },
                 holy: { 
                     css: `background: radial-gradient(ellipse at top, rgba(255,215,0,0.2) 0%, transparent 60%);`,
-                    particles: 'sparkle'
+                    particles: 'holySparkle'
                 },
                 sea: { 
                     css: `background: linear-gradient(
@@ -816,6 +1007,35 @@
                 ash: { 
                     css: `background: linear-gradient(rgba(80,80,80,0.15) 0%, rgba(50,50,50,0.25) 100%);`,
                     particles: 'ash'
+                },
+                sandstorm: { 
+                    css: `background: linear-gradient(rgba(194,154,108,0.3) 0%, rgba(139,90,43,0.4) 100%);`,
+                    particles: 'sandstorm'
+                },
+                aurora: { 
+                    css: `background: linear-gradient(rgba(10,10,30,0.2) 0%, transparent 100%);`,
+                    particles: 'aurora'
+                },
+                swamp: { 
+                    css: `background: linear-gradient(transparent 30%, rgba(50,80,30,0.3) 70%, rgba(30,50,20,0.4) 100%);`,
+                    particles: 'swampBubble'
+                },
+                void: { 
+                    css: `background: radial-gradient(ellipse at center, rgba(20,0,40,0.5) 0%, rgba(0,0,0,0.9) 100%);`,
+                    particles: 'voidParticle'
+                },
+                nightmare: { 
+                    css: `background: radial-gradient(ellipse at center, rgba(30,0,0,0.4) 0%, rgba(0,0,0,0.7) 100%);`,
+                    particles: 'nightmare'
+                },
+                sakura: { 
+                    css: `background: linear-gradient(rgba(255,182,193,0.1) 0%, transparent 100%);`,
+                    particles: 'sakura'
+                },
+                lightning: { 
+                    css: `background: linear-gradient(rgba(10,10,30,0.2) 0%, rgba(20,20,50,0.3) 100%);`,
+                    particles: 'none',
+                    flash: true
                 }
             };
             
@@ -851,7 +1071,16 @@
                 'ash': () => this.createAshEffect(),
                 'seafoam': () => this.createSeafoamEffect(),
                 'caveDrip': () => this.createCaveDripEffect(),
-                'seaBubbles': () => this.createSeaBubblesEffect()
+                'seaBubbles': () => this.createSeaBubblesEffect(),
+                'sandstorm': () => this.createSandstormEffect(),
+                'aurora': () => this.createAuroraEffect(),
+                'swampBubble': () => this.createSwampBubbleEffect(),
+                'voidParticle': () => this.createVoidParticleEffect(),
+                'nightmare': () => this.createNightmareEffect(),
+                'sakura': () => this.createSakuraEffect(),
+                'poisonSmoke': () => this.createPoisonSmokeEffect(),
+                'holySparkle': () => this.createHolySparkleEffect(),
+                'none': () => ''
             };
             
             if (effect.particles && particleMap[effect.particles]) {
@@ -1245,6 +1474,173 @@
             return bubbles;
         },
         
+        // Sandstorm effect
+        createSandstormEffect() {
+            let particles = '';
+            for (let i = 0; i < 80; i++) {
+                const top = Math.random() * 100;
+                const delay = Math.random() * 2;
+                const duration = 0.5 + Math.random() * 1;
+                const size = 1 + Math.random() * 3;
+                particles += `<div style="
+                    position: absolute; top: ${top}%; right: -20px;
+                    width: ${size}px; height: ${size}px;
+                    background: rgba(194,154,108,${0.3 + Math.random() * 0.4});
+                    border-radius: 50%;
+                    animation: sandstormBlow ${duration}s linear ${delay}s infinite;
+                "></div>`;
+            }
+            return particles;
+        },
+        
+        // Aurora/Northern Lights effect
+        createAuroraEffect() {
+            let aurora = '';
+            const colors = ['rgba(0,255,127,0.2)', 'rgba(0,200,255,0.2)', 'rgba(138,43,226,0.2)', 'rgba(0,255,200,0.2)'];
+            for (let i = 0; i < 4; i++) {
+                const delay = i * 0.5;
+                aurora += `<div style="
+                    position: absolute; top: 5%; left: ${10 + i * 20}%;
+                    width: 30%; height: 40%;
+                    background: linear-gradient(${colors[i]}, transparent);
+                    filter: blur(30px);
+                    animation: auroraWave ${4 + i}s ease-in-out ${delay}s infinite alternate;
+                    transform-origin: top center;
+                "></div>`;
+            }
+            return aurora;
+        },
+        
+        // Swamp bubbles
+        createSwampBubbleEffect() {
+            let bubbles = '';
+            for (let i = 0; i < 12; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 5;
+                const duration = 2 + Math.random() * 3;
+                const size = 5 + Math.random() * 10;
+                bubbles += `<div style="
+                    position: absolute; bottom: 10%; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: radial-gradient(circle, rgba(80,100,50,0.4), rgba(50,70,30,0.6));
+                    border-radius: 50%;
+                    animation: swampBubblePop ${duration}s ease-in ${delay}s infinite;
+                "></div>`;
+            }
+            return bubbles;
+        },
+        
+        // Void/darkness particles
+        createVoidParticleEffect() {
+            let particles = '';
+            for (let i = 0; i < 30; i++) {
+                const left = Math.random() * 100;
+                const top = Math.random() * 100;
+                const delay = Math.random() * 4;
+                const duration = 3 + Math.random() * 4;
+                const size = 3 + Math.random() * 6;
+                particles += `<div style="
+                    position: absolute; top: ${top}%; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: radial-gradient(circle, rgba(100,0,150,0.8), transparent);
+                    border-radius: 50%;
+                    animation: voidPulse ${duration}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return particles;
+        },
+        
+        // Nightmare effect - creepy eyes
+        createNightmareEffect() {
+            let eyes = '';
+            for (let i = 0; i < 8; i++) {
+                const left = 10 + Math.random() * 80;
+                const top = 10 + Math.random() * 80;
+                const delay = Math.random() * 5;
+                const size = 10 + Math.random() * 20;
+                eyes += `<div style="
+                    position: absolute; top: ${top}%; left: ${left}%;
+                    width: ${size}px; height: ${size * 0.5}px;
+                    background: radial-gradient(ellipse, rgba(255,0,0,0.8), rgba(150,0,0,0.4), transparent);
+                    border-radius: 50%;
+                    animation: nightmareEye ${3 + Math.random() * 3}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return eyes;
+        },
+        
+        // Sakura/cherry blossom petals
+        createSakuraEffect() {
+            let petals = '';
+            for (let i = 0; i < 25; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 6;
+                const duration = 6 + Math.random() * 4;
+                const size = 6 + Math.random() * 8;
+                const rotation = Math.random() * 360;
+                petals += `<div style="
+                    position: absolute; top: -20px; left: ${left}%;
+                    width: ${size}px; height: ${size * 0.6}px;
+                    background: rgba(255,182,193,0.7);
+                    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+                    transform: rotate(${rotation}deg);
+                    animation: sakuraFall ${duration}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            return petals;
+        },
+        
+        // Poison smoke effect
+        createPoisonSmokeEffect() {
+            let smoke = '';
+            for (let i = 0; i < 15; i++) {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 3;
+                const duration = 4 + Math.random() * 3;
+                const size = 30 + Math.random() * 50;
+                smoke += `<div style="
+                    position: absolute; bottom: -${size}px; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: radial-gradient(circle, rgba(100,200,0,0.3), rgba(50,150,0,0.1), transparent);
+                    border-radius: 50%;
+                    filter: blur(10px);
+                    animation: poisonRise ${duration}s ease-out ${delay}s infinite;
+                "></div>`;
+            }
+            return smoke;
+        },
+        
+        // Holy sparkle effect
+        createHolySparkleEffect() {
+            let sparkles = '';
+            for (let i = 0; i < 30; i++) {
+                const left = Math.random() * 100;
+                const top = Math.random() * 60;
+                const delay = Math.random() * 3;
+                const duration = 2 + Math.random() * 2;
+                const size = 2 + Math.random() * 4;
+                sparkles += `<div style="
+                    position: absolute; top: ${top}%; left: ${left}%;
+                    width: ${size}px; height: ${size}px;
+                    background: rgba(255,215,0,0.9);
+                    border-radius: 50%;
+                    box-shadow: 0 0 ${size * 3}px rgba(255,215,0,0.6);
+                    animation: holySparkle ${duration}s ease-in-out ${delay}s infinite;
+                "></div>`;
+            }
+            // Add rays from top
+            for (let i = 0; i < 5; i++) {
+                const left = 20 + i * 15;
+                sparkles += `<div style="
+                    position: absolute; top: 0; left: ${left}%;
+                    width: 2px; height: 50%;
+                    background: linear-gradient(rgba(255,215,0,0.4), transparent);
+                    animation: holyRay ${2 + i * 0.3}s ease-in-out infinite alternate;
+                "></div>`;
+            }
+            return sparkles;
+        },
+        
         // Sunrays for sea effect
         createSunraysEffect() {
             let rays = '';
@@ -1597,7 +1993,8 @@
             // Persist to survive refresh
             this.persistBroadcast('loot', broadcast);
             
-            if (!broadcast._restored) {
+            // Play sound only if enabled and not restored
+            if (!broadcast._restored && broadcast.sound && broadcast.sound !== 'none') {
                 this.playBroadcastSound('coin');
             }
             
@@ -3476,6 +3873,66 @@
         @keyframes sunrayPulse {
             0%, 100% { opacity: 0.5; }
             50% { opacity: 0.8; }
+        }
+        
+        /* Sandstorm animation */
+        @keyframes sandstormBlow {
+            0% { right: -20px; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { right: 110%; opacity: 0; }
+        }
+        
+        /* Aurora animation */
+        @keyframes auroraWave {
+            0% { transform: skewX(-10deg) scaleY(0.8); opacity: 0.3; }
+            100% { transform: skewX(10deg) scaleY(1.2); opacity: 0.6; }
+        }
+        
+        /* Swamp bubble animation */
+        @keyframes swampBubblePop {
+            0% { transform: scale(0); opacity: 0; }
+            20% { transform: scale(1); opacity: 0.6; }
+            80% { transform: scale(1.2); opacity: 0.4; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        
+        /* Void pulse animation */
+        @keyframes voidPulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+        
+        /* Nightmare eye animation */
+        @keyframes nightmareEye {
+            0%, 90%, 100% { opacity: 0; transform: scale(0.5); }
+            10%, 80% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        
+        /* Sakura fall animation */
+        @keyframes sakuraFall {
+            0% { top: -20px; opacity: 0; transform: rotate(0deg) translateX(0); }
+            10% { opacity: 1; }
+            100% { top: 110%; opacity: 0.5; transform: rotate(360deg) translateX(50px); }
+        }
+        
+        /* Poison rise animation */
+        @keyframes poisonRise {
+            0% { bottom: -50px; opacity: 0; transform: scale(0.5); }
+            50% { opacity: 0.5; }
+            100% { bottom: 100%; opacity: 0; transform: scale(1.5); }
+        }
+        
+        /* Holy sparkle animation */
+        @keyframes holySparkle {
+            0%, 100% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        @keyframes holyRay {
+            0% { opacity: 0.2; height: 40%; }
+            100% { opacity: 0.5; height: 60%; }
         }
         
         /* Toast animations */
