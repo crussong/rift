@@ -4807,6 +4807,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             const paramId = urlParams.get('id');
             const isNew = urlParams.get('new') === 'true';
+            const isGM = urlParams.get('gm') === 'true';
+            const roomCode = urlParams.get('room') || localStorage.getItem('rift_current_room');
             
             if (isNew) {
                 // Neuer Charakter - leerer Bogen
@@ -4822,60 +4824,18 @@
             }
             
             if (paramId) {
-                // Aus CharacterStorage laden
+                // Erst aus CharacterStorage laden versuchen
                 console.log('[WA-Sheet] Loading character from storage:', paramId);
                 const char = CharacterStorage.getById(paramId);
                 
                 if (char && char.data) {
                     // Daten aus CharacterStorage in characterData konvertieren
-                    characterData = getDefaultCharacter();
-                    characterData.name = char.name || '';
-                    
-                    // data-Felder übernehmen
-                    const d = char.data;
-                    characterData.age = d.age || '';
-                    characterData.gender = d.gender || '';
-                    characterData.role = d.role || char.class || '';
-                    characterData.crew = d.crew || '';
-                    characterData.appearance = d.appearance || '';
-                    characterData.inventory = d.inventory || '';
-                    characterData.currency = d.currency || '';
-                    characterData.weapon = d.weapon || '';
-                    characterData.notes = d.notes || '';
-                    
-                    if (d.attributes) {
-                        characterData.attributes = { ...characterData.attributes, ...d.attributes };
-                    }
-                    if (d.status) {
-                        characterData.health.current = d.status.health || 100;
-                        characterData.moral.current = d.status.moral || 100;
-                    }
-                    if (d.skills) {
-                        characterData.skills = d.skills;
-                    }
-                    if (d.fokus) {
-                        characterData.fokus = d.fokus;
-                    }
-                    if (d.schwaeche) {
-                        characterData.schwaeche = d.schwaeche;
-                    }
-                    if (d.portrait) {
-                        characterData.portrait = d.portrait;
-                    }
-                    if (d.jollyRoger) {
-                        characterData.jollyRoger = d.jollyRoger;
-                    }
-                    if (d.secondChance) {
-                        characterData.secondChance = d.secondChance;
-                    }
-                    
-                    // Charakter-ID merken für späteren Save
-                    window.currentCharId = char.id;
-                    CharacterStorage.updateLastPlayed(char.id);
-                    
-                    if (window.RIFT?.ui?.Toast) {
-                        setTimeout(() => RIFT.ui.Toast.success(`${char.name} geladen`), 500);
-                    }
+                    loadCharacterFromData(char);
+                    return;
+                } else if (roomCode) {
+                    // Nicht in localStorage gefunden - versuche aus Firestore zu laden (für GM-Ansicht)
+                    console.log('[WA-Sheet] Character not in localStorage, trying Firestore...', paramId, roomCode);
+                    loadCharacterFromFirestore(paramId, roomCode, isGM);
                     return;
                 } else {
                     console.error('[WA-Sheet] Character not found:', paramId);
@@ -4900,6 +4860,130 @@
                     characterData.skills[cat].push(EMPTY_SKILL());
                 }
             });
+        }
+        
+        function loadCharacterFromData(char) {
+            // Daten aus CharacterStorage in characterData konvertieren
+            characterData = getDefaultCharacter();
+            characterData.name = char.name || '';
+            
+            // data-Felder übernehmen
+            const d = char.data;
+            characterData.age = d.age || '';
+            characterData.gender = d.gender || '';
+            characterData.role = d.role || char.class || '';
+            characterData.crew = d.crew || '';
+            characterData.appearance = d.appearance || '';
+            characterData.inventory = d.inventory || '';
+            characterData.currency = d.currency || '';
+            characterData.weapon = d.weapon || '';
+            characterData.notes = d.notes || '';
+            
+            if (d.attributes) {
+                characterData.attributes = { ...characterData.attributes, ...d.attributes };
+            }
+            if (d.status) {
+                characterData.health.current = d.status.health || 100;
+                characterData.moral.current = d.status.moral || 100;
+            }
+            if (d.skills) {
+                characterData.skills = d.skills;
+            }
+            if (d.fokus) {
+                characterData.fokus = d.fokus;
+            }
+            if (d.schwaeche) {
+                characterData.schwaeche = d.schwaeche;
+            }
+            if (d.portrait) {
+                characterData.portrait = d.portrait;
+            }
+            if (d.jollyRoger) {
+                characterData.jollyRoger = d.jollyRoger;
+            }
+            if (d.secondChance) {
+                characterData.secondChance = d.secondChance;
+            }
+            
+            // Charakter-ID merken für späteren Save
+            window.currentCharId = char.id;
+            CharacterStorage.updateLastPlayed(char.id);
+            
+            if (window.RIFT?.ui?.Toast) {
+                setTimeout(() => RIFT.ui.Toast.success(`${char.name} geladen`), 500);
+            }
+        }
+        
+        async function loadCharacterFromFirestore(charId, roomCode, isGM) {
+            console.log('[WA-Sheet] Loading from Firestore:', charId, roomCode);
+            
+            // Wait for Firebase to be ready
+            if (window.RIFT?.firebase?.init) {
+                try {
+                    await window.RIFT.firebase.init();
+                } catch (e) {
+                    console.warn('[WA-Sheet] Firebase init error:', e);
+                }
+            }
+            
+            // Check if Firebase is available
+            if (typeof firebase === 'undefined' || !firebase.apps || firebase.apps.length === 0) {
+                console.error('[WA-Sheet] Firebase not available');
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.error('Firebase nicht verfügbar');
+                }
+                characterData = getDefaultCharacter();
+                populateFields();
+                return;
+            }
+            
+            try {
+                const db = firebase.firestore();
+                const normalizedCode = roomCode.replace(/-/g, '').toUpperCase();
+                
+                const charDoc = await db.collection('rooms').doc(normalizedCode)
+                    .collection('characters').doc(charId).get();
+                
+                if (charDoc.exists) {
+                    const charData = charDoc.data();
+                    console.log('[WA-Sheet] Loaded from Firestore:', charData);
+                    
+                    // Convert to expected format and load
+                    loadCharacterFromData({
+                        id: charId,
+                        name: charData.name,
+                        data: charData.data || charData,
+                        class: charData.class
+                    });
+                    
+                    // Re-populate fields after async load
+                    populateFields();
+                    initializeSkills();
+                    updateAllCalculations();
+                    
+                    // GM mode indicator
+                    if (isGM) {
+                        const gmBanner = document.createElement('div');
+                        gmBanner.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(139,92,246,0.9);color:white;padding:8px 16px;border-radius:8px;font-size:13px;z-index:1000;';
+                        gmBanner.innerHTML = '👑 GM-Ansicht';
+                        document.body.appendChild(gmBanner);
+                    }
+                } else {
+                    console.error('[WA-Sheet] Character not found in Firestore:', charId);
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.error('Charakter nicht gefunden');
+                    }
+                    characterData = getDefaultCharacter();
+                    populateFields();
+                }
+            } catch (e) {
+                console.error('[WA-Sheet] Firestore error:', e);
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.error('Fehler beim Laden');
+                }
+                characterData = getDefaultCharacter();
+                populateFields();
+            }
         }
 
         function saveCharacter() {
