@@ -242,12 +242,77 @@ const CharacterStorage = {
                 this.firebaseSave(character).catch(e => {
                     console.warn('[CharacterStorage] Firebase sync failed:', e);
                 });
+                
+                // Also sync to room if user is in a room
+                this.syncToRoom(character);
             }
             
             return character;
         } catch (e) {
             console.error('[CharacterStorage] Error saving character:', e);
             return null;
+        }
+    },
+    
+    // Sync character to current room (if in one)
+    async syncToRoom(character) {
+        try {
+            const roomCode = localStorage.getItem('rift_current_room');
+            if (!roomCode) {
+                console.log('[CharacterStorage] Not in a room, skipping room sync');
+                return;
+            }
+            
+            // Check if RoomService is available
+            if (!window.RIFT?.RoomService?.addCharacterToRoom) {
+                console.log('[CharacterStorage] RoomService not available, skipping room sync');
+                return;
+            }
+            
+            const userId = this.getUserId();
+            if (!userId) {
+                console.log('[CharacterStorage] No user ID, skipping room sync');
+                return;
+            }
+            
+            console.log('[CharacterStorage] Syncing character to room:', roomCode, character.id);
+            
+            // Use updateRoomCharacter if exists, else add
+            const db = this.getFirestore();
+            if (!db) return;
+            
+            const normalizedCode = roomCode.replace('-', '').toUpperCase();
+            const charRef = db.collection('rooms').doc(normalizedCode)
+                             .collection('characters').doc(character.id);
+            
+            const charDoc = await charRef.get();
+            
+            const roomCharData = {
+                id: character.id,
+                ownerId: userId,
+                name: character.name || 'Unbenannt',
+                ruleset: character.ruleset,
+                class: character.class || '',
+                race: character.race || '',
+                level: character.level || 1,
+                portrait: character.portrait || null,
+                data: character.data || character,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            if (charDoc.exists) {
+                // Update existing
+                await charRef.update(roomCharData);
+                console.log('[CharacterStorage] Updated character in room:', character.id);
+            } else {
+                // Create new
+                roomCharData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                await charRef.set(roomCharData);
+                console.log('[CharacterStorage] Added character to room:', character.id);
+            }
+        } catch (e) {
+            console.warn('[CharacterStorage] Room sync failed:', e);
+            // Don't throw - room sync is optional
         }
     },
     
@@ -281,12 +346,38 @@ const CharacterStorage = {
                 this.firebaseDelete(charId).catch(e => {
                     console.warn('[CharacterStorage] Firebase delete failed:', e);
                 });
+                
+                // Also delete from room if in one
+                this.deleteFromRoom(charId);
             }
             
             return true;
         } catch (e) {
             console.error('[CharacterStorage] Error deleting character:', e);
             return false;
+        }
+    },
+    
+    // Delete character from current room (if in one)
+    async deleteFromRoom(charId) {
+        try {
+            const roomCode = localStorage.getItem('rift_current_room');
+            if (!roomCode) return;
+            
+            const db = this.getFirestore();
+            if (!db) return;
+            
+            const normalizedCode = roomCode.replace('-', '').toUpperCase();
+            const charRef = db.collection('rooms').doc(normalizedCode)
+                             .collection('characters').doc(charId);
+            
+            const charDoc = await charRef.get();
+            if (charDoc.exists) {
+                await charRef.delete();
+                console.log('[CharacterStorage] Deleted character from room:', charId);
+            }
+        } catch (e) {
+            console.warn('[CharacterStorage] Room delete failed:', e);
         }
     },
     
