@@ -17,9 +17,51 @@
             // Restore ambient effect from previous session
             this.restoreAmbientEffect();
             
+            // Restore persisted fullscreen broadcasts (prevent skip by refresh)
+            this.restorePersistedBroadcasts();
+            
             // Wait for Firebase
             this.waitForFirebase().then(() => {
                 this.subscribe(roomCode);
+            });
+        },
+        
+        // Persist fullscreen broadcasts to localStorage
+        persistBroadcast(type, data, durationMs) {
+            const key = `rift_active_broadcast_${type}`;
+            const entry = {
+                data,
+                expiresAt: Date.now() + durationMs
+            };
+            localStorage.setItem(key, JSON.stringify(entry));
+        },
+        
+        // Clear a persisted broadcast
+        clearPersistedBroadcast(type) {
+            localStorage.removeItem(`rift_active_broadcast_${type}`);
+        },
+        
+        // Restore any persisted broadcasts on page load
+        restorePersistedBroadcasts() {
+            const types = ['break', 'boss', 'combat', 'death', 'levelup', 'loot', 'location'];
+            
+            types.forEach(type => {
+                const key = `rift_active_broadcast_${type}`;
+                const stored = localStorage.getItem(key);
+                if (stored) {
+                    try {
+                        const entry = JSON.parse(stored);
+                        if (entry.expiresAt > Date.now()) {
+                            // Re-show the broadcast
+                            this.handleBroadcast({ ...entry.data, type });
+                        } else {
+                            // Expired, clear it
+                            localStorage.removeItem(key);
+                        }
+                    } catch (e) {
+                        localStorage.removeItem(key);
+                    }
+                }
             });
         },
         
@@ -208,6 +250,9 @@
                     break;
                 case 'endbreak':
                     this.endBreak();
+                    break;
+                case 'cancelTimer':
+                    this.cancelTimer();
                     break;
                 case 'sound':
                     this.playGlobalSound(broadcast);
@@ -1314,14 +1359,17 @@
             };
             
             try {
-                // Send status as broadcast so GM can see it
+                // Send status as broadcast message so GM receives it
                 await window.firebase.firestore()
                     .collection('rooms').doc(roomCode)
                     .update({
-                        [`playerStatus.${uid}`]: {
+                        broadcast: {
+                            type: 'playerStatusResponse',
+                            playerId: uid,
+                            playerName,
                             status,
-                            name: playerName,
-                            updatedAt: Date.now()
+                            id: Date.now(),
+                            timestamp: window.firebase.firestore.FieldValue.serverTimestamp()
                         }
                     });
                     
@@ -1408,7 +1456,7 @@
                 ${imageHtml}
                 <h1 style="font-size: clamp(36px, 8vw, 72px); font-weight: 900; color: #ef4444; margin: 0; text-transform: uppercase; letter-spacing: 4px; text-shadow: 0 0 40px rgba(239,68,68,0.5); animation: bossTitle 1s ease;">${this.escapeHtml(broadcast.name)}</h1>
                 ${broadcast.title ? `<p style="font-size: 24px; color: rgba(255,255,255,0.7); margin-top: 12px; font-style: italic; animation: bossSubtitle 1s ease 0.3s both;">${this.escapeHtml(broadcast.title)}</p>` : ''}
-                <button class="broadcast-modal__btn" style="margin-top: 32px; background: #ef4444; animation: bossBtn 1s ease 0.6s both; padding: 12px 24px;" onclick="this.closest('.broadcast-overlay').remove()">
+                <button style="margin-top: 32px; background: #ef4444; animation: bossBtn 1s ease 0.6s both; padding: 14px 48px; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; cursor: pointer;" onclick="this.closest('.broadcast-overlay').remove()">
                     Los geht's!
                 </button>
             `;
@@ -1621,6 +1669,12 @@
         
         // ============ BREAK TIMER ============
         showBreakTimer(broadcast) {
+            // Persist break to survive page refresh
+            const remaining = broadcast.endTime - Date.now();
+            if (remaining > 0) {
+                this.persistBroadcast('break', broadcast, remaining + 15000); // +15s buffer
+            }
+            
             // Remove existing break overlays
             document.querySelectorAll('.break-fullscreen-overlay').forEach(el => el.remove());
             document.querySelectorAll('.break-timer-overlay').forEach(el => el.remove());
@@ -1650,9 +1704,8 @@
             overlay.innerHTML = `
                 <div style="font-size: 48px; margin-bottom: 16px;">☕</div>
                 <h2 style="font-size: 24px; color: white; margin: 0 0 8px;">Pause</h2>
-                <p style="color: rgba(255,255,255,0.5); margin: 0 0 24px;">Weiter geht's um</p>
-                <div style="font-size: 64px; font-weight: 700; color: #8b5cf6; font-variant-numeric: tabular-nums;">${broadcast.displayTime}</div>
-                <div class="break-countdown" style="font-size: 32px; color: white; margin-top: 16px;"></div>
+                <p style="color: rgba(255,255,255,0.5); margin: 0 0 16px;">Weiter geht's in</p>
+                <div class="break-countdown" style="font-size: 64px; font-weight: 700; color: #8b5cf6; font-variant-numeric: tabular-nums;"></div>
             `;
             
             document.body.appendChild(overlay);
@@ -1672,6 +1725,9 @@
                     overlay.style.borderColor = 'rgba(34,197,94,0.5)';
                     overlay.style.animation = 'breakPulse 1s ease infinite';
                     
+                    // Clear persisted broadcast
+                    this.clearPersistedBroadcast('break');
+                    
                     // Auto-close after 10 seconds when done
                     setTimeout(() => {
                         blurOverlay.style.animation = 'fadeOut 0.5s ease forwards';
@@ -1684,7 +1740,7 @@
                     return;
                 }
                 
-                countdownEl.textContent = `noch ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
                 requestAnimationFrame(updateCountdown);
             };
             
@@ -1693,6 +1749,9 @@
         
         // End break early
         endBreak() {
+            // Clear persisted break
+            this.clearPersistedBroadcast('break');
+            
             document.querySelectorAll('.break-fullscreen-overlay').forEach(el => {
                 el.style.animation = 'fadeOut 0.5s ease forwards';
                 setTimeout(() => el.remove(), 500);
@@ -1700,6 +1759,14 @@
             document.querySelectorAll('.break-timer-overlay').forEach(el => {
                 el.style.animation = 'fadeOut 0.5s ease forwards';
                 setTimeout(() => el.remove(), 500);
+            });
+        },
+        
+        // Cancel timer
+        cancelTimer() {
+            document.querySelectorAll('.broadcast-timer-overlay').forEach(el => {
+                el.style.animation = 'fadeOut 0.3s ease forwards';
+                setTimeout(() => el.remove(), 300);
             });
         },
         
