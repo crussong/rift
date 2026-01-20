@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
     <title>RIFT – GM Kontrollzentrum</title>
     
     <link rel="stylesheet" href="assets/css/core.css">
@@ -12,75 +13,104 @@
     <link rel="stylesheet" href="assets/css/footer.css">
     
     <style>
-        .gm { max-width: 900px; margin: 0 auto; padding: 20px; }
+        /* ==================== GM CONTROL CENTER STYLES ==================== */
+        .gm-page {
+            padding: 24px;
+            --gm-accent: #8b5cf6;
+            --gm-accent-light: #a78bfa;
+            --gm-bg-card: #111111;
+            --gm-border: rgba(255,255,255,0.08);
+        }
+        .gm-container { max-width: 1200px; margin: 0 auto; }
         
         /* Header */
-        .gm-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-        .gm-header__icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: rgba(255,70,85,0.15); border-radius: 12px; color: var(--accent); }
-        .gm-header__icon svg { width: 28px; height: 28px; }
-        .gm-header__info { flex: 1; }
-        .gm-header__title { font-size: 24px; font-weight: 700; color: white; margin: 0 0 4px 0; }
-        .gm-header__room { font-size: 14px; color: rgba(255,255,255,0.5); margin: 0; }
-        .gm-header__room code { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-family: monospace; color: var(--accent); cursor: pointer; }
-        .gm-header__room code:hover { background: rgba(255,255,255,0.15); }
+        .gm-header { margin-bottom: 32px; }
+        .gm-header__title { font-size: 28px; font-weight: 700; color: white; margin: 0 0 8px 0; display: flex; align-items: center; gap: 12px; }
+        .gm-header__title svg { width: 32px; height: 32px; color: var(--gm-accent); }
+        .gm-header__subtitle { font-size: 14px; color: rgba(255,255,255,0.5); margin: 0; }
+        .gm-header__subtitle code { background: rgba(139,92,246,0.15); padding: 2px 10px; border-radius: 6px; font-family: monospace; color: var(--gm-accent-light); cursor: pointer; }
+        .gm-header__subtitle code:hover { background: rgba(139,92,246,0.25); }
         
         /* Tabs */
-        .gm-tabs { display: flex; gap: 4px; margin-bottom: 24px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 12px; overflow-x: auto; }
-        .gm-tab { flex: 1; min-width: 70px; padding: 12px 14px; background: transparent; border: none; border-radius: 8px; color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-        .gm-tab:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.05); }
-        .gm-tab--active { color: white; background: rgba(255,70,85,0.15); }
+        .gm-tabs { display: flex; gap: 4px; background: #111111; padding: 6px; border-radius: 12px; margin-bottom: 24px; overflow-x: auto; }
+        .gm-tab { display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: transparent; border: none; border-radius: 8px; color: rgba(255,255,255,0.5); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .gm-tab:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.9); }
+        .gm-tab.active { background: var(--gm-accent); color: white; }
+        .gm-tab svg { width: 18px; height: 18px; }
         
-        /* Content */
-        .gm-content { display: none; }
-        .gm-content--active { display: block; animation: fadeIn 0.2s ease; }
+        /* Panels */
+        .gm-panel { display: none; animation: fadeIn 0.2s ease; }
+        .gm-panel.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .gm-grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+        @media (max-width: 1000px) { .gm-grid { grid-template-columns: 1fr; } }
         
-        /* Section */
-        .gm-section { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-        .gm-section__title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        .gm-section__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-        .gm-section__header .gm-section__title { margin-bottom: 0; }
+        /* Cards */
+        .gm-card { background: #111111; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; margin-bottom: 24px; }
+        .gm-card__header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; }
+        .gm-card__title { font-size: 16px; font-weight: 600; color: white; display: flex; align-items: center; gap: 10px; }
+        .gm-card__title svg { width: 20px; height: 20px; color: var(--gm-accent); }
+        .gm-card__body { padding: 24px; }
         
-        /* Stats */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; }
-        .stat-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; text-align: center; }
-        .stat-card__value { font-size: 28px; font-weight: 700; color: white; line-height: 1; }
-        .stat-card__value--green { color: #22c55e; }
-        .stat-card__value--purple { color: #a78bfa; }
-        .stat-card__value--orange { color: #f97316; }
-        .stat-card__label { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 6px; }
+        /* Form Elements */
+        .gm-input { width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: white; font-size: 14px; box-sizing: border-box; }
+        .gm-input:focus { outline: none; border-color: var(--gm-accent); }
+        .gm-input::placeholder { color: rgba(255,255,255,0.4); }
+        .gm-textarea { width: 100%; min-height: 120px; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: white; font-size: 14px; font-family: inherit; resize: vertical; box-sizing: border-box; }
+        .gm-textarea:focus { outline: none; border-color: var(--gm-accent); }
+        
+        /* Buttons */
+        .gm-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; background: var(--gm-accent); border: none; border-radius: 10px; color: white; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .gm-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .gm-btn svg { width: 18px; height: 18px; }
+        .gm-btn--secondary { background: rgba(255,255,255,0.1); }
+        .gm-btn--danger { background: #ef4444; }
+        .gm-btn--success { background: #22c55e; }
+        .gm-btn--warning { background: #f97316; }
+        .gm-btn--full { width: 100%; }
+        .gm-btn--small { padding: 10px 16px; font-size: 13px; }
         
         /* Session Timer */
-        .session-timer { display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05)); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; margin-bottom: 16px; }
+        .session-timer { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05)); border: 1px solid rgba(34,197,94,0.3); border-radius: 16px; margin-bottom: 24px; }
         .session-timer__pulse { width: 12px; height: 12px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); } 50% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); } 50% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } }
         .session-timer__info { flex: 1; }
         .session-timer__label { font-size: 11px; font-weight: 700; color: #22c55e; letter-spacing: 1px; }
         .session-timer__name { font-size: 16px; font-weight: 600; color: white; }
-        .session-timer__time { font-size: 28px; font-weight: 700; color: white; font-family: monospace; }
-        .session-timer__stop { padding: 10px 20px; background: rgba(255,70,85,0.15); border: none; border-radius: 8px; color: var(--accent); font-weight: 600; cursor: pointer; }
-        .session-timer__stop:hover { background: rgba(255,70,85,0.25); }
+        .session-timer__time { font-size: 32px; font-weight: 700; color: white; font-family: monospace; }
+        
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; text-align: center; }
+        .stat-card__value { font-size: 36px; font-weight: 700; color: white; line-height: 1; }
+        .stat-card__value--green { color: #22c55e; }
+        .stat-card__value--purple { color: var(--gm-accent-light); }
+        .stat-card__value--orange { color: #f97316; }
+        .stat-card__label { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
         
         /* Quick Actions */
-        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
-        .quick-action { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; transition: all 0.2s; }
-        .quick-action:hover { background: rgba(255,255,255,0.06); color: white; }
-        .quick-action svg { width: 24px; height: 24px; opacity: 0.6; }
+        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; }
+        .quick-action { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .quick-action:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3); color: white; }
+        .quick-action svg { width: 28px; height: 28px; opacity: 0.6; }
+        .quick-action:hover svg { opacity: 1; color: var(--gm-accent); }
         
         /* Character Cards */
-        .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-        .char-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; }
-        .char-card__header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .char-card__avatar { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: white; }
+        .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .char-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; transition: all 0.2s; }
+        .char-card:hover { border-color: rgba(139,92,246,0.3); }
+        .char-card__header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .char-card__avatar { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; color: white; }
         .char-card__info { flex: 1; min-width: 0; }
-        .char-card__name { font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .char-card__meta { font-size: 12px; color: rgba(255,255,255,0.5); }
+        .char-card__name { font-weight: 600; color: white; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .char-card__meta { font-size: 13px; color: rgba(255,255,255,0.5); }
         .char-card__online { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; }
         .char-card__online--offline { background: rgba(255,255,255,0.2); }
         
         /* HP Bar */
-        .hp-section { margin-top: 12px; }
-        .hp-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+        .hp-section { margin-top: 16px; }
+        .hp-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
         .hp-header__label { color: rgba(255,255,255,0.5); }
         .hp-header__value { color: white; font-weight: 600; }
         .hp-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
@@ -88,20 +118,20 @@
         .hp-bar__fill--high { background: #22c55e; }
         .hp-bar__fill--mid { background: #f97316; }
         .hp-bar__fill--low { background: #ef4444; }
-        .hp-controls { display: flex; gap: 6px; margin-top: 10px; }
-        .hp-controls input { width: 50px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white; text-align: center; font-size: 13px; }
-        .hp-controls input:focus { outline: none; border-color: var(--accent); }
-        .hp-btn { padding: 6px 10px; border: none; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; }
+        .hp-controls { display: flex; gap: 8px; margin-top: 12px; }
+        .hp-controls input { width: 60px; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; text-align: center; font-size: 14px; }
+        .hp-controls input:focus { outline: none; border-color: var(--gm-accent); }
+        .hp-btn { padding: 8px 12px; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; }
         .hp-btn--dmg { background: rgba(239,68,68,0.2); color: #ef4444; }
         .hp-btn--dmg:hover { background: rgba(239,68,68,0.3); }
         .hp-btn--heal { background: rgba(34,197,94,0.2); color: #22c55e; }
         .hp-btn--heal:hover { background: rgba(34,197,94,0.3); }
         
         /* Log List */
-        .log-list { max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-        .log-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; font-size: 13px; }
-        .log-item__time { font-size: 11px; color: rgba(255,255,255,0.3); min-width: 45px; }
-        .log-item__icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; flex-shrink: 0; font-size: 14px; }
+        .log-list { max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .log-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(255,255,255,0.02); border-radius: 10px; font-size: 14px; }
+        .log-item__time { font-size: 12px; color: rgba(255,255,255,0.3); min-width: 50px; font-family: monospace; }
+        .log-item__icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; font-size: 16px; }
         .log-item__icon--dice { background: rgba(139,92,246,0.2); }
         .log-item__icon--chat { background: rgba(59,130,246,0.2); }
         .log-item__icon--join { background: rgba(34,197,94,0.2); }
@@ -109,166 +139,137 @@
         .log-item__icon--edit { background: rgba(251,191,36,0.2); }
         .log-item__content { flex: 1; min-width: 0; color: rgba(255,255,255,0.8); }
         .log-item__user { font-weight: 600; color: white; }
-        .log-item__result { font-weight: 700; color: #a78bfa; margin-left: 4px; }
+        .log-item__result { font-weight: 700; color: var(--gm-accent-light); margin-left: 4px; }
+        
+        /* Sessions */
+        .session-list { display: flex; flex-direction: column; gap: 12px; }
+        .session-item { display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; transition: all 0.2s; }
+        .session-item:hover { border-color: rgba(139,92,246,0.3); }
+        .session-item__date { display: flex; flex-direction: column; align-items: center; min-width: 56px; padding: 10px; background: rgba(139,92,246,0.1); border-radius: 10px; }
+        .session-item__day { font-size: 24px; font-weight: 700; line-height: 1; color: white; }
+        .session-item__month { font-size: 12px; color: var(--gm-accent-light); text-transform: uppercase; }
+        .session-item__info { flex: 1; }
+        .session-item__name { font-weight: 600; color: white; font-size: 15px; }
+        .session-item__time { font-size: 13px; color: rgba(255,255,255,0.5); }
+        .session-item__live { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; background: rgba(34,197,94,0.2); color: #22c55e; }
+        .session-item__start { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(34,197,94,0.15); border: none; border-radius: 10px; color: #22c55e; cursor: pointer; }
+        .session-item__start:hover:not(:disabled) { background: rgba(34,197,94,0.25); }
+        .session-item__start:disabled { opacity: 0.3; cursor: not-allowed; }
+        .session-item__start svg { width: 18px; height: 18px; }
+        .create-link { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; color: rgba(255,255,255,0.6); text-decoration: none; font-weight: 500; margin-top: 16px; }
+        .create-link:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3); color: white; }
+        .create-link svg { width: 18px; height: 18px; }
+        
+        /* Broadcast */
+        .broadcast-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+        .broadcast-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: rgba(255,255,255,0.6); cursor: pointer; }
+        .broadcast-check input { accent-color: var(--gm-accent); width: 16px; height: 16px; }
         
         /* Poll */
-        .poll-create { display: flex; flex-direction: column; gap: 12px; }
-        .poll-create > input { padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; }
-        .poll-create > input:focus { outline: none; border-color: var(--accent); }
-        .poll-create > input::placeholder { color: rgba(255,255,255,0.3); }
-        .poll-types { display: flex; gap: 8px; flex-wrap: wrap; }
-        .poll-types label { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 13px; color: rgba(255,255,255,0.7); cursor: pointer; }
-        .poll-types input[type="radio"] { accent-color: var(--accent); }
-        .poll-settings { display: flex; align-items: center; gap: 16px; padding: 10px 0; }
+        .poll-types { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .poll-types label { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.7); cursor: pointer; }
+        .poll-types label:hover { background: rgba(255,255,255,0.08); }
+        .poll-types input[type="radio"] { accent-color: var(--gm-accent); }
+        .poll-settings { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
         .poll-settings label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.7); cursor: pointer; }
-        .poll-settings input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
-        .poll-btn { padding: 12px 24px; background: var(--accent); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; align-self: flex-end; }
-        .poll-btn:hover { filter: brightness(1.1); }
-        .poll-custom { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; padding: 14px; background: rgba(255,255,255,0.03); border-radius: 8px; }
-        
-        /* Poll Image Upload */
-        .poll-image-upload { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+        .poll-settings input[type="checkbox"] { accent-color: var(--gm-accent); width: 16px; height: 16px; }
+        .poll-active { padding: 20px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; margin-bottom: 20px; }
+        .poll-active__header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 16px; }
+        .poll-active__label { font-size: 11px; font-weight: 700; color: var(--gm-accent-light); letter-spacing: 1px; }
+        .poll-active__question { font-size: 16px; font-weight: 600; color: white; margin-top: 4px; }
+        .poll-active__actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .poll-active__resolve { padding: 8px 14px; background: rgba(34,197,94,0.2); border: none; border-radius: 8px; color: #22c55e; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .poll-active__resolve:hover { background: rgba(34,197,94,0.3); }
+        .poll-active__close { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .poll-active__close:hover { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .poll-results { display: flex; flex-direction: column; gap: 10px; }
+        .poll-result { display: flex; align-items: center; gap: 12px; }
+        .poll-result__label { min-width: 80px; font-size: 14px; color: rgba(255,255,255,0.8); }
+        .poll-result__bar { flex: 1; height: 32px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; position: relative; }
+        .poll-result__fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #a78bfa); transition: width 0.3s; }
+        .poll-result__count { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; font-weight: 600; color: white; }
+        .poll-custom { display: none; flex-direction: column; gap: 12px; margin-top: 12px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px; }
+        .poll-option-row { display: flex; align-items: center; gap: 10px; }
+        .poll-option-row__emoji { position: relative; }
+        .poll-option-row__emoji-btn { width: 44px; height: 44px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .poll-option-row__emoji-btn:hover { border-color: rgba(139,92,246,0.5); background: rgba(139,92,246,0.1); }
+        .poll-option-row__input { flex: 1; padding: 12px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; }
+        .poll-option-row__input:focus { outline: none; border-color: var(--gm-accent); }
+        .poll-option-row__input::placeholder { color: rgba(255,255,255,0.3); }
+        .poll-option-row__remove { width: 36px; height: 36px; background: transparent; border: none; color: rgba(255,255,255,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+        .poll-option-row__remove:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+        .poll-add-option { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: transparent; border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; color: rgba(255,255,255,0.5); font-size: 13px; cursor: pointer; }
+        .poll-add-option:hover { border-color: rgba(139,92,246,0.5); color: rgba(255,255,255,0.8); }
+        .poll-add-option svg { width: 16px; height: 16px; }
+        .emoji-picker { position: absolute; top: 100%; left: 0; z-index: 100; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: none; }
+        .emoji-picker.visible { display: block; }
+        .emoji-picker__grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+        .emoji-picker__btn { width: 36px; height: 36px; background: transparent; border: none; border-radius: 8px; font-size: 20px; cursor: pointer; }
+        .emoji-picker__btn:hover { background: rgba(139,92,246,0.2); }
+        .poll-image-upload { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
         .poll-image-upload__label { font-size: 12px; color: rgba(255,255,255,0.5); }
-        .poll-image-upload__area { position: relative; width: 100%; aspect-ratio: 350/160; background: rgba(0,0,0,0.3); border: 2px dashed rgba(255,255,255,0.15); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; transition: border-color 0.2s; }
+        .poll-image-upload__area { position: relative; width: 100%; aspect-ratio: 350/160; background: rgba(0,0,0,0.3); border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
         .poll-image-upload__area:hover { border-color: rgba(139,92,246,0.5); }
         .poll-image-upload__area.has-image { border-style: solid; border-color: rgba(139,92,246,0.3); }
         .poll-image-upload__placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: rgba(255,255,255,0.4); }
         .poll-image-upload__placeholder svg { width: 32px; height: 32px; }
-        .poll-image-upload__placeholder span { font-size: 12px; }
+        .poll-image-upload__placeholder span { font-size: 13px; }
         .poll-image-upload__preview { position: absolute; inset: 0; object-fit: cover; }
         .poll-image-upload__remove { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; background: rgba(0,0,0,0.7); border: none; border-radius: 6px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .poll-image-upload__remove:hover { background: var(--accent); }
+        .poll-image-upload__remove:hover { background: #ef4444; }
         .poll-image-upload input[type="file"] { display: none; }
-        
-        /* Poll Option Row */
-        .poll-option-row { display: flex; align-items: center; gap: 8px; }
-        .poll-option-row__emoji { position: relative; }
-        .poll-option-row__emoji-btn { width: 40px; height: 40px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .poll-option-row__emoji-btn:hover { border-color: rgba(139,92,246,0.5); background: rgba(139,92,246,0.1); }
-        .poll-option-row__input { flex: 1; padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white; font-size: 13px; }
-        .poll-option-row__input:focus { outline: none; border-color: var(--accent); }
-        .poll-option-row__input::placeholder { color: rgba(255,255,255,0.3); }
-        .poll-option-row__remove { width: 32px; height: 32px; background: transparent; border: none; color: rgba(255,255,255,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
-        .poll-option-row__remove:hover { color: var(--accent); background: rgba(255,70,85,0.1); }
-        
-        /* Emoji Picker */
-        .emoji-picker { position: absolute; top: 100%; left: 0; z-index: 100; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: none; }
-        .emoji-picker.visible { display: block; }
-        .emoji-picker__grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
-        .emoji-picker__btn { width: 32px; height: 32px; background: transparent; border: none; border-radius: 6px; font-size: 18px; cursor: pointer; transition: background 0.15s; }
-        .emoji-picker__btn:hover { background: rgba(255,255,255,0.1); }
-        
-        /* Add Option Button */
-        .poll-add-option { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: transparent; border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; color: rgba(255,255,255,0.5); font-size: 13px; cursor: pointer; transition: all 0.2s; }
-        .poll-add-option:hover { border-color: rgba(139,92,246,0.5); color: rgba(255,255,255,0.8); background: rgba(139,92,246,0.05); }
-        .poll-add-option svg { width: 16px; height: 16px; }
-        
-        /* Image Cropper Modal */
         .cropper-modal { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .cropper-modal__container { position: relative; width: 100%; max-width: 600px; background: #1a1a1a; border-radius: 12px; overflow: hidden; }
-        .cropper-modal__header { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .cropper-modal__container { position: relative; width: 100%; max-width: 600px; background: #1a1a1a; border-radius: 16px; overflow: hidden; }
+        .cropper-modal__header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
         .cropper-modal__title { font-weight: 600; color: white; }
-        .cropper-modal__close { background: transparent; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; }
+        .cropper-modal__close { background: transparent; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 18px; }
         .cropper-modal__close:hover { color: white; }
         .cropper-modal__canvas-wrap { position: relative; width: 100%; aspect-ratio: 350/160; background: #000; overflow: hidden; cursor: move; }
         .cropper-modal__canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
-        .cropper-modal__controls { padding: 16px; display: flex; gap: 12px; align-items: center; }
-        .cropper-modal__zoom { flex: 1; accent-color: var(--accent); }
-        .cropper-modal__actions { display: flex; gap: 10px; padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); justify-content: flex-end; }
-        .cropper-modal__btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .cropper-modal__controls { padding: 16px 20px; display: flex; gap: 12px; align-items: center; }
+        .cropper-modal__zoom { flex: 1; accent-color: var(--gm-accent); }
+        .cropper-modal__actions { display: flex; gap: 12px; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); justify-content: flex-end; }
+        .cropper-modal__btn { padding: 12px 24px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
         .cropper-modal__btn--cancel { background: rgba(255,255,255,0.1); color: white; }
-        .cropper-modal__btn--apply { background: var(--accent); color: white; }
+        .cropper-modal__btn--apply { background: var(--gm-accent); color: white; }
         
-        /* Active Poll */
-        .poll-active { padding: 16px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; margin-bottom: 16px; }
-        .poll-active__header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; }
-        .poll-active__label { font-size: 11px; font-weight: 700; color: #a78bfa; letter-spacing: 1px; }
-        .poll-active__question { font-size: 16px; font-weight: 600; color: white; margin-top: 4px; }
-        .poll-active__actions { display: flex; gap: 8px; flex-shrink: 0; }
-        .poll-active__resolve { padding: 8px 14px; background: rgba(34,197,94,0.2); border: none; border-radius: 6px; color: #22c55e; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .poll-active__resolve:hover { background: rgba(34,197,94,0.3); }
-        .poll-active__close { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border: none; border-radius: 6px; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .poll-active__close:hover { background: rgba(255,70,85,0.2); color: var(--accent); }
-        .poll-results { display: flex; flex-direction: column; gap: 8px; }
-        .poll-result { display: flex; align-items: center; gap: 10px; }
-        .poll-result__label { min-width: 60px; font-size: 14px; color: rgba(255,255,255,0.8); }
-        .poll-result__bar { flex: 1; height: 28px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; position: relative; }
-        .poll-result__fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #a78bfa); transition: width 0.3s; }
-        .poll-result__fill--winner { background: linear-gradient(90deg, #22c55e, #4ade80); }
-        .poll-result__count { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: white; }
-        
-        /* Broadcast */
-        .broadcast-box textarea { width: 100%; min-height: 80px; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 14px; font-family: inherit; resize: vertical; }
-        .broadcast-box textarea:focus { outline: none; border-color: var(--accent); }
-        .broadcast-box textarea::placeholder { color: rgba(255,255,255,0.3); }
-        .broadcast-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
-        .broadcast-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: rgba(255,255,255,0.6); cursor: pointer; }
-        .broadcast-check input { accent-color: var(--accent); }
-        .broadcast-btn { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--accent); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
-        .broadcast-btn:hover { filter: brightness(1.1); }
-        .broadcast-btn svg { width: 18px; height: 18px; }
-        
-        /* Notes */
+        /* Transfer & Notes */
+        .transfer-box { display: flex; gap: 12px; padding: 20px; background: rgba(139,92,246,0.05); border: 1px solid rgba(139,92,246,0.15); border-radius: 12px; }
+        .transfer-box select { flex: 1; padding: 12px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 14px; }
+        .transfer-box select option { background: #1a1a1a; }
+        .transfer-box button { padding: 12px 24px; background: rgba(139,92,246,0.2); border: none; border-radius: 10px; color: var(--gm-accent-light); font-weight: 600; cursor: pointer; }
+        .transfer-box button:hover:not(:disabled) { background: rgba(139,92,246,0.3); }
+        .transfer-box button:disabled { opacity: 0.4; cursor: not-allowed; }
         .notes-box { position: relative; }
-        .notes-box textarea { width: 100%; min-height: 150px; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 14px; font-family: inherit; line-height: 1.6; resize: vertical; }
-        .notes-box textarea:focus { outline: none; border-color: rgba(6,182,212,0.5); }
         .notes-box__status { position: absolute; top: 12px; right: 12px; font-size: 12px; }
         .notes-box__status--saving { color: #fbbf24; }
         .notes-box__status--saved { color: #22c55e; }
         
-        /* Session List */
-        .session-list { display: flex; flex-direction: column; gap: 8px; }
-        .session-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 10px; }
-        .session-item__date { display: flex; flex-direction: column; align-items: center; min-width: 50px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 8px; }
-        .session-item__day { font-size: 20px; font-weight: 700; line-height: 1; color: white; }
-        .session-item__month { font-size: 11px; color: rgba(255,255,255,0.5); }
-        .session-item__info { flex: 1; }
-        .session-item__name { font-weight: 600; color: white; }
-        .session-item__time { font-size: 12px; color: rgba(255,255,255,0.5); }
-        .session-item__live { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(34,197,94,0.2); color: #22c55e; }
-        .session-item__start { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(34,197,94,0.15); border: none; border-radius: 8px; color: #22c55e; cursor: pointer; }
-        .session-item__start:hover:not(:disabled) { background: rgba(34,197,94,0.25); }
-        .session-item__start:disabled { opacity: 0.3; cursor: not-allowed; }
-        .session-item__start svg { width: 16px; height: 16px; }
-        
-        /* Transfer */
-        .transfer-box { display: flex; gap: 10px; padding: 16px; background: rgba(139,92,246,0.05); border: 1px solid rgba(139,92,246,0.15); border-radius: 10px; }
-        .transfer-box select { flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; }
-        .transfer-box select option { background: #1a1a1a; }
-        .transfer-box button { padding: 10px 20px; background: rgba(139,92,246,0.2); border: none; border-radius: 8px; color: #a78bfa; font-weight: 600; cursor: pointer; }
-        .transfer-box button:disabled { opacity: 0.4; cursor: not-allowed; }
-        
         /* Danger Zone */
-        .danger-section { background: rgba(255,70,85,0.03); border-color: rgba(255,70,85,0.15); }
-        .danger-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; background: rgba(255,70,85,0.05); border: 1px solid rgba(255,70,85,0.1); border-radius: 10px; margin-bottom: 12px; }
+        .danger-card { background: rgba(239,68,68,0.03); border-color: rgba(239,68,68,0.15); }
+        .danger-card .gm-card__title { color: #ef4444; }
+        .danger-card .gm-card__title svg { color: #ef4444; }
+        .danger-item { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px; background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.1); border-radius: 12px; margin-bottom: 16px; }
         .danger-item:last-child { margin-bottom: 0; }
         .danger-item__info h4 { margin: 0 0 4px 0; color: white; font-size: 15px; }
         .danger-item__info p { margin: 0; font-size: 13px; color: rgba(255,255,255,0.5); }
-        .danger-btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        .danger-btn--warning { background: rgba(255,200,0,0.15); color: #ffc800; }
-        .danger-btn--danger { background: rgba(255,70,85,0.15); color: var(--accent); }
         
-        /* Empty & Loading */
-        .empty { text-align: center; padding: 30px 20px; color: rgba(255,255,255,0.4); }
-        .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        /* Empty & Access Denied */
+        .empty { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.4); }
+        .empty p { margin: 8px 0 0 0; }
+        .empty .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--gm-accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        /* Create Link */
-        .create-link { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; color: rgba(255,255,255,0.6); text-decoration: none; margin-top: 12px; }
-        .create-link:hover { background: rgba(255,255,255,0.06); color: white; }
-        .create-link svg { width: 18px; height: 18px; }
-        
-        /* Access Denied */
         .access-denied { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; padding: 40px; }
         .access-denied svg { width: 64px; height: 64px; color: rgba(255,255,255,0.2); margin-bottom: 20px; }
         .access-denied h2 { margin: 0 0 8px 0; color: white; }
         .access-denied p { color: rgba(255,255,255,0.5); margin: 0 0 24px 0; }
-        .access-denied a { padding: 12px 24px; background: var(--accent); border-radius: 8px; color: white; text-decoration: none; font-weight: 600; }
+        .access-denied a { padding: 14px 28px; background: var(--gm-accent); border-radius: 10px; color: white; text-decoration: none; font-weight: 600; }
         
-        /* Mobile */
-        @media (max-width: 600px) {
-            .gm-tab { min-width: 55px; padding: 10px 8px; font-size: 11px; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        /* Responsive */
+        @media (max-width: 768px) {
+            .gm-page { padding: 16px; }
+            .gm-tab { min-width: auto; padding: 10px 14px; font-size: 13px; }
+            .gm-tab span { display: none; }
             .char-grid { grid-template-columns: 1fr; }
             .transfer-box, .danger-item { flex-direction: column; align-items: stretch; }
             .session-timer { flex-wrap: wrap; }
@@ -281,311 +282,404 @@
         <main class="main">
             <div class="main__content">
                 
-                <div class="gm" id="gmContent">
-                    
-                    <!-- Header -->
-                    <div class="gm-header">
-                        <div class="gm-header__icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        </div>
-                        <div class="gm-header__info">
-                            <h1 class="gm-header__title">GM Kontrollzentrum</h1>
-                            <p class="gm-header__room">Raum: <code id="roomCodeDisplay" onclick="GM.copyCode()">---</code></p>
-                        </div>
-                    </div>
-                    
-                    <!-- Tabs -->
-                    <div class="gm-tabs">
-                        <button class="gm-tab gm-tab--active" data-tab="overview">Übersicht</button>
-                        <button class="gm-tab" data-tab="players">Spieler</button>
-                        <button class="gm-tab" data-tab="logs">Logs</button>
-                        <button class="gm-tab" data-tab="sessions">Sessions</button>
-                        <button class="gm-tab" data-tab="tools">Tools</button>
-                        <button class="gm-tab" data-tab="settings">⚙️</button>
-                    </div>
-                    
-                    <!-- ==================== ÜBERSICHT ==================== -->
-                    <div class="gm-content gm-content--active" id="tab-overview">
+                <div class="gm-page" id="gmContent">
+                    <div class="gm-container">
                         
-                        <!-- Session Timer -->
-                        <div class="session-timer" id="sessionTimer" style="display:none;">
-                            <div class="session-timer__pulse"></div>
-                            <div class="session-timer__info">
-                                <div class="session-timer__label">LIVE SESSION</div>
-                                <div class="session-timer__name" id="timerName">-</div>
-                            </div>
-                            <div class="session-timer__time" id="timerDisplay">00:00:00</div>
-                            <button class="session-timer__stop" onclick="GM.stopSession()">Beenden</button>
+                        <!-- Header -->
+                        <div class="gm-header">
+                            <h1 class="gm-header__title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                GM Kontrollzentrum
+                            </h1>
+                            <p class="gm-header__subtitle">Raum: <code id="roomCodeDisplay" onclick="GM.copyCode()">---</code></p>
                         </div>
                         
-                        <!-- Stats -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">📊 Statistiken</div>
-                            <div class="stats-grid">
-                                <div class="stat-card">
-                                    <div class="stat-card__value stat-card__value--green" id="statOnline">0</div>
-                                    <div class="stat-card__label">Online</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-card__value" id="statPlayers">0</div>
-                                    <div class="stat-card__label">Spieler</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-card__value stat-card__value--purple" id="statChars">0</div>
-                                    <div class="stat-card__label">Charaktere</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-card__value stat-card__value--orange" id="statDice">0</div>
-                                    <div class="stat-card__label">Würfe heute</div>
-                                </div>
-                            </div>
+                        <!-- Tab Navigation -->
+                        <div class="gm-tabs">
+                            <button class="gm-tab active" data-tab="overview">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                <span>Übersicht</span>
+                            </button>
+                            <button class="gm-tab" data-tab="players">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <span>Spieler</span>
+                            </button>
+                            <button class="gm-tab" data-tab="logs">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                <span>Logs</span>
+                            </button>
+                            <button class="gm-tab" data-tab="sessions">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span>Sessions</span>
+                            </button>
+                            <button class="gm-tab" data-tab="tools">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                                <span>Tools</span>
+                            </button>
+                            <button class="gm-tab" data-tab="settings">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            </button>
                         </div>
                         
-                        <!-- Quick Actions -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">⚡ Schnellzugriff</div>
-                            <div class="quick-actions">
-                                <a href="dice.html" class="quick-action">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/></svg>
-                                    Würfeln
-                                </a>
-                                <a href="chat.html" class="quick-action">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                    Chat
-                                </a>
-                                <a href="map.html" class="quick-action">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
-                                    Karte
-                                </a>
-                                <a href="notes.html" class="quick-action">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                    Notizen
-                                </a>
-                            </div>
-                        </div>
-                        
-                    </div>
-                    
-                    <!-- ==================== SPIELER ==================== -->
-                    <div class="gm-content" id="tab-players">
-                        
-                        <!-- Charakter-Übersicht mit HP -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">🎭 Charaktere & HP</div>
-                            <div class="char-grid" id="charGrid">
-                                <div class="empty"><div class="spinner"></div><p>Lade Charaktere...</p></div>
-                            </div>
-                        </div>
-                        
-                        <!-- GM Transfer -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">👑 GM übertragen</div>
-                            <div class="transfer-box">
-                                <select id="transferSelect"><option value="">Spieler wählen...</option></select>
-                                <button id="transferBtn" onclick="GM.transferGM()" disabled>Übertragen</button>
-                            </div>
-                        </div>
-                        
-                    </div>
-                    
-                    <!-- ==================== LOGS ==================== -->
-                    <div class="gm-content" id="tab-logs">
-                        
-                        <!-- Würfel-Log -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">🎲 Würfel-Log</div>
-                            <div class="log-list" id="diceLog">
-                                <div class="empty"><p>Noch keine Würfe</p></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Chat-Log -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">💬 Chat-Log</div>
-                            <div class="log-list" id="chatLog">
-                                <div class="empty"><p>Noch keine Nachrichten</p></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Anwesenheits-Log -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">🚪 Anwesenheits-Log</div>
-                            <div class="log-list" id="presenceLog">
-                                <div class="empty"><p>Keine Aktivität</p></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Charakterbogen-Log -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">📝 Charakterbogen-Änderungen</div>
-                            <div class="log-list" id="changeLog">
-                                <div class="empty"><p>Keine Änderungen<br><small style="opacity:0.6">Braucht Charakterbogen-Update für Logging</small></p></div>
-                            </div>
-                        </div>
-                        
-                    </div>
-                    
-                    <!-- ==================== SESSIONS ==================== -->
-                    <div class="gm-content" id="tab-sessions">
-                        
-                        <div class="gm-section">
-                            <div class="gm-section__title">📅 Sessions</div>
-                            <div class="session-list" id="sessionList">
-                                <div class="empty"><div class="spinner"></div><p>Lade Sessions...</p></div>
-                            </div>
-                            <a href="sessions.html?create=true" class="create-link">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                Neue Session
-                            </a>
-                        </div>
-                        
-                    </div>
-                    
-                    <!-- ==================== TOOLS ==================== -->
-                    <div class="gm-content" id="tab-tools">
-                        
-                        <!-- Broadcast -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">📢 Broadcast</div>
-                            <div class="broadcast-box">
-                                <textarea id="broadcastInput" placeholder="Nachricht an alle Spieler..."></textarea>
-                                <div class="broadcast-actions">
-                                    <label class="broadcast-check"><input type="checkbox" id="broadcastSound"> 🔔 Mit Sound</label>
-                                    <button class="broadcast-btn" onclick="GM.sendBroadcast()">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                                        Senden
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Quick-Poll -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">📊 Quick-Poll</div>
+                        <!-- ==================== ÜBERSICHT ==================== -->
+                        <div class="gm-panel active" id="panel-overview">
                             
-                            <!-- Active Poll -->
-                            <div class="poll-active" id="pollActive" style="display:none;">
-                                <div class="poll-active__header">
-                                    <div>
-                                        <div class="poll-active__label">AKTIVE UMFRAGE</div>
-                                        <div class="poll-active__question" id="pollQuestion">-</div>
-                                    </div>
-                                    <div class="poll-active__actions">
-                                        <button class="poll-active__resolve" onclick="GM.resolvePoll()">🏆 Auflösen</button>
-                                        <button class="poll-active__close" onclick="GM.closePoll()">✕</button>
-                                    </div>
+                            <!-- Session Timer -->
+                            <div class="session-timer" id="sessionTimer" style="display:none;">
+                                <div class="session-timer__pulse"></div>
+                                <div class="session-timer__info">
+                                    <div class="session-timer__label">LIVE SESSION</div>
+                                    <div class="session-timer__name" id="timerName">-</div>
                                 </div>
-                                <div id="pollActiveImage" style="display:none; margin-bottom: 12px;">
-                                    <img src="" alt="Poll Image" style="width:100%; border-radius:8px;">
-                                </div>
-                                <div class="poll-results" id="pollResults"></div>
+                                <div class="session-timer__time" id="timerDisplay">00:00:00</div>
+                                <button class="gm-btn gm-btn--danger gm-btn--small" onclick="GM.stopSession()">Beenden</button>
                             </div>
                             
-                            <!-- Create Poll -->
-                            <div class="poll-create" id="pollCreate">
-                                <input type="text" id="pollInput" placeholder="Frage eingeben...">
-                                <div class="poll-types">
-                                    <label><input type="radio" name="pollType" value="yesno" checked onchange="GM.toggleCustomOptions()"> Ja / Nein</label>
-                                    <label><input type="radio" name="pollType" value="abc" onchange="GM.toggleCustomOptions()"> A / B / C</label>
-                                    <label><input type="radio" name="pollType" value="numbers" onchange="GM.toggleCustomOptions()"> 1-5</label>
-                                    <label><input type="radio" name="pollType" value="custom" onchange="GM.toggleCustomOptions()"> ✏️ Custom</label>
-                                </div>
-                                
-                                <!-- Sound Toggle -->
-                                <div class="poll-settings">
-                                    <label><input type="checkbox" id="pollSound" checked> 🔔 Mit Sound</label>
-                                </div>
-                                
-                                <!-- Custom Options -->
-                                <div class="poll-custom" id="pollCustomOptions" style="display:none;">
-                                    
-                                    <!-- Image Upload -->
-                                    <div class="poll-image-upload">
-                                        <span class="poll-image-upload__label">Bild (optional, 350×160)</span>
-                                        <div class="poll-image-upload__area" id="pollImageArea" onclick="document.getElementById('pollImageInput').click()">
-                                            <div class="poll-image-upload__placeholder" id="pollImagePlaceholder">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                                                <span>Klicken zum Hochladen</span>
-                                            </div>
-                                            <img id="pollImagePreview" class="poll-image-upload__preview" style="display:none;">
-                                            <button type="button" class="poll-image-upload__remove" id="pollImageRemove" style="display:none;" onclick="event.stopPropagation(); GM.removePollImage()">✕</button>
-                                        </div>
-                                        <input type="file" id="pollImageInput" accept="image/*" onchange="GM.handlePollImage(event)">
+                            <!-- Stats -->
+                            <div class="gm-card">
+                                <div class="gm-card__header">
+                                    <div class="gm-card__title">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                                        Statistiken
                                     </div>
-                                    
-                                    <!-- Options Container -->
-                                    <div id="pollOptionsContainer">
-                                        <!-- Option 1 -->
-                                        <div class="poll-option-row" data-index="0">
-                                            <div class="poll-option-row__emoji">
-                                                <button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(0)">➊</button>
-                                                <div class="emoji-picker" id="emojiPicker0"></div>
-                                            </div>
-                                            <input type="text" class="poll-option-row__input" placeholder="Option 1" data-option="0">
+                                </div>
+                                <div class="gm-card__body">
+                                    <div class="stats-grid">
+                                        <div class="stat-card">
+                                            <div class="stat-card__value stat-card__value--green" id="statOnline">0</div>
+                                            <div class="stat-card__label">Online</div>
                                         </div>
-                                        <!-- Option 2 -->
-                                        <div class="poll-option-row" data-index="1">
-                                            <div class="poll-option-row__emoji">
-                                                <button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(1)">➋</button>
-                                                <div class="emoji-picker" id="emojiPicker1"></div>
-                                            </div>
-                                            <input type="text" class="poll-option-row__input" placeholder="Option 2" data-option="1">
+                                        <div class="stat-card">
+                                            <div class="stat-card__value" id="statPlayers">0</div>
+                                            <div class="stat-card__label">Spieler</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-card__value stat-card__value--purple" id="statChars">0</div>
+                                            <div class="stat-card__label">Charaktere</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-card__value stat-card__value--orange" id="statDice">0</div>
+                                            <div class="stat-card__label">Würfe heute</div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Quick Actions -->
+                            <div class="gm-card">
+                                <div class="gm-card__header">
+                                    <div class="gm-card__title">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                        Schnellzugriff
+                                    </div>
+                                </div>
+                                <div class="gm-card__body">
+                                    <div class="quick-actions">
+                                        <a href="broadcast.html" class="quick-action">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                                            Broadcast
+                                        </a>
+                                        <a href="dice.html" class="quick-action">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/></svg>
+                                            Würfeln
+                                        </a>
+                                        <a href="chat.html" class="quick-action">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                            Chat
+                                        </a>
+                                        <a href="map.html" class="quick-action">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+                                            Karte
+                                        </a>
+                                        <a href="notes.html" class="quick-action">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            Notizen
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ==================== SPIELER ==================== -->
+                        <div class="gm-panel" id="panel-players">
+                            <div class="gm-card">
+                                <div class="gm-card__header">
+                                    <div class="gm-card__title">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        Charaktere & HP
+                                    </div>
+                                </div>
+                                <div class="gm-card__body">
+                                    <div class="char-grid" id="charGrid">
+                                        <div class="empty"><div class="spinner"></div><p>Lade Charaktere...</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="gm-card">
+                                <div class="gm-card__header">
+                                    <div class="gm-card__title">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                                        GM übertragen
+                                    </div>
+                                </div>
+                                <div class="gm-card__body">
+                                    <div class="transfer-box">
+                                        <select id="transferSelect"><option value="">Spieler wählen...</option></select>
+                                        <button id="transferBtn" onclick="GM.transferGM()" disabled>Übertragen</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ==================== LOGS ==================== -->
+                        <div class="gm-panel" id="panel-logs">
+                            <div class="gm-grid">
+                                <div>
+                                    <div class="gm-card">
+                                        <div class="gm-card__header">
+                                            <div class="gm-card__title">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+                                                Würfel-Log
+                                            </div>
+                                        </div>
+                                        <div class="gm-card__body" style="padding: 12px;">
+                                            <div class="log-list" id="diceLog">
+                                                <div class="empty"><p>Noch keine Würfe</p></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     
-                                    <!-- Add Option Button -->
-                                    <button type="button" class="poll-add-option" id="pollAddOption" onclick="GM.addPollOption()">
+                                    <div class="gm-card">
+                                        <div class="gm-card__header">
+                                            <div class="gm-card__title">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                                Chat-Log
+                                            </div>
+                                        </div>
+                                        <div class="gm-card__body" style="padding: 12px;">
+                                            <div class="log-list" id="chatLog">
+                                                <div class="empty"><p>Noch keine Nachrichten</p></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="gm-card">
+                                        <div class="gm-card__header">
+                                            <div class="gm-card__title">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+                                                Anwesenheit
+                                            </div>
+                                        </div>
+                                        <div class="gm-card__body" style="padding: 12px;">
+                                            <div class="log-list" id="presenceLog">
+                                                <div class="empty"><p>Keine Aktivität</p></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="gm-card">
+                                        <div class="gm-card__header">
+                                            <div class="gm-card__title">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                Änderungen
+                                            </div>
+                                        </div>
+                                        <div class="gm-card__body" style="padding: 12px;">
+                                            <div class="log-list" id="changeLog">
+                                                <div class="empty"><p>Keine Änderungen</p></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ==================== SESSIONS ==================== -->
+                        <div class="gm-panel" id="panel-sessions">
+                            <div class="gm-card">
+                                <div class="gm-card__header">
+                                    <div class="gm-card__title">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        Sessions
+                                    </div>
+                                </div>
+                                <div class="gm-card__body">
+                                    <div class="session-list" id="sessionList">
+                                        <div class="empty"><div class="spinner"></div><p>Lade Sessions...</p></div>
+                                    </div>
+                                    <a href="sessions.html?create=true" class="create-link">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                        Option hinzufügen
-                                    </button>
+                                        Neue Session planen
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ==================== TOOLS ==================== -->
+                        <div class="gm-panel" id="panel-tools">
+                            <div class="gm-grid">
+                                <div>
+                                    <!-- Broadcast -->
+                                    <div class="gm-card">
+                                        <div class="gm-card__header">
+                                            <div class="gm-card__title">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                                                Quick Broadcast
+                                            </div>
+                                            <a href="broadcast.html" class="gm-btn gm-btn--secondary gm-btn--small">Broadcast Center →</a>
+                                        </div>
+                                        <div class="gm-card__body">
+                                            <textarea class="gm-textarea" id="broadcastInput" placeholder="Nachricht an alle Spieler..."></textarea>
+                                            <div class="broadcast-actions">
+                                                <label class="broadcast-check">
+                                                    <input type="checkbox" id="broadcastSound">
+                                                    🔔 Mit Sound
+                                                </label>
+                                                <button class="gm-btn" onclick="GM.sendBroadcast()">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                                    Senden
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Quick Poll -->
+                                    <div class="gm-card">
+                                        <div class="gm-card__header">
+                                            <div class="gm-card__title">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                                                Quick-Poll
+                                            </div>
+                                        </div>
+                                        <div class="gm-card__body">
+                                            <div class="poll-active" id="pollActive" style="display:none;">
+                                                <div class="poll-active__header">
+                                                    <div>
+                                                        <div class="poll-active__label">AKTIVE UMFRAGE</div>
+                                                        <div class="poll-active__question" id="pollQuestion">-</div>
+                                                    </div>
+                                                    <div class="poll-active__actions">
+                                                        <button class="poll-active__resolve" onclick="GM.resolvePoll()">🏆 Auflösen</button>
+                                                        <button class="poll-active__close" onclick="GM.closePoll()">✕</button>
+                                                    </div>
+                                                </div>
+                                                <div id="pollActiveImage" style="display:none; margin-bottom: 12px;">
+                                                    <img src="" alt="Poll Image" style="width:100%; border-radius:8px;">
+                                                </div>
+                                                <div class="poll-results" id="pollResults"></div>
+                                            </div>
+                                            
+                                            <div id="pollCreate">
+                                                <input type="text" class="gm-input" id="pollInput" placeholder="Frage eingeben..." style="margin-bottom: 16px;">
+                                                <div class="poll-types">
+                                                    <label><input type="radio" name="pollType" value="yesno" checked onchange="GM.toggleCustomOptions()"> Ja / Nein</label>
+                                                    <label><input type="radio" name="pollType" value="abc" onchange="GM.toggleCustomOptions()"> A / B / C</label>
+                                                    <label><input type="radio" name="pollType" value="numbers" onchange="GM.toggleCustomOptions()"> 1-5</label>
+                                                    <label><input type="radio" name="pollType" value="custom" onchange="GM.toggleCustomOptions()"> ✏️ Custom</label>
+                                                </div>
+                                                <div class="poll-settings">
+                                                    <label><input type="checkbox" id="pollSound" checked> 🔔 Mit Sound</label>
+                                                </div>
+                                                <div class="poll-custom" id="pollCustomOptions">
+                                                    <div class="poll-image-upload">
+                                                        <span class="poll-image-upload__label">Bild (optional, 350×160)</span>
+                                                        <div class="poll-image-upload__area" id="pollImageArea" onclick="document.getElementById('pollImageInput').click()">
+                                                            <div class="poll-image-upload__placeholder" id="pollImagePlaceholder">
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                                                <span>Klicken zum Hochladen</span>
+                                                            </div>
+                                                            <img id="pollImagePreview" class="poll-image-upload__preview" style="display:none;">
+                                                            <button type="button" class="poll-image-upload__remove" id="pollImageRemove" style="display:none;" onclick="event.stopPropagation(); GM.removePollImage()">✕</button>
+                                                        </div>
+                                                        <input type="file" id="pollImageInput" accept="image/*" onchange="GM.handlePollImage(event)">
+                                                    </div>
+                                                    <div id="pollOptionsContainer">
+                                                        <div class="poll-option-row" data-index="0">
+                                                            <div class="poll-option-row__emoji">
+                                                                <button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(0)">➊</button>
+                                                                <div class="emoji-picker" id="emojiPicker0"></div>
+                                                            </div>
+                                                            <input type="text" class="poll-option-row__input" placeholder="Option 1" data-option="0">
+                                                        </div>
+                                                        <div class="poll-option-row" data-index="1">
+                                                            <div class="poll-option-row__emoji">
+                                                                <button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(1)">➋</button>
+                                                                <div class="emoji-picker" id="emojiPicker1"></div>
+                                                            </div>
+                                                            <input type="text" class="poll-option-row__input" placeholder="Option 2" data-option="1">
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" class="poll-add-option" onclick="GM.addPollOption()">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                                        Option hinzufügen
+                                                    </button>
+                                                </div>
+                                                <button class="gm-btn gm-btn--full" onclick="GM.startPoll()" style="margin-top: 16px;">Poll starten</button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 
-                                <button class="poll-btn" onclick="GM.startPoll()">Poll starten</button>
+                                <div>
+                                    <!-- GM Notizen -->
+                                    <div class="gm-card">
+                                        <div class="gm-card__header">
+                                            <div class="gm-card__title">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                GM Notizen
+                                            </div>
+                                        </div>
+                                        <div class="gm-card__body">
+                                            <div class="notes-box">
+                                                <textarea class="gm-textarea" id="gmNotes" placeholder="Geheime Plot-Twists, NPC-Geheimnisse..." style="min-height: 200px;"></textarea>
+                                                <span class="notes-box__status" id="notesStatus"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- GM Notizen -->
-                        <div class="gm-section">
-                            <div class="gm-section__title">📝 GM Notizen</div>
-                            <div class="notes-box">
-                                <textarea id="gmNotes" placeholder="Geheime Plot-Twists, NPC-Geheimnisse..."></textarea>
-                                <span class="notes-box__status" id="notesStatus"></span>
+                        <!-- ==================== SETTINGS ==================== -->
+                        <div class="gm-panel" id="panel-settings">
+                            <div class="gm-card danger-card">
+                                <div class="gm-card__header">
+                                    <div class="gm-card__title">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                        Gefahrenzone
+                                    </div>
+                                </div>
+                                <div class="gm-card__body">
+                                    <div class="danger-item">
+                                        <div class="danger-item__info">
+                                            <h4>Raum verlassen</h4>
+                                            <p>Du verlierst deine GM-Rechte.</p>
+                                        </div>
+                                        <button class="gm-btn gm-btn--warning gm-btn--small" onclick="GM.leaveRoom()">Verlassen</button>
+                                    </div>
+                                    <div class="danger-item">
+                                        <div class="danger-item__info">
+                                            <h4>Raum löschen</h4>
+                                            <p>Alle Daten werden unwiderruflich gelöscht.</p>
+                                        </div>
+                                        <button class="gm-btn gm-btn--danger gm-btn--small" onclick="GM.deleteRoom()">Löschen</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
                     </div>
-                    
-                    <!-- ==================== SETTINGS ==================== -->
-                    <div class="gm-content" id="tab-settings">
-                        
-                        <div class="gm-section danger-section">
-                            <div class="gm-section__title" style="color:var(--accent);">⚠️ Gefahrenzone</div>
-                            <div class="danger-item">
-                                <div class="danger-item__info">
-                                    <h4>Raum verlassen</h4>
-                                    <p>Du verlierst deine GM-Rechte.</p>
-                                </div>
-                                <button class="danger-btn danger-btn--warning" onclick="GM.leaveRoom()">Verlassen</button>
-                            </div>
-                            <div class="danger-item">
-                                <div class="danger-item__info">
-                                    <h4>Raum löschen</h4>
-                                    <p>Alle Daten werden gelöscht.</p>
-                                </div>
-                                <button class="danger-btn danger-btn--danger" onclick="GM.deleteRoom()">Löschen</button>
-                            </div>
-                        </div>
-                        
-                    </div>
-                    
                 </div>
                 
                 <!-- Access Denied -->
                 <div class="access-denied" id="accessDenied" style="display:none;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     <h2>Zugriff verweigert</h2>
-                    <p>Nur für den GM zugänglich.</p>
-                    <a href="index.html">Zurück</a>
+                    <p>Nur für den Spielleiter zugänglich.</p>
+                    <a href="index.html">Zurück zur Übersicht</a>
                 </div>
                 
             </div>
@@ -612,8 +706,10 @@
             liveSession: null,
             timerInterval: null,
             presenceLog: [],
+            pollEmojis: ['➊','➋','➌','➍','➎','➏','➐','➑','🅰️','🅱️','✅','❌','👍','👎','❤️','⭐','🔥','💎','🎯','🎲','⚔️','🛡️','💀','👑','🗡️','🏆','💰','🎭','🧙','🐉','🏰','📜','⚡','🌟','💫','🔮'],
+            pollImageData: null,
+            pollOptionCount: 2,
             
-            // ============ INIT ============
             async init() {
                 this.roomCode = localStorage.getItem('rift_current_room');
                 if (!this.roomCode) return;
@@ -645,18 +741,16 @@
             
             ref() { 
                 const code = this.roomCode.replace('-','').toUpperCase();
-                console.log('[GM] ref() using room code:', code);
                 return this.db.collection('rooms').doc(code); 
             },
             
-            // ============ TABS ============
             setupTabs() {
                 document.querySelectorAll('.gm-tab').forEach(tab => {
                     tab.addEventListener('click', () => {
-                        document.querySelectorAll('.gm-tab').forEach(t => t.classList.remove('gm-tab--active'));
-                        tab.classList.add('gm-tab--active');
-                        document.querySelectorAll('.gm-content').forEach(c => c.classList.remove('gm-content--active'));
-                        document.getElementById('tab-' + tab.dataset.tab)?.classList.add('gm-content--active');
+                        document.querySelectorAll('.gm-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        document.querySelectorAll('.gm-panel').forEach(c => c.classList.remove('active'));
+                        document.getElementById('panel-' + tab.dataset.tab)?.classList.add('active');
                     });
                 });
             },
@@ -680,26 +774,17 @@
                 });
             },
             
-            // ============ MEMBERS ============
+            // MEMBERS
             subMembers() {
-                console.log('[GM] Subscribing to members for room:', this.roomCode);
                 const u = RIFT.rooms.subscribeToMembers(this.roomCode, m => {
-                    console.log('[GM] Members received:', m.length, m);
-                    // Track presence changes
                     m.forEach(mem => {
                         const old = this.members.find(o => o.id === mem.id);
-                        if (!old) {
-                            this.addPresence(mem.displayName || mem.name || '?', 'join');
-                        } else if (old.online !== mem.online) {
-                            this.addPresence(mem.displayName || mem.name || '?', mem.online ? 'join' : 'leave');
-                        }
+                        if (!old) this.addPresence(mem.displayName || mem.name || '?', 'join');
+                        else if (old.online !== mem.online) this.addPresence(mem.displayName || mem.name || '?', mem.online ? 'join' : 'leave');
                     });
                     this.members.forEach(old => {
-                        if (!m.find(n => n.id === old.id)) {
-                            this.addPresence(old.displayName || old.name || '?', 'leave');
-                        }
+                        if (!m.find(n => n.id === old.id)) this.addPresence(old.displayName || old.name || '?', 'leave');
                     });
-                    
                     this.members = m;
                     this.updateTransfer();
                     document.getElementById('statOnline').textContent = m.filter(x => x.online).length;
@@ -728,21 +813,13 @@
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
-            // ============ CHARACTERS ============
+            // CHARACTERS
             subCharacters() {
-                console.log('[GM] Subscribing to characters for room:', this.roomCode);
                 const u = this.ref().collection('characters').onSnapshot(snap => {
-                    console.log('[GM] Characters received:', snap.docs.length);
-                    this.characters = snap.docs.map(d => {
-                        const data = { id: d.id, ...d.data() };
-                        console.log('[GM] Character:', data);
-                        return data;
-                    });
+                    this.characters = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     this.renderChars();
                     document.getElementById('statChars').textContent = this.characters.length;
-                }, (err) => {
-                    console.error('[GM] Characters error:', err);
-                });
+                }, () => {});
                 this.unsubs.push(u);
             },
             
@@ -797,7 +874,7 @@
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
-            // ============ SESSIONS ============
+            // SESSIONS
             subSessions() {
                 const u = RIFT.rooms.subscribeToSessions(this.roomCode, s => {
                     this.renderSessions(s);
@@ -809,7 +886,7 @@
             
             renderSessions(sessions) {
                 const l = document.getElementById('sessionList');
-                if (!sessions.length) { l.innerHTML = '<div class="empty"><p>Keine Sessions</p></div>'; return; }
+                if (!sessions.length) { l.innerHTML = '<div class="empty"><p>Keine Sessions geplant</p></div>'; return; }
                 const sorted = [...sessions].sort((a,b) => new Date(a.date) - new Date(b.date));
                 const mon = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
                 const hasLive = sessions.some(s => s.status === 'live');
@@ -835,23 +912,22 @@
                     const start = live.startedAt?.toDate?.() || new Date(live.startedAt) || new Date();
                     this.timerInterval = setInterval(() => {
                         const diff = Math.floor((Date.now() - start.getTime()) / 1000);
-                        const h = Math.floor(diff/3600).toString().padStart(2,'0');
-                        const m = Math.floor((diff%3600)/60).toString().padStart(2,'0');
-                        const s = (diff%60).toString().padStart(2,'0');
+                        const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+                        const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+                        const s = (diff % 60).toString().padStart(2, '0');
                         document.getElementById('timerDisplay').textContent = `${h}:${m}:${s}`;
                     }, 1000);
                 } else {
                     t.style.display = 'none';
-                    this.liveSession = null;
-                    if (this.timerInterval) clearInterval(this.timerInterval);
+                    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
                 }
             },
             
             async startSession(id, name) {
+                if (!confirm(`"${name}" starten?`)) return;
                 try {
                     await this.ref().collection('sessions').doc(id).update({ status: 'live', startedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    await this.ref().update({ activeSession: id });
-                    this.toast(`"${name}" gestartet!`, 'success');
+                    this.toast('Session gestartet!', 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
@@ -859,12 +935,11 @@
                 if (!this.liveSession || !confirm('Session beenden?')) return;
                 try {
                     await this.ref().collection('sessions').doc(this.liveSession.id).update({ status: 'completed', endedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    await this.ref().update({ activeSession: null });
-                    this.toast('Session beendet', 'success');
+                    this.toast('Session beendet!', 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
-            // ============ DICE LOG ============
+            // LOGS
             subDice() {
                 const today = new Date(); today.setHours(0,0,0,0);
                 const u = this.ref().collection('dice').orderBy('timestamp','desc').limit(30).onSnapshot(snap => {
@@ -883,19 +958,14 @@
                     return `<div class="log-item">
                         <span class="log-item__time">${t.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
                         <div class="log-item__icon log-item__icon--dice">🎲</div>
-                        <div class="log-item__content">
-                            <span class="log-item__user">${r.userName || r.user || '?'}</span> würfelt ${r.diceType || r.dice || '?'}:
-                            <span class="log-item__result">${r.result ?? r.total ?? '?'}</span>
-                        </div>
+                        <div class="log-item__content"><span class="log-item__user">${r.userName || r.user || '?'}</span> würfelt ${r.diceType || r.dice || '?'}:<span class="log-item__result">${r.result ?? r.total ?? '?'}</span></div>
                     </div>`;
                 }).join('');
             },
             
-            // ============ CHAT LOG ============
             subChat() {
                 const u = this.ref().collection('chat').orderBy('timestamp','desc').limit(30).onSnapshot(snap => {
-                    const msgs = snap.docs.map(d => d.data());
-                    this.renderChat(msgs);
+                    this.renderChat(snap.docs.map(d => d.data()));
                 }, () => {});
                 this.unsubs.push(u);
             },
@@ -909,14 +979,11 @@
                     return `<div class="log-item">
                         <span class="log-item__time">${t.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
                         <div class="log-item__icon log-item__icon--chat">💬</div>
-                        <div class="log-item__content">
-                            <span class="log-item__user">${m.userName || m.user || '?'}</span>: ${txt}${txt.length >= 80 ? '...' : ''}
-                        </div>
+                        <div class="log-item__content"><span class="log-item__user">${m.userName || m.user || '?'}</span>: ${txt}${txt.length >= 80 ? '...' : ''}</div>
                     </div>`;
                 }).join('');
             },
             
-            // ============ PRESENCE LOG ============
             addPresence(name, type) {
                 this.presenceLog.unshift({ name, type, time: new Date() });
                 if (this.presenceLog.length > 50) this.presenceLog.pop();
@@ -931,85 +998,63 @@
                     return `<div class="log-item">
                         <span class="log-item__time">${p.time.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
                         <div class="log-item__icon log-item__icon--${isJoin ? 'join' : 'leave'}">${isJoin ? '→' : '←'}</div>
-                        <div class="log-item__content">
-                            <span class="log-item__user">${p.name}</span> ist ${isJoin ? 'beigetreten' : 'gegangen'}
-                        </div>
+                        <div class="log-item__content"><span class="log-item__user">${p.name}</span> ist ${isJoin ? 'beigetreten' : 'gegangen'}</div>
                     </div>`;
                 }).join('');
             },
             
-            // ============ CHANGELOG ============
             subChangelog() {
                 const u = this.ref().collection('changelog').orderBy('timestamp','desc').limit(30).onSnapshot(snap => {
-                    const changes = snap.docs.map(d => d.data());
-                    this.renderChangelog(changes);
+                    this.renderChangelog(snap.docs.map(d => d.data()));
                 }, () => {});
                 this.unsubs.push(u);
             },
             
             renderChangelog(changes) {
                 const el = document.getElementById('changeLog');
-                if (!changes.length) { el.innerHTML = '<div class="empty"><p>Keine Änderungen<br><small style="opacity:0.6">Braucht Charakterbogen-Update</small></p></div>'; return; }
+                if (!changes.length) { el.innerHTML = '<div class="empty"><p>Keine Änderungen</p></div>'; return; }
                 el.innerHTML = changes.map(c => {
                     const t = c.timestamp?.toDate?.() || new Date();
                     return `<div class="log-item">
                         <span class="log-item__time">${t.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span>
                         <div class="log-item__icon log-item__icon--edit">✏️</div>
-                        <div class="log-item__content">
-                            <span class="log-item__user">${c.playerName || '?'}</span> änderte <strong>${c.field}</strong>: ${c.oldValue || '-'} → ${c.newValue || '-'}
-                            <br><small style="opacity:0.5">${c.characterName || ''}</small>
-                        </div>
+                        <div class="log-item__content"><span class="log-item__user">${c.playerName || '?'}</span> änderte <strong>${c.field}</strong><br><small style="opacity:0.5">${c.characterName || ''}</small></div>
                     </div>`;
                 }).join('');
             },
             
-            // ============ BROADCAST ============
+            // BROADCAST
             async sendBroadcast() {
                 const msg = document.getElementById('broadcastInput').value.trim();
                 if (!msg) { this.toast('Nachricht eingeben!', 'error'); return; }
                 try {
-                    await this.ref().update({
-                        broadcast: { message: msg, withSound: document.getElementById('broadcastSound').checked, timestamp: firebase.firestore.FieldValue.serverTimestamp(), id: Date.now() }
-                    });
+                    await this.ref().update({ broadcast: { message: msg, withSound: document.getElementById('broadcastSound').checked, timestamp: firebase.firestore.FieldValue.serverTimestamp(), id: Date.now() } });
                     document.getElementById('broadcastInput').value = '';
                     this.toast('Gesendet!', 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
-            // ============ POLL ============
-            pollEmojis: ['➊','➋','➌','➍','➎','➏','➐','➑','🅰️','🅱️','✅','❌','👍','👎','❤️','⭐','🔥','💎','🎯','🎲','⚔️','🛡️','💀','👑','🗡️','🏆','💰','🎭','🧙','🐉','🏰','📜','⚡','🌟','💫','🔮'],
-            pollImageData: null,
-            pollOptionCount: 2,
-            
+            // POLL
             subPoll() {
-                // Subscribe to room for poll config
                 const u = this.ref().onSnapshot(doc => {
                     const poll = doc.data()?.poll;
                     if (poll?.active) {
                         document.getElementById('pollActive').style.display = 'block';
                         document.getElementById('pollCreate').style.display = 'none';
                         document.getElementById('pollQuestion').textContent = poll.question;
-                        
-                        // Show image if present
                         const imgContainer = document.getElementById('pollActiveImage');
-                        if (poll.image) {
-                            imgContainer.style.display = 'block';
-                            imgContainer.querySelector('img').src = poll.image;
-                        } else {
-                            imgContainer.style.display = 'none';
-                        }
-                        
+                        if (poll.image) { imgContainer.style.display = 'block'; imgContainer.querySelector('img').src = poll.image; }
+                        else { imgContainer.style.display = 'none'; }
                         this.currentPoll = poll;
                         this.updatePollResults();
                     } else {
                         document.getElementById('pollActive').style.display = 'none';
-                        document.getElementById('pollCreate').style.display = 'flex';
+                        document.getElementById('pollCreate').style.display = 'block';
                         this.currentPoll = null;
                     }
                 });
                 this.unsubs.push(u);
                 
-                // Subscribe to poll_votes subcollection
                 const v = this.ref().collection('poll_votes').onSnapshot(snap => {
                     this.pollVotes = snap.docs.map(d => d.data());
                     this.updatePollResults();
@@ -1022,493 +1067,232 @@
                 const el = document.getElementById('pollResults');
                 const options = this.currentPoll.options || [];
                 const emojis = this.currentPoll.emojis || [];
-                
-                // Count votes from subcollection
                 const voteCounts = {};
                 options.forEach(opt => voteCounts[opt] = 0);
-                (this.pollVotes || []).forEach(vote => {
-                    if (vote.option && voteCounts.hasOwnProperty(vote.option)) {
-                        voteCounts[vote.option]++;
-                    }
-                });
-                
+                (this.pollVotes || []).forEach(vote => { if (vote.option && voteCounts.hasOwnProperty(vote.option)) voteCounts[vote.option]++; });
                 const total = Object.values(voteCounts).reduce((a, b) => a + b, 0) || 1;
                 
                 el.innerHTML = options.map((opt, i) => {
                     const count = voteCounts[opt] || 0;
                     const pct = Math.round((count / total) * 100);
-                    const emoji = emojis[i] || '';
-                    const label = emoji ? `${emoji} ${opt}` : opt;
-                    return `<div class="poll-result">
-                        <span class="poll-result__label">${label}</span>
-                        <div class="poll-result__bar">
-                            <div class="poll-result__fill" style="width:${pct}%"></div>
-                            <span class="poll-result__count">${count}</span>
-                        </div>
-                    </div>`;
+                    const label = emojis[i] ? `${emojis[i]} ${opt}` : opt;
+                    return `<div class="poll-result"><span class="poll-result__label">${label}</span><div class="poll-result__bar"><div class="poll-result__fill" style="width:${pct}%"></div><span class="poll-result__count">${count}</span></div></div>`;
                 }).join('');
-            },
-            
-            renderPollResults(poll) {
-                this.updatePollResults();
             },
             
             toggleCustomOptions() {
                 const type = document.querySelector('input[name="pollType"]:checked').value;
-                const customBox = document.getElementById('pollCustomOptions');
-                customBox.style.display = type === 'custom' ? 'flex' : 'none';
+                document.getElementById('pollCustomOptions').style.display = type === 'custom' ? 'flex' : 'none';
             },
             
-            // Emoji Picker
             toggleEmojiPicker(index) {
-                // Close all other pickers
                 document.querySelectorAll('.emoji-picker').forEach(p => p.classList.remove('visible'));
-                
                 const picker = document.getElementById('emojiPicker' + index);
                 if (!picker.innerHTML) {
-                    // Initialize picker content
-                    picker.innerHTML = `<div class="emoji-picker__grid">${this.pollEmojis.map(e => 
-                        `<button type="button" class="emoji-picker__btn" onclick="GM.selectEmoji(${index}, '${e}')">${e}</button>`
-                    ).join('')}</div>`;
+                    picker.innerHTML = `<div class="emoji-picker__grid">${this.pollEmojis.map(e => `<button type="button" class="emoji-picker__btn" onclick="GM.selectEmoji(${index}, '${e}')">${e}</button>`).join('')}</div>`;
                 }
                 picker.classList.toggle('visible');
-                
-                // Close on outside click
                 setTimeout(() => {
-                    const closeHandler = (e) => {
-                        if (!picker.contains(e.target) && !e.target.classList.contains('poll-option-row__emoji-btn')) {
-                            picker.classList.remove('visible');
-                            document.removeEventListener('click', closeHandler);
-                        }
-                    };
+                    const closeHandler = (e) => { if (!picker.contains(e.target) && !e.target.classList.contains('poll-option-row__emoji-btn')) { picker.classList.remove('visible'); document.removeEventListener('click', closeHandler); } };
                     document.addEventListener('click', closeHandler);
                 }, 10);
             },
             
             selectEmoji(index, emoji) {
-                const btn = document.querySelector(`.poll-option-row[data-index="${index}"] .poll-option-row__emoji-btn`);
-                btn.textContent = emoji;
+                document.querySelector(`.poll-option-row[data-index="${index}"] .poll-option-row__emoji-btn`).textContent = emoji;
                 document.getElementById('emojiPicker' + index).classList.remove('visible');
             },
             
-            // Add/Remove Poll Options
             addPollOption() {
-                if (this.pollOptionCount >= 8) {
-                    this.toast('Maximum 8 Optionen', 'error');
-                    return;
-                }
-                
+                if (this.pollOptionCount >= 8) { this.toast('Maximum 8 Optionen', 'error'); return; }
                 const container = document.getElementById('pollOptionsContainer');
                 const index = this.pollOptionCount;
-                const defaultEmoji = this.pollEmojis[index] || '⭐';
-                
                 const row = document.createElement('div');
                 row.className = 'poll-option-row';
                 row.dataset.index = index;
-                row.innerHTML = `
-                    <div class="poll-option-row__emoji">
-                        <button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(${index})">${defaultEmoji}</button>
-                        <div class="emoji-picker" id="emojiPicker${index}"></div>
-                    </div>
-                    <input type="text" class="poll-option-row__input" placeholder="Option ${index + 1}" data-option="${index}">
-                    <button type="button" class="poll-option-row__remove" onclick="GM.removePollOption(${index})">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                `;
+                row.innerHTML = `<div class="poll-option-row__emoji"><button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(${index})">${this.pollEmojis[index] || '⭐'}</button><div class="emoji-picker" id="emojiPicker${index}"></div></div><input type="text" class="poll-option-row__input" placeholder="Option ${index + 1}" data-option="${index}"><button type="button" class="poll-option-row__remove" onclick="GM.removePollOption(${index})"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
                 container.appendChild(row);
                 this.pollOptionCount++;
-                
-                // Focus new input
                 row.querySelector('input').focus();
             },
             
             removePollOption(index) {
-                if (this.pollOptionCount <= 2) {
-                    this.toast('Mindestens 2 Optionen', 'error');
-                    return;
-                }
-                
-                const row = document.querySelector(`.poll-option-row[data-index="${index}"]`);
-                if (row) {
-                    row.remove();
-                    this.pollOptionCount--;
-                }
+                if (this.pollOptionCount <= 2) { this.toast('Mindestens 2 Optionen', 'error'); return; }
+                document.querySelector(`.poll-option-row[data-index="${index}"]`)?.remove();
+                this.pollOptionCount--;
             },
             
-            // Image Upload & Cropper
             handlePollImage(event) {
                 const file = event.target.files[0];
                 if (!file) return;
-                
-                if (!file.type.startsWith('image/')) {
-                    this.toast('Nur Bilder erlaubt', 'error');
-                    return;
-                }
-                
+                if (!file.type.startsWith('image/')) { this.toast('Nur Bilder erlaubt', 'error'); return; }
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.openImageCropper(e.target.result);
-                };
+                reader.onload = (e) => this.openImageCropper(e.target.result);
                 reader.readAsDataURL(file);
             },
             
             openImageCropper(imageSrc) {
-                // Create cropper modal
                 const modal = document.createElement('div');
                 modal.className = 'cropper-modal';
                 modal.id = 'cropperModal';
-                modal.innerHTML = `
-                    <div class="cropper-modal__container">
-                        <div class="cropper-modal__header">
-                            <span class="cropper-modal__title">Bild zuschneiden (350×160)</span>
-                            <button class="cropper-modal__close" onclick="GM.closeCropper()">✕</button>
-                        </div>
-                        <div class="cropper-modal__canvas-wrap" id="cropperWrap">
-                            <img id="cropperImage" class="cropper-modal__canvas" src="${imageSrc}">
-                        </div>
-                        <div class="cropper-modal__controls">
-                            <span style="font-size:12px;color:rgba(255,255,255,0.5)">Zoom:</span>
-                            <input type="range" class="cropper-modal__zoom" id="cropperZoom" min="1" max="3" step="0.05" value="1" oninput="GM.updateCropperZoom(this.value)">
-                        </div>
-                        <div class="cropper-modal__actions">
-                            <button class="cropper-modal__btn cropper-modal__btn--cancel" onclick="GM.closeCropper()">Abbrechen</button>
-                            <button class="cropper-modal__btn cropper-modal__btn--apply" onclick="GM.applyCrop()">Übernehmen</button>
-                        </div>
-                    </div>
-                `;
+                modal.innerHTML = `<div class="cropper-modal__container"><div class="cropper-modal__header"><span class="cropper-modal__title">Bild zuschneiden (350×160)</span><button class="cropper-modal__close" onclick="GM.closeCropper()">✕</button></div><div class="cropper-modal__canvas-wrap" id="cropperWrap"><img id="cropperImage" class="cropper-modal__canvas" src="${imageSrc}"></div><div class="cropper-modal__controls"><span style="font-size:12px;color:rgba(255,255,255,0.5)">Zoom:</span><input type="range" class="cropper-modal__zoom" id="cropperZoom" min="1" max="3" step="0.05" value="1" oninput="GM.updateCropperZoom(this.value)"></div><div class="cropper-modal__actions"><button class="cropper-modal__btn cropper-modal__btn--cancel" onclick="GM.closeCropper()">Abbrechen</button><button class="cropper-modal__btn cropper-modal__btn--apply" onclick="GM.applyCrop()">Übernehmen</button></div></div>`;
                 document.body.appendChild(modal);
                 
-                // Wait for image to load
                 const img = document.getElementById('cropperImage');
                 const wrap = document.getElementById('cropperWrap');
-                
                 img.onload = () => {
                     const wrapRect = wrap.getBoundingClientRect();
-                    const targetRatio = 350 / 160;
-                    const imgRatio = img.naturalWidth / img.naturalHeight;
-                    
-                    let scale;
-                    if (imgRatio > targetRatio) {
-                        // Image is wider - fit height
-                        scale = wrapRect.height / img.naturalHeight;
-                    } else {
-                        // Image is taller - fit width
-                        scale = wrapRect.width / img.naturalWidth;
-                    }
-                    
-                    this.cropperState = {
-                        baseScale: scale,
-                        zoom: 1,
-                        offsetX: 0,
-                        offsetY: 0,
-                        isDragging: false,
-                        startX: 0,
-                        startY: 0,
-                        imgWidth: img.naturalWidth,
-                        imgHeight: img.naturalHeight,
-                        wrapWidth: wrapRect.width,
-                        wrapHeight: wrapRect.height
-                    };
-                    
-                    // Center image initially
-                    const scaledW = img.naturalWidth * scale;
-                    const scaledH = img.naturalHeight * scale;
-                    this.cropperState.offsetX = (wrapRect.width - scaledW) / 2;
-                    this.cropperState.offsetY = (wrapRect.height - scaledH) / 2;
-                    
+                    let scale = (img.naturalWidth / img.naturalHeight) > (350 / 160) ? wrapRect.height / img.naturalHeight : wrapRect.width / img.naturalWidth;
+                    this.cropperState = { baseScale: scale, zoom: 1, offsetX: 0, offsetY: 0, isDragging: false, startX: 0, startY: 0, imgWidth: img.naturalWidth, imgHeight: img.naturalHeight, wrapWidth: wrapRect.width, wrapHeight: wrapRect.height };
+                    this.cropperState.offsetX = (wrapRect.width - img.naturalWidth * scale) / 2;
+                    this.cropperState.offsetY = (wrapRect.height - img.naturalHeight * scale) / 2;
                     this.updateCropperTransform();
                 };
-                
-                // Drag handlers on wrap, not image
-                wrap.onmousedown = (e) => {
-                    e.preventDefault();
-                    this.cropperState.isDragging = true;
-                    this.cropperState.startX = e.clientX - this.cropperState.offsetX;
-                    this.cropperState.startY = e.clientY - this.cropperState.offsetY;
-                };
-                
-                document.onmousemove = (e) => {
-                    if (!this.cropperState?.isDragging) return;
-                    this.cropperState.offsetX = e.clientX - this.cropperState.startX;
-                    this.cropperState.offsetY = e.clientY - this.cropperState.startY;
-                    this.constrainCropper();
-                    this.updateCropperTransform();
-                };
-                
-                document.onmouseup = () => {
-                    if (this.cropperState) this.cropperState.isDragging = false;
-                };
+                wrap.onmousedown = (e) => { e.preventDefault(); this.cropperState.isDragging = true; this.cropperState.startX = e.clientX - this.cropperState.offsetX; this.cropperState.startY = e.clientY - this.cropperState.offsetY; };
+                document.onmousemove = (e) => { if (!this.cropperState?.isDragging) return; this.cropperState.offsetX = e.clientX - this.cropperState.startX; this.cropperState.offsetY = e.clientY - this.cropperState.startY; this.constrainCropper(); this.updateCropperTransform(); };
+                document.onmouseup = () => { if (this.cropperState) this.cropperState.isDragging = false; };
             },
             
             constrainCropper() {
-                const s = this.cropperState;
-                if (!s) return;
-                
-                const currentScale = s.baseScale * s.zoom;
-                const scaledW = s.imgWidth * currentScale;
-                const scaledH = s.imgHeight * currentScale;
-                
-                // Don't allow image edges inside the wrap
-                const maxX = 0;
-                const minX = s.wrapWidth - scaledW;
-                const maxY = 0;
-                const minY = s.wrapHeight - scaledH;
-                
-                s.offsetX = Math.min(maxX, Math.max(minX, s.offsetX));
-                s.offsetY = Math.min(maxY, Math.max(minY, s.offsetY));
+                const s = this.cropperState; if (!s) return;
+                const scaledW = s.imgWidth * s.baseScale * s.zoom, scaledH = s.imgHeight * s.baseScale * s.zoom;
+                s.offsetX = Math.min(0, Math.max(s.wrapWidth - scaledW, s.offsetX));
+                s.offsetY = Math.min(0, Math.max(s.wrapHeight - scaledH, s.offsetY));
             },
             
             updateCropperZoom(value) {
                 if (!this.cropperState) return;
-                const oldZoom = this.cropperState.zoom;
-                this.cropperState.zoom = parseFloat(value);
-                
-                // Adjust offset to zoom towards center
-                const s = this.cropperState;
-                const centerX = s.wrapWidth / 2;
-                const centerY = s.wrapHeight / 2;
-                
-                const oldScale = s.baseScale * oldZoom;
-                const newScale = s.baseScale * s.zoom;
-                
-                // Point that was at center before zoom
-                const imgCenterX = (centerX - s.offsetX) / oldScale;
-                const imgCenterY = (centerY - s.offsetY) / oldScale;
-                
-                // New offset to keep that point at center
-                s.offsetX = centerX - imgCenterX * newScale;
-                s.offsetY = centerY - imgCenterY * newScale;
-                
+                const s = this.cropperState, oldZoom = s.zoom;
+                s.zoom = parseFloat(value);
+                const oldScale = s.baseScale * oldZoom, newScale = s.baseScale * s.zoom;
+                const centerX = s.wrapWidth / 2, centerY = s.wrapHeight / 2;
+                s.offsetX = centerX - ((centerX - s.offsetX) / oldScale) * newScale;
+                s.offsetY = centerY - ((centerY - s.offsetY) / oldScale) * newScale;
                 this.constrainCropper();
                 this.updateCropperTransform();
             },
             
             updateCropperTransform() {
-                const img = document.getElementById('cropperImage');
-                const s = this.cropperState;
-                if (!img || !s) return;
-                
-                const scale = s.baseScale * s.zoom;
-                img.style.transform = `translate(${s.offsetX}px, ${s.offsetY}px) scale(${scale})`;
+                const img = document.getElementById('cropperImage'), s = this.cropperState;
+                if (img && s) img.style.transform = `translate(${s.offsetX}px, ${s.offsetY}px) scale(${s.baseScale * s.zoom})`;
             },
             
             closeCropper() {
-                const modal = document.getElementById('cropperModal');
-                if (modal) modal.remove();
+                document.getElementById('cropperModal')?.remove();
                 document.getElementById('pollImageInput').value = '';
-                document.onmousemove = null;
-                document.onmouseup = null;
+                document.onmousemove = null; document.onmouseup = null;
                 this.cropperState = null;
             },
             
             applyCrop() {
-                const img = document.getElementById('cropperImage');
-                const s = this.cropperState;
+                const img = document.getElementById('cropperImage'), s = this.cropperState;
                 if (!img || !s) return;
-                
-                // Create canvas with target dimensions
                 const canvas = document.createElement('canvas');
-                canvas.width = 350;
-                canvas.height = 160;
-                const ctx = canvas.getContext('2d');
-                
-                // Calculate what part of original image is visible
-                const scale = s.baseScale * s.zoom;
-                const sourceX = -s.offsetX / scale;
-                const sourceY = -s.offsetY / scale;
-                const sourceW = s.wrapWidth / scale;
-                const sourceH = s.wrapHeight / scale;
-                
-                ctx.drawImage(img, sourceX, sourceY, sourceW, sourceH, 0, 0, 350, 160);
-                
-                // Get base64
+                canvas.width = 350; canvas.height = 160;
+                const ctx = canvas.getContext('2d'), scale = s.baseScale * s.zoom;
+                ctx.drawImage(img, -s.offsetX / scale, -s.offsetY / scale, s.wrapWidth / scale, s.wrapHeight / scale, 0, 0, 350, 160);
                 this.pollImageData = canvas.toDataURL('image/jpeg', 0.85);
-                
-                // Update preview
-                const preview = document.getElementById('pollImagePreview');
-                const placeholder = document.getElementById('pollImagePlaceholder');
-                const removeBtn = document.getElementById('pollImageRemove');
-                const area = document.getElementById('pollImageArea');
-                
-                preview.src = this.pollImageData;
-                preview.style.display = 'block';
-                placeholder.style.display = 'none';
-                removeBtn.style.display = 'flex';
-                area.classList.add('has-image');
-                
+                document.getElementById('pollImagePreview').src = this.pollImageData;
+                document.getElementById('pollImagePreview').style.display = 'block';
+                document.getElementById('pollImagePlaceholder').style.display = 'none';
+                document.getElementById('pollImageRemove').style.display = 'flex';
+                document.getElementById('pollImageArea').classList.add('has-image');
                 this.closeCropper();
                 this.toast('Bild zugeschnitten', 'success');
             },
             
             removePollImage() {
                 this.pollImageData = null;
-                
-                const preview = document.getElementById('pollImagePreview');
-                const placeholder = document.getElementById('pollImagePlaceholder');
-                const removeBtn = document.getElementById('pollImageRemove');
-                const area = document.getElementById('pollImageArea');
-                
-                preview.style.display = 'none';
-                placeholder.style.display = 'flex';
-                removeBtn.style.display = 'none';
-                area.classList.remove('has-image');
+                document.getElementById('pollImagePreview').style.display = 'none';
+                document.getElementById('pollImagePlaceholder').style.display = 'flex';
+                document.getElementById('pollImageRemove').style.display = 'none';
+                document.getElementById('pollImageArea').classList.remove('has-image');
                 document.getElementById('pollImageInput').value = '';
             },
             
             async startPoll() {
                 const q = document.getElementById('pollInput').value.trim();
                 if (!q) { this.toast('Frage eingeben!', 'error'); return; }
-                
                 const type = document.querySelector('input[name="pollType"]:checked').value;
                 const withSound = document.getElementById('pollSound').checked;
+                let options = [], emojis = [];
                 
-                let options = [];
-                let emojis = [];
-                
-                if (type === 'yesno') {
-                    options = ['Ja', 'Nein'];
-                    emojis = ['✅', '❌'];
-                }
-                else if (type === 'abc') {
-                    options = ['A', 'B', 'C'];
-                    emojis = ['🅰️', '🅱️', '©️'];
-                }
-                else if (type === 'numbers') {
-                    options = ['1', '2', '3', '4', '5'];
-                    emojis = ['➊', '➋', '➌', '➍', '➎'];
-                }
+                if (type === 'yesno') { options = ['Ja', 'Nein']; emojis = ['✅', '❌']; }
+                else if (type === 'abc') { options = ['A', 'B', 'C']; emojis = ['🅰️', '🅱️', '©️']; }
+                else if (type === 'numbers') { options = ['1', '2', '3', '4', '5']; emojis = ['➊', '➋', '➌', '➍', '➎']; }
                 else if (type === 'custom') {
-                    // Collect custom options
-                    const rows = document.querySelectorAll('#pollOptionsContainer .poll-option-row');
-                    rows.forEach(row => {
-                        const input = row.querySelector('.poll-option-row__input');
-                        const emojiBtn = row.querySelector('.poll-option-row__emoji-btn');
-                        const text = input.value.trim();
-                        if (text) {
-                            options.push(text);
-                            emojis.push(emojiBtn.textContent);
-                        }
+                    document.querySelectorAll('#pollOptionsContainer .poll-option-row').forEach(row => {
+                        const text = row.querySelector('.poll-option-row__input').value.trim();
+                        if (text) { options.push(text); emojis.push(row.querySelector('.poll-option-row__emoji-btn').textContent); }
                     });
-                    
-                    if (options.length < 2) {
-                        this.toast('Mindestens 2 Optionen!', 'error');
-                        return;
-                    }
+                    if (options.length < 2) { this.toast('Mindestens 2 Optionen!', 'error'); return; }
                 }
                 
                 try {
-                    // Delete old votes first
                     const votesSnap = await this.ref().collection('poll_votes').get();
                     const batch = this.db.batch();
                     votesSnap.docs.forEach(doc => batch.delete(doc.ref));
                     if (votesSnap.docs.length) await batch.commit();
                     
-                    const pollData = { 
-                        question: q, 
-                        options, 
-                        emojis,
-                        withSound,
-                        votes: {}, 
-                        active: true, 
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp() 
-                    };
-                    
-                    // Add image if present
-                    if (type === 'custom' && this.pollImageData) {
-                        pollData.image = this.pollImageData;
-                    }
-                    
+                    const pollData = { question: q, options, emojis, withSound, votes: {}, active: true, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+                    if (type === 'custom' && this.pollImageData) pollData.image = this.pollImageData;
                     await this.ref().update({ poll: pollData });
                     
-                    // Reset form
                     document.getElementById('pollInput').value = '';
                     this.resetCustomPollForm();
-                    
                     this.toast('Poll gestartet!', 'success');
-                } catch (e) { 
-                    this.toast('Fehler', 'error'); 
-                    console.error(e); 
-                }
+                } catch (e) { this.toast('Fehler', 'error'); console.error(e); }
             },
             
             resetCustomPollForm() {
-                // Reset image
                 this.removePollImage();
-                
-                // Reset options to 2
-                const container = document.getElementById('pollOptionsContainer');
-                container.innerHTML = `
-                    <div class="poll-option-row" data-index="0">
-                        <div class="poll-option-row__emoji">
-                            <button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(0)">➊</button>
-                            <div class="emoji-picker" id="emojiPicker0"></div>
-                        </div>
-                        <input type="text" class="poll-option-row__input" placeholder="Option 1" data-option="0">
-                    </div>
-                    <div class="poll-option-row" data-index="1">
-                        <div class="poll-option-row__emoji">
-                            <button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(1)">➋</button>
-                            <div class="emoji-picker" id="emojiPicker1"></div>
-                        </div>
-                        <input type="text" class="poll-option-row__input" placeholder="Option 2" data-option="1">
-                    </div>
-                `;
+                document.getElementById('pollOptionsContainer').innerHTML = `<div class="poll-option-row" data-index="0"><div class="poll-option-row__emoji"><button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(0)">➊</button><div class="emoji-picker" id="emojiPicker0"></div></div><input type="text" class="poll-option-row__input" placeholder="Option 1" data-option="0"></div><div class="poll-option-row" data-index="1"><div class="poll-option-row__emoji"><button type="button" class="poll-option-row__emoji-btn" onclick="GM.toggleEmojiPicker(1)">➋</button><div class="emoji-picker" id="emojiPicker1"></div></div><input type="text" class="poll-option-row__input" placeholder="Option 2" data-option="1"></div>`;
                 this.pollOptionCount = 2;
             },
             
             async closePoll() {
                 try {
-                    await this.ref().update({ 'poll.active': false });
+                    // Save to history first
+                    if (this.currentPoll) {
+                        const options = this.currentPoll.options || [];
+                        const emojis = this.currentPoll.emojis || [];
+                        const voteCounts = {};
+                        options.forEach(opt => voteCounts[opt] = 0);
+                        (this.pollVotes || []).forEach(vote => { if (vote.option && voteCounts.hasOwnProperty(vote.option)) voteCounts[vote.option]++; });
+                        const results = options.map((opt, i) => ({ option: opt, emoji: emojis[i] || '', votes: voteCounts[opt] }));
+                        const historyEntry = { question: this.currentPoll.question, options, emojis, results, totalVotes: Object.values(voteCounts).reduce((a, b) => a + b, 0), resolvedAt: Date.now() };
+                        const doc = await this.ref().get();
+                        const currentHistory = doc.data()?.pollHistory || [];
+                        await this.ref().update({ 'poll.active': false, pollHistory: [historyEntry, ...currentHistory].slice(0, 10) });
+                    } else {
+                        await this.ref().update({ 'poll.active': false });
+                    }
                     this.toast('Poll geschlossen', 'success');
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
             async resolvePoll() {
                 if (!this.currentPoll) return;
-                
                 try {
-                    // Calculate results
                     const options = this.currentPoll.options || [];
                     const emojis = this.currentPoll.emojis || [];
                     const voteCounts = {};
                     options.forEach(opt => voteCounts[opt] = 0);
-                    (this.pollVotes || []).forEach(vote => {
-                        if (vote.option && voteCounts.hasOwnProperty(vote.option)) {
-                            voteCounts[vote.option]++;
-                        }
-                    });
-                    
-                    // Find winner(s)
+                    (this.pollVotes || []).forEach(vote => { if (vote.option && voteCounts.hasOwnProperty(vote.option)) voteCounts[vote.option]++; });
                     const maxVotes = Math.max(...Object.values(voteCounts), 0);
+                    const results = options.map((opt, i) => ({ option: opt, emoji: emojis[i] || '', votes: voteCounts[opt], isWinner: voteCounts[opt] === maxVotes && maxVotes > 0 }));
+                    const totalVotes = Object.values(voteCounts).reduce((a, b) => a + b, 0);
                     
-                    // Build results array
-                    const results = options.map((opt, i) => ({
-                        option: opt,
-                        emoji: emojis[i] || '',
-                        votes: voteCounts[opt],
-                        isWinner: voteCounts[opt] === maxVotes && maxVotes > 0
-                    }));
+                    const historyEntry = { question: this.currentPoll.question, options, emojis, results, totalVotes, resolvedAt: Date.now() };
+                    const doc = await this.ref().get();
+                    const currentHistory = doc.data()?.pollHistory || [];
                     
-                    // Build complete poll object (not dot-notation)
-                    const resolvedPoll = {
-                        ...this.currentPoll,
-                        active: false,
-                        resolved: true,
-                        results: results,
-                        totalVotes: Object.values(voteCounts).reduce((a, b) => a + b, 0),
-                        resolvedAt: Date.now() // Use client timestamp for immediate availability
-                    };
-                    
-                    await this.ref().update({ poll: resolvedPoll });
-                    
+                    await this.ref().update({ poll: { ...this.currentPoll, active: false, resolved: true, results, totalVotes, resolvedAt: Date.now() }, pollHistory: [historyEntry, ...currentHistory].slice(0, 10) });
                     this.toast('Poll aufgelöst!', 'success');
-                } catch (e) { 
-                    this.toast('Fehler', 'error'); 
-                    console.error(e);
-                }
+                } catch (e) { this.toast('Fehler', 'error'); console.error(e); }
             },
             
-            // ============ NOTES ============
+            // NOTES
             loadNotes() {
                 const saved = localStorage.getItem(`rift_gm_notes_${this.roomCode}`);
                 if (saved) document.getElementById('gmNotes').value = saved;
@@ -1521,7 +1305,7 @@
                 setTimeout(() => document.getElementById('notesStatus').textContent = '', 2000);
             },
             
-            // ============ DANGER ZONE ============
+            // DANGER ZONE
             async leaveRoom() {
                 if (!confirm('Raum verlassen?')) return;
                 try {
@@ -1533,9 +1317,9 @@
             },
             
             async deleteRoom() {
-                if (!confirm('⚠️ Alles löschen?')) return;
+                if (!confirm('⚠️ Alles unwiderruflich löschen?')) return;
                 try {
-                    const subs = ['members','sessions','characters','chat','dice','notes','whiteboard','markers','changelog'];
+                    const subs = ['members','sessions','characters','chat','dice','notes','whiteboard','markers','changelog','poll_votes','status_responses'];
                     for (const sub of subs) {
                         const snap = await this.ref().collection(sub).get();
                         const batch = this.db.batch();
@@ -1549,7 +1333,7 @@
                 } catch (e) { this.toast('Fehler', 'error'); }
             },
             
-            // ============ HELPERS ============
+            // HELPERS
             copyCode() { navigator.clipboard.writeText(this.roomCode).then(() => this.toast('Kopiert!', 'success')); },
             toast(msg, type='info') { window.RIFT?.ui?.Toast?.[type]?.(msg) || console.log(`[${type}] ${msg}`); },
             cleanup() { this.unsubs.forEach(u => u?.()); if (this.timerInterval) clearInterval(this.timerInterval); }
@@ -1557,7 +1341,7 @@
         
         window.addEventListener('beforeunload', () => GM.cleanup());
         
-        // ============ ACCESS CHECK ============
+        // ACCESS CHECK
         (async function() {
             const gm = document.getElementById('gmContent');
             const denied = document.getElementById('accessDenied');
