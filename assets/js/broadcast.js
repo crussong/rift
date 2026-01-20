@@ -26,40 +26,80 @@
             });
         },
         
+        // ============ BROADCAST PERSISTENCE ============
         // Persist fullscreen broadcasts to localStorage
-        persistBroadcast(type, data, durationMs) {
+        persistBroadcast(type, data) {
             const key = `rift_active_broadcast_${type}`;
             const entry = {
+                type,
                 data,
-                expiresAt: Date.now() + durationMs
+                savedAt: Date.now()
             };
             localStorage.setItem(key, JSON.stringify(entry));
+            console.log('[Broadcast] Persisted:', type);
         },
         
         // Clear a persisted broadcast
         clearPersistedBroadcast(type) {
             localStorage.removeItem(`rift_active_broadcast_${type}`);
+            console.log('[Broadcast] Cleared persisted:', type);
+        },
+        
+        // Close fullscreen broadcast and clear persistence
+        closeFullscreen(type, element) {
+            this.clearPersistedBroadcast(type);
+            const overlay = element.closest('.broadcast-overlay');
+            if (overlay) {
+                overlay.style.animation = 'fadeOut 0.3s ease forwards';
+                setTimeout(() => overlay.remove(), 300);
+            }
         },
         
         // Restore any persisted broadcasts on page load
         restorePersistedBroadcasts() {
-            const types = ['break', 'boss', 'combat', 'death', 'levelup', 'loot', 'location'];
+            const persistedTypes = ['boss', 'combat', 'death', 'levelup', 'loot', 'location', 'break', 'coinflip'];
             
-            types.forEach(type => {
+            persistedTypes.forEach(type => {
                 const key = `rift_active_broadcast_${type}`;
                 const stored = localStorage.getItem(key);
                 if (stored) {
                     try {
                         const entry = JSON.parse(stored);
-                        if (entry.expiresAt > Date.now()) {
-                            // Re-show the broadcast
-                            this.handleBroadcast({ ...entry.data, type });
-                        } else {
-                            // Expired, clear it
+                        // Check if not too old (max 1 hour for break, 5 min for others)
+                        const maxAge = type === 'break' ? 3600000 : 300000;
+                        
+                        // Special check for break - must have remaining time
+                        if (type === 'break' && entry.data.endTime && entry.data.endTime < Date.now()) {
                             localStorage.removeItem(key);
+                            console.log('[Broadcast] Break expired, not restoring');
+                            return;
+                        }
+                        
+                        if (Date.now() - entry.savedAt < maxAge) {
+                            console.log('[Broadcast] Restoring persisted:', type, entry.data);
+                            // Re-show the broadcast directly (bypass targeting check)
+                            setTimeout(() => {
+                                const broadcast = { ...entry.data, _restored: true };
+                                // Call the specific show function directly
+                                switch(type) {
+                                    case 'boss': this.showBossIntro(broadcast); break;
+                                    case 'combat': this.showCombatStart(broadcast); break;
+                                    case 'death': this.showDeathScreen(broadcast); break;
+                                    case 'levelup': this.showLevelUp(broadcast); break;
+                                    case 'loot': this.showLootDrop(broadcast); break;
+                                    case 'location': this.showLocationBanner(broadcast); break;
+                                    case 'break': this.showBreakTimer(broadcast); break;
+                                    case 'coinflip': this.showCoinFlip(broadcast); break;
+                                }
+                            }, 300);
+                        } else {
+                            // Too old, clear it
+                            localStorage.removeItem(key);
+                            console.log('[Broadcast] Cleared expired:', type);
                         }
                     } catch (e) {
                         localStorage.removeItem(key);
+                        console.error('[Broadcast] Error restoring:', type, e);
                     }
                 }
             });
@@ -352,7 +392,7 @@
         
         // Secret message
         showSecretMessage(broadcast) {
-            this.playBroadcastSound('mystery');
+            // NO sound for secret messages - always silent
             
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay';
@@ -566,10 +606,18 @@
         
         // Combat start with pulse effect
         showCombatStart(broadcast) {
-            this.playBroadcastSound(broadcast.sound);
+            // Persist to survive refresh
+            this.persistBroadcast('combat', broadcast);
+            
+            if (!broadcast._restored) {
+                this.playBroadcastSound(broadcast.sound);
+            }
+            
+            // Remove existing
+            document.querySelectorAll('.combat-start').forEach(el => el.remove());
             
             const overlay = document.createElement('div');
-            overlay.className = 'cinematic-overlay combat-start';
+            overlay.className = 'cinematic-overlay combat-start broadcast-overlay';
             overlay.style.cssText = `
                 position: fixed; inset: 0; z-index: 100000;
                 background: linear-gradient(135deg, #1a0a0a, #2d1b1b);
@@ -597,7 +645,7 @@
                     text-transform: uppercase; letter-spacing: 2px; cursor: pointer;
                     animation: combatBtn 1s ease;
                     box-shadow: 0 0 30px rgba(239,68,68,0.5);
-                " onclick="this.closest('.cinematic-overlay').remove()">⚔️ Kämpfen!</button>
+                " onclick="BroadcastListener.closeFullscreen('combat', this)">⚔️ Kämpfen!</button>
             `;
             
             document.body.appendChild(overlay);
@@ -1359,18 +1407,17 @@
             };
             
             try {
-                // Send status as broadcast message so GM receives it
+                // Write to status_responses subcollection (players have write access)
+                const normalizedCode = roomCode.replace('-', '').toUpperCase();
                 await window.firebase.firestore()
-                    .collection('rooms').doc(roomCode)
-                    .update({
-                        broadcast: {
-                            type: 'playerStatusResponse',
-                            playerId: uid,
-                            playerName,
-                            status,
-                            id: Date.now(),
-                            timestamp: window.firebase.firestore.FieldValue.serverTimestamp()
-                        }
+                    .collection('rooms').doc(normalizedCode)
+                    .collection('status_responses').doc(uid)
+                    .set({
+                        status,
+                        playerName,
+                        playerId: uid,
+                        updatedAt: Date.now(),
+                        timestamp: window.firebase.firestore.FieldValue.serverTimestamp()
                     });
                     
                 // Show confirmation toast
@@ -1386,6 +1433,16 @@
                 setTimeout(() => toast.remove(), 2300);
             } catch (e) {
                 console.error('[Status] Error:', e);
+                // Show error toast
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                    background: rgba(239,68,68,0.95); padding: 12px 24px; border-radius: 8px;
+                    color: white; font-size: 14px; z-index: 100001;
+                `;
+                toast.textContent = 'Fehler beim Senden';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
             }
             
             overlay?.remove();
@@ -1393,6 +1450,12 @@
         
         // ============ LOCATION BANNER ============
         showLocationBanner(broadcast) {
+            // Persist to survive refresh
+            this.persistBroadcast('location', broadcast);
+            
+            // Remove existing
+            document.querySelectorAll('.location-overlay').forEach(el => el.remove());
+            
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay location-overlay';
             overlay.style.cssText = `
@@ -1421,6 +1484,7 @@
             
             // Auto-close after 4 seconds
             setTimeout(() => {
+                this.clearPersistedBroadcast('location');
                 overlay.style.animation = 'fadeOut 0.5s ease forwards';
                 setTimeout(() => overlay.remove(), 500);
             }, 4000);
@@ -1428,9 +1492,15 @@
         
         // ============ BOSS INTRO ============
         showBossIntro(broadcast) {
-            if (broadcast.sound && broadcast.sound !== 'none') {
+            // Persist to survive refresh
+            this.persistBroadcast('boss', broadcast);
+            
+            if (broadcast.sound && broadcast.sound !== 'none' && !broadcast._restored) {
                 this.playBroadcastSound(broadcast.sound);
             }
+            
+            // Remove existing
+            document.querySelectorAll('.boss-overlay').forEach(el => el.remove());
             
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay boss-overlay';
@@ -1456,7 +1526,7 @@
                 ${imageHtml}
                 <h1 style="font-size: clamp(36px, 8vw, 72px); font-weight: 900; color: #ef4444; margin: 0; text-transform: uppercase; letter-spacing: 4px; text-shadow: 0 0 40px rgba(239,68,68,0.5); animation: bossTitle 1s ease;">${this.escapeHtml(broadcast.name)}</h1>
                 ${broadcast.title ? `<p style="font-size: 24px; color: rgba(255,255,255,0.7); margin-top: 12px; font-style: italic; animation: bossSubtitle 1s ease 0.3s both;">${this.escapeHtml(broadcast.title)}</p>` : ''}
-                <button style="margin-top: 32px; background: #ef4444; animation: bossBtn 1s ease 0.6s both; padding: 14px 48px; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; cursor: pointer;" onclick="this.closest('.broadcast-overlay').remove()">
+                <button style="margin-top: 32px; background: #ef4444; animation: bossBtn 1s ease 0.6s both; padding: 14px 48px; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; cursor: pointer;" onclick="BroadcastListener.closeFullscreen('boss', this)">
                     Los geht's!
                 </button>
             `;
@@ -1466,7 +1536,15 @@
         
         // ============ LOOT DROP ============
         showLootDrop(broadcast) {
-            this.playBroadcastSound('coin');
+            // Persist to survive refresh
+            this.persistBroadcast('loot', broadcast);
+            
+            if (!broadcast._restored) {
+                this.playBroadcastSound('coin');
+            }
+            
+            // Remove existing
+            document.querySelectorAll('.loot-overlay').forEach(el => el.remove());
             
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay loot-overlay';
@@ -1510,7 +1588,7 @@
                         ${itemsHtml}
                         ${goldHtml}
                     </div>
-                    <button class="broadcast-modal__btn" style="margin-top: 24px; background: #f59e0b;" onclick="this.closest('.broadcast-overlay').remove()">
+                    <button class="broadcast-modal__btn" style="margin-top: 24px; background: #f59e0b;" onclick="BroadcastListener.closeFullscreen('loot', this)">
                         Einsammeln
                     </button>
                 </div>
@@ -1521,7 +1599,15 @@
         
         // ============ LEVEL UP ============
         showLevelUp(broadcast) {
-            this.playBroadcastSound('fanfare');
+            // Persist to survive refresh
+            this.persistBroadcast('levelup', broadcast);
+            
+            if (!broadcast._restored) {
+                this.playBroadcastSound('fanfare');
+            }
+            
+            // Remove existing
+            document.querySelectorAll('.levelup-overlay').forEach(el => el.remove());
             
             const uid = window.firebase?.auth?.()?.currentUser?.uid;
             const isTarget = broadcast.targetId === uid;
@@ -1560,7 +1646,7 @@
                     <div style="font-size: 72px; font-weight: 900; color: white; margin: 16px 0; animation: levelNumber 1s ease 0.3s both;">
                         Level ${broadcast.level}
                     </div>
-                    <button class="broadcast-modal__btn" style="background: #f59e0b;" onclick="this.closest('.broadcast-overlay').remove()">
+                    <button class="broadcast-modal__btn" style="background: #f59e0b;" onclick="BroadcastListener.closeFullscreen('levelup', this)">
                         🎊 Großartig!
                     </button>
                 </div>
@@ -1571,7 +1657,15 @@
         
         // ============ DEATH SCREEN ============
         showDeathScreen(broadcast) {
-            this.playBroadcastSound('dramatic');
+            // Persist to survive refresh
+            this.persistBroadcast('death', broadcast);
+            
+            if (!broadcast._restored) {
+                this.playBroadcastSound('dramatic');
+            }
+            
+            // Remove existing
+            document.querySelectorAll('.death-overlay').forEach(el => el.remove());
             
             const uid = window.firebase?.auth?.()?.currentUser?.uid;
             const isTarget = broadcast.targetId === uid;
@@ -1593,7 +1687,7 @@
                     </h1>
                     ${!isTarget ? '<p style="font-size: 24px; color: rgba(255,255,255,0.5); margin: 0;">ist gefallen</p>' : ''}
                     ${broadcast.message ? `<p style="font-size: 18px; color: rgba(255,255,255,0.4); margin-top: 24px; font-style: italic;">"${this.escapeHtml(broadcast.message)}"</p>` : ''}
-                    <button class="broadcast-modal__btn" style="margin-top: 32px; background: #333;" onclick="this.closest('.broadcast-overlay').remove()">
+                    <button class="broadcast-modal__btn" style="margin-top: 32px; background: #333;" onclick="BroadcastListener.closeFullscreen('death', this)">
                         Ruhe in Frieden
                     </button>
                 </div>
@@ -1604,7 +1698,15 @@
         
         // ============ COIN FLIP ============
         showCoinFlip(broadcast) {
-            this.playBroadcastSound('coin');
+            // Persist to survive refresh (short duration)
+            this.persistBroadcast('coinflip', broadcast);
+            
+            if (!broadcast._restored) {
+                this.playBroadcastSound('coin');
+            }
+            
+            // Remove existing
+            document.querySelectorAll('.coinflip-overlay').forEach(el => el.remove());
             
             const overlay = document.createElement('div');
             overlay.className = 'broadcast-overlay coinflip-overlay';
@@ -1662,6 +1764,7 @@
             
             // Auto fade out after 5 seconds
             setTimeout(() => {
+                this.clearPersistedBroadcast('coinflip');
                 overlay.style.animation = 'fadeOut 0.5s ease forwards';
                 setTimeout(() => overlay.remove(), 500);
             }, 5000);
@@ -1672,7 +1775,7 @@
             // Persist break to survive page refresh
             const remaining = broadcast.endTime - Date.now();
             if (remaining > 0) {
-                this.persistBroadcast('break', broadcast, remaining + 15000); // +15s buffer
+                this.persistBroadcast('break', broadcast);
             }
             
             // Remove existing break overlays
