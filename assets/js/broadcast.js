@@ -312,6 +312,12 @@
                 case 'unpause':
                     this.handleUnpause(broadcast);
                     break;
+                case 'customSound':
+                    this.playCustomSound(broadcast);
+                    break;
+                case 'stopSound':
+                    this.stopCustomSound();
+                    break;
                 default:
                     this.showStandardBroadcast(broadcast);
             }
@@ -1627,8 +1633,8 @@
                     border-radius: 12px; border: 2px solid #f59e0b;
                     animation: lootItem 0.5s ease ${items.length * 0.1}s both;
                 ">
-                    <span style="font-size: 24px;">🪙</span>
-                    <span style="font-size: 28px; font-weight: 700; color: #f59e0b; margin-left: 12px;">${broadcast.gold} Münzen</span>
+                    <span style="font-size: 24px;">${broadcast.currencyIcon || '🪙'}</span>
+                    <span style="font-size: 28px; font-weight: 700; color: #f59e0b; margin-left: 12px;">${broadcast.gold} ${broadcast.currencyName || 'Gold'}</span>
                 </div>
             ` : '';
             
@@ -1940,36 +1946,37 @@
                 return;
             }
             
+            // 50% reduced intensity for subtle effect
             const configs = {
                 dawn: {
-                    gradient: 'linear-gradient(to bottom, rgba(251,191,36,0.2) 0%, rgba(249,115,22,0.15) 50%, rgba(0,0,0,0) 100%)',
+                    gradient: 'linear-gradient(to bottom, rgba(251,191,36,0.1) 0%, rgba(249,115,22,0.075) 50%, rgba(0,0,0,0) 100%)',
                     icon: '🌅',
                     text: 'Morgengrauen'
                 },
                 noon: {
-                    gradient: 'linear-gradient(to bottom, rgba(251,191,36,0.25) 0%, rgba(0,0,0,0) 60%)',
+                    gradient: 'linear-gradient(to bottom, rgba(251,191,36,0.125) 0%, rgba(0,0,0,0) 60%)',
                     icon: '☀️',
                     text: 'Mittag'
                 },
                 dusk: {
-                    gradient: 'linear-gradient(to bottom, rgba(249,115,22,0.2) 0%, rgba(220,38,38,0.15) 50%, rgba(0,0,0,0.1) 100%)',
+                    gradient: 'linear-gradient(to bottom, rgba(249,115,22,0.1) 0%, rgba(220,38,38,0.075) 50%, rgba(0,0,0,0.05) 100%)',
                     icon: '🌆',
                     text: 'Abenddämmerung'
                 },
                 midnight: {
-                    gradient: 'linear-gradient(to bottom, rgba(15,23,42,0.4) 0%, rgba(30,58,95,0.3) 50%, rgba(0,0,0,0.2) 100%)',
+                    gradient: 'linear-gradient(to bottom, rgba(15,23,42,0.2) 0%, rgba(30,58,95,0.15) 50%, rgba(0,0,0,0.1) 100%)',
                     icon: '🌙',
                     text: 'Mitternacht'
                 },
                 flashback: {
                     gradient: 'none',
-                    filter: 'sepia(0.6) contrast(1.1)',
+                    filter: 'sepia(0.3) contrast(1.05)',
                     icon: '📜',
                     text: 'Flashback'
                 },
                 vision: {
-                    gradient: 'radial-gradient(ellipse at center, rgba(124,58,237,0.2) 0%, rgba(76,29,149,0.3) 100%)',
-                    filter: 'blur(1px) saturate(1.3)',
+                    gradient: 'radial-gradient(ellipse at center, rgba(124,58,237,0.1) 0%, rgba(76,29,149,0.15) 100%)',
+                    filter: 'blur(0.5px) saturate(1.15)',
                     icon: '👁️',
                     text: 'Vision'
                 }
@@ -2051,7 +2058,7 @@
                 // Clear room data and redirect
                 setTimeout(() => {
                     localStorage.removeItem('rift_current_room');
-                    window.location.href = 'sessions.html';
+                    window.location.href = 'login.html';
                 }, 3000);
             }
         },
@@ -2081,7 +2088,7 @@
                 // Clear room data and redirect
                 setTimeout(() => {
                     localStorage.removeItem('rift_current_room');
-                    window.location.href = 'sessions.html';
+                    window.location.href = 'login.html';
                 }, 4000);
             }
         },
@@ -2122,6 +2129,54 @@
                     setTimeout(() => el.remove(), 300);
                 });
             }
+        },
+        
+        // Custom sound playback
+        currentCustomAudio: null,
+        
+        playCustomSound(broadcast) {
+            // Stop any existing custom sound
+            this.stopCustomSound();
+            
+            if (!broadcast.soundData) return;
+            
+            try {
+                const audio = new Audio(broadcast.soundData);
+                audio.volume = 0.7;
+                audio.play().catch(e => console.warn('Custom sound play failed:', e));
+                this.currentCustomAudio = audio;
+                
+                // Show playing indicator
+                const indicator = document.createElement('div');
+                indicator.className = 'custom-sound-indicator';
+                indicator.style.cssText = `
+                    position: fixed; bottom: 20px; right: 20px; z-index: 99998;
+                    background: rgba(0,0,0,0.8); border-radius: 8px; padding: 12px 16px;
+                    display: flex; align-items: center; gap: 8px;
+                    animation: slideIn 0.3s ease;
+                `;
+                indicator.innerHTML = `
+                    <span style="font-size: 16px;">🎵</span>
+                    <span style="color: white; font-size: 13px;">${broadcast.fileName || 'Audio'}</span>
+                `;
+                document.body.appendChild(indicator);
+                
+                audio.onended = () => {
+                    this.currentCustomAudio = null;
+                    indicator.style.animation = 'fadeOut 0.3s ease forwards';
+                    setTimeout(() => indicator.remove(), 300);
+                };
+            } catch (e) {
+                console.error('Custom sound error:', e);
+            }
+        },
+        
+        stopCustomSound() {
+            if (this.currentCustomAudio) {
+                this.currentCustomAudio.pause();
+                this.currentCustomAudio = null;
+            }
+            document.querySelectorAll('.custom-sound-indicator').forEach(el => el.remove());
         },
         
         // Sound player with different types
