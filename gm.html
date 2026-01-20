@@ -2088,6 +2088,32 @@
     </script>
     
     <script>
+        // ==================== WORLDS APART DATA MAPS ====================
+        const WA_FOKUS_NAMES = {
+            fire: { name: 'Feuer', attr: 'KRF', color: '#ff6b35' },
+            water: { name: 'Wasser', attr: 'GES', color: '#4dabf7' },
+            earth: { name: 'Erde', attr: 'AUS', color: '#8b6914' },
+            air: { name: 'Luft', attr: 'INT', color: '#74c0fc' },
+            light: { name: 'Licht', attr: 'PRÄ', color: '#ffd43b' },
+            shadow: { name: 'Schatten', attr: 'GEI', color: '#495057' },
+            illusion: { name: 'Illusion', attr: 'PRÄ', color: '#da77f2' },
+            room: { name: 'Raum', attr: 'GEI', color: '#748ffc' },
+            none: { name: 'Keiner', attr: '-', color: '#868e96' }
+        };
+        
+        const WA_SCHWAECHE_NAMES = {
+            verlangen: 'Verlangen',
+            paranoia: 'Paranoia', 
+            trauma: 'Trauma',
+            phobia: 'Phobie',
+            obsession: 'Obsession',
+            sucht: 'Sucht',
+            aberglaube: 'Aberglaube',
+            aggression: 'Aggression',
+            melancholie: 'Melancholie',
+            geltungsdrang: 'Geltungsdrang'
+        };
+        
         // ==================== BROADCAST CENTER ====================
         const BC = {
             db: null,
@@ -4553,6 +4579,23 @@
                 
                 const approved = this.characters.filter(c => c.approved !== false);
                 
+                // Add global action buttons above character grid
+                let globalActionsHtml = '';
+                if (approved.length > 0) {
+                    const waChars = approved.filter(c => c.ruleset === 'worldsapart');
+                    if (waChars.length > 0) {
+                        globalActionsHtml = `
+                            <div class="character-global-actions" style="display:flex;gap:8px;margin-bottom:16px;padding:12px;background:rgba(139,92,246,0.1);border-radius:8px;flex-wrap:wrap;align-items:center;">
+                                <span style="font-size:13px;color:rgba(255,255,255,0.7);margin-right:8px;">Alle Spieler:</span>
+                                <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyAllStats('hp', 1)" title="Alle LP erhöhen">+LP alle</button>
+                                <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyAllStats('hp', -1)" title="Alle LP verringern">−LP alle</button>
+                                <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyAllStats('moral', 1)" title="Alle Moral erhöhen">+MO alle</button>
+                                <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyAllStats('moral', -1)" title="Alle Moral verringern">−MO alle</button>
+                            </div>
+                        `;
+                    }
+                }
+                
                 if (!approved.length) {
                     grid.innerHTML = `
                         <div class="character-card character-card--empty">
@@ -4566,7 +4609,7 @@
                     return;
                 }
                 
-                grid.innerHTML = approved.map(c => {
+                grid.innerHTML = globalActionsHtml + approved.map(c => {
                     const name = this.escapeHtml(c.name || c.characterName || 'Unbenannt');
                     const d = c.data || {};
                     
@@ -4577,6 +4620,18 @@
                     let hp = 100, maxHp = 100;
                     let moral = 100, maxMoral = 100;
                     let resonanz = 10, maxResonanz = 100;
+                    
+                    // Portrait
+                    const portrait = c.portrait || d.portrait || null;
+                    let portraitHtml = '';
+                    if (portrait) {
+                        if (portrait.startsWith('data:') || portrait.startsWith('http')) {
+                            portraitHtml = `<img src="${portrait}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`;
+                        } else {
+                            // Preset portrait
+                            portraitHtml = `<img src="assets/img/portraits/${portrait}.png" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none'">`;
+                        }
+                    }
                     
                     if (c.ruleset === 'worldsapart') {
                         // WORLDS APART: data.status.health, data.status.moral, calculated resonanz
@@ -4665,26 +4720,30 @@
                     let fokusHtml = '';
                     if (isWA) {
                         const fokus = d.fokus || {};
-                        const schwaeche = d.schwaeche || {};
+                        const schwaeche = d.schwaeche; // String ID like "verlangen"
                         
-                        const fokusName = fokus.name || fokus.title || '–';
-                        const fokusAttr = fokus.attribute || fokus.attr || '';
-                        const fokusFaehigkeiten = fokus.abilities || fokus.skills || [];
-                        const schwaecheName = schwaeche.name || schwaeche.title || '–';
-                        const schwacheAttr = schwaeche.attribute || schwaeche.attr || '';
+                        // Get fokus name from type using the map
+                        const fokusType = fokus.type || fokus.name || null;
+                        const fokusData = fokusType ? WA_FOKUS_NAMES[fokusType] : null;
+                        const fokusName = fokusData?.name || (fokusType === 'none' ? 'Keiner' : '–');
+                        const fokusAttr = fokusData?.attr || '';
+                        const fokusColor = fokusData?.color || '#a78bfa';
+                        const fokusFaehigkeiten = fokus.abilities || [];
+                        
+                        // Get schwäche name from ID using the map
+                        const schwaecheName = schwaeche ? (WA_SCHWAECHE_NAMES[schwaeche] || schwaeche) : '–';
                         
                         fokusHtml = `
                             <div class="character-card__fokus" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);">
                                 <div style="display:flex;gap:8px;margin-bottom:8px;">
                                     <div style="flex:1;background:rgba(139,92,246,0.15);padding:8px;border-radius:6px;">
                                         <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;">🎯 Fokus</div>
-                                        <div style="font-size:13px;font-weight:600;color:#a78bfa;">${this.escapeHtml(fokusName)}</div>
+                                        <div style="font-size:13px;font-weight:600;color:${fokusColor};">${this.escapeHtml(fokusName)}</div>
                                         ${fokusAttr ? `<div style="font-size:11px;color:rgba(255,255,255,0.5);">${fokusAttr}</div>` : ''}
                                     </div>
                                     <div style="flex:1;background:rgba(239,68,68,0.15);padding:8px;border-radius:6px;">
                                         <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;">⚠️ Schwäche</div>
                                         <div style="font-size:13px;font-weight:600;color:#f87171;">${this.escapeHtml(schwaecheName)}</div>
-                                        ${schwacheAttr ? `<div style="font-size:11px;color:rgba(255,255,255,0.5);">${schwacheAttr}</div>` : ''}
                                     </div>
                                 </div>
                                 ${fokusFaehigkeiten.length > 0 ? `
@@ -4701,10 +4760,22 @@
                         `;
                     }
                     
+                    // Get sheet URL for this character
+                    const sheetUrls = {
+                        'worldsapart': 'sheet-worldsapart.html',
+                        'dnd5e': 'sheet-5e-de.html',
+                        'htbah': 'sheet-htbah.html',
+                        'cyberpunk': 'sheet-cyberpunk.html'
+                    };
+                    const sheetUrl = sheetUrls[c.ruleset] || 'sheet-worldsapart.html';
+                    const openSheetUrl = `${sheetUrl}?id=${c.id}&room=${this.roomCode}`;
+                    
                     return `
                         <div class="character-card" data-id="${c.id}" data-ruleset="${c.ruleset || 'unknown'}">
                             <div class="character-card__header">
-                                <div class="character-card__avatar" style="background:${color}">${name[0].toUpperCase()}</div>
+                                <div class="character-card__avatar" style="background:${color};overflow:hidden;">
+                                    ${portraitHtml || name[0].toUpperCase()}
+                                </div>
                                 <div class="character-card__info">
                                     <div class="character-card__name">${name}</div>
                                     <div class="character-card__class">${cls}${lvl !== '1' && lvl !== '?' ? ' • Lvl ' + lvl : ''}</div>
@@ -4713,6 +4784,9 @@
                                         ${ownerName}
                                     </div>
                                 </div>
+                                <button class="bc-btn bc-btn--small" onclick="window.open('${openSheetUrl}', '_blank')" title="Charakterbogen öffnen" style="margin-left:auto;padding:6px 10px;">
+                                    📋
+                                </button>
                             </div>
                             <div class="character-card__body">
                                 <div class="character-card__stats">
@@ -4738,13 +4812,13 @@
                                         <div class="character-card__hp-fill character-card__hp-fill--${hpClass}" style="width:${hpPct}%"></div>
                                     </div>
                                 </div>
-                                <div class="character-card__actions" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+                                <div class="character-card__actions" style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;">
                                     <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'hp', -1)" title="${isWA ? 'LP' : 'HP'} verringern">−${isWA ? 'LP' : 'HP'}</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'moral', -1)" title="${stat2Label} verringern">${isDnD ? '' : '−MO'}</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'resonanz', -1)" title="${stat3Label} verringern">${isDnD ? '' : '−RE'}</button>
                                     <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'hp', 1)" title="${isWA ? 'LP' : 'HP'} erhöhen">+${isWA ? 'LP' : 'HP'}</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'moral', 1)" title="${stat2Label} erhöhen">${isDnD ? '' : '+MO'}</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'resonanz', 1)" title="${stat3Label} erhöhen">${isDnD ? '' : '+RE'}</button>
+                                    ${!isDnD ? `
+                                        <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'moral', -1)" title="Moral verringern">−MO</button>
+                                        <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'moral', 1)" title="Moral erhöhen">+MO</button>
+                                    ` : ''}
                                 </div>
                                 ${fokusHtml}
                             </div>
@@ -4836,6 +4910,70 @@
             async modifyHP(id, direction) {
                 // Legacy function - redirect to modifyStat
                 this.modifyStat(id, 'hp', direction);
+            },
+            
+            // Modify stat for ALL Worlds Apart characters at once
+            async modifyAllStats(statType, direction) {
+                const statNames = { hp: 'Lebenspunkte', moral: 'Moral' };
+                const amount = parseInt(prompt(`${statNames[statType]}-Änderung für ALLE Spieler:`, '10')) || 0;
+                if (!amount) return;
+                
+                // Filter only Worlds Apart characters
+                const waChars = this.characters.filter(c => c.ruleset === 'worldsapart');
+                if (waChars.length === 0) {
+                    this.toast('Keine Worlds Apart Charaktere vorhanden', 'warning');
+                    return;
+                }
+                
+                const confirmMsg = `${statNames[statType]} für ${waChars.length} Charakter(e) um ${direction > 0 ? '+' : ''}${amount * direction}% ändern?`;
+                if (!confirm(confirmMsg)) return;
+                
+                let successCount = 0;
+                let errors = [];
+                
+                for (const char of waChars) {
+                    const d = char.data || {};
+                    let currentVal, maxVal, updatePath;
+                    
+                    if (statType === 'hp') {
+                        currentVal = parseInt(d.status?.health) || 100;
+                        maxVal = 100;
+                        updatePath = 'data.status.health';
+                    } else if (statType === 'moral') {
+                        currentVal = parseInt(d.status?.moral) || 100;
+                        maxVal = 100;
+                        updatePath = 'data.status.moral';
+                    }
+                    
+                    const newVal = Math.max(0, Math.min(maxVal, currentVal + (amount * direction)));
+                    
+                    try {
+                        const updates = {};
+                        updates[updatePath] = newVal;
+                        
+                        // Also update flat fields for compatibility
+                        if (statType === 'hp') {
+                            updates.hp = newVal;
+                            updates.currentHP = newVal;
+                        } else if (statType === 'moral') {
+                            updates.moral = newVal;
+                        }
+                        
+                        await this.ref().collection('characters').doc(char.id).update(updates);
+                        successCount++;
+                    } catch (e) {
+                        console.error('Bulk modify error for', char.name, e);
+                        errors.push(char.name);
+                    }
+                }
+                
+                if (errors.length > 0) {
+                    this.toast(`${successCount} aktualisiert, ${errors.length} Fehler`, 'warning');
+                } else {
+                    this.toast(`${statNames[statType]} für ${successCount} Charakter(e) geändert`, 'success');
+                }
+                
+                this.addLog('character', `Massen-${statNames[statType]}-Änderung: ${amount * direction}% für ${successCount} Charaktere`);
             },
             
             // ============ LOGS ============
