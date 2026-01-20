@@ -2558,6 +2558,7 @@
                 if (!this.currentPoll) return;
                 
                 try {
+                    console.log('[BC] Resolving poll...');
                     const options = this.currentPoll.options || [];
                     const emojis = this.currentPoll.emojis || [];
                     const voteCounts = {};
@@ -2610,6 +2611,8 @@
                     const currentHistory = this.pollHistory || [];
                     const newHistory = [historyEntry, ...currentHistory].slice(0, 10);
                     
+                    console.log('[BC] Saving poll history:', newHistory);
+                    
                     await this.ref().update({ 
                         poll: resolvedPoll,
                         pollHistory: newHistory
@@ -2619,6 +2622,7 @@
                     this.pollHistory = newHistory;
                     this.renderPollHistory();
                     
+                    console.log('[BC] Poll resolved and history saved');
                     this.toast('Umfrage aufgelöst!', 'success');
                 } catch (e) {
                     console.error('[BC] Resolve error:', e);
@@ -2630,9 +2634,11 @@
             
             async loadPollHistory() {
                 try {
+                    console.log('[BC] Loading poll history...');
                     // Load pollHistory from room document
                     const doc = await this.ref().get();
                     const data = doc.data();
+                    console.log('[BC] Poll history data:', data?.pollHistory);
                     this.pollHistory = data?.pollHistory || [];
                     this.renderPollHistory();
                 } catch (e) {
@@ -2677,10 +2683,60 @@
             },
             
             async closePoll() {
-                try {
+                if (!this.currentPoll) {
                     await this.ref().update({ 'poll.active': false });
                     this.toast('Umfrage geschlossen', 'success');
+                    return;
+                }
+                
+                try {
+                    // Also save to history when closing (without resolving)
+                    const options = this.currentPoll.options || [];
+                    const emojis = this.currentPoll.emojis || [];
+                    const voteCounts = {};
+                    options.forEach(opt => voteCounts[opt] = 0);
+                    
+                    this.pollVotes.forEach(vote => {
+                        const voteOptions = vote.options || (vote.option ? [vote.option] : []);
+                        voteOptions.forEach(opt => {
+                            if (voteCounts.hasOwnProperty(opt)) {
+                                voteCounts[opt]++;
+                            }
+                        });
+                    });
+                    
+                    const maxVotes = Math.max(...Object.values(voteCounts), 0);
+                    
+                    const results = options.map((opt, i) => ({
+                        option: opt,
+                        emoji: emojis[i] || '',
+                        votes: voteCounts[opt],
+                        isWinner: voteCounts[opt] === maxVotes && maxVotes > 0
+                    }));
+                    
+                    const historyEntry = {
+                        question: this.currentPoll.question,
+                        options,
+                        emojis,
+                        results,
+                        totalVotes: Object.values(voteCounts).reduce((a, b) => a + b, 0),
+                        resolvedAt: Date.now()
+                    };
+                    
+                    const currentHistory = this.pollHistory || [];
+                    const newHistory = [historyEntry, ...currentHistory].slice(0, 10);
+                    
+                    await this.ref().update({ 
+                        'poll.active': false,
+                        pollHistory: newHistory
+                    });
+                    
+                    this.pollHistory = newHistory;
+                    this.renderPollHistory();
+                    
+                    this.toast('Umfrage geschlossen', 'success');
                 } catch (e) {
+                    console.error('[BC] Close poll error:', e);
                     this.toast('Fehler', 'error');
                 }
             },
@@ -3272,29 +3328,22 @@
                     this.statusUnsubscribe();
                 }
                 
-                // Subscribe to room document for broadcast field (catches playerStatusResponse)
-                this.statusUnsubscribe = this.ref().onSnapshot(doc => {
-                    const data = doc.data();
-                    if (!data) return;
+                // Subscribe to status_responses subcollection
+                this.statusUnsubscribe = this.ref().collection('status_responses').onSnapshot(snap => {
+                    if (!this.playerStatuses) this.playerStatuses = {};
                     
-                    // Check for playerStatusResponse broadcasts
-                    const broadcast = data.broadcast;
-                    if (broadcast?.type === 'playerStatusResponse') {
-                        // Store status in local object
-                        if (!this.playerStatuses) this.playerStatuses = {};
-                        this.playerStatuses[broadcast.playerId] = {
-                            status: broadcast.status,
-                            name: broadcast.playerName,
-                            updatedAt: broadcast.id
+                    snap.docs.forEach(doc => {
+                        const data = doc.data();
+                        this.playerStatuses[doc.id] = {
+                            status: data.status,
+                            name: data.playerName,
+                            updatedAt: data.updatedAt
                         };
-                        this.renderPlayerStatuses();
-                    }
+                    });
                     
-                    // Also check legacy playerStatus field
-                    if (data.playerStatus) {
-                        this.playerStatuses = { ...this.playerStatuses, ...data.playerStatus };
-                        this.renderPlayerStatuses();
-                    }
+                    this.renderPlayerStatuses();
+                }, error => {
+                    console.error('[Status] Listener error:', error);
                 });
             },
             
