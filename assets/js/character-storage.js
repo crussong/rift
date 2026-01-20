@@ -263,23 +263,35 @@ const CharacterStorage = {
                 return;
             }
             
-            // Check if RoomService is available
-            if (!window.RIFT?.RoomService?.addCharacterToRoom) {
-                console.log('[CharacterStorage] RoomService not available, skipping room sync');
-                return;
-            }
-            
             const userId = this.getUserId();
             if (!userId) {
                 console.log('[CharacterStorage] No user ID, skipping room sync');
                 return;
             }
             
-            console.log('[CharacterStorage] Syncing character to room:', roomCode, character.id);
+            // Ensure Firebase is initialized
+            let db = this.getFirestore();
+            if (!db) {
+                // Try to initialize Firebase if RIFT.firebase.init exists
+                if (window.RIFT?.firebase?.init) {
+                    console.log('[CharacterStorage] Initializing Firebase for room sync...');
+                    await window.RIFT.firebase.init();
+                    db = this.getFirestore();
+                }
+                
+                if (!db) {
+                    console.log('[CharacterStorage] Firebase not available, skipping room sync');
+                    return;
+                }
+            }
             
-            // Use updateRoomCharacter if exists, else add
-            const db = this.getFirestore();
-            if (!db) return;
+            // Check if firebase.firestore.FieldValue is available
+            if (typeof firebase === 'undefined' || !firebase.firestore?.FieldValue) {
+                console.log('[CharacterStorage] Firebase SDK not fully loaded, skipping room sync');
+                return;
+            }
+            
+            console.log('[CharacterStorage] Syncing character to room:', roomCode, character.id);
             
             const normalizedCode = roomCode.replace('-', '').toUpperCase();
             const charRef = db.collection('rooms').doc(normalizedCode)
@@ -311,7 +323,7 @@ const CharacterStorage = {
                 console.log('[CharacterStorage] Added character to room:', character.id);
             }
         } catch (e) {
-            console.warn('[CharacterStorage] Room sync failed:', e);
+            console.warn('[CharacterStorage] Room sync failed:', e.message || e);
             // Don't throw - room sync is optional
         }
     },
@@ -364,8 +376,15 @@ const CharacterStorage = {
             const roomCode = localStorage.getItem('rift_current_room');
             if (!roomCode) return;
             
-            const db = this.getFirestore();
-            if (!db) return;
+            // Ensure Firebase is initialized
+            let db = this.getFirestore();
+            if (!db) {
+                if (window.RIFT?.firebase?.init) {
+                    await window.RIFT.firebase.init();
+                    db = this.getFirestore();
+                }
+                if (!db) return;
+            }
             
             const normalizedCode = roomCode.replace('-', '').toUpperCase();
             const charRef = db.collection('rooms').doc(normalizedCode)
@@ -377,7 +396,7 @@ const CharacterStorage = {
                 console.log('[CharacterStorage] Deleted character from room:', charId);
             }
         } catch (e) {
-            console.warn('[CharacterStorage] Room delete failed:', e);
+            console.warn('[CharacterStorage] Room delete failed:', e.message || e);
         }
     },
     
