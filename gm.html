@@ -439,8 +439,45 @@ const GM = {
     waitForFirebase(t=8000) { return new Promise(r => { const s=Date.now(); const c=()=>{if(RIFT?.firebase?.getFirestore?.()&&firebase?.database?.())r(true);else if(Date.now()-s>t)r(false);else setTimeout(c,100)};c(); }); },
     
     async checkAccess() {
-        const uid = firebase?.auth()?.currentUser?.uid; if (!uid) return false;
-        try { const doc = await this.ref().collection('members').doc(uid).get(); if (!doc.exists) return false; const role = doc.data()?.role; return role === 'gm' || role === 'cogm'; } catch (e) { return false; }
+        // Wait for auth to be ready
+        let uid = firebase?.auth()?.currentUser?.uid;
+        if (!uid) {
+            // Try waiting for auth state
+            uid = await new Promise((resolve) => {
+                const unsubscribe = firebase.auth().onAuthStateChanged(user => {
+                    unsubscribe();
+                    resolve(user?.uid || null);
+                });
+                // Timeout after 3 seconds
+                setTimeout(() => resolve(null), 3000);
+            });
+        }
+        
+        if (!uid) {
+            // Fallback: try localStorage
+            const stored = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            uid = stored.uid || stored.oderId;
+            console.log('[GM] Using localStorage uid:', uid);
+        }
+        
+        if (!uid) {
+            console.log('[GM] No uid found');
+            return false;
+        }
+        
+        try {
+            const doc = await this.ref().collection('members').doc(uid).get();
+            if (!doc.exists) {
+                console.log('[GM] Member doc not found for:', uid);
+                return false;
+            }
+            const role = doc.data()?.role;
+            console.log('[GM] User role:', role);
+            return role === 'gm' || role === 'cogm';
+        } catch (e) {
+            console.error('[GM] Access check error:', e);
+            return false;
+        }
     },
     
     ref() { return this.db.collection('rooms').doc(this.roomCode.replace('-', '').toUpperCase()); },
