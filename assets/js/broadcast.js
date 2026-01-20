@@ -2111,7 +2111,7 @@
                 `;
                 overlay.innerHTML = `
                     <div style="text-align: center; padding: 40px;">
-                        <div style="font-size: 64px; margin-bottom: 16px; animation: pulse 2s infinite;">⏸️</div>
+                        <img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width: 80px; height: 80px; margin-bottom: 16px;" alt="Pausiert">
                         <h2 style="color: white; font-size: 28px; margin-bottom: 12px;">Pausiert</h2>
                         <p style="color: #9ca3af; font-size: 16px;">${broadcast.message || 'Der Spielleiter hat das Spiel pausiert.'}</p>
                     </div>
