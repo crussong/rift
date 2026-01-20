@@ -300,6 +300,18 @@
                 case 'timeofday':
                     this.showTimeOfDay(broadcast);
                     break;
+                case 'kick':
+                    this.handleKick(broadcast);
+                    break;
+                case 'ban':
+                    this.handleBan(broadcast);
+                    break;
+                case 'pause':
+                    this.handlePause(broadcast);
+                    break;
+                case 'unpause':
+                    this.handleUnpause(broadcast);
+                    break;
                 default:
                     this.showStandardBroadcast(broadcast);
             }
@@ -624,9 +636,33 @@
                 display: flex; flex-direction: column;
                 align-items: center; justify-content: center;
                 animation: combatFlash 0.5s ease;
+                overflow: hidden;
             `;
+            
+            // Add particle container if particles enabled
+            const particlesHtml = broadcast.particles !== false ? `
+                <div class="combat-particles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">
+                    ${Array.from({length: 30}, (_, i) => `
+                        <div style="
+                            position: absolute;
+                            width: ${4 + Math.random() * 8}px;
+                            height: ${4 + Math.random() * 8}px;
+                            background: ${['#ef4444', '#f97316', '#fbbf24', '#dc2626'][Math.floor(Math.random() * 4)]};
+                            border-radius: 50%;
+                            left: ${Math.random() * 100}%;
+                            top: ${Math.random() * 100}%;
+                            opacity: ${0.3 + Math.random() * 0.7};
+                            animation: combatParticle ${2 + Math.random() * 3}s ease-in-out infinite;
+                            animation-delay: ${Math.random() * 2}s;
+                            box-shadow: 0 0 ${6 + Math.random() * 10}px currentColor;
+                        "></div>
+                    `).join('')}
+                </div>
+            ` : '';
+            
             overlay.innerHTML = `
-                <div style="animation: combatTitle 0.8s ease; text-align: center;">
+                ${particlesHtml}
+                <div style="animation: combatTitle 0.8s ease; text-align: center; z-index: 1;">
                     <h1 style="
                         font-size: clamp(40px, 10vw, 80px); font-weight: 900; color: #ef4444;
                         text-transform: uppercase; letter-spacing: 8px;
@@ -645,8 +681,24 @@
                     text-transform: uppercase; letter-spacing: 2px; cursor: pointer;
                     animation: combatBtn 1s ease;
                     box-shadow: 0 0 30px rgba(239,68,68,0.5);
+                    z-index: 1;
                 " onclick="BroadcastListener.closeFullscreen('combat', this)">⚔️ Kämpfen!</button>
             `;
+            
+            // Add particle animation keyframes if not exists
+            if (!document.getElementById('combat-particle-styles')) {
+                const style = document.createElement('style');
+                style.id = 'combat-particle-styles';
+                style.textContent = `
+                    @keyframes combatParticle {
+                        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+                        25% { transform: translate(${Math.random() > 0.5 ? '' : '-'}${20 + Math.random() * 40}px, -${30 + Math.random() * 50}px) scale(1.2); opacity: 0.8; }
+                        50% { transform: translate(${Math.random() > 0.5 ? '' : '-'}${40 + Math.random() * 60}px, -${10 + Math.random() * 30}px) scale(0.8); opacity: 0.6; }
+                        75% { transform: translate(${Math.random() > 0.5 ? '' : '-'}${10 + Math.random() * 30}px, ${20 + Math.random() * 40}px) scale(1.1); opacity: 0.4; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
             
             document.body.appendChild(overlay);
         },
@@ -1971,6 +2023,105 @@
                 overlay.style.animation = 'fadeOut 0.5s ease forwards';
                 setTimeout(() => overlay.remove(), 500);
             }, 2000);
+        },
+        
+        // Handle kick broadcast - redirect kicked player to login
+        handleKick(broadcast) {
+            const uid = firebase.auth().currentUser?.uid;
+            if (broadcast.targetId === uid) {
+                // This user was kicked!
+                // Show a modal before redirecting
+                const overlay = document.createElement('div');
+                overlay.className = 'broadcast-overlay kick-overlay';
+                overlay.style.cssText = `
+                    position: fixed; inset: 0; z-index: 100000;
+                    background: rgba(0,0,0,0.9); display: flex;
+                    align-items: center; justify-content: center;
+                `;
+                overlay.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: rgba(239,68,68,0.2); border: 2px solid #ef4444; border-radius: 16px; max-width: 400px;">
+                        <div style="font-size: 64px; margin-bottom: 16px;">🚪</div>
+                        <h2 style="color: #ef4444; font-size: 28px; margin-bottom: 12px;">Gekickt</h2>
+                        <p style="color: #fca5a5; font-size: 16px; margin-bottom: 24px;">${broadcast.message || 'Du wurdest aus dem Raum entfernt.'}</p>
+                        <p style="color: #999; font-size: 14px;">Du wirst in Kürze weitergeleitet...</p>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                
+                // Clear room data and redirect
+                setTimeout(() => {
+                    localStorage.removeItem('rift_current_room');
+                    window.location.href = 'sessions.html';
+                }, 3000);
+            }
+        },
+        
+        // Handle ban broadcast - redirect banned player to login
+        handleBan(broadcast) {
+            const uid = firebase.auth().currentUser?.uid;
+            if (broadcast.targetId === uid) {
+                // This user was banned!
+                const overlay = document.createElement('div');
+                overlay.className = 'broadcast-overlay ban-overlay';
+                overlay.style.cssText = `
+                    position: fixed; inset: 0; z-index: 100000;
+                    background: rgba(0,0,0,0.9); display: flex;
+                    align-items: center; justify-content: center;
+                `;
+                overlay.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: rgba(220,38,38,0.2); border: 2px solid #dc2626; border-radius: 16px; max-width: 400px;">
+                        <div style="font-size: 64px; margin-bottom: 16px;">⛔</div>
+                        <h2 style="color: #dc2626; font-size: 28px; margin-bottom: 12px;">Gebannt</h2>
+                        <p style="color: #fca5a5; font-size: 16px; margin-bottom: 24px;">${broadcast.message || 'Du wurdest aus dem Raum gebannt.'}</p>
+                        <p style="color: #999; font-size: 14px;">Du wirst in Kürze weitergeleitet...</p>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                
+                // Clear room data and redirect
+                setTimeout(() => {
+                    localStorage.removeItem('rift_current_room');
+                    window.location.href = 'sessions.html';
+                }, 4000);
+            }
+        },
+        
+        // Handle pause broadcast - show blur overlay for paused players
+        handlePause(broadcast) {
+            const uid = firebase.auth().currentUser?.uid;
+            // Check if this user is targeted (or all players if no specific target)
+            if (!broadcast.targetId || broadcast.targetId === uid || broadcast.targetId === 'all') {
+                // Remove existing pause overlay if any
+                document.querySelectorAll('.pause-overlay').forEach(el => el.remove());
+                
+                const overlay = document.createElement('div');
+                overlay.className = 'pause-overlay';
+                overlay.style.cssText = `
+                    position: fixed; inset: 0; z-index: 99999;
+                    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+                    display: flex; align-items: center; justify-content: center;
+                    animation: fadeIn 0.3s ease;
+                `;
+                overlay.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 64px; margin-bottom: 16px; animation: pulse 2s infinite;">⏸️</div>
+                        <h2 style="color: white; font-size: 28px; margin-bottom: 12px;">Pausiert</h2>
+                        <p style="color: #9ca3af; font-size: 16px;">${broadcast.message || 'Der Spielleiter hat das Spiel pausiert.'}</p>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            }
+        },
+        
+        // Handle unpause broadcast - remove blur overlay
+        handleUnpause(broadcast) {
+            const uid = firebase.auth().currentUser?.uid;
+            if (!broadcast.targetId || broadcast.targetId === uid || broadcast.targetId === 'all') {
+                document.querySelectorAll('.pause-overlay').forEach(el => {
+                    el.style.animation = 'fadeOut 0.3s ease forwards';
+                    setTimeout(() => el.remove(), 300);
+                });
+            }
         },
         
         // Sound player with different types
