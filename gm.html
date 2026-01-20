@@ -1807,9 +1807,9 @@
                                         </div>
                                     </div>
                                     <div style="margin-top:24px;">
-                                        <label class="bc-label"><img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">Globale Pause</label>
+                                        <label class="bc-label">⏸️ Globale Pause</label>
                                         <div style="display:flex;gap:8px;margin-top:8px;">
-                                            <button class="bc-btn bc-btn--warning" onclick="BC.pauseAllPlayers()" style="flex:1;"><img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;">Pausieren</button>
+                                            <button class="bc-btn bc-btn--warning" onclick="BC.pauseAllPlayers()" style="flex:1;">⏸️ Pausieren</button>
                                             <button class="bc-btn bc-btn--success" onclick="BC.unpauseAllPlayers()" style="flex:1;">▶️ Fortsetzen</button>
                                         </div>
                                     </div>
@@ -1978,23 +1978,23 @@
                             
                             <!-- Pause Controls -->
                             <div class="bc-card">
-                                <div class="bc-card__header"><div class="bc-card__title"><img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;">Pause & Globale Pause</div></div>
+                                <div class="bc-card__header"><div class="bc-card__title">⏸️ Pause & Globale Pause</div></div>
                                 <div class="bc-card__body">
                                     <div class="bc-field">
+                                        <label class="bc-label">⏸️ Globale Pause (Blur-Effekt)</label>
+                                        <p style="font-size:12px;color:rgba(255,255,255,0.5);margin:8px 0;">Blendet alle Spieler-Bildschirme aus bis du fortfährst.</p>
+                                        <div style="display:flex;gap:8px;margin-top:8px;">
+                                            <button class="bc-btn bc-btn--warning" onclick="BC.pauseAllPlayers()" style="flex:1;">⏸️ Alle pausieren</button>
+                                            <button class="bc-btn bc-btn--success" onclick="BC.unpauseAllPlayers()" style="flex:1;">▶️ Fortsetzen</button>
+                                        </div>
+                                    </div>
+                                    <div class="bc-field" style="margin-top:20px;">
                                         <label class="bc-label">☕ Kurze Pause (Countdown)</label>
                                         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;">
                                             <button class="bc-btn bc-btn--small" onclick="BC.sendBreakCountdown(5)">5 min</button>
                                             <button class="bc-btn bc-btn--small" onclick="BC.sendBreakCountdown(10)">10 min</button>
                                             <button class="bc-btn bc-btn--small" onclick="BC.sendBreakCountdown(15)">15 min</button>
                                             <button class="bc-btn bc-btn--small" onclick="BC.sendBreakCountdown(30)">30 min</button>
-                                        </div>
-                                    </div>
-                                    <div class="bc-field" style="margin-top:20px;">
-                                        <label class="bc-label"><img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">Globale Pause (Blur-Effekt)</label>
-                                        <p style="font-size:12px;color:rgba(255,255,255,0.5);margin:8px 0;">Blendet alle Spieler-Bildschirme aus bis du fortfährst.</p>
-                                        <div style="display:flex;gap:8px;margin-top:8px;">
-                                            <button class="bc-btn bc-btn--warning" onclick="BC.pauseAllPlayers()" style="flex:1;"><img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">Alle pausieren</button>
-                                            <button class="bc-btn bc-btn--success" onclick="BC.unpauseAllPlayers()" style="flex:1;">▶️ Fortsetzen</button>
                                         </div>
                                     </div>
                                     <div class="bc-field" style="margin-top:20px;">
@@ -4193,6 +4193,8 @@
             
             // ============ LOGS SUBSCRIPTION ============
             subLogs() {
+                console.log('[BC] Starting subLogs...');
+                
                 // Subscribe to multiple collections for comprehensive logging
                 const collections = [
                     { name: 'dice', icon: '🎲', type: 'dice' },
@@ -4201,29 +4203,54 @@
                 ];
                 
                 collections.forEach(col => {
-                    const unsub = this.ref().collection(col.name)
-                        .orderBy('timestamp', 'desc')
-                        .limit(100)
-                        .onSnapshot(snap => {
-                            const items = snap.docs.map(d => ({
+                    console.log(`[BC] Subscribing to ${col.name}...`);
+                    
+                    // Try with timestamp ordering first, fallback to simple query
+                    const query = this.ref().collection(col.name);
+                    
+                    const unsub = query.onSnapshot(snap => {
+                        console.log(`[BC] ${col.name} snapshot: ${snap.docs.length} docs`);
+                        
+                        const items = snap.docs.map(d => {
+                            const data = d.data();
+                            return {
                                 id: d.id,
                                 collection: col.name,
                                 icon: col.icon,
                                 type: col.type,
-                                ...d.data()
-                            }));
-                            // Merge with existing logs
-                            this.logs = this.logs.filter(l => l.collection !== col.name).concat(items);
-                            this.logs.sort((a, b) => (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0));
-                            this.renderLogs();
-                        }, e => console.error(`[BC] ${col.name} error:`, e));
+                                timestamp: data.timestamp || data.createdAt || null,
+                                ...data
+                            };
+                        });
+                        
+                        // Merge with existing logs
+                        this.logs = this.logs.filter(l => l.collection !== col.name).concat(items);
+                        
+                        // Sort by timestamp (handle various timestamp formats)
+                        this.logs.sort((a, b) => {
+                            const getTime = (t) => {
+                                if (!t) return 0;
+                                if (t.toDate) return t.toDate().getTime();
+                                if (t.seconds) return t.seconds * 1000;
+                                if (typeof t === 'number') return t;
+                                return 0;
+                            };
+                            return getTime(b.timestamp) - getTime(a.timestamp);
+                        });
+                        
+                        this.renderLogs();
+                    }, e => {
+                        console.error(`[BC] ${col.name} error:`, e);
+                        // Show error in UI
+                        this.renderLogsError(`${col.name}: ${e.message || 'Fehler'}`);
+                    });
                     this.unsubs.push(unsub);
                 });
                 
-                // Also log broadcasts
+                // Also log broadcasts from room document
                 const broadcastUnsub = this.ref().onSnapshot(snap => {
                     const data = snap.data();
-                    if (data?.broadcast && data.broadcast.timestamp) {
+                    if (data?.broadcast && data.broadcast.id) {
                         const existing = this.logs.find(l => l.id === 'broadcast-' + data.broadcast.id);
                         if (!existing) {
                             this.logs.unshift({
@@ -4231,13 +4258,31 @@
                                 collection: 'broadcast',
                                 icon: '📢',
                                 type: 'broadcast',
+                                timestamp: data.broadcast.timestamp || { seconds: Date.now() / 1000 },
                                 ...data.broadcast
                             });
                             this.renderLogs();
                         }
                     }
-                });
+                }, e => console.error('[BC] Broadcast error:', e));
                 this.unsubs.push(broadcastUnsub);
+                
+                // Initial render
+                setTimeout(() => this.renderLogs(), 500);
+            },
+            
+            renderLogsError(message) {
+                const list = document.getElementById('activityLogList');
+                if (!list) return;
+                
+                // Check if error already shown
+                if (!list.querySelector('.log-error')) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'log-error';
+                    errorDiv.style.cssText = 'padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;margin:8px;color:#f87171;font-size:12px;';
+                    errorDiv.innerHTML = `<strong>⚠️ Log-Fehler:</strong> ${message}<br><small>Bitte Firestore Rules deployen!</small>`;
+                    list.prepend(errorDiv);
+                }
             },
             
             // ============ PLAYER MANAGEMENT ============
@@ -4515,85 +4560,104 @@
                     const name = this.escapeHtml(c.name || c.characterName || 'Unbenannt');
                     const d = c.data || {};
                     
+                    console.log('[BC] Character data:', c.name, c.ruleset, d);
+                    
                     // Extract class/level based on ruleset
                     let cls = '–', lvl = '?';
+                    let hp = 100, maxHp = 100;
+                    let moral = 100, maxMoral = 100;
+                    let resonanz = 10, maxResonanz = 100;
                     
-                    if (c.ruleset === 'dnd5e' || d.header) {
+                    if (c.ruleset === 'worldsapart') {
+                        // WORLDS APART: data.status.health, data.status.moral, calculated resonanz
+                        cls = d.role || c.class || '–';
+                        lvl = '1'; // WA hat keine Level
+                        
+                        // Health ist ein Prozent (0-100)
+                        hp = parseInt(d.status?.health) || 100;
+                        maxHp = 100;
+                        
+                        // Moral ist ein Prozent (0-100)
+                        moral = parseInt(d.status?.moral) || 100;
+                        maxMoral = 100;
+                        
+                        // Resonanz = 10 + (power * presence)
+                        const power = parseInt(d.attributes?.power) || 0;
+                        const presence = parseInt(d.attributes?.presence) || 0;
+                        resonanz = 10 + (power * presence);
+                        maxResonanz = 100; // Max sinnvoll
+                        
+                    } else if (c.ruleset === 'dnd5e' || d.header || d.combat?.hpCurrent !== undefined) {
+                        // D&D 5e
                         cls = c.class || d.header?.charClass || d.class || '–';
                         lvl = c.level || d.header?.level || d.level || '?';
-                    } else if (c.ruleset === 'worldsapart' || d.basics) {
-                        cls = d.basics?.archetype || c.class || '–';
-                        lvl = d.basics?.rank || c.level || '?';
+                        
+                        hp = parseInt(d.combat?.hpCurrent) || c.hp || c.currentHP || 10;
+                        maxHp = parseInt(d.combat?.hpMax) || c.maxHp || c.maxHP || hp || 1;
+                        
+                        // D&D hat keine Moral/Resonanz - zeige andere Stats
+                        moral = parseInt(d.combat?.armorClass) || c.ac || 10;
+                        maxMoral = 20;
+                        resonanz = parseInt(d.combat?.initiative) || c.initiative || 0;
+                        maxResonanz = 20;
+                        
                     } else if (c.ruleset === 'htbah') {
                         cls = d.class || c.class || '–';
                         lvl = d.level || c.level || '?';
+                        hp = c.hp || 100;
+                        maxHp = 100;
+                        moral = 100;
+                        maxMoral = 100;
+                        resonanz = 10;
+                        maxResonanz = 100;
                     } else {
-                        cls = c.class || d.class || '–';
+                        // Fallback
+                        cls = c.class || d.class || d.role || '–';
                         lvl = c.level || d.level || '?';
+                        hp = c.hp || d.hp || d.status?.health || 100;
+                        maxHp = c.maxHp || d.maxHp || 100;
+                        moral = c.moral || d.moral || d.status?.moral || 100;
+                        maxMoral = c.maxMoral || 100;
+                        resonanz = c.resonanz || 10;
+                        maxResonanz = 100;
                     }
                     
                     const color = c.color || '#8b5cf6';
                     
-                    // Extract HP/Lebenspunkte
-                    let hp = 10, maxHp = 10;
-                    if (c.ruleset === 'dnd5e' || d.combat?.hpCurrent !== undefined) {
-                        hp = parseInt(d.combat?.hpCurrent) || c.hp || c.currentHP || 10;
-                        maxHp = parseInt(d.combat?.hpMax) || c.maxHp || c.maxHP || hp || 1;
-                    } else if (c.ruleset === 'worldsapart' || d.combat?.lebenspunkte !== undefined) {
-                        hp = parseInt(d.combat?.lebenspunkte?.current) || parseInt(d.combat?.lebenspunkte) || c.hp || 10;
-                        maxHp = parseInt(d.combat?.lebenspunkte?.max) || c.maxHp || hp || 1;
-                    } else if (d.hp !== undefined || d.maxHp !== undefined) {
-                        hp = parseInt(d.hp) || c.hp || 10;
-                        maxHp = parseInt(d.maxHp) || c.maxHp || hp || 1;
-                    } else {
-                        hp = c.hp || c.currentHP || c.currentHp || 10;
-                        maxHp = c.maxHp || c.maxHP || c.hpMax || hp || 1;
-                    }
-                    
-                    // Extract Moral (Worlds Apart)
-                    let moral = 10, maxMoral = 10;
-                    if (d.combat?.moral !== undefined) {
-                        moral = parseInt(d.combat?.moral?.current) || parseInt(d.combat?.moral) || 10;
-                        maxMoral = parseInt(d.combat?.moral?.max) || 10;
-                    } else if (c.moral !== undefined) {
-                        moral = parseInt(c.moral) || 10;
-                        maxMoral = parseInt(c.maxMoral) || 10;
-                    }
-                    
-                    // Extract Resonanz (Worlds Apart)
-                    let resonanz = 10, maxResonanz = 10;
-                    if (d.combat?.resonanz !== undefined) {
-                        resonanz = parseInt(d.combat?.resonanz?.current) || parseInt(d.combat?.resonanz) || 10;
-                        maxResonanz = parseInt(d.combat?.resonanz?.max) || 10;
-                    } else if (d.magic?.resonanz !== undefined) {
-                        resonanz = parseInt(d.magic?.resonanz?.current) || parseInt(d.magic?.resonanz) || 10;
-                        maxResonanz = parseInt(d.magic?.resonanz?.max) || 10;
-                    } else if (c.resonanz !== undefined) {
-                        resonanz = parseInt(c.resonanz) || 10;
-                        maxResonanz = parseInt(c.maxResonanz) || 10;
-                    }
-                    
-                    const hpPct = Math.round((hp / maxHp) * 100);
+                    // Für Worlds Apart: hp/moral/resonanz sind schon Prozent (0-100)
+                    // Für andere: berechne Prozent
+                    const hpPct = c.ruleset === 'worldsapart' ? hp : Math.round((hp / maxHp) * 100);
                     const hpClass = hpPct > 50 ? 'high' : hpPct > 25 ? 'mid' : 'low';
                     
-                    const moralPct = Math.round((moral / maxMoral) * 100);
+                    const moralPct = c.ruleset === 'worldsapart' ? moral : Math.round((moral / maxMoral) * 100);
                     const moralClass = moralPct > 50 ? 'high' : moralPct > 25 ? 'mid' : 'low';
                     
-                    const resonanzPct = Math.round((resonanz / maxResonanz) * 100);
-                    const resonanzClass = resonanzPct > 50 ? 'high' : resonanzPct > 25 ? 'mid' : 'low';
+                    const resonanzPct = Math.min(100, Math.round((resonanz / maxResonanz) * 100));
                     
                     const ownerId = c.ownerId || c.owner || c.userId;
                     const owner = this.members.find(m => m.id === ownerId);
                     const ownerName = this.escapeHtml(owner?.displayName || owner?.name || 'Unbekannt');
                     const ownerOnline = this.isOnline(ownerId);
                     
+                    // Unterschiedliche Labels je nach Ruleset
+                    const isWA = c.ruleset === 'worldsapart';
+                    const isDnD = c.ruleset === 'dnd5e' || d.header || d.combat?.hpCurrent !== undefined;
+                    
+                    const stat1Label = isWA ? '❤️ LP' : (isDnD ? '❤️ HP' : '❤️ LP');
+                    const stat2Label = isWA ? '💪 Moral' : (isDnD ? '🛡️ RK' : '💪 Moral');
+                    const stat3Label = isWA ? '✨ Reso' : (isDnD ? '⚡ INI' : '✨ Reso');
+                    
+                    const stat1Val = isWA ? `${hp}%` : `${hp}/${maxHp}`;
+                    const stat2Val = isWA ? `${moral}%` : (isDnD ? moral : `${moral}%`);
+                    const stat3Val = isWA ? resonanz : (isDnD ? (resonanz >= 0 ? `+${resonanz}` : resonanz) : resonanz);
+                    
                     return `
-                        <div class="character-card" data-id="${c.id}">
+                        <div class="character-card" data-id="${c.id}" data-ruleset="${c.ruleset || 'unknown'}">
                             <div class="character-card__header">
                                 <div class="character-card__avatar" style="background:${color}">${name[0].toUpperCase()}</div>
                                 <div class="character-card__info">
                                     <div class="character-card__name">${name}</div>
-                                    <div class="character-card__class">${cls} • Level ${lvl}</div>
+                                    <div class="character-card__class">${cls}${lvl !== '1' && lvl !== '?' ? ' • Lvl ' + lvl : ''}</div>
                                     <div class="character-card__owner">
                                         <div class="character-card__owner-dot character-card__owner-dot--${ownerOnline ? 'online' : 'offline'}"></div>
                                         ${ownerName}
@@ -4603,34 +4667,34 @@
                             <div class="character-card__body">
                                 <div class="character-card__stats">
                                     <div class="character-card__stat">
-                                        <div class="character-card__stat-value">${hp}/${maxHp}</div>
-                                        <div class="character-card__stat-label">❤️ LP</div>
+                                        <div class="character-card__stat-value">${stat1Val}</div>
+                                        <div class="character-card__stat-label">${stat1Label}</div>
                                     </div>
                                     <div class="character-card__stat">
-                                        <div class="character-card__stat-value">${moral}/${maxMoral}</div>
-                                        <div class="character-card__stat-label">💪 Moral</div>
+                                        <div class="character-card__stat-value">${stat2Val}</div>
+                                        <div class="character-card__stat-label">${stat2Label}</div>
                                     </div>
                                     <div class="character-card__stat">
-                                        <div class="character-card__stat-value">${resonanz}/${maxResonanz}</div>
-                                        <div class="character-card__stat-label">✨ Reso</div>
+                                        <div class="character-card__stat-value">${stat3Val}</div>
+                                        <div class="character-card__stat-label">${stat3Label}</div>
                                     </div>
                                 </div>
                                 <div class="character-card__hp">
                                     <div class="character-card__hp-header">
-                                        <span style="color:rgba(255,255,255,0.5);">Lebenspunkte</span>
-                                        <span style="color:white;font-weight:600;">${hp} / ${maxHp}</span>
+                                        <span style="color:rgba(255,255,255,0.5);">${isWA ? 'Lebenspunkte' : 'HP'}</span>
+                                        <span style="color:white;font-weight:600;">${stat1Val}</span>
                                     </div>
                                     <div class="character-card__hp-bar">
                                         <div class="character-card__hp-fill character-card__hp-fill--${hpClass}" style="width:${hpPct}%"></div>
                                     </div>
                                 </div>
                                 <div class="character-card__actions" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
-                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'hp', -1)" title="LP verringern">−LP</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'moral', -1)" title="Moral verringern">−MO</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'resonanz', -1)" title="Resonanz verringern">−RE</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'hp', 1)" title="LP erhöhen">+LP</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'moral', 1)" title="Moral erhöhen">+MO</button>
-                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'resonanz', 1)" title="Resonanz erhöhen">+RE</button>
+                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'hp', -1)" title="${isWA ? 'LP' : 'HP'} verringern">−${isWA ? 'LP' : 'HP'}</button>
+                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'moral', -1)" title="${stat2Label} verringern">${isDnD ? '' : '−MO'}</button>
+                                    <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'resonanz', -1)" title="${stat3Label} verringern">${isDnD ? '' : '−RE'}</button>
+                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'hp', 1)" title="${isWA ? 'LP' : 'HP'} erhöhen">+${isWA ? 'LP' : 'HP'}</button>
+                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'moral', 1)" title="${stat2Label} erhöhen">${isDnD ? '' : '+MO'}</button>
+                                    <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'resonanz', 1)" title="${stat3Label} erhöhen">${isDnD ? '' : '+RE'}</button>
                                 </div>
                             </div>
                         </div>
@@ -4640,7 +4704,7 @@
             
             async modifyStat(id, statType, direction) {
                 const statNames = { hp: 'Lebenspunkte', moral: 'Moral', resonanz: 'Resonanz' };
-                const amount = parseInt(prompt(`${statNames[statType]}-Änderung:`, '1')) || 0;
+                const amount = parseInt(prompt(`${statNames[statType]}-Änderung:`, '10')) || 0;
                 if (!amount) return;
                 
                 const char = this.characters.find(c => c.id === id);
@@ -4649,44 +4713,48 @@
                 const d = char.data || {};
                 let currentVal, maxVal, updatePath;
                 
+                console.log('[BC] modifyStat:', char.name, statType, char.ruleset, d);
+                
                 if (statType === 'hp') {
-                    if (char.ruleset === 'dnd5e' || d.combat?.hpCurrent !== undefined) {
+                    if (char.ruleset === 'worldsapart') {
+                        // WORLDS APART: data.status.health (0-100 percent)
+                        currentVal = parseInt(d.status?.health) || 100;
+                        maxVal = 100;
+                        updatePath = 'data.status.health';
+                    } else if (char.ruleset === 'dnd5e' || d.combat?.hpCurrent !== undefined) {
+                        // D&D 5e
                         currentVal = parseInt(d.combat?.hpCurrent) || char.hp || 0;
                         maxVal = parseInt(d.combat?.hpMax) || char.maxHp || 100;
                         updatePath = 'data.combat.hpCurrent';
-                    } else if (char.ruleset === 'worldsapart' || d.combat?.lebenspunkte !== undefined) {
-                        currentVal = parseInt(d.combat?.lebenspunkte?.current) || parseInt(d.combat?.lebenspunkte) || char.hp || 0;
-                        maxVal = parseInt(d.combat?.lebenspunkte?.max) || char.maxHp || 100;
-                        updatePath = 'data.combat.lebenspunkte.current';
                     } else {
+                        // Fallback
                         currentVal = char.hp || char.currentHP || 0;
                         maxVal = char.maxHp || char.maxHP || 100;
                         updatePath = 'hp';
                     }
                 } else if (statType === 'moral') {
-                    if (d.combat?.moral !== undefined) {
-                        currentVal = parseInt(d.combat?.moral?.current) || parseInt(d.combat?.moral) || 0;
-                        maxVal = parseInt(d.combat?.moral?.max) || 10;
-                        updatePath = 'data.combat.moral.current';
+                    if (char.ruleset === 'worldsapart') {
+                        // WORLDS APART: data.status.moral (0-100 percent)
+                        currentVal = parseInt(d.status?.moral) || 100;
+                        maxVal = 100;
+                        updatePath = 'data.status.moral';
                     } else {
+                        // Fallback
                         currentVal = char.moral || 0;
-                        maxVal = char.maxMoral || 10;
+                        maxVal = 100;
                         updatePath = 'moral';
                     }
                 } else if (statType === 'resonanz') {
-                    if (d.combat?.resonanz !== undefined) {
-                        currentVal = parseInt(d.combat?.resonanz?.current) || parseInt(d.combat?.resonanz) || 0;
-                        maxVal = parseInt(d.combat?.resonanz?.max) || 10;
-                        updatePath = 'data.combat.resonanz.current';
-                    } else if (d.magic?.resonanz !== undefined) {
-                        currentVal = parseInt(d.magic?.resonanz?.current) || parseInt(d.magic?.resonanz) || 0;
-                        maxVal = parseInt(d.magic?.resonanz?.max) || 10;
-                        updatePath = 'data.magic.resonanz.current';
-                    } else {
-                        currentVal = char.resonanz || 0;
-                        maxVal = char.maxResonanz || 10;
-                        updatePath = 'resonanz';
+                    // Resonanz in Worlds Apart wird berechnet (10 + power*presence)
+                    // und kann nicht direkt geändert werden
+                    if (char.ruleset === 'worldsapart') {
+                        this.toast('Resonanz wird automatisch berechnet (10 + KRF × PRÄ)', 'info');
+                        return;
                     }
+                    // Fallback für andere Systeme
+                    currentVal = char.resonanz || 0;
+                    maxVal = 100;
+                    updatePath = 'resonanz';
                 }
                 
                 const newVal = Math.max(0, Math.min(maxVal, currentVal + (amount * direction)));
@@ -4701,16 +4769,16 @@
                         updates.currentHP = newVal;
                     } else if (statType === 'moral') {
                         updates.moral = newVal;
-                    } else if (statType === 'resonanz') {
-                        updates.resonanz = newVal;
                     }
                     
+                    console.log('[BC] Updating character:', id, updates);
+                    
                     await this.ref().collection('characters').doc(id).update(updates);
-                    this.toast(`${statNames[statType]}: ${currentVal} → ${newVal}`, 'success');
-                    this.addLog('character', `${statNames[statType]} geändert: ${char.name || char.characterName} (${currentVal} → ${newVal})`);
+                    this.toast(`${statNames[statType]}: ${currentVal}% → ${newVal}%`, 'success');
+                    this.addLog('character', `${statNames[statType]} geändert: ${char.name || char.characterName} (${currentVal}% → ${newVal}%)`);
                 } catch (e) {
                     console.error('Stat modify error:', e);
-                    this.toast('Fehler', 'error');
+                    this.toast('Fehler: ' + e.message, 'error');
                 }
             },
             
@@ -4746,17 +4814,38 @@
                     countDisplay.textContent = `${filtered.length} Einträge`;
                 }
                 
+                // Keep existing error messages
+                const existingErrors = list.querySelectorAll('.log-error');
+                
                 if (!filtered.length) {
-                    list.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.4);">Keine Log-Einträge</div>';
+                    list.innerHTML = `
+                        <div style="padding:40px;text-align:center;color:rgba(255,255,255,0.4);">
+                            <div style="font-size:32px;margin-bottom:12px;">📋</div>
+                            <div>Keine Log-Einträge</div>
+                            <div style="font-size:12px;margin-top:8px;">Würfelwürfe, Chat und Änderungen erscheinen hier</div>
+                        </div>
+                    `;
+                    existingErrors.forEach(e => list.prepend(e));
                     return;
                 }
                 
                 list.innerHTML = filtered.slice(0, 200).map(log => {
-                    const time = log.timestamp?.toDate?.();
+                    // Handle various timestamp formats
+                    let time = null;
+                    if (log.timestamp) {
+                        if (log.timestamp.toDate) {
+                            time = log.timestamp.toDate();
+                        } else if (log.timestamp.seconds) {
+                            time = new Date(log.timestamp.seconds * 1000);
+                        } else if (typeof log.timestamp === 'number') {
+                            time = new Date(log.timestamp);
+                        }
+                    }
+                    
                     const timeStr = time ? time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--';
                     const dateStr = time ? time.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '';
                     
-                    const user = this.escapeHtml(log.userName || log.user || log.playerName || 'System');
+                    const user = this.escapeHtml(log.userName || log.user || log.playerName || log.displayName || 'System');
                     const action = this.getLogAction(log);
                     const detail = this.getLogDetail(log);
                     
@@ -4772,6 +4861,9 @@
                         </div>
                     `;
                 }).join('');
+                
+                // Re-add error messages
+                existingErrors.forEach(e => list.prepend(e));
             },
             
             getLogAction(log) {
