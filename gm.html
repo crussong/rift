@@ -282,6 +282,8 @@
     <div class="gm-card"><div class="gm-card__header"><div class="gm-card__title">⚡ Schnellzugriff</div></div><div class="gm-card__body"><div class="quick-actions">
         <a href="broadcast.html" class="quick-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>Broadcast</a>
         <a href="dice.html" class="quick-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>Würfeln</a>
+        <div class="quick-action" onclick="GM.secretRoll()" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="1" y1="1" x2="23" y2="23" stroke-width="2"/></svg>Geheim</div>
+        <div class="quick-action" onclick="GM.sendPrivateMessage()" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Flüstern</div>
         <a href="chat.html" class="quick-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat</a>
         <a href="map.html" class="quick-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>Karte</a>
         <a href="notes.html" class="quick-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Notizen</a>
@@ -362,7 +364,7 @@
                 <button class="gm-btn" onclick="GM.sendBroadcast()">Senden</button>
             </div>
         </div></div>
-        <div class="gm-card"><div class="gm-card__header"><div class="gm-card__title">👑 GM übertragen</div></div><div class="gm-card__body">
+        <div class="gm-card" id="transferCard"><div class="gm-card__header"><div class="gm-card__title">👑 GM übertragen</div><span id="transferGMOnly" style="display:none;font-size:11px;color:#fbbf24">Nur Haupt-GM</span></div><div class="gm-card__body">
             <div class="gm-field"><label class="gm-label">Neuer GM</label><select class="gm-select" id="transferSelect"><option value="">Wählen...</option></select></div>
             <button class="gm-btn gm-btn--full gm-btn--warning" id="transferBtn" onclick="GM.transferGM()" disabled>Übertragen</button>
         </div></div>
@@ -383,8 +385,11 @@
         </div></div>
     </div><div>
         <div class="gm-card gm-card--danger"><div class="gm-card__header"><div class="gm-card__title" style="color:#ef4444">⚠️ Gefahrenzone</div></div><div class="gm-card__body">
+            <div id="gmOnlyNotice" style="display:none;padding:12px 16px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;margin-bottom:16px;font-size:13px;color:#fbbf24">
+                ⚡ Du bist <strong>Co-GM</strong>. Einige Aktionen sind nur für den Haupt-GM verfügbar.
+            </div>
             <div class="danger-item"><div class="danger-item__info"><h4>Raum verlassen</h4><p>Du verlierst GM-Rechte</p></div><button class="gm-btn gm-btn--warning gm-btn--small" onclick="GM.leaveRoom()">Verlassen</button></div>
-            <div class="danger-item"><div class="danger-item__info"><h4>Raum löschen</h4><p>Alle Daten werden gelöscht</p></div><button class="gm-btn gm-btn--danger gm-btn--small" onclick="GM.deleteRoom()">Löschen</button></div>
+            <div class="danger-item" id="deleteRoomItem"><div class="danger-item__info"><h4>Raum löschen</h4><p>Nur Haupt-GM • Alle Daten werden gelöscht</p></div><button class="gm-btn gm-btn--danger gm-btn--small" id="deleteRoomBtn" onclick="GM.deleteRoom()">Löschen</button></div>
         </div></div>
     </div></div>
 </div>
@@ -402,7 +407,7 @@
 </div></main></div>
 
 <!-- MODALS -->
-<div class="gm-modal" id="playerModal"><div class="gm-modal__content"><div class="gm-modal__header"><div class="gm-modal__title">Spieler bearbeiten</div><button class="gm-modal__close" onclick="GM.closeModal('player')">×</button></div><div class="gm-modal__body"><div class="gm-field"><label class="gm-label">Rolle</label><select class="gm-select" id="modalRole"><option value="player">Spieler</option><option value="cogm">Co-GM</option><option value="spectator">Zuschauer</option></select></div><div class="gm-field"><label class="gm-label">Notizen</label><textarea class="gm-textarea" id="modalNotes" placeholder="Private Notizen..."></textarea></div></div><div class="gm-modal__footer"><button class="gm-btn gm-btn--secondary" onclick="GM.closeModal('player')">Abbrechen</button><button class="gm-btn" onclick="GM.savePlayerEdit()">Speichern</button></div></div></div>
+<div class="gm-modal" id="playerModal"><div class="gm-modal__content"><div class="gm-modal__header"><div class="gm-modal__title">Spieler bearbeiten</div><button class="gm-modal__close" onclick="GM.closeModal('player')">×</button></div><div class="gm-modal__body"><div class="gm-field" id="roleField"><label class="gm-label">Rolle</label><select class="gm-select" id="modalRole"><option value="gm" disabled>GM (nicht änderbar)</option><option value="player">Spieler</option><option value="cogm">Co-GM</option><option value="spectator">Zuschauer</option></select></div><div class="gm-field"><label class="gm-label">Notizen</label><textarea class="gm-textarea" id="modalNotes" placeholder="Private Notizen..."></textarea></div></div><div class="gm-modal__footer"><button class="gm-btn gm-btn--secondary" onclick="GM.closeModal('player')">Abbrechen</button><button class="gm-btn" onclick="GM.savePlayerEdit()">Speichern</button></div></div></div>
 <div class="gm-modal" id="kickModal"><div class="gm-modal__content"><div class="gm-modal__header"><div class="gm-modal__title">Spieler entfernen</div><button class="gm-modal__close" onclick="GM.closeModal('kick')">×</button></div><div class="gm-modal__body"><p style="margin:0 0 16px;color:rgba(255,255,255,0.7)">Spieler <strong id="kickName">-</strong> entfernen?</p><div class="gm-field"><label class="gm-label">Grund</label><input type="text" class="gm-input" id="kickReason" placeholder="Grund..."></div><div class="gm-field"><label><input type="checkbox" id="kickBan"> Spieler bannen</label></div></div><div class="gm-modal__footer"><button class="gm-btn gm-btn--secondary" onclick="GM.closeModal('kick')">Abbrechen</button><button class="gm-btn gm-btn--danger" onclick="GM.confirmKick()">Entfernen</button></div></div></div>
 <div class="gm-modal" id="charModal"><div class="gm-modal__content"><div class="gm-modal__header"><div class="gm-modal__title">Charakter übertragen</div><button class="gm-modal__close" onclick="GM.closeModal('char')">×</button></div><div class="gm-modal__body"><p style="margin:0 0 16px;color:rgba(255,255,255,0.7)">Charakter <strong id="charTransferName">-</strong> übertragen an:</p><div class="gm-field"><select class="gm-select" id="charTransferTarget"><option value="">Wählen...</option></select></div></div><div class="gm-modal__footer"><button class="gm-btn gm-btn--secondary" onclick="GM.closeModal('char')">Abbrechen</button><button class="gm-btn" onclick="GM.confirmCharTransfer()">Übertragen</button></div></div></div>
 <div class="gm-modal" id="sessionModal"><div class="gm-modal__content"><div class="gm-modal__header"><div class="gm-modal__title" id="sessionModalTitle">Neue Session</div><button class="gm-modal__close" onclick="GM.closeModal('session')">×</button></div><div class="gm-modal__body"><div class="gm-field"><label class="gm-label">Name</label><input type="text" class="gm-input" id="sessionName" placeholder="z.B. Session #5"></div><div class="gm-field"><label class="gm-label">Datum & Zeit</label><input type="datetime-local" class="gm-input" id="sessionDate"></div></div><div class="gm-modal__footer"><button class="gm-btn gm-btn--secondary" onclick="GM.closeModal('session')">Abbrechen</button><button class="gm-btn" onclick="GM.saveSession()">Speichern</button></div></div></div>
@@ -413,6 +418,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="assets/js/firebase-config.js"></script>
+<script src="assets/js/user-service.js"></script>
 <script src="assets/js/app.js"></script>
 <script src="assets/js/room-service.js"></script>
 <script src="assets/js/layout.js"></script>
@@ -421,6 +427,7 @@ const GM = {
     roomCode: null, db: null, rtdb: null, unsubs: [], members: [], characters: [], sessions: [], waitlist: [], banned: [],
     onlineStatus: {}, liveSession: null, timerInterval: null, presenceLog: [], roomSettings: {}, playerNotes: {}, selectedMVP: null,
     currentEditPlayer: null, currentKickPlayer: null, currentTransferChar: null, currentEditSession: null,
+    initialLoad: true, // Flag um ersten Load nicht als "join" zu loggen
     
     async init() {
         this.roomCode = localStorage.getItem('rift_current_room');
@@ -434,6 +441,52 @@ const GM = {
         if (!hasAccess) { document.getElementById('gmContent').style.display = 'none'; document.getElementById('accessDenied').style.display = 'flex'; return; }
         this.subMembers(); this.subPresence(); this.subCharacters(); this.subSessions(); this.subRoomSettings(); this.subWaitlist(); this.subBanned(); this.subDice(); this.subChat(); this.subChangelog();
         this.loadNotes(); this.updateInviteLink();
+        
+        // UI für Co-GM vs Haupt-GM anpassen
+        this.updateGMUI();
+    },
+    
+    async updateGMUI() {
+        const uid = firebase?.auth()?.currentUser?.uid;
+        if (!uid) return;
+        
+        // Warte kurz bis members geladen sind
+        setTimeout(() => {
+            const member = this.members.find(m => m.id === uid);
+            const isMainGM = member?.role === 'gm';
+            const isCOGM = member?.role === 'cogm';
+            
+            // Co-GM Hinweis anzeigen
+            const notice = document.getElementById('gmOnlyNotice');
+            if (notice && isCOGM) {
+                notice.style.display = 'block';
+            }
+            
+            // Buttons für Co-GM disablen
+            if (isCOGM) {
+                const deleteBtn = document.getElementById('deleteRoomBtn');
+                const transferBtn = document.getElementById('transferBtn');
+                const transferSelect = document.getElementById('transferSelect');
+                const transferHint = document.getElementById('transferGMOnly');
+                
+                if (deleteBtn) {
+                    deleteBtn.disabled = true;
+                    deleteBtn.style.opacity = '0.5';
+                    deleteBtn.style.cursor = 'not-allowed';
+                }
+                if (transferBtn) {
+                    transferBtn.disabled = true;
+                    transferBtn.style.opacity = '0.5';
+                }
+                if (transferSelect) {
+                    transferSelect.disabled = true;
+                    transferSelect.style.opacity = '0.5';
+                }
+                if (transferHint) {
+                    transferHint.style.display = 'inline';
+                }
+            }
+        }, 1500);
     },
     
     waitForFirebase(t=8000) { return new Promise(r => { const s=Date.now(); const c=()=>{if(RIFT?.firebase?.getFirestore?.()&&firebase?.database?.())r(true);else if(Date.now()-s>t)r(false);else setTimeout(c,100)};c(); }); },
@@ -496,8 +549,12 @@ const GM = {
     // MEMBERS & PRESENCE
     subMembers() {
         const unsub = RIFT.rooms.subscribeToMembers(this.roomCode, members => {
-            members.forEach(m => { if (!this.members.find(o => o.id === m.id)) this.addPresenceLog(m.displayName || m.name || '?', 'join'); });
-            this.members.forEach(o => { if (!members.find(n => n.id === o.id)) this.addPresenceLog(o.displayName || o.name || '?', 'leave'); });
+            // Nur nach dem ersten Load join/leave Events loggen
+            if (!this.initialLoad) {
+                members.forEach(m => { if (!this.members.find(o => o.id === m.id)) this.addPresenceLog(m.displayName || m.name || '?', 'join'); });
+                this.members.forEach(o => { if (!members.find(n => n.id === o.id)) this.addPresenceLog(o.displayName || o.name || '?', 'leave'); });
+            }
+            this.initialLoad = false;
             this.members = members; this.renderPlayers(); this.updateStats(); this.updateTransferSelect(); this.renderXPList(); this.renderMVPGrid();
         });
         this.unsubs.push(unsub);
@@ -518,31 +575,78 @@ const GM = {
         const uid = firebase?.auth()?.currentUser?.uid;
         grid.innerHTML = this.members.map(m => {
             const name = m.displayName || m.name || 'Unbekannt', role = m.role || 'player', online = this.isOnline(m.id), sessions = m.sessionsAttended || 0, lastSeen = m.lastSeen?.toDate?.(), notes = this.playerNotes[m.id] || '', color = m.color || this.stringToColor(name), isMe = m.id === uid, charCount = this.getPlayerCharCount(m.id);
-            return `<div class="player-card"><div class="player-card__header"><div class="player-card__avatar" style="background:${color}">${name[0].toUpperCase()}<div class="player-card__status player-card__status--${online?'online':'offline'}"></div></div><div class="player-card__info"><div class="player-card__name">${name}${isMe?' (Du)':''}<span class="player-card__role player-card__role--${role}">${this.getRoleLabel(role)}</span></div><div class="player-card__meta">${online?'🟢 Online':lastSeen?'Zuletzt: '+this.formatDate(lastSeen):'⚫ Offline'}</div></div>${!isMe&&role!=='gm'?`<div class="player-card__menu"><button class="player-card__menu-btn" onclick="GM.toggleMenu('${m.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="dropdown" id="menu-${m.id}"><div class="dropdown__item" onclick="GM.openPlayerModal('${m.id}')">✏️ Bearbeiten</div><div class="dropdown__item" onclick="GM.setRole('${m.id}','cogm')">⭐ Zum Co-GM</div><div class="dropdown__item" onclick="GM.setRole('${m.id}','player')">👤 Zum Spieler</div><div class="dropdown__item" onclick="GM.setRole('${m.id}','spectator')">👁 Zum Zuschauer</div><div class="dropdown__divider"></div><div class="dropdown__item dropdown__item--danger" onclick="GM.openKickModal('${m.id}','${name}')">❌ Kicken/Bannen</div></div></div>`:''}</div><div class="player-card__body"><div class="player-card__stats"><div class="player-card__stat"><div class="player-card__stat-value">${sessions}</div><div class="player-card__stat-label">Sessions</div></div><div class="player-card__stat"><div class="player-card__stat-value">${charCount}</div><div class="player-card__stat-label">Charaktere</div></div></div><div class="player-card__notes"><div class="player-card__notes-header"><span class="player-card__notes-title">📝 Notizen</span><button class="player-card__notes-edit" onclick="GM.openPlayerModal('${m.id}')">Bearbeiten</button></div>${notes?`<div class="player-card__notes-text">${notes}</div>`:'<div style="color:rgba(255,255,255,0.3);font-style:italic;font-size:13px">Keine</div>'}</div></div></div>`;
+            return `<div class="player-card"><div class="player-card__header"><div class="player-card__avatar" style="background:${color}">${name[0].toUpperCase()}<div class="player-card__status player-card__status--${online?'online':'offline'}"></div></div><div class="player-card__info"><div class="player-card__name">${name}${isMe?' (Du)':''}<span class="player-card__role player-card__role--${role}">${this.getRoleLabel(role)}</span></div><div class="player-card__meta">${online?'🟢 Online':lastSeen?'Zuletzt: '+this.formatDate(lastSeen):'⚫ Offline'}</div></div>${!isMe&&role!=='gm'?`<div class="player-card__menu"><button class="player-card__menu-btn" onclick="GM.toggleMenu('${m.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="dropdown" id="menu-${m.id}"><div class="dropdown__item" onclick="GM.openPlayerModal('${m.id}')">✏️ Bearbeiten</div><div class="dropdown__item" onclick="GM.setRole('${m.id}','cogm')">⭐ Zum Co-GM</div><div class="dropdown__item" onclick="GM.setRole('${m.id}','player')">👤 Zum Spieler</div><div class="dropdown__item" onclick="GM.setRole('${m.id}','spectator')">👁 Zum Zuschauer</div><div class="dropdown__divider"></div><div class="dropdown__item dropdown__item--danger" onclick="GM.openKickModal('${m.id}')">❌ Kicken/Bannen</div></div></div>`:''}</div><div class="player-card__body"><div class="player-card__stats"><div class="player-card__stat"><div class="player-card__stat-value">${sessions}</div><div class="player-card__stat-label">Sessions</div></div><div class="player-card__stat"><div class="player-card__stat-value">${charCount}</div><div class="player-card__stat-label">Charaktere</div></div></div><div class="player-card__notes"><div class="player-card__notes-header"><span class="player-card__notes-title">📝 Notizen</span><button class="player-card__notes-edit" onclick="GM.openPlayerModal('${m.id}')">Bearbeiten</button></div>${notes?`<div class="player-card__notes-text">${notes}</div>`:'<div style="color:rgba(255,255,255,0.3);font-style:italic;font-size:13px">Keine</div>'}</div></div></div>`;
         }).join('');
     },
     
     getRoleLabel(r) { return {gm:'GM',cogm:'Co-GM',spectator:'Zuschauer'}[r]||'Spieler'; },
     toggleMenu(id) { document.querySelectorAll('.dropdown').forEach(d=>{if(d.id!=='menu-'+id)d.classList.remove('active');}); document.getElementById('menu-'+id)?.classList.toggle('active'); },
-    openPlayerModal(id) { this.currentEditPlayer=id; const m=this.members.find(x=>x.id===id); if(!m)return; document.getElementById('modalRole').value=m.role||'player'; document.getElementById('modalNotes').value=this.playerNotes[id]||''; document.getElementById('playerModal').classList.add('active'); document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('active')); },
+    openPlayerModal(id) { 
+        this.currentEditPlayer = id; 
+        const m = this.members.find(x => x.id === id); 
+        if (!m) return; 
+        const uid = firebase?.auth()?.currentUser?.uid;
+        const isMe = id === uid;
+        const isGM = m.role === 'gm';
+        // Hide role field if editing GM or self (to prevent accidental role changes)
+        const roleField = document.getElementById('roleField');
+        if (roleField) {
+            roleField.style.display = (isGM || isMe) ? 'none' : 'block';
+        }
+        document.getElementById('modalRole').value = m.role || 'player'; 
+        document.getElementById('modalNotes').value = this.playerNotes[id] || ''; 
+        document.getElementById('playerModal').classList.add('active'); 
+        document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active')); 
+    },
     
     async savePlayerEdit() {
         if (!this.currentEditPlayer) return;
-        const role = document.getElementById('modalRole').value, notes = document.getElementById('modalNotes').value, oldMember = this.members.find(m => m.id === this.currentEditPlayer), oldRole = oldMember?.role;
+        const notes = document.getElementById('modalNotes').value;
+        const uid = firebase?.auth()?.currentUser?.uid;
+        const oldMember = this.members.find(m => m.id === this.currentEditPlayer);
+        const oldRole = oldMember?.role;
+        const isMe = this.currentEditPlayer === uid;
+        const isGM = oldRole === 'gm';
+        
         try {
-            await this.ref().collection('members').doc(this.currentEditPlayer).update({ role });
-            this.playerNotes[this.currentEditPlayer] = notes; localStorage.setItem(`rift_player_notes_${this.roomCode}`, JSON.stringify(this.playerNotes));
-            if (role === 'cogm' && oldRole !== 'cogm') await this.sendRoleNotification(this.currentEditPlayer, 'cogm');
-            this.closeModal('player'); this.toast('Gespeichert!', 'success'); this.renderPlayers();
-        } catch (e) { this.toast('Fehler', 'error'); }
+            // Only update role if NOT editing GM or self
+            if (!isGM && !isMe) {
+                const role = document.getElementById('modalRole').value;
+                await this.ref().collection('members').doc(this.currentEditPlayer).update({ role });
+                if (role === 'cogm' && oldRole !== 'cogm') await this.sendRoleNotification(this.currentEditPlayer, 'cogm');
+            }
+            // Always save notes locally
+            this.playerNotes[this.currentEditPlayer] = notes; 
+            localStorage.setItem(`rift_player_notes_${this.roomCode}`, JSON.stringify(this.playerNotes));
+            this.closeModal('player'); 
+            this.toast('Gespeichert!', 'success'); 
+            this.renderPlayers();
+        } catch (e) { 
+            console.error('[GM] Save error:', e);
+            this.toast('Fehler', 'error'); 
+        }
     },
     
     async setRole(id, role) {
-        const old = this.members.find(m => m.id === id), oldRole = old?.role;
+        const uid = firebase?.auth()?.currentUser?.uid;
+        const old = this.members.find(m => m.id === id);
+        const oldRole = old?.role;
+        
+        // SICHERHEIT: Nicht sich selbst oder den GM ändern
+        if (id === uid) {
+            this.toast('Eigene Rolle nicht änderbar!', 'error');
+            return;
+        }
+        if (oldRole === 'gm') {
+            this.toast('GM-Rolle nicht änderbar!', 'error');
+            return;
+        }
+        
         try {
             await this.ref().collection('members').doc(id).update({ role });
             if (role === 'cogm' && oldRole !== 'cogm') await this.sendRoleNotification(id, 'cogm');
-            this.toast('Rolle geändert!', 'success'); document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active'));
+            this.toast('Rolle geändert!', 'success'); 
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active'));
         } catch (e) { this.toast('Fehler', 'error'); }
     },
     
@@ -554,7 +658,16 @@ const GM = {
         } catch (e) { console.error('Role notification failed:', e); }
     },
     
-    openKickModal(id, name) { this.currentKickPlayer = id; document.getElementById('kickName').textContent = name; document.getElementById('kickReason').value = ''; document.getElementById('kickBan').checked = false; document.getElementById('kickModal').classList.add('active'); document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active')); },
+    openKickModal(id) { 
+        this.currentKickPlayer = id; 
+        const member = this.members.find(m => m.id === id);
+        const name = member?.displayName || member?.name || 'Unbekannt';
+        document.getElementById('kickName').textContent = name; 
+        document.getElementById('kickReason').value = ''; 
+        document.getElementById('kickBan').checked = false; 
+        document.getElementById('kickModal').classList.add('active'); 
+        document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active')); 
+    },
     
     async confirmKick() {
         if (!this.currentKickPlayer) return;
@@ -567,7 +680,10 @@ const GM = {
     },
     
     getPlayerCharCount(id) { return this.characters.filter(c => c.owner === id || c.oderId === id || c.userId === id).length; },
-    updateTransferSelect() { const s = document.getElementById('transferSelect'), uid = firebase?.auth()?.currentUser?.uid, list = this.members.filter(m => m.role !== 'gm' && m.id !== uid); s.innerHTML = '<option value="">Wählen...</option>' + list.map(m => `<option value="${m.id}">${m.displayName || m.name || '?'}</option>`).join(''); },
+    updateTransferSelect() { 
+        const s = document.getElementById('transferSelect'), uid = firebase?.auth()?.currentUser?.uid, list = this.members.filter(m => m.role !== 'gm' && m.id !== uid); 
+        s.innerHTML = '<option value="">Wählen...</option>' + list.map(m => `<option value="${m.id}">${this.escapeHtml(m.displayName || m.name || '?')}</option>`).join(''); 
+    },
     updateStats() { document.getElementById('statOnline').textContent = this.members.filter(m => this.isOnline(m.id)).length; document.getElementById('statPlayers').textContent = this.members.length; },
     
     // CHARACTERS
@@ -587,7 +703,7 @@ const GM = {
             const name = c.name || c.characterName || 'Unbenannt', cls = c.class || c.characterClass || c.klasse || c.data?.class || '-', lvl = c.level || c.stufe || c.data?.level || '-', color = c.color || '#8b5cf6';
             const hp = c.hp || c.currentHP || c.currentHp || c.data?.hp || 10, max = c.maxHp || c.maxHP || c.hpMax || c.data?.maxHp || hp || 1, pct = Math.round((hp / max) * 100), hpClass = pct > 50 ? 'high' : pct > 25 ? 'mid' : 'low';
             const ownerId = c.owner || c.oderId || c.userId, owner = this.members.find(m => m.id === ownerId), ownerName = owner?.displayName || owner?.name || 'Unbekannt', online = this.isOnline(ownerId);
-            return `<div class="char-card"><div class="char-card__header"><div class="char-card__avatar" style="background:${color}">${name[0].toUpperCase()}</div><div class="char-card__info"><div class="char-card__name">${name}</div><div class="char-card__meta">${cls} • Lvl ${lvl}</div><div class="char-card__owner"><div class="char-card__online char-card__online--${online?'on':'off'}"></div>${ownerName}</div></div></div><div class="hp-section"><div class="hp-header"><span class="hp-header__label">HP</span><span class="hp-header__value">${hp}/${max}</span></div><div class="hp-bar"><div class="hp-bar__fill hp-bar__fill--${hpClass}" style="width:${pct}%"></div></div><div class="hp-controls"><input type="number" class="gm-input" id="hp-${c.id}" value="5" min="1"><button class="hp-btn hp-btn--dmg" onclick="GM.modHP('${c.id}',-1)">−Dmg</button><button class="hp-btn hp-btn--heal" onclick="GM.modHP('${c.id}',1)">+Heal</button></div></div><div class="char-card__actions"><button class="gm-btn gm-btn--secondary gm-btn--small" onclick="GM.openCharTransfer('${c.id}','${name}')">Übertragen</button></div></div>`;
+            return `<div class="char-card"><div class="char-card__header"><div class="char-card__avatar" style="background:${color}">${name[0].toUpperCase()}</div><div class="char-card__info"><div class="char-card__name">${name}</div><div class="char-card__meta">${cls} • Lvl ${lvl}</div><div class="char-card__owner"><div class="char-card__online char-card__online--${online?'on':'off'}"></div>${ownerName}</div></div></div><div class="hp-section"><div class="hp-header"><span class="hp-header__label">HP</span><span class="hp-header__value">${hp}/${max}</span></div><div class="hp-bar"><div class="hp-bar__fill hp-bar__fill--${hpClass}" style="width:${pct}%"></div></div><div class="hp-controls"><input type="number" class="gm-input" id="hp-${c.id}" value="5" min="1"><button class="hp-btn hp-btn--dmg" onclick="GM.modHP('${c.id}',-1)">−Dmg</button><button class="hp-btn hp-btn--heal" onclick="GM.modHP('${c.id}',1)">+Heal</button></div></div><div class="char-card__actions"><button class="gm-btn gm-btn--secondary gm-btn--small" onclick="GM.openCharTransfer('${c.id}')">Übertragen</button></div></div>`;
         }).join('');
     },
     
@@ -603,7 +719,14 @@ const GM = {
     
     async approveChar(id) { try { await this.ref().collection('characters').doc(id).update({ approved: true }); this.toast('Genehmigt!', 'success'); } catch (e) { this.toast('Fehler', 'error'); } },
     async rejectChar(id) { if (!confirm('Ablehnen?')) return; try { await this.ref().collection('characters').doc(id).delete(); this.toast('Abgelehnt', 'success'); } catch (e) { this.toast('Fehler', 'error'); } },
-    openCharTransfer(id, name) { this.currentTransferChar = id; document.getElementById('charTransferName').textContent = name; document.getElementById('charTransferTarget').innerHTML = '<option value="">Wählen...</option>' + this.members.map(m => `<option value="${m.id}">${m.displayName || m.name || '?'}</option>`).join(''); document.getElementById('charModal').classList.add('active'); },
+    openCharTransfer(id) { 
+        this.currentTransferChar = id; 
+        const char = this.characters.find(c => c.id === id);
+        const name = char?.name || char?.characterName || 'Charakter';
+        document.getElementById('charTransferName').textContent = name; 
+        document.getElementById('charTransferTarget').innerHTML = '<option value="">Wählen...</option>' + this.members.map(m => `<option value="${m.id}">${this.escapeHtml(m.displayName || m.name || '?')}</option>`).join(''); 
+        document.getElementById('charModal').classList.add('active'); 
+    },
     async confirmCharTransfer() { const target = document.getElementById('charTransferTarget').value; if (!target || !this.currentTransferChar) return; try { await this.ref().collection('characters').doc(this.currentTransferChar).update({ owner: target, oderId: target, userId: target }); this.closeModal('char'); this.toast('Übertragen!', 'success'); } catch (e) { this.toast('Fehler', 'error'); } },
     async modHP(id, dir) { const input = document.getElementById('hp-' + id), amt = parseInt(input.value) || 0, c = this.characters.find(x => x.id === id); if (!c) return; const hp = c.hp || c.currentHP || c.currentHp || 0, max = c.maxHp || c.maxHP || c.hpMax || 100, newHP = Math.max(0, Math.min(max, hp + (amt * dir))); try { await this.ref().collection('characters').doc(id).update({ hp: newHP, currentHP: newHP, currentHp: newHP }); } catch (e) { this.toast('Fehler', 'error'); } },
     
@@ -667,15 +790,166 @@ const GM = {
     
     // TOOLS
     async sendBroadcast() { const msg = document.getElementById('broadcastInput').value.trim(); if (!msg) { this.toast('Nachricht!', 'error'); return; } const sound = document.getElementById('broadcastSound').checked; try { await this.ref().collection('broadcasts').add({ message: msg, type: 'gm', sound, timestamp: firebase.firestore.FieldValue.serverTimestamp() }); await this.ref().update({ currentBroadcast: { message: msg, type: 'gm', sound, timestamp: firebase.firestore.FieldValue.serverTimestamp() } }); document.getElementById('broadcastInput').value = ''; this.toast('Gesendet!', 'success'); } catch (e) { this.toast('Fehler', 'error'); } },
-    async transferGM() { const target = document.getElementById('transferSelect').value; if (!target) return; const name = this.members.find(m => m.id === target)?.displayName || '?'; if (!confirm(`GM an "${name}" übertragen?`)) return; const uid = firebase?.auth()?.currentUser?.uid; try { await this.ref().update({ gm: target, gmId: target }); await this.ref().collection('members').doc(target).update({ role: 'gm' }); if (uid) await this.ref().collection('members').doc(uid).update({ role: 'player' }); this.toast('Übertragen!', 'success'); setTimeout(() => window.location.href = 'index.html', 1500); } catch (e) { this.toast('Fehler', 'error'); } },
+    
+    // Geheimer GM-Würfel (nur für GM sichtbar)
+    async secretRoll(formula) {
+        if (!formula) {
+            formula = prompt('Würfelformel eingeben (z.B. 1d20, 2d6+5):', '1d20');
+            if (!formula) return;
+        }
+        
+        // Einfacher Dice Parser
+        const match = formula.match(/(\d+)?d(\d+)([+-]\d+)?/i);
+        if (!match) {
+            this.toast('Ungültige Formel!', 'error');
+            return;
+        }
+        
+        const count = parseInt(match[1]) || 1;
+        const sides = parseInt(match[2]);
+        const modifier = parseInt(match[3]) || 0;
+        
+        let results = [];
+        let total = 0;
+        for (let i = 0; i < count; i++) {
+            const roll = Math.floor(Math.random() * sides) + 1;
+            results.push(roll);
+            total += roll;
+        }
+        total += modifier;
+        
+        const resultStr = count > 1 ? `[${results.join(', ')}]` : results[0];
+        const modStr = modifier !== 0 ? (modifier > 0 ? `+${modifier}` : modifier) : '';
+        
+        // Nur lokal anzeigen, nicht an Spieler senden
+        this.toast(`🎲 Geheim: ${formula} = ${resultStr}${modStr} → ${total}`, 'info');
+        console.log(`[GM Secret Roll] ${formula} = ${resultStr}${modStr} → ${total}`);
+    },
+    
+    // Private Nachricht an einen Spieler
+    async sendPrivateMessage(targetId) {
+        if (!targetId) {
+            // Modal öffnen um Spieler auszuwählen
+            const players = this.members.filter(m => m.role !== 'gm');
+            if (!players.length) {
+                this.toast('Keine Spieler im Raum!', 'error');
+                return;
+            }
+            
+            const select = players.map(p => `${p.displayName || p.name}: ${p.id}`).join('\n');
+            const choice = prompt(`Spieler-ID eingeben:\n${select}`);
+            if (!choice) return;
+            targetId = choice.includes(':') ? choice.split(':')[1].trim() : choice.trim();
+        }
+        
+        const message = prompt('Private Nachricht:');
+        if (!message) return;
+        
+        const targetMember = this.members.find(m => m.id === targetId);
+        const targetName = targetMember?.displayName || targetMember?.name || 'Spieler';
+        
+        try {
+            await this.ref().collection('broadcasts').add({
+                message: message,
+                type: 'private',
+                targetUser: targetId,
+                sound: true,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            this.toast(`Nachricht an ${targetName} gesendet!`, 'success');
+        } catch (e) {
+            this.toast('Fehler beim Senden', 'error');
+        }
+    },
+    async transferGM() { 
+        // NUR der Haupt-GM darf übertragen
+        const uid = firebase?.auth()?.currentUser?.uid;
+        const member = this.members.find(m => m.id === uid);
+        if (member?.role !== 'gm') {
+            this.toast('Nur der Haupt-GM kann die Rolle übertragen!', 'error');
+            return;
+        }
+        
+        const target = document.getElementById('transferSelect').value; 
+        if (!target) return; 
+        const targetMember = this.members.find(m => m.id === target);
+        const name = targetMember?.displayName || targetMember?.name || '?'; 
+        if (!confirm(`GM-Rolle an "${name}" übertragen? Du wirst zum Spieler.`)) return; 
+        
+        try { 
+            await this.ref().update({ gm: target, gmId: target }); 
+            await this.ref().collection('members').doc(target).update({ role: 'gm' }); 
+            await this.ref().collection('members').doc(uid).update({ role: 'player' }); 
+            this.toast('Übertragen!', 'success'); 
+            setTimeout(() => window.location.href = 'index.html', 1500); 
+        } catch (e) { this.toast('Fehler', 'error'); } 
+    },
     loadNotes() { document.getElementById('gmNotes').value = localStorage.getItem(`rift_gm_notes_${this.roomCode}`) || ''; },
     saveNotes() { localStorage.setItem(`rift_gm_notes_${this.roomCode}`, document.getElementById('gmNotes').value); document.getElementById('notesStatus').textContent = '✓'; document.getElementById('notesStatus').style.color = '#22c55e'; },
     
     // DANGER ZONE
-    async leaveRoom() { if (!confirm('Verlassen?')) return; const uid = firebase?.auth()?.currentUser?.uid; if (!uid) return; try { await this.ref().collection('members').doc(uid).delete(); localStorage.removeItem('rift_current_room'); window.location.href = 'rooms.html'; } catch (e) { this.toast('Fehler', 'error'); } },
-    async deleteRoom() { if (!confirm('Raum LÖSCHEN?')) return; if (!confirm('WIRKLICH?')) return; try { const subs = ['members', 'characters', 'sessions', 'chat', 'dice', 'broadcasts', 'waitlist', 'banned', 'notes', 'changelog']; for (const sub of subs) { const snap = await this.ref().collection(sub).get(); for (const doc of snap.docs) await doc.ref.delete(); } await this.ref().delete(); localStorage.removeItem('rift_current_room'); this.toast('Gelöscht!', 'success'); setTimeout(() => window.location.href = 'rooms.html', 1500); } catch (e) { this.toast('Fehler', 'error'); } },
+    async leaveRoom() { 
+        const uid = firebase?.auth()?.currentUser?.uid; 
+        if (!uid) return;
+        
+        // GM darf nicht verlassen ohne Übertragung
+        const member = this.members.find(m => m.id === uid);
+        if (member?.role === 'gm') {
+            this.toast('Als GM musst du erst die Rolle übertragen!', 'error');
+            return;
+        }
+        
+        if (!confirm('Verlassen?')) return; 
+        try { 
+            await this.ref().collection('members').doc(uid).delete(); 
+            localStorage.removeItem('rift_current_room'); 
+            window.location.href = 'sessions.html'; 
+        } catch (e) { this.toast('Fehler', 'error'); } 
+    },
+    async deleteRoom() { 
+        // NUR der Haupt-GM darf den Raum löschen
+        const uid = firebase?.auth()?.currentUser?.uid;
+        const member = this.members.find(m => m.id === uid);
+        if (member?.role !== 'gm') {
+            this.toast('Nur der Haupt-GM kann den Raum löschen!', 'error');
+            return;
+        }
+        
+        if (!confirm('Raum LÖSCHEN?')) return; 
+        if (!confirm('WIRKLICH? Alle Daten werden unwiderruflich gelöscht!')) return; 
+        
+        this.toast('Lösche Raum...', 'info');
+        
+        try { 
+            const subs = ['members', 'characters', 'sessions', 'chat', 'dice', 'broadcasts', 'waitlist', 'banned', 'notes', 'changelog', 'polls', 'maps']; 
+            for (const sub of subs) { 
+                const snap = await this.ref().collection(sub).get(); 
+                for (const doc of snap.docs) await doc.ref.delete(); 
+            } 
+            await this.ref().delete(); 
+            localStorage.removeItem('rift_current_room'); 
+            this.toast('Gelöscht!', 'success'); 
+            setTimeout(() => window.location.href = 'sessions.html', 1500); 
+        } catch (e) { 
+            console.error('[GM] Delete error:', e);
+            this.toast('Fehler beim Löschen', 'error'); 
+        } 
+    },
     
     // UTILITIES
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+    
+    async isMainGM() {
+        // Prüft ob aktueller User der Haupt-GM ist (nicht nur Co-GM)
+        const uid = firebase?.auth()?.currentUser?.uid;
+        if (!uid) return false;
+        const member = this.members.find(m => m.id === uid);
+        return member?.role === 'gm';
+    },
+    
     copyCode() { navigator.clipboard.writeText(this.roomCode); this.toast('Kopiert!', 'success'); },
     closeModal(name) { document.getElementById(name + 'Modal')?.classList.remove('active'); this.currentEditPlayer = null; this.currentKickPlayer = null; this.currentTransferChar = null; this.currentEditSession = null; },
     formatDate(d) { if (!d) return '-'; const now = new Date(), diff = now - d; if (diff < 60000) return 'Gerade eben'; if (diff < 3600000) return Math.floor(diff / 60000) + ' Min'; if (diff < 86400000) return Math.floor(diff / 3600000) + ' Std'; return d.toLocaleDateString('de', { day: '2-digit', month: '2-digit' }); },
