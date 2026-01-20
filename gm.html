@@ -1664,8 +1664,16 @@
                                 <div class="bc-card">
                                     <div class="bc-card__header"><div class="bc-card__title">⚔️ Kampf beginnt!</div></div>
                                     <div class="bc-card__body">
-                                        <div class="bc-field"><input type="text" class="bc-input" id="combatTitle" placeholder="Titel" value="Ein Kampf beginnt."></div>
-                                        <div class="bc-field"><input type="text" class="bc-input" id="combatSubtitle" placeholder="Untertitel (optional)"></div>
+                                        <div class="bc-field"><input type="text" class="bc-input" id="combatTitle" placeholder="Titel" value="Ein Kampf beginnt!"></div>
+                                        <div class="bc-field"><input type="text" class="bc-input" id="combatSubtitle" placeholder="Untertitel" value="Macht euch bereit."></div>
+                                        <div class="bc-field" style="display:flex;align-items:center;gap:8px;">
+                                            <input type="checkbox" id="combatSound" style="width:18px;height:18px;">
+                                            <label for="combatSound" style="margin:0;cursor:pointer;">🔊 Mit Sound</label>
+                                        </div>
+                                        <div class="bc-field" style="display:flex;align-items:center;gap:8px;">
+                                            <input type="checkbox" id="combatParticles" checked style="width:18px;height:18px;">
+                                            <label for="combatParticles" style="margin:0;cursor:pointer;">✨ Mit Partikel-Effekt</label>
+                                        </div>
                                         <button class="bc-btn bc-btn--full bc-btn--danger" onclick="BC.sendCombatStart()">⚔️ Kampf starten!</button>
                                     </div>
                                 </div>
@@ -3250,9 +3258,10 @@
             },
             
             async sendCombatStart() {
-                const title = document.getElementById('combatTitle').value.trim() || 'Ein Kampf beginnt.';
+                const title = document.getElementById('combatTitle').value.trim() || 'Ein Kampf beginnt!';
                 const subtitle = document.getElementById('combatSubtitle').value.trim() || 'Macht euch bereit.';
-                const withSound = document.getElementById('combatSound')?.checked !== false;
+                const withSound = document.getElementById('combatSound')?.checked === true;
+                const withParticles = document.getElementById('combatParticles')?.checked !== false;
                 
                 try {
                     await this.ref().update({
@@ -3261,6 +3270,7 @@
                             title,
                             subtitle,
                             sound: withSound ? 'combat' : 'none',
+                            particles: withParticles,
                             id: Date.now(),
                             timestamp: firebase.firestore.FieldValue.serverTimestamp()
                         }
@@ -4208,29 +4218,63 @@
             
             async kickPlayer(id) {
                 const member = this.members.find(m => m.id === id);
+                const memberName = member?.displayName || member?.name || 'Unbekannt';
                 try {
+                    // Erst Kick-Broadcast senden (damit der Spieler es mitbekommt)
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'kick',
+                            targetId: id,
+                            targetName: memberName,
+                            message: 'Du wurdest aus dem Raum entfernt.',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    // Kurz warten damit Broadcast ankommt
+                    await new Promise(r => setTimeout(r, 500));
+                    // Dann aus members entfernen
                     await this.ref().collection('members').doc(id).delete();
                     this.toast('Spieler gekickt', 'success');
-                    this.addLog('member', `Spieler gekickt: ${member?.displayName || member?.name}`);
+                    this.addLog('member', `Spieler gekickt: ${memberName}`);
                 } catch (e) {
-                    this.toast('Fehler', 'error');
+                    console.error('Kick error:', e);
+                    this.toast('Fehler beim Kicken', 'error');
                 }
             },
             
             async banPlayer(id) {
                 const member = this.members.find(m => m.id === id);
+                const memberName = member?.displayName || member?.name || 'Unbekannt';
                 const reason = prompt('Grund für Ban (optional):') || '';
                 try {
+                    // Erst Ban-Broadcast senden (damit der Spieler es mitbekommt)
+                    await this.ref().update({
+                        broadcast: {
+                            type: 'ban',
+                            targetId: id,
+                            targetName: memberName,
+                            reason: reason,
+                            message: reason ? `Du wurdest gebannt. Grund: ${reason}` : 'Du wurdest gebannt.',
+                            id: Date.now(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }
+                    });
+                    // Kurz warten damit Broadcast ankommt
+                    await new Promise(r => setTimeout(r, 500));
+                    // In banned collection speichern
                     await this.ref().collection('banned').doc(id).set({
-                        displayName: member?.displayName || member?.name,
+                        displayName: memberName,
                         reason,
                         bannedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+                    // Aus members entfernen
                     await this.ref().collection('members').doc(id).delete();
                     this.toast('Spieler gebannt', 'success');
-                    this.addLog('member', `Spieler gebannt: ${member?.displayName || member?.name}`);
+                    this.addLog('member', `Spieler gebannt: ${memberName}`);
                 } catch (e) {
-                    this.toast('Fehler', 'error');
+                    console.error('Ban error:', e);
+                    this.toast('Fehler beim Bannen', 'error');
                 }
             },
             
@@ -4498,7 +4542,7 @@
                 
                 if (roomCodeDisplay) roomCodeDisplay.textContent = this.roomCode.replace(/(.{3})(.{3})/, '$1-$2');
                 if (roomCodeInput) roomCodeInput.value = this.roomCode;
-                if (inviteLinkInput) inviteLinkInput.value = `${window.location.origin}/join.html?room=${this.roomCode}`;
+                if (inviteLinkInput) inviteLinkInput.value = `${window.location.origin}/login.html?room=${this.roomCode}`;
                 
                 // Load room settings
                 this.loadRoomSettings();
