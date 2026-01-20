@@ -4324,14 +4324,12 @@
                     const lastSeen = m.lastSeen?.toDate?.();
                     
                     const statusClass = paused ? 'paused' : (online ? 'online' : 'offline');
-                    const statusText = paused ? '<img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width:16px;height:16px;vertical-align:middle;"> Pausiert' : (online ? '🟢 Online' : (lastSeen ? this.formatDate(lastSeen) : '⚫ Offline'));
+                    const statusText = paused ? '⏸️ Pausiert' : (online ? '🟢 Online' : (lastSeen ? this.formatDate(lastSeen) : '⚫ Offline'));
                     
                     const roleLabel = { gm: 'GM', cogm: 'Co-GM', player: 'Spieler' }[role] || 'Spieler';
                     const roleClass = role;
                     
-                    const pauseBtnContent = paused 
-                        ? '▶️' 
-                        : '<img src="https://cdn.pixabay.com/animation/2024/04/02/07/57/07-57-40-974_512.gif" style="width:20px;height:20px;">';
+                    const pauseBtnContent = paused ? '▶️' : '⏸️';
                     
                     return `
                         <div class="player-management-item" data-id="${m.id}">
@@ -4661,6 +4659,46 @@
                     const stat2Val = isWA ? `${moral}%` : (isDnD ? moral : `${moral}%`);
                     const stat3Val = isWA ? resonanz : (isDnD ? (resonanz >= 0 ? `+${resonanz}` : resonanz) : resonanz);
                     
+                    // Extract Fokus, Fokus-Fähigkeiten, Schwäche for Worlds Apart
+                    let fokusHtml = '';
+                    if (isWA) {
+                        const fokus = d.fokus || {};
+                        const schwaeche = d.schwaeche || {};
+                        
+                        const fokusName = fokus.name || fokus.title || '–';
+                        const fokusAttr = fokus.attribute || fokus.attr || '';
+                        const fokusFaehigkeiten = fokus.abilities || fokus.skills || [];
+                        const schwaecheName = schwaeche.name || schwaeche.title || '–';
+                        const schwacheAttr = schwaeche.attribute || schwaeche.attr || '';
+                        
+                        fokusHtml = `
+                            <div class="character-card__fokus" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);">
+                                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                    <div style="flex:1;background:rgba(139,92,246,0.15);padding:8px;border-radius:6px;">
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;">🎯 Fokus</div>
+                                        <div style="font-size:13px;font-weight:600;color:#a78bfa;">${this.escapeHtml(fokusName)}</div>
+                                        ${fokusAttr ? `<div style="font-size:11px;color:rgba(255,255,255,0.5);">${fokusAttr}</div>` : ''}
+                                    </div>
+                                    <div style="flex:1;background:rgba(239,68,68,0.15);padding:8px;border-radius:6px;">
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;">⚠️ Schwäche</div>
+                                        <div style="font-size:13px;font-weight:600;color:#f87171;">${this.escapeHtml(schwaecheName)}</div>
+                                        ${schwacheAttr ? `<div style="font-size:11px;color:rgba(255,255,255,0.5);">${schwacheAttr}</div>` : ''}
+                                    </div>
+                                </div>
+                                ${fokusFaehigkeiten.length > 0 ? `
+                                    <div style="background:rgba(139,92,246,0.1);padding:8px;border-radius:6px;">
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:4px;">✨ Fokus-Fähigkeiten</div>
+                                        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                                            ${fokusFaehigkeiten.filter(f => f && f.name).map(f => `
+                                                <span style="font-size:11px;background:rgba(139,92,246,0.3);padding:2px 6px;border-radius:4px;">${this.escapeHtml(f.name)}</span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }
+                    
                     return `
                         <div class="character-card" data-id="${c.id}" data-ruleset="${c.ruleset || 'unknown'}">
                             <div class="character-card__header">
@@ -4706,6 +4744,7 @@
                                     <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'moral', 1)" title="${stat2Label} erhöhen">${isDnD ? '' : '+MO'}</button>
                                     <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'resonanz', 1)" title="${stat3Label} erhöhen">${isDnD ? '' : '+RE'}</button>
                                 </div>
+                                ${fokusHtml}
                             </div>
                         </div>
                     `;

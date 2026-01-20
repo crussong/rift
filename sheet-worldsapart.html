@@ -4590,6 +4590,196 @@
             populateFields();
             initializeSkills();
             updateAllCalculations();
+            
+            // Initialize Firestore sync AFTER loading character
+            setTimeout(() => {
+                initializeFirestoreSync();
+            }, 1000);
+        }
+        
+        // Global variable for Firestore unsubscribe
+        let firestoreCharListener = null;
+        
+        function initializeFirestoreSync() {
+            // Get room code from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            let roomCode = urlParams.get('room') || localStorage.getItem('rift_current_room');
+            const charId = urlParams.get('id') || window.currentCharId;
+            
+            // Save roomCode to localStorage if from URL
+            if (urlParams.get('room')) {
+                localStorage.setItem('rift_current_room', urlParams.get('room'));
+                console.log('[WA-Sheet] Saved roomCode to localStorage:', urlParams.get('room'));
+            }
+            
+            console.log('[WA-Sheet] initializeFirestoreSync - roomCode:', roomCode, 'charId:', charId);
+            
+            if (!roomCode) {
+                console.log('[WA-Sheet] No roomCode, Firestore sync disabled');
+                return;
+            }
+            
+            if (!charId) {
+                console.log('[WA-Sheet] No charId yet, will retry...');
+                setTimeout(() => initializeFirestoreSync(), 500);
+                return;
+            }
+            
+            // Wait for Firebase
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                console.log('[WA-Sheet] Firebase not ready, retrying in 500ms...');
+                setTimeout(() => initializeFirestoreSync(), 500);
+                return;
+            }
+            
+            // Check auth state
+            const user = firebase.auth().currentUser;
+            if (user) {
+                setupCharacterListener(roomCode, charId);
+            } else {
+                // Wait for auth
+                console.log('[WA-Sheet] Waiting for auth...');
+                firebase.auth().onAuthStateChanged(authUser => {
+                    if (authUser && !firestoreCharListener) {
+                        setupCharacterListener(roomCode, charId);
+                    }
+                });
+            }
+        }
+        
+        function setupCharacterListener(roomCode, charId) {
+            const normalizedCode = roomCode.replace(/-/g, '').toUpperCase();
+            const db = firebase.firestore();
+            
+            console.log('[WA-Sheet] Setting up Firestore listener:', normalizedCode, charId);
+            
+            // Unsubscribe from previous
+            if (firestoreCharListener) {
+                firestoreCharListener();
+            }
+            
+            // Listen to character document in room
+            firestoreCharListener = db.collection('rooms').doc(normalizedCode)
+                .collection('characters').doc(charId)
+                .onSnapshot(doc => {
+                    if (!doc.exists) {
+                        console.log('[WA-Sheet] Character doc does not exist in room');
+                        return;
+                    }
+                    
+                    const serverData = doc.data();
+                    console.log('[WA-Sheet] Received Firestore update:', serverData);
+                    
+                    handleServerUpdate(serverData);
+                    
+                }, error => {
+                    console.error('[WA-Sheet] Firestore listener error:', error);
+                });
+            
+            console.log('[WA-Sheet] Firestore listener active');
+        }
+        
+        // Track if this is the first update (to skip initial sync)
+        let isFirstUpdate = true;
+        let lastServerHealth = null;
+        let lastServerMoral = null;
+        
+        function handleServerUpdate(serverData) {
+            const d = serverData.data || {};
+            
+            // Get HP/Health from multiple possible locations
+            let serverHealth = null;
+            if (d.status?.health !== undefined) {
+                serverHealth = parseInt(d.status.health);
+            } else if (serverData.hp !== undefined) {
+                serverHealth = parseInt(serverData.hp);
+            }
+            
+            // Get Moral from multiple possible locations  
+            let serverMoral = null;
+            if (d.status?.moral !== undefined) {
+                serverMoral = parseInt(d.status.moral);
+            } else if (serverData.moral !== undefined) {
+                serverMoral = parseInt(serverData.moral);
+            }
+            
+            console.log('[WA-Sheet] handleServerUpdate:', {
+                isFirstUpdate,
+                serverHealth,
+                serverMoral,
+                lastServerHealth,
+                lastServerMoral,
+                localHealth: characterData.health.current,
+                localMoral: characterData.moral.current
+            });
+            
+            // On first update, just record the values
+            if (isFirstUpdate) {
+                console.log('[WA-Sheet] First update - recording baseline');
+                lastServerHealth = serverHealth;
+                lastServerMoral = serverMoral;
+                isFirstUpdate = false;
+                return;
+            }
+            
+            let updated = false;
+            
+            // Update health if server value changed
+            if (serverHealth !== null && serverHealth !== lastServerHealth) {
+                console.log('[WA-Sheet] ⚡ Health changed:', lastServerHealth, '->', serverHealth);
+                characterData.health.current = serverHealth;
+                
+                const healthInput = document.getElementById('health-current');
+                const healthBar = document.getElementById('health-bar');
+                if (healthInput) healthInput.value = serverHealth;
+                if (healthBar) healthBar.style.width = `${Math.min(100, Math.max(0, serverHealth))}%`;
+                
+                lastServerHealth = serverHealth;
+                updated = true;
+            }
+            
+            // Update moral if server value changed
+            if (serverMoral !== null && serverMoral !== lastServerMoral) {
+                console.log('[WA-Sheet] ⚡ Moral changed:', lastServerMoral, '->', serverMoral);
+                characterData.moral.current = serverMoral;
+                
+                const moralInput = document.getElementById('moral-current');
+                const moralBar = document.getElementById('moral-bar');
+                if (moralInput) moralInput.value = serverMoral;
+                if (moralBar) moralBar.style.width = `${Math.min(100, Math.max(0, serverMoral))}%`;
+                
+                lastServerMoral = serverMoral;
+                updated = true;
+            }
+            
+            if (updated) {
+                console.log('[WA-Sheet] ✅ UI updated!');
+                
+                // Update visual status bars
+                if (typeof updateStatusBars === 'function') {
+                    updateStatusBars();
+                }
+                
+                // Flash effect to show update
+                const statusSection = document.querySelector('.status-section');
+                if (statusSection) {
+                    statusSection.style.transition = 'box-shadow 0.3s';
+                    statusSection.style.boxShadow = '0 0 30px rgba(139,92,246,0.9)';
+                    setTimeout(() => {
+                        statusSection.style.boxShadow = '';
+                    }, 1500);
+                }
+                
+                // Toast notification
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info('⚡ Werte vom GM aktualisiert!');
+                } else {
+                    console.log('[WA-Sheet] Toast not available');
+                }
+                
+                // Save to localStorage
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(characterData));
+            }
         }
 
         function loadCharacter() {
