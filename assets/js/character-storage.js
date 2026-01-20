@@ -13,13 +13,40 @@ const CharacterStorage = {
     
     // Get Firestore instance
     getFirestore() {
-        return window.RIFT?.firebase?.getFirestore?.() || null;
+        // Try RIFT wrapper first
+        const riftDb = window.RIFT?.firebase?.getFirestore?.();
+        if (riftDb) return riftDb;
+        
+        // Try direct Firebase access
+        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+            try {
+                return firebase.firestore();
+            } catch (e) {
+                console.warn('[CharacterStorage] Direct firebase.firestore() failed:', e);
+            }
+        }
+        
+        return null;
     },
     
     // Get current user ID
     getUserId() {
+        // Try RIFT wrapper
         const user = window.RIFT?.firebase?.getCurrentUser?.();
-        return user?.uid || localStorage.getItem('rift_user_uid') || null;
+        if (user?.uid) return user.uid;
+        
+        // Try direct Firebase access
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            try {
+                const directUser = firebase.auth().currentUser;
+                if (directUser?.uid) return directUser.uid;
+            } catch (e) {
+                // Ignore
+            }
+        }
+        
+        // Fallback to localStorage
+        return localStorage.getItem('rift_user_uid') || null;
     },
     
     // Check if Firebase is available and user is authenticated

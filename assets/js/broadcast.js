@@ -120,14 +120,44 @@
         },
         
         waitForFirebase(timeout = 10000) {
-            return new Promise((resolve) => {
+            return new Promise(async (resolve) => {
                 const start = Date.now();
+                
+                // First, try to initialize Firebase via RIFT
+                if (window.RIFT?.firebase?.init) {
+                    try {
+                        await window.RIFT.firebase.init();
+                        console.log('[Broadcast] Firebase initialized via RIFT');
+                    } catch (e) {
+                        console.warn('[Broadcast] RIFT.firebase.init failed:', e);
+                    }
+                }
+                
                 const check = () => {
-                    const db = window.RIFT?.firebase?.getFirestore?.() || window.firebase?.firestore?.();
-                    if (db) {
-                        resolve(db);
-                    } else if (Date.now() - start > timeout) {
-                        console.warn('[Broadcast] Firebase timeout');
+                    try {
+                        // Check if Firebase is fully initialized
+                        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                            const db = firebase.firestore();
+                            if (db) {
+                                console.log('[Broadcast] Firebase ready');
+                                resolve(db);
+                                return;
+                            }
+                        }
+                        // Also check RIFT wrapper
+                        const riftDb = window.RIFT?.firebase?.getFirestore?.();
+                        if (riftDb) {
+                            console.log('[Broadcast] Firebase ready via RIFT');
+                            resolve(riftDb);
+                            return;
+                        }
+                    } catch (e) {
+                        // Firebase not ready yet, will retry
+                        console.log('[Broadcast] Firebase not ready yet:', e.message);
+                    }
+                    
+                    if (Date.now() - start > timeout) {
+                        console.warn('[Broadcast] Firebase timeout after', timeout, 'ms');
                         resolve(null);
                     } else {
                         setTimeout(check, 200);
@@ -138,10 +168,17 @@
         },
         
         subscribe(roomCode) {
-            const db = window.RIFT?.firebase?.getFirestore?.() || window.firebase?.firestore?.();
+            // Verify Firebase is ready
+            if (typeof firebase === 'undefined' || !firebase.apps || firebase.apps.length === 0) {
+                console.error('[Broadcast] Firebase not initialized in subscribe!');
+                return;
+            }
+            
+            const db = firebase.firestore();
             if (!db) return;
             
-            const normalizedCode = roomCode.replace('-', '').toUpperCase();
+            const normalizedCode = roomCode.replace(/-/g, '').toUpperCase();
+            console.log('[Broadcast] Subscribing to room:', normalizedCode);
             
             // Load last seen broadcast ID from localStorage
             this.lastBroadcastId = localStorage.getItem('rift_last_broadcast_id');
