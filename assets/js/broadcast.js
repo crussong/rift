@@ -11,8 +11,22 @@
         unsubscribe: null,
         
         init() {
-            const roomCode = localStorage.getItem('rift_current_room');
-            if (!roomCode) return;
+            // Get room code from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            let roomCode = urlParams.get('room') || localStorage.getItem('rift_current_room');
+            
+            // If we got room from URL, ALWAYS save it to localStorage
+            if (urlParams.get('room')) {
+                localStorage.setItem('rift_current_room', urlParams.get('room'));
+                console.log('[Broadcast] Saved room to localStorage:', urlParams.get('room'));
+            }
+            
+            if (!roomCode) {
+                console.log('[Broadcast] No room code found, broadcasts disabled');
+                return;
+            }
+            
+            console.log('[Broadcast] Initializing with room:', roomCode);
             
             // Restore ambient effect from previous session
             this.restoreAmbientEffect();
