@@ -2177,16 +2177,38 @@
         const WA_FOKUS_NAMES = {
             fire: { name: 'Feuer', attr: 'KRF', color: '#ff6b35' },
             water: { name: 'Wasser', attr: 'GES', color: '#4dabf7' },
-            earth: { name: 'Erde', attr: 'AUS', color: '#8b6914' },
+            wind: { name: 'Wind', attr: 'GES', color: '#69db7c' },
+            earth: { name: 'Erde', attr: 'ZÄH', color: '#a9845b' },
             air: { name: 'Luft', attr: 'INT', color: '#74c0fc' },
             light: { name: 'Licht', attr: 'PRÄ', color: '#ffd43b' },
+            lightning: { name: 'Blitz', attr: 'KRF', color: '#f59f00' },
             shadow: { name: 'Schatten', attr: 'GEI', color: '#495057' },
             illusion: { name: 'Illusion', attr: 'PRÄ', color: '#da77f2' },
             room: { name: 'Raum', attr: 'GEI', color: '#748ffc' },
+            time: { name: 'Zeit', attr: 'VER', color: '#d4a574' },
+            poison: { name: 'Gift', attr: 'ZÄH', color: '#7cb342' },
+            sound: { name: 'Schall', attr: 'PRÄ', color: '#26c6da' },
             none: { name: 'Keiner', attr: '-', color: '#868e96' }
         };
         
         const WA_SCHWAECHE_NAMES = {
+            hoehenangst: 'Höhenangst',
+            platzangst: 'Platzangst',
+            seekrank: 'Seekrank',
+            'schlechte-sicht': 'Schlechte Sicht',
+            gleichgewicht: 'Gleichgewichtssinn',
+            ausdauer: 'Geringe Ausdauer',
+            reaktion: 'Langsame Reaktion',
+            feinmotorik: 'Feinmotorik',
+            zittrig: 'Zittrige Hände',
+            verletzungen: 'Verletzungsanfällig',
+            hitze: 'Hitzeempfindlich',
+            kaelte: 'Kälteempfindlich',
+            reizueberflutung: 'Reizüberflutung',
+            orientierung: 'Orientierungslos',
+            geraeusch: 'Geräuschempfindlich',
+            griff: 'Schwacher Griff',
+            // Legacy entries
             verlangen: 'Verlangen',
             paranoia: 'Paranoia', 
             trauma: 'Trauma',
@@ -2335,6 +2357,11 @@
                 const div = document.createElement('div');
                 div.textContent = text || '';
                 return div.innerHTML;
+            },
+            
+            capitalize(str) {
+                if (!str) return '';
+                return str.charAt(0).toUpperCase() + str.slice(1);
             },
             
             async checkGM(uid) {
@@ -4820,13 +4847,22 @@
                         // fokus.type is the element type like 'fire', 'water', etc.
                         const fokusType = fokus?.type || null;
                         const fokusData = fokusType && fokusType !== 'none' ? WA_FOKUS_NAMES[fokusType] : null;
-                        const fokusName = fokusData?.name || (fokusType === 'none' ? 'Keiner' : (fokusType ? fokusType : 'Nicht gewählt'));
+                        const fokusName = fokusData?.name || (fokusType === 'none' ? 'Keiner' : (fokusType ? this.capitalize(fokusType) : 'Nicht gewählt'));
                         const fokusAttr = fokusData?.attr || '';
                         const fokusColor = fokusData?.color || '#868e96';
                         const fokusFaehigkeiten = fokus?.abilities || [];
                         
-                        // Get schwäche name from ID using the map
-                        const schwaecheName = schwaeche ? (WA_SCHWAECHE_NAMES[schwaeche] || schwaeche) : '–';
+                        console.log('[BC] Fokus abilities for', c.name, ':', fokusFaehigkeiten);
+                        
+                        // Get schwäche name from ID using the map - capitalize if not found
+                        const rawSchwaecheName = schwaeche ? (WA_SCHWAECHE_NAMES[schwaeche] || this.capitalize(schwaeche)) : '–';
+                        const schwaecheName = rawSchwaecheName;
+                        
+                        // Build abilities HTML - handle both object format {name: 'x'} and string format 'x'
+                        const abilitiesHtml = fokusFaehigkeiten.length > 0 ? fokusFaehigkeiten.map(f => {
+                            const abilityName = typeof f === 'string' ? f : (f?.name || f?.desc || JSON.stringify(f));
+                            return `<span style="font-size:11px;background:rgba(139,92,246,0.3);padding:2px 6px;border-radius:4px;">${this.escapeHtml(abilityName)}</span>`;
+                        }).join('') : '';
                         
                         fokusHtml = `
                             <div class="character-card__fokus" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);">
@@ -4845,9 +4881,7 @@
                                     <div style="background:rgba(139,92,246,0.1);padding:8px;border-radius:6px;">
                                         <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:4px;">✨ Fokus-Fähigkeiten (${fokusFaehigkeiten.length})</div>
                                         <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                                            ${fokusFaehigkeiten.filter(f => f && f.name).map(f => `
-                                                <span style="font-size:11px;background:rgba(139,92,246,0.3);padding:2px 6px;border-radius:4px;">${this.escapeHtml(f.name)}</span>
-                                            `).join('')}
+                                            ${abilitiesHtml}
                                         </div>
                                     </div>
                                 ` : ''}
@@ -5073,14 +5107,24 @@
             
             // ============ CHARACTER SHEET MODAL ============
             openCharacterSheet(charId, charName, sheetUrl) {
+                console.log('[BC] openCharacterSheet called:', { charId, charName, sheetUrl });
+                
                 const modal = document.getElementById('characterSheetModal');
                 const frame = document.getElementById('characterSheetFrame');
                 const title = document.getElementById('characterSheetModalTitle');
                 
-                if (!modal || !frame) return;
+                console.log('[BC] Modal elements:', { modal: !!modal, frame: !!frame, title: !!title });
+                
+                if (!modal || !frame) {
+                    console.error('[BC] Modal elements not found!');
+                    this.toast('Modal nicht gefunden!', 'error');
+                    return;
+                }
                 
                 // Set title
-                title.textContent = `Charakterbogen: ${charName}`;
+                if (title) {
+                    title.textContent = `Charakterbogen: ${charName}`;
+                }
                 
                 // Build URL with GM mode parameter
                 const fullUrl = `${sheetUrl}&gm=true`;
@@ -5092,6 +5136,8 @@
                 // Show modal
                 modal.classList.add('active');
                 document.body.style.overflow = 'hidden';
+                
+                console.log('[BC] Modal should be visible now');
             },
             
             closeCharacterSheet(event) {
