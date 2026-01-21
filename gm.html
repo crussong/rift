@@ -4843,6 +4843,15 @@
                     
                     // Extract Fokus, Fokus-Fähigkeiten, Schwäche for Worlds Apart
                     let fokusHtml = '';
+                    let attributesHtml = '';
+                    let secondChanceHtml = '';
+                    
+                    // Extra info for Worlds Apart
+                    const crew = d.crew || '';
+                    const age = d.age || '';
+                    const gender = d.gender || '';
+                    const ageGender = [age, gender].filter(x => x).join(', ');
+                    
                     if (isWA) {
                         // fokus can be at multiple locations depending on how data was saved
                         const fokus = d.fokus || c.fokus || {};
@@ -4868,30 +4877,53 @@
                         // Build abilities HTML - handle both object format {name: 'x'} and string format 'x'
                         const abilitiesHtml = fokusFaehigkeiten.length > 0 ? fokusFaehigkeiten.map(f => {
                             const abilityName = typeof f === 'string' ? f : (f?.name || f?.desc || JSON.stringify(f));
-                            return `<span style="font-size:11px;background:rgba(139,92,246,0.3);padding:2px 6px;border-radius:4px;">${this.escapeHtml(abilityName)}</span>`;
+                            return `<span style="font-size:10px;background:rgba(139,92,246,0.3);padding:2px 5px;border-radius:3px;">${this.escapeHtml(abilityName)}</span>`;
                         }).join('') : '';
                         
                         fokusHtml = `
-                            <div class="character-card__fokus" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);">
-                                <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                    <div style="flex:1;background:rgba(139,92,246,0.15);padding:8px;border-radius:6px;">
-                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;">🎯 Fokus</div>
-                                        <div style="font-size:13px;font-weight:600;color:${fokusColor};">${this.escapeHtml(fokusName)}</div>
-                                        ${fokusAttr ? `<div style="font-size:11px;color:rgba(255,255,255,0.5);">${fokusAttr}</div>` : ''}
-                                    </div>
-                                    <div style="flex:1;background:rgba(239,68,68,0.15);padding:8px;border-radius:6px;">
-                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;">⚠️ Schwäche</div>
-                                        <div style="font-size:13px;font-weight:600;color:#f87171;">${this.escapeHtml(schwaecheName)}</div>
-                                    </div>
+                            <div style="display:flex;gap:6px;margin-top:8px;">
+                                <div style="flex:1;background:rgba(139,92,246,0.15);padding:6px;border-radius:4px;">
+                                    <div style="font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;">🎯 Fokus</div>
+                                    <div style="font-size:12px;font-weight:600;color:${fokusColor};">${this.escapeHtml(fokusName)}</div>
+                                    ${fokusAttr ? `<div style="font-size:10px;color:rgba(255,255,255,0.5);">${fokusAttr}</div>` : ''}
                                 </div>
-                                ${fokusFaehigkeiten.length > 0 ? `
-                                    <div style="background:rgba(139,92,246,0.1);padding:8px;border-radius:6px;">
-                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:4px;">✨ Fokus-Fähigkeiten (${fokusFaehigkeiten.length})</div>
-                                        <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                                            ${abilitiesHtml}
-                                        </div>
+                                <div style="flex:1;background:rgba(239,68,68,0.15);padding:6px;border-radius:4px;">
+                                    <div style="font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;">⚠️ Schwäche</div>
+                                    <div style="font-size:12px;font-weight:600;color:#f87171;">${this.escapeHtml(schwaecheName)}</div>
+                                </div>
+                            </div>
+                            ${fokusFaehigkeiten.length > 0 ? `
+                                <div style="background:rgba(139,92,246,0.1);padding:6px;border-radius:4px;margin-top:6px;">
+                                    <div style="font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:3px;">✨ Fähigkeiten</div>
+                                    <div style="display:flex;flex-wrap:wrap;gap:3px;">${abilitiesHtml}</div>
+                                </div>
+                            ` : ''}
+                        `;
+                        
+                        // Attributes HTML (5 kleine Felder)
+                        const attrs = d.attributes || {};
+                        const attrLabels = { power: 'KRF', agility: 'GES', endurance: 'ZÄH', mind: 'VER', presence: 'PRÄ' };
+                        attributesHtml = `
+                            <div style="display:flex;gap:4px;margin-top:8px;">
+                                ${['power', 'agility', 'endurance', 'mind', 'presence'].map(attr => `
+                                    <div style="flex:1;text-align:center;background:rgba(255,255,255,0.05);padding:4px 2px;border-radius:4px;">
+                                        <div style="font-size:14px;font-weight:700;color:white;">${attrs[attr] || 0}</div>
+                                        <div style="font-size:8px;color:rgba(255,255,255,0.5);">${attrLabels[attr]}</div>
                                     </div>
-                                ` : ''}
+                                `).join('')}
+                            </div>
+                        `;
+                        
+                        // Second Chance Indikatoren
+                        const secondChance = d.secondChance || [false, false, false];
+                        secondChanceHtml = `
+                            <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+                                <span style="font-size:9px;color:rgba(255,255,255,0.5);">🍀 2. Chance:</span>
+                                <div style="display:flex;gap:3px;">
+                                    ${[0, 1, 2].map(i => `
+                                        <div style="width:14px;height:14px;border-radius:50%;border:2px solid ${secondChance[i] ? '#22c55e' : 'rgba(255,255,255,0.3)'};background:${secondChance[i] ? '#22c55e' : 'transparent'};"></div>
+                                    `).join('')}
+                                </div>
                             </div>
                         `;
                     }
@@ -4907,51 +4939,61 @@
                     const openSheetUrl = `${sheetUrl}?id=${c.id}&room=${this.roomCode}`;
                     
                     return `
-                        <div class="character-card" data-id="${c.id}" data-ruleset="${c.ruleset || 'unknown'}">
-                            <div class="character-card__header">
-                                <div class="character-card__avatar" style="background:${color};overflow:hidden;">
+                        <div class="character-card" data-id="${c.id}" data-ruleset="${c.ruleset || 'unknown'}" style="display:flex;flex-direction:column;">
+                            <!-- Header mit Portrait und Info -->
+                            <div style="display:flex;gap:12px;padding:12px;">
+                                <!-- Größeres Portrait -->
+                                <div style="width:70px;height:70px;flex-shrink:0;background:${color};border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:white;">
                                     ${portraitHtml || name[0].toUpperCase()}
                                 </div>
-                                <div class="character-card__info">
-                                    <div class="character-card__name">${name}</div>
-                                    <div class="character-card__class">${cls}${lvl !== '1' && lvl !== '?' ? ' • Lvl ' + lvl : ''}</div>
-                                    <div class="character-card__owner">
-                                        <div class="character-card__owner-dot character-card__owner-dot--${ownerOnline ? 'online' : 'offline'}"></div>
+                                <!-- Info -->
+                                <div style="flex:1;min-width:0;">
+                                    <!-- Owner klein -->
+                                    <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:2px;">
+                                        <div style="width:6px;height:6px;border-radius:50%;background:${ownerOnline ? '#22c55e' : '#6b7280'};"></div>
                                         ${ownerName}
                                     </div>
+                                    <!-- Charaktername groß -->
+                                    <div style="font-size:16px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+                                    <!-- Rolle / Crew -->
+                                    <div style="font-size:12px;color:rgba(255,255,255,0.7);">${cls}${crew ? ' • ' + this.escapeHtml(crew) : ''}</div>
+                                    <!-- Alter / Geschlecht -->
+                                    ${ageGender ? `<div style="font-size:11px;color:rgba(255,255,255,0.4);">${this.escapeHtml(ageGender)}</div>` : ''}
                                 </div>
-                                <button class="bc-btn bc-btn--small" onclick="BC.openCharacterSheet('${c.id}', '${name.replace(/'/g, "\\'")}', '${openSheetUrl}')" title="Charakterbogen öffnen" style="padding:6px 10px;">
-                                    📋
-                                </button>
-                                <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.removeCharacterFromRoom('${c.id}', '${name.replace(/'/g, "\\'")}')" title="Aus Raum entfernen" style="padding:6px 10px;">
-                                    🗑️
-                                </button>
                             </div>
-                            <div class="character-card__body">
-                                <div class="character-card__stats">
-                                    <div class="character-card__stat">
-                                        <div class="character-card__stat-value">${stat1Val}</div>
-                                        <div class="character-card__stat-label">${stat1Label}</div>
+                            
+                            <!-- Body -->
+                            <div style="padding:0 12px 12px;flex:1;display:flex;flex-direction:column;">
+                                <!-- Stats: LP, Moral, Reso -->
+                                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                    <div style="flex:1;text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;">
+                                        <div style="font-size:18px;font-weight:700;color:${hpClass === 'low' ? '#ef4444' : hpClass === 'mid' ? '#f59e0b' : '#22c55e'};">${stat1Val}</div>
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);">${stat1Label}</div>
                                     </div>
-                                    <div class="character-card__stat">
-                                        <div class="character-card__stat-value">${stat2Val}</div>
-                                        <div class="character-card__stat-label">${stat2Label}</div>
+                                    <div style="flex:1;text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;">
+                                        <div style="font-size:18px;font-weight:700;color:${moralClass === 'low' ? '#ef4444' : moralClass === 'mid' ? '#f59e0b' : '#3b82f6'};">${stat2Val}</div>
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);">${stat2Label}</div>
                                     </div>
-                                    <div class="character-card__stat">
-                                        <div class="character-card__stat-value">${stat3Val}</div>
-                                        <div class="character-card__stat-label">${stat3Label}</div>
-                                    </div>
-                                </div>
-                                <div class="character-card__hp">
-                                    <div class="character-card__hp-header">
-                                        <span style="color:rgba(255,255,255,0.5);">${isWA ? 'Lebenspunkte' : 'HP'}</span>
-                                        <span style="color:white;font-weight:600;">${stat1Val}</span>
-                                    </div>
-                                    <div class="character-card__hp-bar">
-                                        <div class="character-card__hp-fill character-card__hp-fill--${hpClass}" style="width:${hpPct}%"></div>
+                                    <div style="flex:1;text-align:center;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;">
+                                        <div style="font-size:18px;font-weight:700;color:#a78bfa;">${stat3Val}</div>
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.5);">${stat3Label}</div>
                                     </div>
                                 </div>
-                                <div class="character-card__actions" style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;">
+                                
+                                <!-- Attribute (nur WA) -->
+                                ${attributesHtml}
+                                
+                                <!-- Second Chance (nur WA) -->
+                                ${secondChanceHtml}
+                                
+                                <!-- Fokus/Schwäche (nur WA) -->
+                                ${fokusHtml}
+                                
+                                <!-- Spacer -->
+                                <div style="flex:1;"></div>
+                                
+                                <!-- Action Buttons -->
+                                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-top:10px;">
                                     <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.modifyStat('${c.id}', 'hp', -1)" title="${isWA ? 'LP' : 'HP'} verringern">−${isWA ? 'LP' : 'HP'}</button>
                                     <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'hp', 1)" title="${isWA ? 'LP' : 'HP'} erhöhen">+${isWA ? 'LP' : 'HP'}</button>
                                     ${!isDnD ? `
@@ -4959,7 +5001,16 @@
                                         <button class="bc-btn bc-btn--small bc-btn--success" onclick="BC.modifyStat('${c.id}', 'moral', 1)" title="Moral erhöhen">+MO</button>
                                     ` : ''}
                                 </div>
-                                ${fokusHtml}
+                                
+                                <!-- Footer Buttons (Charakterbogen & Löschen) -->
+                                <div style="display:flex;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">
+                                    <button class="bc-btn bc-btn--small bc-btn--secondary" onclick="BC.openCharacterSheet('${c.id}', '${name.replace(/'/g, "\\'")}', '${openSheetUrl}')" title="Charakterbogen öffnen" style="flex:1;font-size:11px;">
+                                        📋 Bogen
+                                    </button>
+                                    <button class="bc-btn bc-btn--small" onclick="BC.removeCharacterFromRoom('${c.id}', '${name.replace(/'/g, "\\'")}')" title="Aus Raum entfernen" style="padding:4px 8px;font-size:11px;background:rgba(239,68,68,0.2);color:#f87171;">
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     `;
