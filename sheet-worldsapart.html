@@ -4855,14 +4855,19 @@
             let updated = false;
             let changes = [];
             
-            // Update health if server value changed
-            if (serverHealth !== null && serverHealth !== lastServerHealth) {
-                console.log('[WA-Sheet] ⚡ Health changed:', lastServerHealth, '->', serverHealth);
+            // Update health if server value differs from local OR from last server value
+            const localHealth = characterData.health.current;
+            if (serverHealth !== null && (serverHealth !== lastServerHealth || serverHealth !== localHealth)) {
+                console.log('[WA-Sheet] ⚡ Health update:', { lastServer: lastServerHealth, server: serverHealth, local: localHealth });
                 characterData.health.current = serverHealth;
                 
                 const healthInput = document.getElementById('health-current');
                 const healthBar = document.getElementById('health-bar');
-                if (healthInput) healthInput.value = serverHealth;
+                console.log('[WA-Sheet] Health elements:', { input: !!healthInput, bar: !!healthBar });
+                if (healthInput) {
+                    healthInput.value = serverHealth;
+                    console.log('[WA-Sheet] Set health input to:', serverHealth);
+                }
                 if (healthBar) healthBar.style.width = `${Math.min(100, Math.max(0, serverHealth))}%`;
                 
                 lastServerHealth = serverHealth;
@@ -4870,14 +4875,19 @@
                 changes.push('LP');
             }
             
-            // Update moral if server value changed
-            if (serverMoral !== null && serverMoral !== lastServerMoral) {
-                console.log('[WA-Sheet] ⚡ Moral changed:', lastServerMoral, '->', serverMoral);
+            // Update moral if server value differs from local OR from last server value
+            const localMoral = characterData.moral.current;
+            if (serverMoral !== null && (serverMoral !== lastServerMoral || serverMoral !== localMoral)) {
+                console.log('[WA-Sheet] ⚡ Moral update:', { lastServer: lastServerMoral, server: serverMoral, local: localMoral });
                 characterData.moral.current = serverMoral;
                 
                 const moralInput = document.getElementById('moral-current');
                 const moralBar = document.getElementById('moral-bar');
-                if (moralInput) moralInput.value = serverMoral;
+                console.log('[WA-Sheet] Moral elements:', { input: !!moralInput, bar: !!moralBar });
+                if (moralInput) {
+                    moralInput.value = serverMoral;
+                    console.log('[WA-Sheet] Set moral input to:', serverMoral);
+                }
                 if (moralBar) moralBar.style.width = `${Math.min(100, Math.max(0, serverMoral))}%`;
                 
                 lastServerMoral = serverMoral;
@@ -4888,6 +4898,37 @@
             // Check if this update was from GM (full sync)
             if (serverData.lastModifiedBy === 'gm') {
                 console.log('[WA-Sheet] ⚡ GM modification detected - full sync');
+                
+                // Always update health/moral from GM regardless of comparison
+                if (d.status?.health !== undefined) {
+                    const gmHealth = parseInt(d.status.health);
+                    if (gmHealth !== characterData.health.current) {
+                        console.log('[WA-Sheet] GM Health force update:', characterData.health.current, '->', gmHealth);
+                        characterData.health.current = gmHealth;
+                        const healthInput = document.getElementById('health-current');
+                        const healthBar = document.getElementById('health-bar');
+                        if (healthInput) healthInput.value = gmHealth;
+                        if (healthBar) healthBar.style.width = `${Math.min(100, Math.max(0, gmHealth))}%`;
+                        lastServerHealth = gmHealth;
+                        if (!changes.includes('LP')) changes.push('LP');
+                        updated = true;
+                    }
+                }
+                
+                if (d.status?.moral !== undefined) {
+                    const gmMoral = parseInt(d.status.moral);
+                    if (gmMoral !== characterData.moral.current) {
+                        console.log('[WA-Sheet] GM Moral force update:', characterData.moral.current, '->', gmMoral);
+                        characterData.moral.current = gmMoral;
+                        const moralInput = document.getElementById('moral-current');
+                        const moralBar = document.getElementById('moral-bar');
+                        if (moralInput) moralInput.value = gmMoral;
+                        if (moralBar) moralBar.style.width = `${Math.min(100, Math.max(0, gmMoral))}%`;
+                        lastServerMoral = gmMoral;
+                        if (!changes.includes('Moral')) changes.push('Moral');
+                        updated = true;
+                    }
+                }
                 
                 // Sync attributes
                 if (d.attributes) {

@@ -4920,8 +4920,11 @@
                                         ${ownerName}
                                     </div>
                                 </div>
-                                <button class="bc-btn bc-btn--small" onclick="BC.openCharacterSheet('${c.id}', '${name.replace(/'/g, "\\'")}', '${openSheetUrl}')" title="Charakterbogen öffnen" style="margin-left:auto;padding:6px 10px;">
+                                <button class="bc-btn bc-btn--small" onclick="BC.openCharacterSheet('${c.id}', '${name.replace(/'/g, "\\'")}', '${openSheetUrl}')" title="Charakterbogen öffnen" style="padding:6px 10px;">
                                     📋
+                                </button>
+                                <button class="bc-btn bc-btn--small bc-btn--danger" onclick="BC.removeCharacterFromRoom('${c.id}', '${name.replace(/'/g, "\\'")}')" title="Aus Raum entfernen" style="padding:6px 10px;">
+                                    🗑️
                                 </button>
                             </div>
                             <div class="character-card__body">
@@ -5032,6 +5035,10 @@
                         updates.moral = newVal;
                     }
                     
+                    // Mark as GM modification for player sync
+                    updates.lastModifiedBy = 'gm';
+                    updates.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+                    
                     console.log('[BC] Updating character:', id, updates);
                     
                     await this.ref().collection('characters').doc(id).update(updates);
@@ -5094,6 +5101,10 @@
                         } else if (statType === 'moral') {
                             updates.moral = newVal;
                         }
+                        
+                        // Mark as GM modification for player sync
+                        updates.lastModifiedBy = 'gm';
+                        updates.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
                         
                         await this.ref().collection('characters').doc(char.id).update(updates);
                         successCount++;
@@ -5160,6 +5171,31 @@
                 }
                 if (frame) {
                     frame.src = 'about:blank';
+                }
+            },
+            
+            async removeCharacterFromRoom(charId, charName) {
+                if (!confirm(`"${charName}" wirklich aus dem Raum entfernen?\n\nDer Charakter wird nur aus der Raum-Übersicht entfernt, nicht beim Spieler gelöscht.`)) {
+                    return;
+                }
+                
+                try {
+                    const charRef = this.ref().collection('characters').doc(charId);
+                    await charRef.delete();
+                    
+                    this.toast(`"${charName}" entfernt`, 'success');
+                    console.log('[BC] Removed character from room:', charId);
+                    
+                    // Log action
+                    this.addLog({
+                        type: 'character',
+                        action: 'removed_from_room',
+                        characterName: charName,
+                        characterId: charId
+                    });
+                } catch (e) {
+                    console.error('[BC] Failed to remove character:', e);
+                    this.toast('Fehler beim Entfernen', 'error');
                 }
             },
             
