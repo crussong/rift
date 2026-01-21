@@ -4696,6 +4696,123 @@
         let isFirstUpdate = true;
         let lastServerHealth = null;
         let lastServerMoral = null;
+        let gmModeListener = null;
+        
+        // Setup GM Mode bidirectional listener
+        function setupGMModeBidirectionalListener() {
+            if (!window.isGMViewMode) return;
+            
+            const roomCode = window.gmViewRoomCode;
+            const charId = window.gmViewCharId;
+            
+            if (!roomCode || !charId) return;
+            
+            console.log('[WA-Sheet GM] Setting up bidirectional listener');
+            
+            const db = firebase.firestore();
+            
+            // Listen for player changes
+            gmModeListener = db.collection('rooms').doc(roomCode)
+                .collection('characters').doc(charId)
+                .onSnapshot(doc => {
+                    if (!doc.exists) return;
+                    
+                    const serverData = doc.data();
+                    
+                    // Only update if change was from player, not GM
+                    if (serverData.lastModifiedBy !== 'gm') {
+                        console.log('[WA-Sheet GM] Player made change - updating view');
+                        handleGMViewUpdate(serverData);
+                    }
+                }, err => {
+                    console.error('[WA-Sheet GM] Listener error:', err);
+                });
+        }
+        
+        // Handle updates when GM is viewing player sheet
+        function handleGMViewUpdate(serverData) {
+            const d = serverData.data || {};
+            let updated = false;
+            
+            // Update health
+            if (d.status?.health !== undefined && d.status.health !== characterData.health.current) {
+                characterData.health.current = d.status.health;
+                const healthInput = document.getElementById('health-current');
+                const healthBar = document.getElementById('health-bar');
+                if (healthInput) healthInput.value = d.status.health;
+                if (healthBar) healthBar.style.width = `${Math.min(100, Math.max(0, d.status.health))}%`;
+                updated = true;
+            }
+            
+            // Update moral
+            if (d.status?.moral !== undefined && d.status.moral !== characterData.moral.current) {
+                characterData.moral.current = d.status.moral;
+                const moralInput = document.getElementById('moral-current');
+                const moralBar = document.getElementById('moral-bar');
+                if (moralInput) moralInput.value = d.status.moral;
+                if (moralBar) moralBar.style.width = `${Math.min(100, Math.max(0, d.status.moral))}%`;
+                updated = true;
+            }
+            
+            // Update attributes
+            if (d.attributes) {
+                ['power', 'agility', 'endurance', 'mind', 'presence'].forEach(attr => {
+                    if (d.attributes[attr] !== undefined && d.attributes[attr] !== characterData.attributes[attr]) {
+                        characterData.attributes[attr] = d.attributes[attr];
+                        const input = document.getElementById(`attr-${attr}`);
+                        if (input) input.value = d.attributes[attr];
+                        updated = true;
+                    }
+                });
+            }
+            
+            // Update other fields
+            if (d.currency !== undefined && d.currency !== characterData.currency) {
+                characterData.currency = d.currency;
+                const currInput = document.getElementById('char-currency');
+                if (currInput) currInput.value = d.currency;
+                updated = true;
+            }
+            
+            if (d.inventory !== undefined && d.inventory !== characterData.inventory) {
+                characterData.inventory = d.inventory;
+                const invInput = document.getElementById('char-inventory');
+                if (invInput) invInput.value = d.inventory;
+                updated = true;
+            }
+            
+            if (d.notes !== undefined && d.notes !== characterData.notes) {
+                characterData.notes = d.notes;
+                const notesInput = document.getElementById('char-notes');
+                if (notesInput) notesInput.value = d.notes;
+                updated = true;
+            }
+            
+            if (d.weapon !== undefined && d.weapon !== characterData.weapon) {
+                characterData.weapon = d.weapon;
+                const weaponInput = document.getElementById('char-weapon');
+                if (weaponInput) weaponInput.value = d.weapon;
+                updated = true;
+            }
+            
+            if (updated) {
+                console.log('[WA-Sheet GM] View updated with player changes');
+                if (typeof updateAllCalculations === 'function') {
+                    updateAllCalculations();
+                }
+                
+                // Flash the banner to show update
+                const banner = document.querySelector('[style*="GM-Ansicht"]');
+                if (banner) {
+                    banner.style.background = 'rgba(59, 130, 246, 0.9)';
+                    banner.innerHTML = '🔄 Spieler hat geändert!';
+                    setTimeout(() => {
+                        banner.style.background = 'rgba(139,92,246,0.9)';
+                        banner.innerHTML = '👑 GM-Ansicht (Live-Sync aktiv)';
+                    }, 2000);
+                }
+            }
+        }
         
         function handleServerUpdate(serverData) {
             const d = serverData.data || {};
@@ -5041,12 +5158,15 @@
                     initializeSkills();
                     updateAllCalculations();
                     
-                    // GM mode indicator
+                    // GM mode indicator and listener
                     if (isGM) {
                         const gmBanner = document.createElement('div');
                         gmBanner.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(139,92,246,0.9);color:white;padding:8px 16px;border-radius:8px;font-size:13px;z-index:1000;pointer-events:none;';
                         gmBanner.innerHTML = '👑 GM-Ansicht (Live-Sync aktiv)';
                         document.body.appendChild(gmBanner);
+                        
+                        // Start bidirectional listener for GM
+                        setupGMModeBidirectionalListener();
                     }
                 } else {
                     console.error('[WA-Sheet] Character not found in Firestore:', charId);
@@ -5072,12 +5192,13 @@
             
             // GM View Mode: Speichere direkt nach Firestore
             if (window.isGMViewMode && window.gmViewRoomCode && window.gmViewCharId) {
+                console.log('[WA-Sheet] GM Mode - saving to Firestore');
                 saveCharacterToFirestore();
-                return; // Im GM-Modus nur Firestore, nicht localStorage
+                // NICHT returnen - auch lokal speichern für Fallback
             }
             
             // Ins neue CharacterStorage System speichern (falls vorhanden)
-            if (typeof CharacterStorage !== 'undefined') {
+            if (typeof CharacterStorage !== 'undefined' && !window.isGMViewMode) {
                 // Check if portrait is custom (base64) or use a preset
                 let portraitValue = characterData.portrait;
                 if (!portraitValue) {
@@ -5132,16 +5253,36 @@
         
         // GM Mode: Speichere Änderungen direkt nach Firestore
         async function saveCharacterToFirestore() {
-            if (!window.isGMViewMode) return;
+            if (!window.isGMViewMode) {
+                console.log('[WA-Sheet GM] Not in GM mode, skipping');
+                return;
+            }
             
             const roomCode = window.gmViewRoomCode;
             const charId = window.gmViewCharId;
             
             console.log('[WA-Sheet GM] Saving to Firestore:', roomCode, charId);
             
-            if (typeof firebase === 'undefined' || !firebase.firestore) {
-                console.error('[WA-Sheet GM] Firebase not available');
+            // Ensure Firebase is initialized
+            if (typeof firebase === 'undefined') {
+                console.error('[WA-Sheet GM] Firebase SDK not loaded');
                 return;
+            }
+            
+            // Initialize Firebase if needed
+            if (!firebase.apps || firebase.apps.length === 0) {
+                console.log('[WA-Sheet GM] Initializing Firebase...');
+                if (window.RIFT?.firebase?.init) {
+                    try {
+                        await window.RIFT.firebase.init();
+                    } catch (e) {
+                        console.error('[WA-Sheet GM] Firebase init failed:', e);
+                        return;
+                    }
+                } else {
+                    console.error('[WA-Sheet GM] No Firebase init function');
+                    return;
+                }
             }
             
             try {
@@ -5149,7 +5290,7 @@
                 const charRef = db.collection('rooms').doc(roomCode)
                                  .collection('characters').doc(charId);
                 
-                // Build data object
+                // Build complete data object with ALL fields
                 const updateData = {
                     name: characterData.name || 'Unbenannt',
                     class: characterData.role || 'Pirat',
@@ -5176,14 +5317,35 @@
                         secondChance: characterData.secondChance || [false, false, false]
                     },
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastModifiedBy: 'gm' // Mark that GM made this change
+                    lastModifiedBy: 'gm'
                 };
                 
                 await charRef.update(updateData);
-                console.log('[WA-Sheet GM] Saved to Firestore successfully');
+                console.log('[WA-Sheet GM] ✅ Saved to Firestore successfully');
+                
+                // Visual feedback
+                const banner = document.querySelector('[style*="GM-Ansicht"]');
+                if (banner) {
+                    banner.style.background = 'rgba(34, 197, 94, 0.9)';
+                    banner.innerHTML = '👑 Gespeichert!';
+                    setTimeout(() => {
+                        banner.style.background = 'rgba(139,92,246,0.9)';
+                        banner.innerHTML = '👑 GM-Ansicht (Live-Sync aktiv)';
+                    }, 1000);
+                }
                 
             } catch (e) {
                 console.error('[WA-Sheet GM] Firestore save error:', e);
+                // Show error
+                const banner = document.querySelector('[style*="GM-Ansicht"]');
+                if (banner) {
+                    banner.style.background = 'rgba(239, 68, 68, 0.9)';
+                    banner.innerHTML = '❌ Speicherfehler!';
+                    setTimeout(() => {
+                        banner.style.background = 'rgba(139,92,246,0.9)';
+                        banner.innerHTML = '👑 GM-Ansicht (Live-Sync aktiv)';
+                    }, 2000);
+                }
             }
         }
 
