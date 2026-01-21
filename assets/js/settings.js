@@ -651,11 +651,29 @@ class SettingsManager {
     
     async updateFirestoreMember(userData) {
         try {
-            const roomCode = localStorage.getItem('rift_current_room');
-            if (!roomCode) return;
-            
             const user = firebase.auth().currentUser;
             if (!user) return;
+            
+            // 1. Update users collection (for global profile sync)
+            try {
+                await firebase.firestore()
+                    .collection('users')
+                    .doc(user.uid)
+                    .set({
+                        displayName: userData.name,
+                        name: userData.name,
+                        color: userData.color,
+                        avatar: userData.avatar || null,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                console.log('[Settings] Firestore users collection updated');
+            } catch (e) {
+                console.error('[Settings] Failed to update users collection:', e);
+            }
+            
+            // 2. Update room members collection (if in a room)
+            const roomCode = localStorage.getItem('rift_current_room');
+            if (!roomCode) return;
             
             const cleanRoomCode = roomCode.replace(/-/g, '').toUpperCase();
             const memberRef = firebase.firestore()
@@ -664,7 +682,6 @@ class SettingsManager {
                 .collection('members')
                 .doc(user.uid);
             
-            // Update member data in Firestore
             await memberRef.update({
                 displayName: userData.name,
                 name: userData.name,
@@ -676,7 +693,6 @@ class SettingsManager {
             console.log('[Settings] Firestore member updated');
         } catch (e) {
             console.error('[Settings] Failed to update Firestore member:', e);
-            // Don't show error to user - localStorage save was successful
         }
     }
     
