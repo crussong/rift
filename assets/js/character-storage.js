@@ -320,7 +320,7 @@ const CharacterStorage = {
             
             console.log('[CharacterStorage] Syncing character to room:', roomCode, character.id);
             
-            const normalizedCode = roomCode.replace('-', '').toUpperCase();
+            const normalizedCode = roomCode.replace(/-/g, '').toUpperCase();
             const charRef = db.collection('rooms').doc(normalizedCode)
                              .collection('characters').doc(character.id);
             
@@ -413,7 +413,7 @@ const CharacterStorage = {
                 if (!db) return;
             }
             
-            const normalizedCode = roomCode.replace('-', '').toUpperCase();
+            const normalizedCode = roomCode.replace(/-/g, '').toUpperCase();
             const charRef = db.collection('rooms').doc(normalizedCode)
                              .collection('characters').doc(charId);
             
