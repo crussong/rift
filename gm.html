@@ -2240,13 +2240,25 @@
             async init() {
                 console.log('[BC] Initializing Broadcast Center...');
                 
-                // Wait for Firebase to be ready
+                // Wait for Firebase SDK to be loaded
                 let attempts = 0;
                 while (!window.firebase?.firestore || !window.firebase?.auth) {
                     await new Promise(r => setTimeout(r, 100));
                     attempts++;
                     if (attempts > 50) {
-                        console.error('[BC] Firebase not available after 5s');
+                        console.error('[BC] Firebase SDK not available after 5s');
+                        return;
+                    }
+                }
+                
+                // Initialize Firebase App (IMPORTANT!)
+                if (window.RIFT?.firebase?.init) {
+                    console.log('[BC] Calling RIFT.firebase.init()...');
+                    await window.RIFT.firebase.init();
+                } else {
+                    // Fallback: Check if already initialized
+                    if (!firebase.apps || firebase.apps.length === 0) {
+                        console.error('[BC] Firebase not initialized and no init function available');
                         return;
                     }
                 }
