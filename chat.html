@@ -1361,38 +1361,28 @@
                 document.getElementById('previewImg').src = '';
             },
             
-            // Upload via Netlify Function (proxy to avoid CORS)
+            // Upload to Cloudinary (free, no CORS issues with unsigned uploads)
             async uploadImage(file) {
-                // Convert file to base64
-                const base64 = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', 'RIFT');
                 
-                const response = await fetch('/.netlify/functions/upload-image', {
+                const response = await fetch('https://api.cloudinary.com/v1_1/dza4jgreq/image/upload', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        image: base64,
-                        filename: file.name,
-                        contentType: file.type
-                    })
+                    body: formData
                 });
                 
                 if (!response.ok) {
-                    const err = await response.json().catch(() => ({}));
-                    throw new Error(err.error || 'Upload failed');
+                    throw new Error('Upload failed');
                 }
                 
                 const data = await response.json();
                 
-                if (data.url) {
-                    return data.url;
+                if (data.secure_url) {
+                    return data.secure_url;
                 }
                 
-                throw new Error('Upload failed');
+                throw new Error(data.error?.message || 'Upload failed');
             },
             
             openLightbox(url) {
