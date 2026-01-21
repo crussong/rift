@@ -594,18 +594,36 @@
             typingTimer: null,
             
             async init() {
-                console.log('[Chat] Starting...');
+                console.log('[Chat] init() called');
+                
+                const chatRoot = document.getElementById('chatRoot');
+                console.log('[Chat] chatRoot:', chatRoot);
+                
+                if (!chatRoot) {
+                    console.error('[Chat] chatRoot element not found!');
+                    return;
+                }
                 
                 // Room
                 this.roomCode = localStorage.getItem('rift_current_room');
+                console.log('[Chat] roomCode from localStorage:', this.roomCode);
+                
                 if (!this.roomCode) {
+                    console.log('[Chat] No room - showing no room state');
                     this.showNoRoom();
                     return;
                 }
                 this.roomCode = this.roomCode.replace(/-/g, '').toUpperCase();
+                console.log('[Chat] Normalized roomCode:', this.roomCode);
                 
-                // Wait for auth
-                await this.waitForAuth();
+                // Wait for auth (with timeout)
+                console.log('[Chat] Waiting for auth...');
+                try {
+                    await this.waitForAuth();
+                } catch(e) {
+                    console.error('[Chat] Auth wait failed:', e);
+                }
+                console.log('[Chat] Auth wait complete');
                 
                 const user = firebase.auth().currentUser;
                 if (!user) {
@@ -623,18 +641,25 @@
                 this.userAvatar = stored.avatar || null;
                 
                 // GM check
+                console.log('[Chat] Checking GM status...');
                 try {
                     const doc = await firebase.firestore().collection('rooms').doc(this.roomCode).get();
                     this.isGM = doc.data()?.gm === this.oderId;
-                } catch(e) {}
+                    console.log('[Chat] isGM:', this.isGM);
+                } catch(e) {
+                    console.warn('[Chat] GM check failed:', e);
+                }
                 
                 // Render & subscribe
+                console.log('[Chat] Calling render()...');
                 this.render();
+                console.log('[Chat] Render complete, subscribing...');
                 this.subMessages();
                 this.subMembers();
                 this.subPresence();
                 this.subTyping();
                 this.setPresence(true);
+                console.log('[Chat] Init complete!');
                 
                 window.addEventListener('beforeunload', () => {
                     this.setPresence(false);
@@ -968,10 +993,12 @@
             }
         };
         
-        // Start
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => RIFTChat.init(), 300);
-        });
+        // Initialize chat when page is ready
+        console.log('[Chat] Script loaded, scheduling init...');
+        setTimeout(() => {
+            console.log('[Chat] Running init...');
+            RIFTChat.init();
+        }, 500);
     </script>
 </body>
 </html>
