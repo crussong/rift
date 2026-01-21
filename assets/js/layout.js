@@ -492,6 +492,13 @@ function updateClock() {
  * Call this at the start of each page
  */
 function initLayout() {
+    // Skip layout in GM popup mode (when viewing character sheet in iframe)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('gm') === 'true') {
+        console.log('[Layout] GM popup mode detected - skipping sidebar/topbar/footer');
+        return;
+    }
+    
     // Get the app container
     const app = document.querySelector('.app');
     if (!app) return;
