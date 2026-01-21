@@ -1890,13 +1890,8 @@ window.RIFTFab = {
     },
     
     render(fabs) {
-        // Load Tabler Icons if not already loaded
-        if (!document.querySelector('link[href*="tabler-icons"]')) {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css';
-            document.head.appendChild(link);
-        }
+        const page = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+        const isChat = page === 'chat';
         
         // Create FAB container
         const container = document.createElement('div');
@@ -1905,7 +1900,7 @@ window.RIFTFab = {
             <style>
                 .rift-fab-container {
                     position: fixed;
-                    bottom: 24px;
+                    bottom: ${isChat ? '100px' : '24px'};
                     right: 24px;
                     display: flex;
                     flex-direction: column-reverse;
@@ -1922,12 +1917,17 @@ window.RIFTFab = {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 24px;
                     color: white;
                     box-shadow: 0 4px 20px rgba(0,0,0,0.4);
                     transition: all 0.2s ease;
                     text-decoration: none;
                     position: relative;
+                }
+                
+                .rift-fab svg {
+                    width: 24px;
+                    height: 24px;
+                    fill: currentColor;
                 }
                 
                 .rift-fab:hover {
@@ -1985,15 +1985,18 @@ window.RIFTFab = {
                 
                 @media (max-width: 768px) {
                     .rift-fab-container {
-                        bottom: 16px;
+                        bottom: ${isChat ? '80px' : '16px'};
                         right: 16px;
                         gap: 10px;
                     }
                     .rift-fab {
                         width: 48px;
                         height: 48px;
-                        font-size: 20px;
                         border-radius: 14px;
+                    }
+                    .rift-fab svg {
+                        width: 20px;
+                        height: 20px;
                     }
                     .rift-fab__tooltip {
                         display: none;
@@ -2001,6 +2004,13 @@ window.RIFTFab = {
                 }
             </style>
         `;
+        
+        // SVG icons matching sidebar
+        const icons = {
+            dice: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62M11.45 15.96L6.31 15.93V14.91C6.31 14.91 9.74 11.58 9.75 10.57C9.75 9.33 8.73 9.46 8.73 9.46S7.75 9.5 7.64 10.71L6.14 10.76C6.14 10.76 6.18 8.26 8.83 8.26C11.2 8.26 11.23 10.04 11.23 10.5C11.23 12.18 8.15 14.77 8.15 14.77L11.45 14.76V15.96M17.5 13.5C17.5 14.9 16.35 16.05 14.93 16.05C13.5 16.05 12.36 14.9 12.36 13.5V10.84C12.36 9.42 13.5 8.27 14.93 8.27S17.5 9.42 17.5 10.84V13.5M16 10.77V13.53C16 14.12 15.5 14.6 14.92 14.6C14.34 14.6 13.86 14.12 13.86 13.53V10.77C13.86 10.18 14.34 9.71 14.92 9.71C15.5 9.71 16 10.18 16 10.77Z"/></svg>`,
+            sheet: `<svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.17157 3.17157C3 4.34315 3 6.22876 3 10V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V10C21 6.22876 21 4.34315 19.8284 3.17157C18.6569 2 16.7712 2 13 2H11C7.22876 2 5.34315 2 4.17157 3.17157ZM7.25 8C7.25 7.58579 7.58579 7.25 8 7.25H16C16.4142 7.25 16.75 7.58579 16.75 8C16.75 8.41421 16.4142 8.75 16 8.75H8C7.58579 8.75 7.25 8.41421 7.25 8ZM7.25 12C7.25 11.5858 7.58579 11.25 8 11.25H16C16.4142 11.25 16.75 11.5858 16.75 12C16.75 12.4142 16.4142 12.75 16 12.75H8C7.58579 12.75 7.25 12.4142 7.25 12ZM8 15.25C7.58579 15.25 7.25 15.5858 7.25 16C7.25 16.4142 7.58579 16.75 8 16.75H13C13.4142 16.75 13.75 16.4142 13.75 16C13.75 15.5858 13.4142 15.25 13 15.25H8Z"/></svg>`,
+            chat: `<svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22ZM8 13.25C7.58579 13.25 7.25 13.5858 7.25 14C7.25 14.4142 7.58579 14.75 8 14.75H13.5C13.9142 14.75 14.25 14.4142 14.25 14C14.25 13.5858 13.9142 13.25 13.5 13.25H8ZM7.25 10.5C7.25 10.0858 7.58579 9.75 8 9.75H16C16.4142 9.75 16.75 10.0858 16.75 10.5C16.75 10.9142 16.4142 11.25 16 11.25H8C7.58579 11.25 7.25 10.9142 7.25 10.5Z"/></svg>`
+        };
         
         // Add FABs
         fabs.forEach(fab => {
@@ -2010,17 +2020,17 @@ window.RIFTFab = {
             switch(fab) {
                 case 'dice':
                     el.href = 'dice.html';
-                    el.innerHTML = `<i class="ti ti-dice-filled"></i><span class="rift-fab__tooltip">Würfel</span>`;
+                    el.innerHTML = `${icons.dice}<span class="rift-fab__tooltip">Würfel</span>`;
                     break;
                 case 'sheet':
                     el.href = this.getSheetUrl();
                     const char = this.getLastCharacter();
                     const tooltip = char?.name ? char.name : 'Charakterbogen';
-                    el.innerHTML = `<i class="ti ti-user-filled"></i><span class="rift-fab__tooltip">${tooltip}</span>`;
+                    el.innerHTML = `${icons.sheet}<span class="rift-fab__tooltip">${tooltip}</span>`;
                     break;
                 case 'chat':
                     el.href = 'chat.html';
-                    el.innerHTML = `<i class="ti ti-message-circle-filled"></i><span class="rift-fab__tooltip">Chat</span>`;
+                    el.innerHTML = `${icons.chat}<span class="rift-fab__tooltip">Chat</span>`;
                     break;
             }
             
