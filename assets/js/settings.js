@@ -633,6 +633,9 @@ class SettingsManager {
             return;
         }
         
+        // Also update Firestore members collection if in a room
+        this.updateFirestoreMember(userData);
+        
         // Show success and close
         setTimeout(() => {
             if (saveBtn && window.RIFT?.ui?.Button) RIFT.ui.Button.setLoading(saveBtn, false);
@@ -644,6 +647,37 @@ class SettingsManager {
             // Refresh the page to update all UI
             setTimeout(() => window.location.reload(), 500);
         }, 300);
+    }
+    
+    async updateFirestoreMember(userData) {
+        try {
+            const roomCode = localStorage.getItem('rift_current_room');
+            if (!roomCode) return;
+            
+            const user = firebase.auth().currentUser;
+            if (!user) return;
+            
+            const cleanRoomCode = roomCode.replace(/-/g, '').toUpperCase();
+            const memberRef = firebase.firestore()
+                .collection('rooms')
+                .doc(cleanRoomCode)
+                .collection('members')
+                .doc(user.uid);
+            
+            // Update member data in Firestore
+            await memberRef.update({
+                displayName: userData.name,
+                name: userData.name,
+                color: userData.color,
+                avatar: userData.avatar || null,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log('[Settings] Firestore member updated');
+        } catch (e) {
+            console.error('[Settings] Failed to update Firestore member:', e);
+            // Don't show error to user - localStorage save was successful
+        }
     }
     
     getUserData() {
