@@ -4618,13 +4618,12 @@
                 const collections = [
                     { name: 'dice', icon: '🎲', type: 'dice' },
                     { name: 'chat', icon: '💬', type: 'chat' },
-                    { name: 'changelog', icon: '📝', type: 'character' }  // Default, aber wird überschrieben
+                    { name: 'changelog', icon: '📝', type: 'character' }
                 ];
                 
                 collections.forEach(col => {
                     console.log(`[BC] Subscribing to ${col.name}...`);
                     
-                    // Try with timestamp ordering first, fallback to simple query
                     const query = this.ref().collection(col.name);
                     
                     const unsub = query.onSnapshot(snap => {
@@ -4632,10 +4631,10 @@
                         
                         const items = snap.docs.map(d => {
                             const data = d.data();
+                            console.log(`[BC] ${col.name} item:`, data.type, data.action, data.field);
                             return {
                                 id: d.id,
                                 collection: col.name,
-                                // Nutze Icon/Type aus Daten falls vorhanden, sonst Default
                                 icon: data.icon || col.icon,
                                 type: data.type || col.type,
                                 timestamp: data.timestamp || data.createdAt || data.clientTimestamp || null,
@@ -4643,12 +4642,10 @@
                             };
                         });
                         
-                        // Merge with existing logs (ohne Duplikate)
-                        const existingIds = new Set(this.logs.filter(l => l.collection !== col.name).map(l => l.id));
-                        const newItems = items.filter(i => !existingIds.has(i.id));
+                        // Merge with existing logs
                         this.logs = this.logs.filter(l => l.collection !== col.name).concat(items);
                         
-                        // Sort by timestamp (handle various timestamp formats)
+                        // Sort by timestamp
                         this.logs.sort((a, b) => {
                             const getTime = (t) => {
                                 if (!t) return 0;
@@ -4660,10 +4657,10 @@
                             return getTime(b.timestamp) - getTime(a.timestamp);
                         });
                         
+                        console.log('[BC] Total logs after merge:', this.logs.length);
                         this.renderLogs();
                     }, e => {
                         console.error(`[BC] ${col.name} error:`, e);
-                        // Show error in UI
                         this.renderLogsError(`${col.name}: ${e.message || 'Fehler'}`);
                     });
                     this.unsubs.push(unsub);
@@ -5736,48 +5733,18 @@
              * Speichert auch persistent in Firestore
              */
             async addLiveLog(logData) {
-                const entry = {
-                    id: 'live-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-                    collection: 'changelog',
-                    timestamp: { seconds: Date.now() / 1000 },
-                    ...logData
-                };
-                
-                // Am Anfang einfügen (neueste zuerst) - für sofortige UI-Anzeige
-                this.logs.unshift(entry);
-                
-                // Max 500 Logs im Speicher behalten
-                if (this.logs.length > 500) {
-                    this.logs = this.logs.slice(0, 500);
-                }
-                
-                this.renderLogs();
-                
-                // Persistent nach Firestore speichern
+                // Persistent nach Firestore speichern (wird dann via subLogs() gelesen)
                 try {
                     await this.ref().collection('changelog').add({
                         ...logData,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                         clientTimestamp: Date.now()
                     });
+                    console.log('[BC] Log persisted:', logData.type, logData.action, logData.field);
                 } catch (e) {
                     console.warn('[BC] Failed to persist log:', e);
                 }
-                
-                // Max 500 Logs behalten
-                if (this.logs.length > 500) {
-                    this.logs = this.logs.slice(0, 500);
-                }
-                
-                this.renderLogs();
-                
-                // Optional: Kurze Highlight-Animation
-                setTimeout(() => {
-                    const firstItem = document.querySelector('.activity-log-item');
-                    if (firstItem) {
-                        firstItem.style.animation = 'fadeIn 0.3s ease';
-                    }
-                }, 50);
+                // Note: renderLogs wird automatisch durch den onSnapshot listener in subLogs() aufgerufen
             },
             
             // ============ SETTINGS ============
