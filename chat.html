@@ -15,21 +15,601 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
-        .page {
-            padding: 40px 24px;
+        /* ==================== LAYOUT ==================== */
+        .chat-page {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px);
+            max-height: calc(100vh - 60px);
+            overflow: hidden;
         }
         
-        .page__title {
-            font-family: 'Dharma Gothic', sans-serif;
-            font-size: 48px;
-            font-weight: 700;
+        .chat-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 0;
+        }
+        
+        /* ==================== SIDEBAR (Online Users) ==================== */
+        .chat-sidebar {
+            width: 240px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .chat-sidebar__header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .chat-sidebar__list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        
+        .chat-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .chat-user:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .chat-user--selected {
+            background: rgba(139,92,246,0.2);
+        }
+        
+        .chat-user__avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chat-user__avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .chat-user__status {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid var(--bg-secondary);
+        }
+        
+        .chat-user__status--online { background: #22c55e; }
+        .chat-user__status--offline { background: #6b7280; }
+        
+        .chat-user__info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .chat-user__name {
+            font-weight: 500;
             color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .chat-user__role {
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+        
+        /* ==================== MAIN CHAT AREA ==================== */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: var(--bg-primary);
+        }
+        
+        .chat-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+        }
+        
+        .chat-header__title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .chat-header__subtitle {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 2px;
+        }
+        
+        .chat-header__actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .chat-header__btn {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .chat-header__btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+        }
+        
+        .chat-header__btn--active {
+            background: rgba(139,92,246,0.2);
+            border-color: #8b5cf6;
+            color: #a78bfa;
+        }
+        
+        /* ==================== MESSAGES ==================== */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .chat-message {
+            display: flex;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            max-width: 100%;
+        }
+        
+        .chat-message:hover {
+            background: rgba(255,255,255,0.02);
+        }
+        
+        .chat-message--own {
+            background: rgba(139,92,246,0.1);
+        }
+        
+        .chat-message--whisper {
+            background: rgba(236,72,153,0.1);
+            border-left: 3px solid #ec4899;
+        }
+        
+        .chat-message--ic {
+            border-left: 3px solid #22c55e;
+        }
+        
+        .chat-message--system {
+            justify-content: center;
+            padding: 8px;
+            color: var(--text-tertiary);
+            font-size: 12px;
+            font-style: italic;
+        }
+        
+        .chat-message--dice {
+            background: rgba(139,92,246,0.15);
+            border-left: 3px solid #8b5cf6;
+        }
+        
+        .chat-message__avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+            overflow: hidden;
+        }
+        
+        .chat-message__avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .chat-message__content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .chat-message__header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+        
+        .chat-message__author {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .chat-message__character {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+        
+        .chat-message__character::before {
+            content: 'als ';
+        }
+        
+        .chat-message__time {
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+        
+        .chat-message__badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .chat-message__badge--whisper {
+            background: rgba(236,72,153,0.2);
+            color: #f472b6;
+        }
+        
+        .chat-message__badge--ic {
+            background: rgba(34,197,94,0.2);
+            color: #4ade80;
+        }
+        
+        .chat-message__badge--gm {
+            background: rgba(251,191,36,0.2);
+            color: #fbbf24;
+        }
+        
+        .chat-message__text {
+            color: var(--text-primary);
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        .chat-message__text--action {
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+        
+        /* Dice Roll in Chat */
+        .chat-dice {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(139,92,246,0.2);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-top: 4px;
+        }
+        
+        .chat-dice__notation {
+            font-family: monospace;
+            color: var(--text-secondary);
+        }
+        
+        .chat-dice__result {
+            font-weight: 700;
+            font-size: 18px;
+            color: #a78bfa;
+        }
+        
+        .chat-dice__result--crit {
+            color: #22c55e;
+        }
+        
+        .chat-dice__result--fail {
+            color: #ef4444;
+        }
+        
+        /* ==================== TYPING INDICATOR ==================== */
+        .chat-typing {
+            padding: 8px 20px;
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-style: italic;
+            min-height: 28px;
+        }
+        
+        .chat-typing__dots {
+            display: inline-flex;
+            gap: 3px;
+            margin-left: 4px;
+        }
+        
+        .chat-typing__dot {
+            width: 4px;
+            height: 4px;
+            background: var(--text-tertiary);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+        
+        .chat-typing__dot:nth-child(2) { animation-delay: 0.2s; }
+        .chat-typing__dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        
+        /* ==================== INPUT AREA ==================== */
+        .chat-input-area {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        
+        .chat-input-options {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .chat-input-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .chat-input-option:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .chat-input-option--active {
+            background: rgba(139,92,246,0.2);
+            border-color: #8b5cf6;
+            color: #a78bfa;
+        }
+        
+        .chat-input-option--whisper.chat-input-option--active {
+            background: rgba(236,72,153,0.2);
+            border-color: #ec4899;
+            color: #f472b6;
+        }
+        
+        .chat-input-option--ic.chat-input-option--active {
+            background: rgba(34,197,94,0.2);
+            border-color: #22c55e;
+            color: #4ade80;
+        }
+        
+        .chat-whisper-target {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 12px;
+            min-width: 120px;
+        }
+        
+        .chat-input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            font-family: inherit;
+            line-height: 1.4;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+        
+        .chat-input::placeholder {
+            color: var(--text-tertiary);
+        }
+        
+        .chat-send-btn {
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            background: #8b5cf6;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chat-send-btn:hover {
+            background: #7c3aed;
+            transform: translateY(-1px);
+        }
+        
+        .chat-send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* ==================== DATE SEPARATOR ==================== */
+        .chat-date-separator {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 0;
+            color: var(--text-tertiary);
+            font-size: 12px;
+        }
+        
+        .chat-date-separator::before,
+        .chat-date-separator::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+        
+        /* ==================== EMPTY STATE ==================== */
+        .chat-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-tertiary);
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .chat-empty__icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .chat-empty__title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-secondary);
             margin-bottom: 8px;
         }
         
-        .page__subtitle {
+        /* ==================== NO ROOM STATE ==================== */
+        .chat-no-room {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .chat-no-room__icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+        
+        .chat-no-room__title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+        
+        .chat-no-room__text {
             color: var(--text-secondary);
-            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .chat-no-room__btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            background: #8b5cf6;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        /* ==================== RESPONSIVE ==================== */
+        @media (max-width: 768px) {
+            .chat-sidebar {
+                display: none;
+            }
+            
+            .chat-messages {
+                padding: 12px;
+            }
+            
+            .chat-input-area {
+                padding: 12px;
+            }
+        }
+        
+        /* ==================== SCROLLBAR ==================== */
+        .chat-messages::-webkit-scrollbar,
+        .chat-sidebar__list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track,
+        .chat-sidebar__list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb,
+        .chat-sidebar__list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb:hover,
+        .chat-sidebar__list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.2);
         }
     </style>
 </head>
@@ -38,9 +618,8 @@
         <main class="main">
             <div class="main__content">
                 
-                <div class="page">
-                    <h1 class="page__title">Chat</h1>
-                    <p class="page__subtitle">Kommuniziere mit deiner Gruppe.</p>
+                <div class="chat-page" id="chatPage">
+                    <!-- Wird dynamisch gefüllt -->
                 </div>
                 
             </div>
@@ -58,6 +637,7 @@
     <script src="assets/js/firebase-config.js"></script>
     <script src="assets/js/room-service.js"></script>
     <script src="assets/js/user-service.js"></script>
+    <script src="assets/js/changelog.js"></script>
     
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/ui.js"></script>
@@ -68,5 +648,650 @@
     <script src="assets/js/app.js"></script>
     <script>initLayout();</script>
     <script src="assets/js/broadcast.js"></script>
+    
+    <script>
+        // ==================== RIFT CHAT SYSTEM ====================
+        const RIFTChat = {
+            roomCode: null,
+            oderId: null,
+            userName: null,
+            userColor: '#8b5cf6',
+            userAvatar: null,
+            isGM: false,
+            
+            db: null,
+            rtdb: null,
+            
+            messages: [],
+            members: [],
+            onlineUsers: {},
+            typingUsers: {},
+            
+            // Chat Modes
+            mode: 'ooc', // 'ooc', 'ic', 'whisper'
+            whisperTarget: null,
+            selectedCharacter: null,
+            
+            unsubs: [],
+            typingTimeout: null,
+            
+            // ==================== INIT ====================
+            async init() {
+                console.log('[Chat] Initializing...');
+                
+                // Get room code
+                this.roomCode = localStorage.getItem('rift_current_room');
+                if (!this.roomCode) {
+                    this.renderNoRoom();
+                    return;
+                }
+                this.roomCode = this.roomCode.replace(/-/g, '').toUpperCase();
+                
+                // Get user data
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                this.oderId = userData.oderId || firebase.auth().currentUser?.uid;
+                this.userName = userData.displayName || userData.name || 'Unbekannt';
+                this.userColor = userData.color || '#8b5cf6';
+                this.userAvatar = userData.avatar || null;
+                
+                // Initialize Firebase
+                this.db = firebase.firestore();
+                this.rtdb = firebase.database();
+                
+                // Check if GM
+                await this.checkGMStatus();
+                
+                // Render UI
+                this.render();
+                
+                // Subscribe to data
+                this.subMessages();
+                this.subMembers();
+                this.subPresence();
+                this.subTyping();
+                
+                // Update own presence
+                this.updatePresence(true);
+                
+                // Cleanup on page leave
+                window.addEventListener('beforeunload', () => {
+                    this.updatePresence(false);
+                    this.setTyping(false);
+                });
+                
+                console.log('[Chat] Ready for room:', this.roomCode);
+            },
+            
+            async checkGMStatus() {
+                try {
+                    const roomDoc = await this.db.collection('rooms').doc(this.roomCode).get();
+                    this.isGM = roomDoc.data()?.gm === this.oderId;
+                } catch (e) {
+                    console.warn('[Chat] GM check failed:', e);
+                }
+            },
+            
+            ref() {
+                return this.db.collection('rooms').doc(this.roomCode);
+            },
+            
+            // ==================== RENDER ====================
+            render() {
+                const page = document.getElementById('chatPage');
+                page.innerHTML = `
+                    <div class="chat-container">
+                        <!-- Sidebar -->
+                        <div class="chat-sidebar">
+                            <div class="chat-sidebar__header">
+                                🟢 Online (${Object.values(this.onlineUsers).filter(Boolean).length})
+                            </div>
+                            <div class="chat-sidebar__list" id="userList">
+                                <!-- Users -->
+                            </div>
+                        </div>
+                        
+                        <!-- Main Chat -->
+                        <div class="chat-main">
+                            <div class="chat-header">
+                                <div>
+                                    <div class="chat-header__title">💬 Gruppen-Chat</div>
+                                    <div class="chat-header__subtitle">${this.roomCode.replace(/(.{3})(.{3})/, '$1-$2')}</div>
+                                </div>
+                                <div class="chat-header__actions">
+                                    <button class="chat-header__btn" onclick="RIFTChat.scrollToBottom()">↓ Neueste</button>
+                                </div>
+                            </div>
+                            
+                            <div class="chat-messages" id="messageList">
+                                <!-- Messages -->
+                            </div>
+                            
+                            <div class="chat-typing" id="typingIndicator"></div>
+                            
+                            <div class="chat-input-area">
+                                <div class="chat-input-options">
+                                    <button class="chat-input-option ${this.mode === 'ooc' ? 'chat-input-option--active' : ''}" 
+                                            onclick="RIFTChat.setMode('ooc')">
+                                        💬 OOC
+                                    </button>
+                                    <button class="chat-input-option chat-input-option--ic ${this.mode === 'ic' ? 'chat-input-option--active' : ''}" 
+                                            onclick="RIFTChat.setMode('ic')">
+                                        🎭 In-Character
+                                    </button>
+                                    <button class="chat-input-option chat-input-option--whisper ${this.mode === 'whisper' ? 'chat-input-option--active' : ''}" 
+                                            onclick="RIFTChat.setMode('whisper')">
+                                        🤫 Flüstern
+                                    </button>
+                                    ${this.mode === 'whisper' ? `
+                                        <select class="chat-whisper-target" id="whisperTarget" onchange="RIFTChat.whisperTarget = this.value">
+                                            <option value="">An...</option>
+                                            ${this.members.filter(m => m.id !== this.oderId).map(m => `
+                                                <option value="${m.id}" ${this.whisperTarget === m.id ? 'selected' : ''}>
+                                                    ${m.displayName || m.name}
+                                                </option>
+                                            `).join('')}
+                                        </select>
+                                    ` : ''}
+                                </div>
+                                
+                                <div class="chat-input-wrapper">
+                                    <textarea 
+                                        class="chat-input" 
+                                        id="chatInput" 
+                                        placeholder="${this.getPlaceholder()}"
+                                        rows="1"
+                                        onkeydown="RIFTChat.handleKeydown(event)"
+                                        oninput="RIFTChat.handleInput(event)"
+                                    ></textarea>
+                                    <button class="chat-send-btn" onclick="RIFTChat.sendMessage()">
+                                        Senden
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                this.renderMessages();
+                this.renderUsers();
+            },
+            
+            renderNoRoom() {
+                const page = document.getElementById('chatPage');
+                page.innerHTML = `
+                    <div class="chat-no-room">
+                        <div class="chat-no-room__icon">💬</div>
+                        <div class="chat-no-room__title">Kein Raum aktiv</div>
+                        <div class="chat-no-room__text">Tritt einem Raum bei, um den Chat zu nutzen.</div>
+                        <a href="login.html" class="chat-no-room__btn">Raum beitreten</a>
+                    </div>
+                `;
+            },
+            
+            renderMessages() {
+                const list = document.getElementById('messageList');
+                if (!list) return;
+                
+                if (!this.messages.length) {
+                    list.innerHTML = `
+                        <div class="chat-empty">
+                            <div class="chat-empty__icon">💬</div>
+                            <div class="chat-empty__title">Noch keine Nachrichten</div>
+                            <div>Schreib die erste Nachricht!</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let lastDate = null;
+                let html = '';
+                
+                this.messages.forEach((msg, i) => {
+                    // Date separator
+                    const msgDate = msg.timestamp?.toDate?.() || new Date(msg.clientTimestamp || Date.now());
+                    const dateStr = msgDate.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+                    
+                    if (dateStr !== lastDate) {
+                        html += `<div class="chat-date-separator">${dateStr}</div>`;
+                        lastDate = dateStr;
+                    }
+                    
+                    html += this.renderMessage(msg);
+                });
+                
+                list.innerHTML = html;
+                
+                // Auto-scroll to bottom if near bottom
+                if (list.scrollHeight - list.scrollTop - list.clientHeight < 200) {
+                    this.scrollToBottom();
+                }
+            },
+            
+            renderMessage(msg) {
+                const isOwn = msg.senderId === this.oderId;
+                const isWhisper = msg.type === 'whisper';
+                const isIC = msg.type === 'ic';
+                const isDice = msg.type === 'dice';
+                const isSystem = msg.type === 'system';
+                const isAction = msg.text?.startsWith('/me ') || msg.text?.startsWith('*');
+                
+                // Check whisper visibility
+                if (isWhisper && msg.senderId !== this.oderId && msg.targetId !== this.oderId && !this.isGM) {
+                    return ''; // Don't show whispers not meant for this user (unless GM)
+                }
+                
+                const time = (msg.timestamp?.toDate?.() || new Date(msg.clientTimestamp)).toLocaleTimeString('de-DE', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                // System message
+                if (isSystem) {
+                    return `<div class="chat-message chat-message--system">${this.escapeHtml(msg.text)}</div>`;
+                }
+                
+                // Get sender color
+                const senderColor = msg.senderColor || '#8b5cf6';
+                
+                // Avatar
+                const avatarContent = msg.senderAvatar 
+                    ? `<img src="${msg.senderAvatar}" alt="">`
+                    : (msg.senderName || '?').charAt(0).toUpperCase();
+                
+                // Build classes
+                let classes = 'chat-message';
+                if (isOwn) classes += ' chat-message--own';
+                if (isWhisper) classes += ' chat-message--whisper';
+                if (isIC) classes += ' chat-message--ic';
+                if (isDice) classes += ' chat-message--dice';
+                
+                // Badges
+                let badges = '';
+                if (isWhisper) {
+                    const targetName = this.members.find(m => m.id === msg.targetId)?.displayName || 'Jemand';
+                    badges += `<span class="chat-message__badge chat-message__badge--whisper">🤫 An ${isOwn ? targetName : 'Dich'}</span>`;
+                }
+                if (isIC) {
+                    badges += `<span class="chat-message__badge chat-message__badge--ic">🎭 IC</span>`;
+                }
+                if (msg.isGM) {
+                    badges += `<span class="chat-message__badge chat-message__badge--gm">👑 GM</span>`;
+                }
+                
+                // Message text
+                let textContent = '';
+                if (isDice) {
+                    const critClass = msg.critical === 'success' ? 'chat-dice__result--crit' : 
+                                     msg.critical === 'failure' ? 'chat-dice__result--fail' : '';
+                    textContent = `
+                        <div class="chat-dice">
+                            <span>🎲</span>
+                            <span class="chat-dice__notation">${this.escapeHtml(msg.notation || msg.text)}</span>
+                            <span class="chat-dice__result ${critClass}">${msg.total || '?'}</span>
+                            ${msg.critical === 'success' ? '<span style="color:#22c55e;">KRITISCH!</span>' : ''}
+                            ${msg.critical === 'failure' ? '<span style="color:#ef4444;">PATZER!</span>' : ''}
+                        </div>
+                    `;
+                } else if (isAction) {
+                    const actionText = msg.text.replace(/^\/me\s*/, '').replace(/^\*|\*$/g, '');
+                    textContent = `<div class="chat-message__text chat-message__text--action">* ${this.escapeHtml(msg.senderName)} ${this.escapeHtml(actionText)} *</div>`;
+                } else {
+                    textContent = `<div class="chat-message__text">${this.escapeHtml(msg.text)}</div>`;
+                }
+                
+                return `
+                    <div class="${classes}">
+                        <div class="chat-message__avatar" style="background: ${senderColor}20; color: ${senderColor};">
+                            ${avatarContent}
+                        </div>
+                        <div class="chat-message__content">
+                            <div class="chat-message__header">
+                                <span class="chat-message__author" style="color: ${senderColor};">${this.escapeHtml(msg.senderName || 'Unbekannt')}</span>
+                                ${msg.characterName ? `<span class="chat-message__character">${this.escapeHtml(msg.characterName)}</span>` : ''}
+                                ${badges}
+                                <span class="chat-message__time">${time}</span>
+                            </div>
+                            ${textContent}
+                        </div>
+                    </div>
+                `;
+            },
+            
+            renderUsers() {
+                const list = document.getElementById('userList');
+                if (!list) return;
+                
+                const sortedMembers = [...this.members].sort((a, b) => {
+                    const aOnline = this.onlineUsers[a.id] ? 1 : 0;
+                    const bOnline = this.onlineUsers[b.id] ? 1 : 0;
+                    return bOnline - aOnline;
+                });
+                
+                list.innerHTML = sortedMembers.map(member => {
+                    const isOnline = this.onlineUsers[member.id];
+                    const avatarContent = member.avatar 
+                        ? `<img src="${member.avatar}" alt="">`
+                        : (member.displayName || member.name || '?').charAt(0).toUpperCase();
+                    
+                    return `
+                        <div class="chat-user ${this.whisperTarget === member.id ? 'chat-user--selected' : ''}"
+                             onclick="RIFTChat.selectWhisperTarget('${member.id}')">
+                            <div class="chat-user__avatar" style="background: ${member.color || '#8b5cf6'}20; color: ${member.color || '#8b5cf6'};">
+                                ${avatarContent}
+                                <div class="chat-user__status chat-user__status--${isOnline ? 'online' : 'offline'}"></div>
+                            </div>
+                            <div class="chat-user__info">
+                                <div class="chat-user__name">${this.escapeHtml(member.displayName || member.name || 'Unbekannt')}</div>
+                                <div class="chat-user__role">${member.role === 'gm' ? '👑 Spielleiter' : '🎮 Spieler'}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Update header count
+                const header = document.querySelector('.chat-sidebar__header');
+                if (header) {
+                    const onlineCount = Object.values(this.onlineUsers).filter(Boolean).length;
+                    header.textContent = `🟢 Online (${onlineCount})`;
+                }
+            },
+            
+            renderTypingIndicator() {
+                const el = document.getElementById('typingIndicator');
+                if (!el) return;
+                
+                const typingNames = Object.entries(this.typingUsers)
+                    .filter(([id, isTyping]) => isTyping && id !== this.oderId)
+                    .map(([id]) => {
+                        const member = this.members.find(m => m.id === id);
+                        return member?.displayName || member?.name || 'Jemand';
+                    });
+                
+                if (typingNames.length === 0) {
+                    el.innerHTML = '';
+                } else if (typingNames.length === 1) {
+                    el.innerHTML = `${typingNames[0]} schreibt<span class="chat-typing__dots"><span class="chat-typing__dot"></span><span class="chat-typing__dot"></span><span class="chat-typing__dot"></span></span>`;
+                } else {
+                    el.innerHTML = `${typingNames.join(', ')} schreiben<span class="chat-typing__dots"><span class="chat-typing__dot"></span><span class="chat-typing__dot"></span><span class="chat-typing__dot"></span></span>`;
+                }
+            },
+            
+            // ==================== SUBSCRIPTIONS ====================
+            subMessages() {
+                const unsub = this.ref().collection('chat')
+                    .orderBy('timestamp', 'asc')
+                    .limitToLast(100)
+                    .onSnapshot(snap => {
+                        this.messages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        this.renderMessages();
+                    }, e => console.error('[Chat] Messages error:', e));
+                this.unsubs.push(unsub);
+            },
+            
+            subMembers() {
+                const unsub = this.ref().collection('members').onSnapshot(snap => {
+                    this.members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderUsers();
+                    this.render(); // Re-render whisper target dropdown
+                }, e => console.error('[Chat] Members error:', e));
+                this.unsubs.push(unsub);
+            },
+            
+            subPresence() {
+                const ref = this.rtdb.ref(`presence/${this.roomCode}`);
+                ref.on('value', snap => {
+                    const data = snap.val() || {};
+                    this.onlineUsers = {};
+                    Object.keys(data).forEach(uid => {
+                        this.onlineUsers[uid] = data[uid]?.online === true;
+                    });
+                    this.renderUsers();
+                });
+                this.unsubs.push(() => ref.off());
+            },
+            
+            subTyping() {
+                const ref = this.rtdb.ref(`typing/${this.roomCode}`);
+                ref.on('value', snap => {
+                    this.typingUsers = snap.val() || {};
+                    this.renderTypingIndicator();
+                });
+                this.unsubs.push(() => ref.off());
+            },
+            
+            // ==================== ACTIONS ====================
+            setMode(mode) {
+                this.mode = mode;
+                if (mode !== 'whisper') {
+                    this.whisperTarget = null;
+                }
+                this.render();
+                document.getElementById('chatInput')?.focus();
+            },
+            
+            selectWhisperTarget(oderId) {
+                this.whisperTarget = oderId;
+                this.mode = 'whisper';
+                this.render();
+                document.getElementById('chatInput')?.focus();
+            },
+            
+            getPlaceholder() {
+                if (this.mode === 'ic') return 'Sprich als dein Charakter...';
+                if (this.mode === 'whisper') return 'Flüstere eine private Nachricht...';
+                return 'Schreibe eine Nachricht... (/me für Aktionen, /roll für Würfel)';
+            },
+            
+            handleKeydown(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            },
+            
+            handleInput(e) {
+                // Auto-resize textarea
+                const textarea = e.target;
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+                
+                // Update typing indicator
+                this.setTyping(textarea.value.length > 0);
+            },
+            
+            setTyping(isTyping) {
+                if (!this.oderId) return;
+                
+                // Clear previous timeout
+                if (this.typingTimeout) {
+                    clearTimeout(this.typingTimeout);
+                }
+                
+                // Update typing status
+                this.rtdb.ref(`typing/${this.roomCode}/${this.oderId}`).set(isTyping);
+                
+                // Auto-clear after 3 seconds
+                if (isTyping) {
+                    this.typingTimeout = setTimeout(() => {
+                        this.rtdb.ref(`typing/${this.roomCode}/${this.oderId}`).set(false);
+                    }, 3000);
+                }
+            },
+            
+            updatePresence(online) {
+                if (!this.oderId) return;
+                
+                const ref = this.rtdb.ref(`presence/${this.roomCode}/${this.oderId}`);
+                ref.set({ online, lastSeen: Date.now() });
+                
+                if (online) {
+                    ref.onDisconnect().set({ online: false, lastSeen: Date.now() });
+                }
+            },
+            
+            async sendMessage() {
+                const input = document.getElementById('chatInput');
+                if (!input) return;
+                
+                const text = input.value.trim();
+                if (!text) return;
+                
+                // Clear input
+                input.value = '';
+                input.style.height = 'auto';
+                this.setTyping(false);
+                
+                // Check for commands
+                if (text.startsWith('/roll ')) {
+                    this.handleRollCommand(text);
+                    return;
+                }
+                
+                // Validate whisper target
+                if (this.mode === 'whisper' && !this.whisperTarget) {
+                    alert('Bitte wähle einen Empfänger für die Flüsternachricht.');
+                    return;
+                }
+                
+                // Build message
+                const message = {
+                    text: text,
+                    type: this.mode, // 'ooc', 'ic', 'whisper'
+                    senderId: this.oderId,
+                    senderName: this.userName,
+                    senderColor: this.userColor,
+                    senderAvatar: this.userAvatar,
+                    isGM: this.isGM,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    clientTimestamp: Date.now()
+                };
+                
+                // Add whisper target
+                if (this.mode === 'whisper') {
+                    message.targetId = this.whisperTarget;
+                }
+                
+                // Add character name for IC
+                if (this.mode === 'ic' && this.selectedCharacter) {
+                    message.characterName = this.selectedCharacter;
+                }
+                
+                try {
+                    await this.ref().collection('chat').add(message);
+                    this.scrollToBottom();
+                } catch (e) {
+                    console.error('[Chat] Send failed:', e);
+                    alert('Nachricht konnte nicht gesendet werden.');
+                }
+            },
+            
+            handleRollCommand(text) {
+                // Parse: /roll 2d20+5 Angriff
+                const match = text.match(/^\/roll\s+(\S+)(?:\s+(.*))?$/);
+                if (!match) return;
+                
+                const notation = match[1];
+                const label = match[2] || '';
+                
+                // Simple dice parser
+                const result = this.rollDice(notation);
+                if (!result) return;
+                
+                // Build dice message
+                const message = {
+                    text: `${notation} = ${result.total}`,
+                    type: 'dice',
+                    notation: notation,
+                    total: result.total,
+                    results: result.rolls,
+                    critical: result.critical,
+                    label: label,
+                    senderId: this.oderId,
+                    senderName: this.userName,
+                    senderColor: this.userColor,
+                    senderAvatar: this.userAvatar,
+                    isGM: this.isGM,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    clientTimestamp: Date.now()
+                };
+                
+                this.ref().collection('chat').add(message);
+                
+                // Also log to dice collection for GM
+                this.ref().collection('dice').add({
+                    player: this.userName,
+                    playerId: this.oderId,
+                    notation: notation,
+                    total: result.total,
+                    results: result.rolls,
+                    critical: result.critical,
+                    label: label,
+                    color: this.userColor,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            },
+            
+            rollDice(notation) {
+                // Parse: 2d20+5, d6, 4d6-2
+                const match = notation.match(/^(\d*)d(\d+)([+-]\d+)?$/i);
+                if (!match) return null;
+                
+                const count = parseInt(match[1]) || 1;
+                const sides = parseInt(match[2]);
+                const modifier = parseInt(match[3]) || 0;
+                
+                if (count < 1 || count > 100 || sides < 2 || sides > 1000) return null;
+                
+                const rolls = [];
+                for (let i = 0; i < count; i++) {
+                    rolls.push(Math.floor(Math.random() * sides) + 1);
+                }
+                
+                const sum = rolls.reduce((a, b) => a + b, 0);
+                const total = sum + modifier;
+                
+                // Check for crits (only on single d20)
+                let critical = null;
+                if (count === 1 && sides === 20) {
+                    if (rolls[0] === 20) critical = 'success';
+                    if (rolls[0] === 1) critical = 'failure';
+                }
+                
+                return { rolls, total, critical };
+            },
+            
+            scrollToBottom() {
+                const list = document.getElementById('messageList');
+                if (list) {
+                    list.scrollTop = list.scrollHeight;
+                }
+            },
+            
+            escapeHtml(str) {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            },
+            
+            // ==================== CLEANUP ====================
+            destroy() {
+                this.unsubs.forEach(unsub => {
+                    if (typeof unsub === 'function') unsub();
+                });
+                this.unsubs = [];
+                this.updatePresence(false);
+                this.setTyping(false);
+            }
+        };
+        
+        // Initialize when DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait for Firebase auth
+            setTimeout(() => RIFTChat.init(), 500);
+        });
+    </script>
 </body>
 </html>
