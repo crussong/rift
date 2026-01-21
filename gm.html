@@ -4302,18 +4302,33 @@
             
             // ============ MEMBERS SUBSCRIPTION ============
             previousMembers: {},
+            initialMembersLoaded: false,
             
             subMembers() {
                 const unsub = this.ref().collection('members').onSnapshot(snap => {
                     const newMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     
-                    // Track changes
+                    // Beim ersten Load nur speichern, nicht loggen
+                    if (!this.initialMembersLoaded) {
+                        console.log('[BC] Initial members load - storing baseline');
+                        newMembers.forEach(member => {
+                            this.previousMembers[member.id] = { ...member };
+                        });
+                        this.initialMembersLoaded = true;
+                        this.members = newMembers;
+                        this.renderPlayerManagement();
+                        this.renderPlayerSelectors();
+                        this.updateGMTransferSelect();
+                        return;
+                    }
+                    
+                    // Track changes (nur nach initialem Load)
                     newMembers.forEach(member => {
                         const prev = this.previousMembers[member.id];
                         if (prev) {
                             this.trackMemberChanges(prev, member);
                         } else {
-                            // Neuer Member
+                            // Wirklich neuer Member (nach initialem Load)
                             this.addLiveLog({
                                 type: 'member',
                                 icon: '👋',
@@ -4373,6 +4388,7 @@
             
             // ============ CHARACTERS SUBSCRIPTION ============
             previousCharacters: {},
+            initialCharactersLoaded: false,
             
             subCharacters() {
                 console.log('[BC] Setting up characters subscription...');
@@ -4384,13 +4400,25 @@
                         return data;
                     });
                     
-                    // Track changes
+                    // Beim ersten Load nur speichern, nicht loggen
+                    if (!this.initialCharactersLoaded) {
+                        console.log('[BC] Initial characters load - storing baseline');
+                        newCharacters.forEach(char => {
+                            this.previousCharacters[char.id] = JSON.parse(JSON.stringify(char));
+                        });
+                        this.initialCharactersLoaded = true;
+                        this.characters = newCharacters;
+                        this.renderCharacters();
+                        return;
+                    }
+                    
+                    // Track changes (nur nach initialem Load)
                     newCharacters.forEach(char => {
                         const prev = this.previousCharacters[char.id];
                         if (prev) {
                             this.trackCharacterChanges(prev, char);
                         } else {
-                            // Neuer Charakter
+                            // Wirklich neuer Charakter (nach initialem Load)
                             this.addLiveLog({
                                 type: 'character',
                                 icon: '🆕',
@@ -4590,7 +4618,7 @@
                 const collections = [
                     { name: 'dice', icon: '🎲', type: 'dice' },
                     { name: 'chat', icon: '💬', type: 'chat' },
-                    { name: 'changelog', icon: '📝', type: 'character' }
+                    { name: 'changelog', icon: '📝', type: 'character' }  // Default, aber wird überschrieben
                 ];
                 
                 collections.forEach(col => {
@@ -4607,14 +4635,17 @@
                             return {
                                 id: d.id,
                                 collection: col.name,
-                                icon: col.icon,
-                                type: col.type,
-                                timestamp: data.timestamp || data.createdAt || null,
+                                // Nutze Icon/Type aus Daten falls vorhanden, sonst Default
+                                icon: data.icon || col.icon,
+                                type: data.type || col.type,
+                                timestamp: data.timestamp || data.createdAt || data.clientTimestamp || null,
                                 ...data
                             };
                         });
                         
-                        // Merge with existing logs
+                        // Merge with existing logs (ohne Duplikate)
+                        const existingIds = new Set(this.logs.filter(l => l.collection !== col.name).map(l => l.id));
+                        const newItems = items.filter(i => !existingIds.has(i.id));
                         this.logs = this.logs.filter(l => l.collection !== col.name).concat(items);
                         
                         // Sort by timestamp (handle various timestamp formats)
@@ -5569,11 +5600,10 @@
             getLogAction(log) {
                 if (log.collection === 'dice') return 'hat gewürfelt';
                 if (log.collection === 'chat') return 'schrieb';
-                if (log.collection === 'changelog') return log.action || 'änderte etwas';
                 if (log.collection === 'broadcast') return 'sendete Broadcast';
                 
-                // Live logs
-                if (log.collection === 'live') {
+                // Changelog entries und type-basierte Logs
+                if (log.collection === 'changelog' || log.type === 'character' || log.type === 'member') {
                     if (log.type === 'character') {
                         if (log.action === 'created') return 'erstellte Charakter';
                         if (log.action === 'change') return `änderte ${log.field || 'etwas'}`;
@@ -5585,8 +5615,10 @@
                         if (log.action === 'profile_change') return `änderte ${log.field || 'Profil'}`;
                         return log.action || 'Aktion';
                     }
-                    if (log.type === 'dice') return 'hat gewürfelt';
+                    // Fallback für alte changelog Einträge
+                    return log.action || 'änderte etwas';
                 }
+                
                 return '';
             },
             
@@ -5616,21 +5648,26 @@
                 if (log.collection === 'chat') {
                     return this.escapeHtml(log.message || log.text || '');
                 }
-                if (log.collection === 'changelog') {
-                    return this.escapeHtml(log.description || log.details || '');
-                }
                 if (log.collection === 'broadcast') {
                     return this.escapeHtml(log.message || `[${log.type}]`);
                 }
                 
-                // Live logs
-                if (log.collection === 'live') {
+                // Changelog entries (persistent logs) - check by type
+                if (log.collection === 'changelog' || log.type === 'character' || log.type === 'member') {
                     if (log.type === 'character') {
                         if (log.action === 'created') {
-                            return `<strong>${this.escapeHtml(log.characterName)}</strong>`;
+                            return `<strong>${this.escapeHtml(log.characterName || 'Charakter')}</strong>`;
                         }
                         if (log.action === 'change') {
-                            let html = `<strong>${this.escapeHtml(log.characterName)}</strong>: `;
+                            let html = `<strong>${this.escapeHtml(log.characterName || 'Charakter')}</strong>: `;
+                            html += `<span style="color:rgba(255,255,255,0.5);">${this.escapeHtml(String(log.oldValue || '-'))}</span>`;
+                            html += ` → <span style="color:#22c55e;">${this.escapeHtml(String(log.newValue || '-'))}</span>`;
+                            return html;
+                        }
+                        // Fallback für alte changelog Einträge
+                        if (log.field) {
+                            let html = `<strong>${this.escapeHtml(log.characterName || 'Charakter')}</strong>: `;
+                            html += `${this.escapeHtml(log.field)} `;
                             html += `<span style="color:rgba(255,255,255,0.5);">${this.escapeHtml(String(log.oldValue || '-'))}</span>`;
                             html += ` → <span style="color:#22c55e;">${this.escapeHtml(String(log.newValue || '-'))}</span>`;
                             return html;
@@ -5646,12 +5683,12 @@
                             return html;
                         }
                     }
-                    if (log.type === 'dice') {
-                        const notation = log.notation || '?';
-                        const result = log.total || '?';
-                        return `<span style="font-family:monospace;">${notation}</span> → <strong>${result}</strong>`;
+                    // Generic fallback
+                    if (log.description || log.details) {
+                        return this.escapeHtml(log.description || log.details);
                     }
                 }
+                
                 return '';
             },
             
@@ -5696,17 +5733,36 @@
             
             /**
              * Fügt einen Live-Log hinzu (für Echtzeit-Tracking von Änderungen)
+             * Speichert auch persistent in Firestore
              */
-            addLiveLog(logData) {
+            async addLiveLog(logData) {
                 const entry = {
                     id: 'live-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-                    collection: 'live',
+                    collection: 'changelog',
                     timestamp: { seconds: Date.now() / 1000 },
                     ...logData
                 };
                 
-                // Am Anfang einfügen (neueste zuerst)
+                // Am Anfang einfügen (neueste zuerst) - für sofortige UI-Anzeige
                 this.logs.unshift(entry);
+                
+                // Max 500 Logs im Speicher behalten
+                if (this.logs.length > 500) {
+                    this.logs = this.logs.slice(0, 500);
+                }
+                
+                this.renderLogs();
+                
+                // Persistent nach Firestore speichern
+                try {
+                    await this.ref().collection('changelog').add({
+                        ...logData,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        clientTimestamp: Date.now()
+                    });
+                } catch (e) {
+                    console.warn('[BC] Failed to persist log:', e);
+                }
                 
                 // Max 500 Logs behalten
                 if (this.logs.length > 500) {
