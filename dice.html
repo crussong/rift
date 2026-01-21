@@ -2328,6 +2328,9 @@
                     return;
                 }
                 
+                // Store normalized room code for Firestore
+                this.roomCode = roomCode.replace(/-/g, '').toUpperCase();
+                
                 try {
                     this.roomRef = firebase.database().ref(`rooms/${roomCode}`);
                     this.diceRef = this.roomRef.child('dice_rolls');
@@ -2356,9 +2359,52 @@
                 }
                 
                 try {
+                    // 1. Push to Realtime Database (for live feed)
                     this.diceRef.push(rollData);
+                    
+                    // 2. Also write to Firestore (for GM logs)
+                    this.logRollToFirestore(rollData);
                 } catch (e) {
                     console.error('[DiceRoller] Sync failed:', e);
+                }
+            },
+            
+            async logRollToFirestore(rollData) {
+                if (!this.roomCode) return;
+                
+                try {
+                    // Ensure Firestore is available
+                    if (typeof firebase === 'undefined' || !firebase.firestore) {
+                        console.log('[DiceRoller] Firestore not available for logging');
+                        return;
+                    }
+                    
+                    const db = firebase.firestore();
+                    const diceCollection = db.collection('rooms').doc(this.roomCode).collection('dice');
+                    
+                    // Build log entry
+                    const logEntry = {
+                        player: rollData.player || 'Unbekannt',
+                        playerId: rollData.playerId || null,
+                        color: rollData.color || '#8b5cf6',
+                        notation: rollData.notation || '',
+                        total: rollData.total || 0,
+                        results: rollData.results || [],
+                        diceTheme: rollData.diceTheme || 'classic',
+                        secret: rollData.secret || false,
+                        critical: rollData.critical || null,
+                        label: rollData.label || null,
+                        success: rollData.success || null,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        clientTimestamp: rollData.timestamp || Date.now()
+                    };
+                    
+                    await diceCollection.add(logEntry);
+                    console.log('[DiceRoller] Roll logged to Firestore');
+                    
+                } catch (e) {
+                    console.warn('[DiceRoller] Firestore log failed:', e);
+                    // Don't throw - Firestore logging is optional
                 }
             },
             

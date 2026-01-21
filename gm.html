@@ -1061,6 +1061,11 @@
             transition: background 0.2s;
         }
         .activity-log-item:hover { background: rgba(255,255,255,0.02); }
+        @keyframes logFadeIn {
+            from { opacity: 0; transform: translateX(-10px); background: rgba(139,92,246,0.15); }
+            to { opacity: 1; transform: translateX(0); background: transparent; }
+        }
+        .activity-log-item { animation: logFadeIn 0.4s ease; }
         .activity-log-item__time {
             font-size: 11px;
             color: rgba(255,255,255,0.3);
@@ -4296,9 +4301,31 @@
             },
             
             // ============ MEMBERS SUBSCRIPTION ============
+            previousMembers: {},
+            
             subMembers() {
                 const unsub = this.ref().collection('members').onSnapshot(snap => {
-                    this.members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const newMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    
+                    // Track changes
+                    newMembers.forEach(member => {
+                        const prev = this.previousMembers[member.id];
+                        if (prev) {
+                            this.trackMemberChanges(prev, member);
+                        } else {
+                            // Neuer Member
+                            this.addLiveLog({
+                                type: 'member',
+                                icon: '👋',
+                                action: 'joined',
+                                userName: member.displayName || member.name || 'Unbekannt',
+                                userId: member.id
+                            });
+                        }
+                        this.previousMembers[member.id] = { ...member };
+                    });
+                    
+                    this.members = newMembers;
                     this.renderPlayerManagement();
                     this.renderPlayerSelectors();
                     this.updateGMTransferSelect();
@@ -4306,19 +4333,226 @@
                 this.unsubs.push(unsub);
             },
             
+            trackMemberChanges(prev, curr) {
+                const userName = curr.displayName || curr.name || 'Unbekannt';
+                const changes = [];
+                
+                // Name changed
+                if (prev.displayName !== curr.displayName && curr.displayName) {
+                    changes.push({ field: 'Name', old: prev.displayName, new: curr.displayName });
+                }
+                
+                // Color changed
+                if (prev.color !== curr.color && curr.color) {
+                    changes.push({ field: 'Farbe', old: prev.color, new: curr.color });
+                }
+                
+                // Avatar changed
+                if (prev.avatar !== curr.avatar && curr.avatar) {
+                    changes.push({ field: 'Profilbild', old: '(alt)', new: '(neu)' });
+                }
+                
+                // Role changed
+                if (prev.role !== curr.role) {
+                    changes.push({ field: 'Rolle', old: prev.role || '-', new: curr.role || '-' });
+                }
+                
+                changes.forEach(c => {
+                    this.addLiveLog({
+                        type: 'member',
+                        icon: '👤',
+                        action: 'profile_change',
+                        userName: userName,
+                        userId: curr.id,
+                        field: c.field,
+                        oldValue: c.old,
+                        newValue: c.new
+                    });
+                });
+            },
+            
             // ============ CHARACTERS SUBSCRIPTION ============
+            previousCharacters: {},
+            
             subCharacters() {
                 console.log('[BC] Setting up characters subscription...');
                 const unsub = this.ref().collection('characters').onSnapshot(snap => {
                     console.log('[BC] Characters snapshot received:', snap.docs.length, 'characters');
-                    this.characters = snap.docs.map(d => {
+                    
+                    const newCharacters = snap.docs.map(d => {
                         const data = { id: d.id, ...d.data() };
-                        console.log('[BC] Character:', data.name, 'HP:', data.data?.status?.health, 'updatedAt:', data.updatedAt?.toDate?.());
                         return data;
                     });
+                    
+                    // Track changes
+                    newCharacters.forEach(char => {
+                        const prev = this.previousCharacters[char.id];
+                        if (prev) {
+                            this.trackCharacterChanges(prev, char);
+                        } else {
+                            // Neuer Charakter
+                            this.addLiveLog({
+                                type: 'character',
+                                icon: '🆕',
+                                action: 'created',
+                                characterName: char.name || char.characterName || 'Unbenannt',
+                                characterId: char.id,
+                                userName: this.getMemberName(char.ownerId || char.owner)
+                            });
+                        }
+                        // Deep copy for comparison
+                        this.previousCharacters[char.id] = JSON.parse(JSON.stringify(char));
+                    });
+                    
+                    this.characters = newCharacters;
                     this.renderCharacters();
                 }, e => console.error('[BC] Characters error:', e));
                 this.unsubs.push(unsub);
+            },
+            
+            getMemberName(memberId) {
+                if (!memberId) return 'Unbekannt';
+                const member = this.members.find(m => m.id === memberId);
+                return member?.displayName || member?.name || 'Unbekannt';
+            },
+            
+            trackCharacterChanges(prev, curr) {
+                const charName = curr.name || curr.characterName || 'Unbenannt';
+                const ownerName = this.getMemberName(curr.ownerId || curr.owner);
+                const d = curr.data || {};
+                const pd = prev.data || {};
+                
+                // Skip if lastModifiedBy is 'gm' (GM's own changes)
+                if (curr.lastModifiedBy === 'gm' && prev.lastModifiedBy !== 'gm') {
+                    return; // GM-Änderungen nicht doppelt loggen
+                }
+                
+                const changes = [];
+                
+                // === BASIC INFO ===
+                if (prev.name !== curr.name && curr.name) {
+                    changes.push({ field: 'Name', old: prev.name, new: curr.name, icon: '📝' });
+                }
+                
+                // === STATUS (HP, Moral) ===
+                const prevHP = pd.status?.health ?? prev.hp;
+                const currHP = d.status?.health ?? curr.hp;
+                if (prevHP !== currHP && currHP !== undefined) {
+                    const diff = currHP - (prevHP || 0);
+                    const arrow = diff > 0 ? '↑' : '↓';
+                    changes.push({ field: `LP ${arrow}${Math.abs(diff)}%`, old: `${prevHP}%`, new: `${currHP}%`, icon: '❤️' });
+                }
+                
+                const prevMoral = pd.status?.moral ?? prev.moral;
+                const currMoral = d.status?.moral ?? curr.moral;
+                if (prevMoral !== currMoral && currMoral !== undefined) {
+                    const diff = currMoral - (prevMoral || 0);
+                    const arrow = diff > 0 ? '↑' : '↓';
+                    changes.push({ field: `Moral ${arrow}${Math.abs(diff)}%`, old: `${prevMoral}%`, new: `${currMoral}%`, icon: '💪' });
+                }
+                
+                // === ATTRIBUTES ===
+                const attrNames = { power: 'Kraft', agility: 'Geschick', endurance: 'Zähigkeit', mind: 'Verstand', presence: 'Präsenz' };
+                ['power', 'agility', 'endurance', 'mind', 'presence'].forEach(attr => {
+                    const prevVal = pd.attributes?.[attr];
+                    const currVal = d.attributes?.[attr];
+                    if (prevVal !== currVal && currVal !== undefined) {
+                        changes.push({ field: attrNames[attr], old: prevVal, new: currVal, icon: '📊' });
+                    }
+                });
+                
+                // === CURRENCY ===
+                if (pd.currency !== d.currency && d.currency !== undefined) {
+                    changes.push({ field: 'Währung', old: pd.currency, new: d.currency, icon: '💰' });
+                }
+                
+                // === INVENTORY ===
+                const prevInv = JSON.stringify(pd.inventory || []);
+                const currInv = JSON.stringify(d.inventory || []);
+                if (prevInv !== currInv) {
+                    const prevCount = (pd.inventory || []).length;
+                    const currCount = (d.inventory || []).length;
+                    if (currCount > prevCount) {
+                        changes.push({ field: 'Inventar', old: `${prevCount} Items`, new: `${currCount} Items (+${currCount - prevCount})`, icon: '🎒' });
+                    } else if (currCount < prevCount) {
+                        changes.push({ field: 'Inventar', old: `${prevCount} Items`, new: `${currCount} Items (${currCount - prevCount})`, icon: '🎒' });
+                    } else {
+                        changes.push({ field: 'Inventar', old: '(geändert)', new: '(aktualisiert)', icon: '🎒' });
+                    }
+                }
+                
+                // === WEAPON ===
+                const prevWeapon = JSON.stringify(pd.weapon || {});
+                const currWeapon = JSON.stringify(d.weapon || {});
+                if (prevWeapon !== currWeapon) {
+                    const weaponName = d.weapon?.name || 'Waffe';
+                    changes.push({ field: 'Waffe', old: pd.weapon?.name || '-', new: weaponName, icon: '⚔️' });
+                }
+                
+                // === NOTES ===
+                if (pd.notes !== d.notes && d.notes !== undefined) {
+                    const prevLen = (pd.notes || '').length;
+                    const currLen = (d.notes || '').length;
+                    changes.push({ field: 'Notizen', old: `${prevLen} Zeichen`, new: `${currLen} Zeichen`, icon: '📝' });
+                }
+                
+                // === FOKUS ===
+                if (JSON.stringify(pd.fokus) !== JSON.stringify(d.fokus) && d.fokus) {
+                    const fokusName = d.fokus?.type ? (WA_FOKUS_NAMES[d.fokus.type]?.name || d.fokus.type) : '-';
+                    changes.push({ field: 'Fokus', old: pd.fokus?.type || '-', new: fokusName, icon: '🎯' });
+                }
+                
+                // === SCHWÄCHE ===
+                if (pd.schwaeche !== d.schwaeche && d.schwaeche) {
+                    const schwaecheName = WA_SCHWAECHE_NAMES[d.schwaeche] || d.schwaeche;
+                    changes.push({ field: 'Schwäche', old: pd.schwaeche || '-', new: schwaecheName, icon: '⚠️' });
+                }
+                
+                // === SECOND CHANCE ===
+                const prevSC = JSON.stringify(pd.secondChance || []);
+                const currSC = JSON.stringify(d.secondChance || []);
+                if (prevSC !== currSC) {
+                    const used = (d.secondChance || []).filter(x => x).length;
+                    changes.push({ field: '2. Chance', old: '-', new: `${used}/3 verwendet`, icon: '🍀' });
+                }
+                
+                // === ROLE / CLASS ===
+                if (pd.role !== d.role && d.role) {
+                    changes.push({ field: 'Rolle', old: pd.role || '-', new: d.role, icon: '🎭' });
+                }
+                
+                // === CREW ===
+                if (pd.crew !== d.crew && d.crew) {
+                    changes.push({ field: 'Crew', old: pd.crew || '-', new: d.crew, icon: '🏴‍☠️' });
+                }
+                
+                // === AGE / GENDER ===
+                if (pd.age !== d.age && d.age) {
+                    changes.push({ field: 'Alter', old: pd.age || '-', new: d.age, icon: '📅' });
+                }
+                if (pd.gender !== d.gender && d.gender) {
+                    changes.push({ field: 'Geschlecht', old: pd.gender || '-', new: d.gender, icon: '👤' });
+                }
+                
+                // === PORTRAIT ===
+                if (pd.portrait !== d.portrait && d.portrait) {
+                    changes.push({ field: 'Portrait', old: '(alt)', new: '(neu)', icon: '🖼️' });
+                }
+                
+                // Log all changes
+                changes.forEach(c => {
+                    this.addLiveLog({
+                        type: 'character',
+                        icon: c.icon,
+                        action: 'change',
+                        field: c.field,
+                        oldValue: c.old,
+                        newValue: c.new,
+                        characterName: charName,
+                        characterId: curr.id,
+                        userName: ownerName
+                    });
+                });
             },
             
             // ============ PRESENCE SUBSCRIPTION ============
@@ -5269,7 +5503,10 @@
                     filtered = filtered.filter(l => 
                         (l.message || '').toLowerCase().includes(search) ||
                         (l.userName || l.user || '').toLowerCase().includes(search) ||
-                        (l.action || '').toLowerCase().includes(search)
+                        (l.characterName || '').toLowerCase().includes(search) ||
+                        (l.field || '').toLowerCase().includes(search) ||
+                        (l.action || '').toLowerCase().includes(search) ||
+                        (l.notation || '').toLowerCase().includes(search)
                     );
                 }
                 
@@ -5308,7 +5545,7 @@
                     const timeStr = time ? time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--';
                     const dateStr = time ? time.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '';
                     
-                    const user = this.escapeHtml(log.userName || log.user || log.playerName || log.displayName || 'System');
+                    const user = this.escapeHtml(log.userName || log.user || log.player || log.playerName || log.displayName || 'System');
                     const action = this.getLogAction(log);
                     const detail = this.getLogDetail(log);
                     
@@ -5334,12 +5571,47 @@
                 if (log.collection === 'chat') return 'schrieb';
                 if (log.collection === 'changelog') return log.action || 'änderte etwas';
                 if (log.collection === 'broadcast') return 'sendete Broadcast';
+                
+                // Live logs
+                if (log.collection === 'live') {
+                    if (log.type === 'character') {
+                        if (log.action === 'created') return 'erstellte Charakter';
+                        if (log.action === 'change') return `änderte ${log.field || 'etwas'}`;
+                        return 'änderte Charakter';
+                    }
+                    if (log.type === 'member') {
+                        if (log.action === 'joined') return 'ist beigetreten';
+                        if (log.action === 'left') return 'hat verlassen';
+                        if (log.action === 'profile_change') return `änderte ${log.field || 'Profil'}`;
+                        return log.action || 'Aktion';
+                    }
+                    if (log.type === 'dice') return 'hat gewürfelt';
+                }
                 return '';
             },
             
             getLogDetail(log) {
                 if (log.collection === 'dice') {
-                    return `${log.formula || log.dice || '?'} → <strong>${log.total || log.result || '?'}</strong>`;
+                    // Support both old and new format
+                    const notation = log.notation || log.formula || log.dice || '?';
+                    const result = log.total || log.result || '?';
+                    const critical = log.critical;
+                    
+                    let html = `<span style="font-family:monospace;">${notation}</span> → <strong>${result}</strong>`;
+                    
+                    // Add critical indicator
+                    if (critical === 'success') {
+                        html += ' <span style="color:#22c55e;font-weight:bold;">KRITISCH!</span>';
+                    } else if (critical === 'failure') {
+                        html += ' <span style="color:#ef4444;font-weight:bold;">PATZER!</span>';
+                    }
+                    
+                    // Add secret indicator
+                    if (log.secret) {
+                        html += ' <span style="color:#f59e0b;font-size:11px;">🤫 Geheim</span>';
+                    }
+                    
+                    return html;
                 }
                 if (log.collection === 'chat') {
                     return this.escapeHtml(log.message || log.text || '');
@@ -5349,6 +5621,36 @@
                 }
                 if (log.collection === 'broadcast') {
                     return this.escapeHtml(log.message || `[${log.type}]`);
+                }
+                
+                // Live logs
+                if (log.collection === 'live') {
+                    if (log.type === 'character') {
+                        if (log.action === 'created') {
+                            return `<strong>${this.escapeHtml(log.characterName)}</strong>`;
+                        }
+                        if (log.action === 'change') {
+                            let html = `<strong>${this.escapeHtml(log.characterName)}</strong>: `;
+                            html += `<span style="color:rgba(255,255,255,0.5);">${this.escapeHtml(String(log.oldValue || '-'))}</span>`;
+                            html += ` → <span style="color:#22c55e;">${this.escapeHtml(String(log.newValue || '-'))}</span>`;
+                            return html;
+                        }
+                    }
+                    if (log.type === 'member') {
+                        if (log.action === 'joined') {
+                            return `Willkommen!`;
+                        }
+                        if (log.action === 'profile_change') {
+                            let html = `<span style="color:rgba(255,255,255,0.5);">${this.escapeHtml(String(log.oldValue || '-'))}</span>`;
+                            html += ` → <span style="color:#22c55e;">${this.escapeHtml(String(log.newValue || '-'))}</span>`;
+                            return html;
+                        }
+                    }
+                    if (log.type === 'dice') {
+                        const notation = log.notation || '?';
+                        const result = log.total || '?';
+                        return `<span style="font-family:monospace;">${notation}</span> → <strong>${result}</strong>`;
+                    }
                 }
                 return '';
             },
@@ -5390,6 +5692,36 @@
             addLog(type, message) {
                 // Add to local history (for immediate feedback)
                 this.addToHistory(type, message);
+            },
+            
+            /**
+             * Fügt einen Live-Log hinzu (für Echtzeit-Tracking von Änderungen)
+             */
+            addLiveLog(logData) {
+                const entry = {
+                    id: 'live-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                    collection: 'live',
+                    timestamp: { seconds: Date.now() / 1000 },
+                    ...logData
+                };
+                
+                // Am Anfang einfügen (neueste zuerst)
+                this.logs.unshift(entry);
+                
+                // Max 500 Logs behalten
+                if (this.logs.length > 500) {
+                    this.logs = this.logs.slice(0, 500);
+                }
+                
+                this.renderLogs();
+                
+                // Optional: Kurze Highlight-Animation
+                setTimeout(() => {
+                    const firstItem = document.querySelector('.activity-log-item');
+                    if (firstItem) {
+                        firstItem.style.animation = 'fadeIn 0.3s ease';
+                    }
+                }, 50);
             },
             
             // ============ SETTINGS ============
