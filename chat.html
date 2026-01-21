@@ -15,21 +15,44 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
+        /* ==================== HIDE FOOTER ON CHAT PAGE ==================== */
+        .footer {
+            display: none !important;
+        }
+        
+        /* ==================== RESET MAIN CONTENT FOR CHAT ==================== */
+        .main {
+            height: calc(100vh - 60px) !important;
+            overflow: hidden !important;
+        }
+        
+        .main__content {
+            padding: 0 !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            display: block !important;
+        }
+        
         /* ==================== CHAT LAYOUT ==================== */
         .chat-wrapper {
-            display: flex;
-            height: calc(100vh - 60px);
+            display: flex !important;
+            flex-direction: row !important;
+            height: 100% !important;
+            width: 100% !important;
             background: #0a0a0a;
+            overflow: hidden;
         }
         
         /* ==================== ONLINE USERS PANEL ==================== */
         .chat-panel {
             width: 260px;
+            min-width: 260px;
             background: #111111;
             border-right: 1px solid #2a2a2a;
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+            height: 100%;
         }
         
         .chat-panel__header {
@@ -142,7 +165,9 @@
             display: flex;
             flex-direction: column;
             min-width: 0;
+            height: 100%;
             background: #0d0d0d;
+            overflow: hidden;
         }
         
         /* Chat Header */
@@ -683,9 +708,29 @@
             
             // ==================== RENDER ====================
             render() {
-                document.getElementById('chatRoot').innerHTML = `
+                const chatRoot = document.getElementById('chatRoot');
+                
+                // Fix parent containers
+                const mainContent = chatRoot.closest('.main__content');
+                if (mainContent) {
+                    mainContent.style.cssText = 'padding:0 !important;height:100% !important;overflow:hidden !important;';
+                }
+                
+                const main = chatRoot.closest('.main');
+                if (main) {
+                    main.style.cssText = 'height:calc(100vh - 60px) !important;overflow:hidden !important;';
+                }
+                
+                // Hide footer
+                const footer = document.querySelector('.footer');
+                if (footer) footer.style.display = 'none';
+                
+                // Force flex row layout on chatRoot
+                chatRoot.style.cssText = 'display:flex !important;flex-direction:row !important;height:100% !important;width:100% !important;overflow:hidden !important;background:#0a0a0a;';
+                
+                chatRoot.innerHTML = `
                     <!-- Users Panel -->
-                    <div class="chat-panel">
+                    <div class="chat-panel" style="width:260px;min-width:260px;height:100%;display:flex;flex-direction:column;flex-shrink:0;background:#111;border-right:1px solid #2a2a2a;">
                         <div class="chat-panel__header">
                             <div class="chat-panel__title">
                                 👥 Teilnehmer
@@ -696,7 +741,7 @@
                     </div>
                     
                     <!-- Chat Area -->
-                    <div class="chat-area">
+                    <div class="chat-area" style="flex:1;display:flex;flex-direction:column;min-width:0;height:100%;background:#0d0d0d;overflow:hidden;">
                         <div class="chat-head">
                             <div class="chat-head__info">
                                 <div class="chat-head__icon">💬</div>
@@ -710,7 +755,7 @@
                             </div>
                         </div>
                         
-                        <div class="chat-messages" id="msgList"></div>
+                        <div class="chat-messages" id="msgList" style="flex:1;overflow-y:auto;padding:20px 24px;"></div>
                         
                         <div class="chat-typing" id="typingArea"></div>
                         
@@ -737,7 +782,17 @@
             },
             
             showNoRoom() {
-                document.getElementById('chatRoot').innerHTML = `
+                const chatRoot = document.getElementById('chatRoot');
+                
+                // Fix parent containers
+                const mainContent = chatRoot.closest('.main__content');
+                if (mainContent) {
+                    mainContent.style.cssText = 'padding:0 !important;height:calc(100vh - 60px) !important;overflow:hidden !important;display:flex !important;';
+                }
+                
+                chatRoot.style.cssText = 'display:flex !important;align-items:center !important;justify-content:center !important;height:100% !important;width:100% !important;background:#0d0d0d;';
+                
+                chatRoot.innerHTML = `
                     <div class="chat-no-room">
                         <div class="chat-no-room__icon">💬</div>
                         <div class="chat-no-room__title">Kein Raum aktiv</div>
