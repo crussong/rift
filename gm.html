@@ -4525,15 +4525,19 @@
                 }
                 
                 // === FOKUS ===
-                if (JSON.stringify(pd.fokus) !== JSON.stringify(d.fokus) && d.fokus) {
-                    const fokusName = d.fokus?.type ? (WA_FOKUS_NAMES[d.fokus.type]?.name || d.fokus.type) : '-';
-                    changes.push({ field: 'Fokus', old: pd.fokus?.type || '-', new: fokusName, icon: '🎯' });
+                const prevFokusType = pd.fokus?.type;
+                const currFokusType = d.fokus?.type;
+                if (prevFokusType !== currFokusType && currFokusType) {
+                    const oldFokusName = prevFokusType ? (WA_FOKUS_NAMES[prevFokusType]?.name || this.capitalize(prevFokusType)) : '-';
+                    const newFokusName = WA_FOKUS_NAMES[currFokusType]?.name || this.capitalize(currFokusType);
+                    changes.push({ field: 'Fokus', old: oldFokusName, new: newFokusName, icon: '🎯' });
                 }
                 
                 // === SCHWÄCHE ===
                 if (pd.schwaeche !== d.schwaeche && d.schwaeche) {
-                    const schwaecheName = WA_SCHWAECHE_NAMES[d.schwaeche] || d.schwaeche;
-                    changes.push({ field: 'Schwäche', old: pd.schwaeche || '-', new: schwaecheName, icon: '⚠️' });
+                    const oldSchwaecheName = pd.schwaeche ? (WA_SCHWAECHE_NAMES[pd.schwaeche] || this.capitalize(pd.schwaeche)) : '-';
+                    const newSchwaecheName = WA_SCHWAECHE_NAMES[d.schwaeche] || this.capitalize(d.schwaeche);
+                    changes.push({ field: 'Schwäche', old: oldSchwaecheName, new: newSchwaecheName, icon: '⚠️' });
                 }
                 
                 // === SECOND CHANCE ===
@@ -5732,7 +5736,22 @@
              * Fügt einen Live-Log hinzu (für Echtzeit-Tracking von Änderungen)
              * Speichert auch persistent in Firestore
              */
+            recentLogHashes: new Set(),
+            
             async addLiveLog(logData) {
+                // Erstelle Hash zur Duplikat-Vermeidung
+                const hash = `${logData.type}_${logData.action}_${logData.field}_${logData.characterId || logData.userId}_${logData.newValue}`;
+                
+                // Prüfe auf Duplikat (innerhalb der letzten 5 Sekunden)
+                if (this.recentLogHashes.has(hash)) {
+                    console.log('[BC] Duplicate log skipped:', hash);
+                    return;
+                }
+                
+                // Hash speichern und nach 5 Sekunden entfernen
+                this.recentLogHashes.add(hash);
+                setTimeout(() => this.recentLogHashes.delete(hash), 5000);
+                
                 // Persistent nach Firestore speichern (wird dann via subLogs() gelesen)
                 try {
                     await this.ref().collection('changelog').add({
