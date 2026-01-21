@@ -1778,6 +1778,264 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2000);
 });
 
+// ============================================
+// FLOATING ACTION BUTTONS (FAB) SYSTEM
+// ============================================
+
+window.RIFTFab = {
+    // Get last used character from localStorage
+    getLastCharacter() {
+        try {
+            return JSON.parse(localStorage.getItem('rift_last_character') || 'null');
+        } catch {
+            return null;
+        }
+    },
+    
+    // Save last used character
+    saveLastCharacter(id, system, name) {
+        if (!id) return;
+        localStorage.setItem('rift_last_character', JSON.stringify({ id, system, name, timestamp: Date.now() }));
+        console.log('[FAB] Saved last character:', name, id);
+    },
+    
+    // Auto-detect and save character from sheet page
+    trackCurrentCharacter() {
+        const page = window.location.pathname.split('/').pop().replace('.html', '');
+        if (!page.startsWith('sheet-')) return;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const charId = urlParams.get('id');
+        if (!charId) return;
+        
+        // Determine system from page name
+        const systemMap = {
+            'sheet-5e': '5e',
+            'sheet-5e-de': '5e-de',
+            'sheet-5e-en': '5e-en',
+            'sheet-worldsapart': 'worldsapart',
+            'sheet-htbah': 'htbah',
+            'sheet-cyberpunkred': 'cyberpunkred'
+        };
+        const system = systemMap[page] || '5e';
+        
+        // Try to get character name from DOM (with retry for async loading)
+        const getName = () => {
+            const nameEl = document.getElementById('charName') || 
+                          document.querySelector('.char-name-input') ||
+                          document.querySelector('[id*="characterName"]') ||
+                          document.querySelector('input[placeholder*="Charaktername"]') ||
+                          document.querySelector('input[placeholder*="Character"]');
+            return nameEl?.value || 'Unbenannt';
+        };
+        
+        // Save immediately with current name
+        this.saveLastCharacter(charId, system, getName());
+        
+        // Also watch for name changes
+        const nameEl = document.getElementById('charName');
+        if (nameEl) {
+            nameEl.addEventListener('input', () => {
+                this.saveLastCharacter(charId, system, nameEl.value || 'Unbenannt');
+            });
+        }
+    },
+    
+    // Get character sheet URL
+    getSheetUrl() {
+        const char = this.getLastCharacter();
+        if (!char) return 'sheet.html';
+        
+        // Map system to sheet file
+        const sheetMap = {
+            '5e': 'sheet-5e.html',
+            '5e-de': 'sheet-5e-de.html',
+            '5e-en': 'sheet-5e-en.html',
+            '5e2024': 'sheet-5e.html',
+            'worldsapart': 'sheet-worldsapart.html',
+            'htbah': 'sheet-htbah.html',
+            'cyberpunk': 'sheet-cyberpunkred.html',
+            'cyberpunkred': 'sheet-cyberpunkred.html'
+        };
+        
+        const sheetFile = sheetMap[char.system] || 'sheet.html';
+        return `${sheetFile}?id=${char.id}`;
+    },
+    
+    // Initialize FABs based on current page
+    init() {
+        const page = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+        
+        // Track character if on a sheet page
+        if (page.startsWith('sheet-')) {
+            setTimeout(() => this.trackCurrentCharacter(), 500);
+        }
+        
+        // Define which FABs to show on which pages
+        const fabConfig = {
+            'dice': ['sheet', 'chat'],
+            'chat': ['dice', 'sheet'],
+            'sheet-5e': ['dice', 'chat'],
+            'sheet-5e-de': ['dice', 'chat'],
+            'sheet-5e-en': ['dice', 'chat'],
+            'sheet-worldsapart': ['dice', 'chat'],
+            'sheet-htbah': ['dice', 'chat'],
+            'sheet-cyberpunkred': ['dice', 'chat']
+        };
+        
+        const fabs = fabConfig[page];
+        if (!fabs || fabs.length === 0) return;
+        
+        this.render(fabs);
+    },
+    
+    render(fabs) {
+        // Load Tabler Icons if not already loaded
+        if (!document.querySelector('link[href*="tabler-icons"]')) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css';
+            document.head.appendChild(link);
+        }
+        
+        // Create FAB container
+        const container = document.createElement('div');
+        container.className = 'rift-fab-container';
+        container.innerHTML = `
+            <style>
+                .rift-fab-container {
+                    position: fixed;
+                    bottom: 24px;
+                    right: 24px;
+                    display: flex;
+                    flex-direction: column-reverse;
+                    gap: 12px;
+                    z-index: 900;
+                }
+                
+                .rift-fab {
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 16px;
+                    border: none;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                    transition: all 0.2s ease;
+                    text-decoration: none;
+                    position: relative;
+                }
+                
+                .rift-fab:hover {
+                    transform: scale(1.1) translateY(-2px);
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+                }
+                
+                .rift-fab:active {
+                    transform: scale(0.95);
+                }
+                
+                .rift-fab--dice {
+                    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+                }
+                .rift-fab--dice:hover {
+                    box-shadow: 0 8px 32px rgba(139,92,246,0.5);
+                }
+                
+                .rift-fab--sheet {
+                    background: linear-gradient(135deg, #10b981, #059669);
+                }
+                .rift-fab--sheet:hover {
+                    box-shadow: 0 8px 32px rgba(16,185,129,0.5);
+                }
+                
+                .rift-fab--chat {
+                    background: linear-gradient(135deg, #3b82f6, #2563eb);
+                }
+                .rift-fab--chat:hover {
+                    box-shadow: 0 8px 32px rgba(59,130,246,0.5);
+                }
+                
+                .rift-fab__tooltip {
+                    position: absolute;
+                    right: calc(100% + 12px);
+                    background: #1a1a1a;
+                    color: #fff;
+                    padding: 8px 14px;
+                    border-radius: 10px;
+                    font-size: 13px;
+                    font-weight: 500;
+                    white-space: nowrap;
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: opacity 0.2s, transform 0.2s;
+                    transform: translateX(8px);
+                    border: 1px solid #333;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+                }
+                
+                .rift-fab:hover .rift-fab__tooltip {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+                
+                @media (max-width: 768px) {
+                    .rift-fab-container {
+                        bottom: 16px;
+                        right: 16px;
+                        gap: 10px;
+                    }
+                    .rift-fab {
+                        width: 48px;
+                        height: 48px;
+                        font-size: 20px;
+                        border-radius: 14px;
+                    }
+                    .rift-fab__tooltip {
+                        display: none;
+                    }
+                }
+            </style>
+        `;
+        
+        // Add FABs
+        fabs.forEach(fab => {
+            const el = document.createElement('a');
+            el.className = `rift-fab rift-fab--${fab}`;
+            
+            switch(fab) {
+                case 'dice':
+                    el.href = 'dice.html';
+                    el.innerHTML = `<i class="ti ti-dice-filled"></i><span class="rift-fab__tooltip">Würfel</span>`;
+                    break;
+                case 'sheet':
+                    el.href = this.getSheetUrl();
+                    const char = this.getLastCharacter();
+                    const tooltip = char?.name ? char.name : 'Charakterbogen';
+                    el.innerHTML = `<i class="ti ti-user-filled"></i><span class="rift-fab__tooltip">${tooltip}</span>`;
+                    break;
+                case 'chat':
+                    el.href = 'chat.html';
+                    el.innerHTML = `<i class="ti ti-message-circle-filled"></i><span class="rift-fab__tooltip">Chat</span>`;
+                    break;
+            }
+            
+            container.appendChild(el);
+        });
+        
+        document.body.appendChild(container);
+    }
+};
+
+// Initialize FABs when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => window.RIFTFab.init(), 100);
+});
+
 // Export for use in pages
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { createSidebar, createTopbar, createFooter, initLayout };
