@@ -79,9 +79,9 @@
         .wb-format-bar__sep { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 4px; }
         
         /* Draggable Image */
-        .wb-image { position: absolute; cursor: move; z-index: 45; user-select: none; }
+        .wb-image { position: absolute; cursor: move; z-index: 45; user-select: none; -webkit-user-drag: none; }
         .wb-image.selected { outline: 3px solid #fbbf24; outline-offset: 2px; }
-        .wb-image img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        .wb-image img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
         
         .wb-canvas { position: absolute; top: 0; left: 0; touch-action: none; }
         #bgCanvas { z-index: 1; }
@@ -112,11 +112,11 @@
         
         .wb-ruler-info { position: absolute; background: rgba(0,0,0,0.9); color: #fbbf24; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; pointer-events: none; z-index: 150; display: none; border: 2px solid #fbbf24; }
         
-        .wb-token { position: absolute; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.5); cursor: move; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.8); user-select: none; z-index: 50; transition: transform 0.1s, box-shadow 0.1s; }
-        .wb-token:hover { transform: scale(1.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+        .wb-token { position: absolute; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.5); cursor: move; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.8); user-select: none; -webkit-user-drag: none; z-index: 50; }
+        .wb-token:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
         .wb-token.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251,191,36,0.4), 0 4px 20px rgba(0,0,0,0.6); }
-        .wb-token img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .wb-token__label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 2px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; }
+        .wb-token img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
+        .wb-token__label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 2px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; pointer-events: none; }
         
         .wb-stamps-panel { position: absolute; top: 60px; left: 16px; background: rgba(22,22,22,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; z-index: 100; display: none; max-width: 260px; }
         .wb-stamps-panel.visible { display: block; }
@@ -482,6 +482,11 @@ const WB = {
     // ==================== CANVAS EVENTS ====================
     setupCanvas() {
         const ui = this.uiCanvas;
+        const wrapper = document.getElementById('canvasWrapper');
+        
+        // Prevent native drag on all elements in the canvas area
+        wrapper.addEventListener('dragstart', e => e.preventDefault());
+        
         ui.addEventListener('mousedown', e => this.onDown(e));
         ui.addEventListener('dblclick', e => this.onDblClick(e));
         ui.addEventListener('contextmenu', e => this.onContext(e));
@@ -1165,11 +1170,14 @@ const WB = {
             el.style.top = (img.y * this.zoom + this.panY) + 'px';
             el.style.width = (img.w * this.zoom) + 'px';
             el.style.height = (img.h * this.zoom) + 'px';
-            el.innerHTML = `<img src="${img.src}">`;
+            el.innerHTML = `<img src="${img.src}" draggable="false">`;
             el.dataset.idx = i;
+            el.draggable = false;
+            el.ondragstart = () => false;
             el.onmousedown = e => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (this.tool === 'select') {
-                    e.stopPropagation();
                     this.select({ type: 'image', item: img, index: i });
                     this.isDragging = true;
                     this.lastDragPoint = this.getPoint(e);
@@ -1196,13 +1204,16 @@ const WB = {
             el.style.fontSize = (displaySize * 0.4) + 'px';
             
             if (t.img) {
-                el.innerHTML = `<img src="${t.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                el.innerHTML = `<img src="${t.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" draggable="false">`;
             } else {
                 el.innerHTML = t.label || t.name?.charAt(0) || '?';
             }
             el.innerHTML += `<span class="wb-token__label">${t.name || ''}</span>`;
             el.dataset.idx = i;
+            el.draggable = false;
+            el.ondragstart = () => false;
             el.onmousedown = e => {
+                e.preventDefault();
                 e.stopPropagation();
                 if (this.tool === 'select') {
                     this.select({ type: 'token', item: t, index: i });
