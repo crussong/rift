@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <meta name="view-transition" content="same-origin">
     <title>RIFT – Whiteboard</title>
     
@@ -15,21 +15,418 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
-        .page {
-            padding: 40px 24px;
+        /* ==================== LAYOUT ==================== */
+        .whiteboard-container {
+            position: fixed;
+            top: 60px;
+            left: var(--sidebar-width, 240px);
+            right: 0;
+            bottom: 60px;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            overflow: hidden;
         }
         
-        .page__title {
-            font-family: 'Dharma Gothic', sans-serif;
-            font-size: 48px;
-            font-weight: 700;
-            color: var(--text-primary);
+        @media (max-width: 1024px) {
+            .whiteboard-container {
+                left: 0;
+            }
+        }
+        
+        /* ==================== TOOLBAR ==================== */
+        .wb-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(22, 22, 22, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            flex-wrap: wrap;
+            z-index: 10;
+        }
+        
+        .wb-toolbar__group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+        }
+        
+        .wb-toolbar__divider {
+            width: 1px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0 8px;
+        }
+        
+        .wb-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .wb-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .wb-btn.active {
+            background: var(--accent, #8b5cf6);
+            color: white;
+        }
+        
+        .wb-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .wb-btn--danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        /* Color Picker */
+        .wb-color-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .wb-color-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .wb-color-btn.active {
+            border-color: white;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Size Selector */
+        .wb-size-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+        
+        .wb-size-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .wb-size-btn.active {
+            background: var(--accent, #8b5cf6);
+        }
+        
+        .wb-size-btn__dot {
+            background: white;
+            border-radius: 50%;
+        }
+        
+        /* ==================== CANVAS AREA ==================== */
+        .wb-canvas-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        
+        .wb-canvas-wrapper.tool-eraser {
+            cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="1"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>') 12 12, crosshair;
+        }
+        
+        .wb-canvas-wrapper.tool-text {
+            cursor: text;
+        }
+        
+        .wb-canvas-wrapper.panning {
+            cursor: grab;
+        }
+        
+        .wb-canvas-wrapper.panning:active {
+            cursor: grabbing;
+        }
+        
+        #wbBackground {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        
+        #wbGrid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.15;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px);
+            background-size: 40px 40px;
+            display: none;
+        }
+        
+        #wbGrid.visible {
+            display: block;
+        }
+        
+        #wbCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            touch-action: none;
+        }
+        
+        /* ==================== TEXT INPUT OVERLAY ==================== */
+        .wb-text-input {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--accent, #8b5cf6);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 16px;
+            font-family: inherit;
+            min-width: 150px;
+            outline: none;
+            z-index: 100;
+            display: none;
+        }
+        
+        /* ==================== ZOOM CONTROLS ==================== */
+        .wb-zoom-controls {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: rgba(22, 22, 22, 0.9);
+            border-radius: 12px;
+            padding: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .wb-zoom-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.6);
+            transition: all 0.15s ease;
+        }
+        
+        .wb-zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .wb-zoom-level {
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 4px 0;
+        }
+        
+        /* ==================== USER CURSORS ==================== */
+        .wb-cursor {
+            position: absolute;
+            pointer-events: none;
+            z-index: 50;
+            transition: left 0.05s linear, top 0.05s linear;
+        }
+        
+        .wb-cursor__pointer {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .wb-cursor__name {
+            position: absolute;
+            left: 16px;
+            top: -4px;
+            background: inherit;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        /* ==================== UPLOAD OVERLAY ==================== */
+        .wb-upload-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        
+        .wb-upload-overlay.visible {
+            display: flex;
+        }
+        
+        .wb-upload-box {
+            background: #1a1a1a;
+            border: 2px dashed rgba(139, 92, 246, 0.5);
+            border-radius: 16px;
+            padding: 48px 64px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+        
+        .wb-upload-box.dragover {
+            border-color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .wb-upload-box svg {
+            width: 64px;
+            height: 64px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-bottom: 16px;
+        }
+        
+        .wb-upload-box h3 {
+            color: white;
+            font-size: 20px;
             margin-bottom: 8px;
         }
         
-        .page__subtitle {
-            color: var(--text-secondary);
-            font-size: 16px;
+        .wb-upload-box p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        
+        .wb-upload-btn {
+            background: var(--accent, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .wb-upload-btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        
+        .wb-upload-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* ==================== MOBILE ADJUSTMENTS ==================== */
+        @media (max-width: 768px) {
+            .wb-toolbar {
+                padding: 8px 12px;
+                gap: 6px;
+            }
+            
+            .wb-toolbar__group {
+                gap: 2px;
+                padding: 2px;
+            }
+            
+            .wb-btn {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .wb-btn svg {
+                width: 18px;
+                height: 18px;
+            }
+            
+            .wb-toolbar__divider {
+                display: none;
+            }
+            
+            .wb-color-btn {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .wb-zoom-controls {
+                bottom: 80px;
+            }
+        }
+        
+        /* ==================== TOAST für Aktionen ==================== */
+        .wb-toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(22, 22, 22, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .wb-toast.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
         }
     </style>
 </head>
@@ -38,10 +435,203 @@
         <main class="main">
             <div class="main__content">
                 
-                <div class="page">
-                    <h1 class="page__title">Whiteboard</h1>
-                    <p class="page__subtitle">Zeichne, plane, visualisiere.</p>
+                <div class="whiteboard-container">
+                    <!-- Toolbar -->
+                    <div class="wb-toolbar">
+                        <!-- Tools -->
+                        <div class="wb-toolbar__group">
+                            <button class="wb-btn active" data-tool="pen" title="Stift (P)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                                    <path d="M2 2l7.586 7.586"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" data-tool="line" title="Linie (L)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                    <line x1="5" y1="19" x2="19" y2="5"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" data-tool="rect" title="Rechteck (R)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" data-tool="circle" title="Kreis (C)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="9"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" data-tool="arrow" title="Pfeil (A)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="5" y1="19" x2="19" y2="5"/>
+                                    <polyline points="10 5 19 5 19 14"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" data-tool="text" title="Text (T)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="4 7 4 4 20 4 20 7"/>
+                                    <line x1="9" y1="20" x2="15" y2="20"/>
+                                    <line x1="12" y1="4" x2="12" y2="20"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" data-tool="eraser" title="Radierer (E)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L13.4 3a2 2 0 012.8 0L21 7.8a2 2 0 010 2.8L11.8 20"/>
+                                    <path d="M6.5 13.5L13 7"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="wb-toolbar__divider"></div>
+                        
+                        <!-- Colors -->
+                        <div class="wb-toolbar__group" id="colorPalette">
+                            <button class="wb-color-btn active" data-color="#ffffff" style="background: #ffffff;" title="Weiß"></button>
+                            <button class="wb-color-btn" data-color="#ef4444" style="background: #ef4444;" title="Rot"></button>
+                            <button class="wb-color-btn" data-color="#f97316" style="background: #f97316;" title="Orange"></button>
+                            <button class="wb-color-btn" data-color="#eab308" style="background: #eab308;" title="Gelb"></button>
+                            <button class="wb-color-btn" data-color="#22c55e" style="background: #22c55e;" title="Grün"></button>
+                            <button class="wb-color-btn" data-color="#3b82f6" style="background: #3b82f6;" title="Blau"></button>
+                            <button class="wb-color-btn" data-color="#8b5cf6" style="background: #8b5cf6;" title="Violett"></button>
+                            <button class="wb-color-btn" data-color="#ec4899" style="background: #ec4899;" title="Pink"></button>
+                        </div>
+                        
+                        <div class="wb-toolbar__divider"></div>
+                        
+                        <!-- Sizes -->
+                        <div class="wb-toolbar__group">
+                            <button class="wb-size-btn" data-size="2" title="Dünn">
+                                <span class="wb-size-btn__dot" style="width: 4px; height: 4px;"></span>
+                            </button>
+                            <button class="wb-size-btn active" data-size="4" title="Normal">
+                                <span class="wb-size-btn__dot" style="width: 8px; height: 8px;"></span>
+                            </button>
+                            <button class="wb-size-btn" data-size="8" title="Dick">
+                                <span class="wb-size-btn__dot" style="width: 12px; height: 12px;"></span>
+                            </button>
+                            <button class="wb-size-btn" data-size="16" title="Sehr dick">
+                                <span class="wb-size-btn__dot" style="width: 18px; height: 18px;"></span>
+                            </button>
+                        </div>
+                        
+                        <div class="wb-toolbar__divider"></div>
+                        
+                        <!-- Actions -->
+                        <div class="wb-toolbar__group">
+                            <button class="wb-btn" id="undoBtn" title="Rückgängig (Strg+Z)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 7v6h6"/>
+                                    <path d="M3 13a9 9 0 1 0 3-7.7L3 7"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" id="redoBtn" title="Wiederholen (Strg+Y)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 7v6h-6"/>
+                                    <path d="M21 13a9 9 0 1 1-3-7.7L21 7"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="wb-toolbar__divider"></div>
+                        
+                        <!-- Grid & Background -->
+                        <div class="wb-toolbar__group">
+                            <button class="wb-btn" id="gridBtn" title="Raster ein/aus (G)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                    <line x1="3" y1="9" x2="21" y2="9"/>
+                                    <line x1="3" y1="15" x2="21" y2="15"/>
+                                    <line x1="9" y1="3" x2="9" y2="21"/>
+                                    <line x1="15" y1="3" x2="15" y2="21"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" id="bgBtn" title="Hintergrundbild">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    <polyline points="21 15 16 10 5 21"/>
+                                </svg>
+                            </button>
+                            <button class="wb-btn" id="exportBtn" title="Als Bild exportieren">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="wb-toolbar__divider"></div>
+                        
+                        <!-- Clear (GM only) -->
+                        <div class="wb-toolbar__group" id="gmActions" style="display: none;">
+                            <button class="wb-btn wb-btn--danger" id="clearBtn" title="Alles löschen">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    <line x1="10" y1="11" x2="10" y2="17"/>
+                                    <line x1="14" y1="11" x2="14" y2="17"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Canvas Area -->
+                    <div class="wb-canvas-wrapper" id="canvasWrapper">
+                        <img id="wbBackground" src="" alt="" style="display: none;">
+                        <div id="wbGrid"></div>
+                        <canvas id="wbCanvas"></canvas>
+                        <input type="text" class="wb-text-input" id="textInput" placeholder="Text eingeben...">
+                        
+                        <!-- Zoom Controls -->
+                        <div class="wb-zoom-controls">
+                            <button class="wb-zoom-btn" id="zoomInBtn" title="Vergrößern">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                            </button>
+                            <div class="wb-zoom-level" id="zoomLevel">100%</div>
+                            <button class="wb-zoom-btn" id="zoomOutBtn" title="Verkleinern">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                            </button>
+                            <button class="wb-zoom-btn" id="zoomResetBtn" title="Zurücksetzen">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                    <path d="M3 3v5h5"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <!-- User Cursors Container -->
+                        <div id="cursorsContainer"></div>
+                    </div>
+                    
+                    <!-- Upload Overlay -->
+                    <div class="wb-upload-overlay" id="uploadOverlay">
+                        <button class="wb-upload-close" id="uploadClose">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                        <div class="wb-upload-box" id="uploadBox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <path d="M21 15l-5-5L5 21"/>
+                            </svg>
+                            <h3>Battle Map hochladen</h3>
+                            <p>Ziehe ein Bild hierher oder klicke zum Auswählen</p>
+                            <button class="wb-upload-btn" id="uploadBtn">Bild auswählen</button>
+                            <input type="file" id="bgFileInput" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
                 </div>
+                
+                <!-- Toast -->
+                <div class="wb-toast" id="wbToast"></div>
                 
             </div>
         </main>
@@ -53,11 +643,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     
     <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
     <script src="assets/js/room-service.js"></script>
     <script src="assets/js/user-service.js"></script>
+    <script src="assets/js/toast-service.js"></script>
     
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/ui.js"></script>
@@ -68,5 +660,895 @@
     <script src="assets/js/app.js"></script>
     <script>initLayout();</script>
     <script src="assets/js/broadcast.js"></script>
+    
+    <script>
+        // ==================== WHITEBOARD ENGINE ====================
+        const Whiteboard = {
+            // State
+            canvas: null,
+            ctx: null,
+            isDrawing: false,
+            tool: 'pen',
+            color: '#ffffff',
+            size: 4,
+            zoom: 1,
+            panX: 0,
+            panY: 0,
+            isPanning: false,
+            lastPanPoint: null,
+            
+            // History
+            history: [],
+            historyIndex: -1,
+            maxHistory: 50,
+            
+            // Current drawing
+            currentPath: [],
+            startPoint: null,
+            
+            // Firebase
+            roomCode: null,
+            db: null,
+            unsubscribe: null,
+            userId: null,
+            userName: null,
+            userColor: null,
+            isGM: false,
+            
+            // Remote users
+            remoteCursors: {},
+            
+            // ==================== INIT ====================
+            async init() {
+                this.canvas = document.getElementById('wbCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                // Get room and user info
+                this.roomCode = localStorage.getItem('rift_current_room');
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                this.userId = userData.odUserId || userData.odUserId || Math.random().toString(36).substr(2, 9);
+                this.userName = userData.displayName || 'Anonym';
+                this.userColor = userData.color || '#8b5cf6';
+                this.isGM = userData.isGM || userData.isCogm || false;
+                
+                // Add user color to palette
+                this.addUserColorToPalette();
+                
+                // Show GM actions
+                if (this.isGM) {
+                    document.getElementById('gmActions').style.display = 'flex';
+                }
+                
+                // Setup canvas size
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // Setup event listeners
+                this.setupToolbar();
+                this.setupCanvas();
+                this.setupKeyboard();
+                this.setupUpload();
+                this.setupZoom();
+                
+                // Connect to Firebase
+                if (this.roomCode) {
+                    await this.connectFirebase();
+                }
+                
+                // Save initial state
+                this.saveToHistory();
+                
+                console.log('[Whiteboard] Initialized', { room: this.roomCode, user: this.userName });
+            },
+            
+            // ==================== CANVAS SETUP ====================
+            resizeCanvas() {
+                const wrapper = document.getElementById('canvasWrapper');
+                const rect = wrapper.getBoundingClientRect();
+                
+                // Set canvas size
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                
+                // Redraw
+                this.redraw();
+            },
+            
+            // ==================== TOOLBAR ====================
+            setupToolbar() {
+                // Tool buttons
+                document.querySelectorAll('[data-tool]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.tool = btn.dataset.tool;
+                        
+                        // Update cursor
+                        const wrapper = document.getElementById('canvasWrapper');
+                        wrapper.className = 'wb-canvas-wrapper';
+                        if (this.tool === 'eraser') wrapper.classList.add('tool-eraser');
+                        if (this.tool === 'text') wrapper.classList.add('tool-text');
+                    });
+                });
+                
+                // Color buttons
+                document.querySelectorAll('.wb-color-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.wb-color-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.color = btn.dataset.color;
+                    });
+                });
+                
+                // Size buttons
+                document.querySelectorAll('.wb-size-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.wb-size-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.size = parseInt(btn.dataset.size);
+                    });
+                });
+                
+                // Undo/Redo
+                document.getElementById('undoBtn').addEventListener('click', () => this.undo());
+                document.getElementById('redoBtn').addEventListener('click', () => this.redo());
+                
+                // Grid toggle
+                document.getElementById('gridBtn').addEventListener('click', () => {
+                    const grid = document.getElementById('wbGrid');
+                    grid.classList.toggle('visible');
+                    document.getElementById('gridBtn').classList.toggle('active');
+                });
+                
+                // Background button
+                document.getElementById('bgBtn').addEventListener('click', () => {
+                    document.getElementById('uploadOverlay').classList.add('visible');
+                });
+                
+                // Export button
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportImage());
+                
+                // Clear button
+                document.getElementById('clearBtn')?.addEventListener('click', () => {
+                    if (confirm('Whiteboard wirklich komplett löschen?')) {
+                        this.clearAll();
+                    }
+                });
+            },
+            
+            addUserColorToPalette() {
+                const palette = document.getElementById('colorPalette');
+                const existingColors = Array.from(palette.querySelectorAll('.wb-color-btn')).map(b => b.dataset.color);
+                
+                if (!existingColors.includes(this.userColor)) {
+                    const btn = document.createElement('button');
+                    btn.className = 'wb-color-btn';
+                    btn.dataset.color = this.userColor;
+                    btn.style.background = this.userColor;
+                    btn.title = 'Deine Farbe';
+                    btn.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.3)';
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.wb-color-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.color = btn.dataset.color;
+                    });
+                    palette.insertBefore(btn, palette.firstChild);
+                }
+            },
+            
+            // ==================== CANVAS EVENTS ====================
+            setupCanvas() {
+                const wrapper = document.getElementById('canvasWrapper');
+                
+                // Mouse events
+                this.canvas.addEventListener('mousedown', (e) => this.onPointerDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.onPointerMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onPointerUp(e));
+                this.canvas.addEventListener('mouseleave', (e) => this.onPointerUp(e));
+                
+                // Touch events
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.onPointerDown(touch);
+                }, { passive: false });
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.onPointerMove(touch);
+                }, { passive: false });
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.onPointerUp(e);
+                }, { passive: false });
+                
+                // Middle mouse pan
+                this.canvas.addEventListener('mousedown', (e) => {
+                    if (e.button === 1) {
+                        e.preventDefault();
+                        this.isPanning = true;
+                        this.lastPanPoint = { x: e.clientX, y: e.clientY };
+                        wrapper.classList.add('panning');
+                    }
+                });
+                
+                window.addEventListener('mousemove', (e) => {
+                    if (this.isPanning && this.lastPanPoint) {
+                        const dx = e.clientX - this.lastPanPoint.x;
+                        const dy = e.clientY - this.lastPanPoint.y;
+                        this.panX += dx;
+                        this.panY += dy;
+                        this.lastPanPoint = { x: e.clientX, y: e.clientY };
+                        this.redraw();
+                    }
+                });
+                
+                window.addEventListener('mouseup', (e) => {
+                    if (e.button === 1) {
+                        this.isPanning = false;
+                        this.lastPanPoint = null;
+                        wrapper.classList.remove('panning');
+                    }
+                });
+                
+                // Wheel zoom
+                wrapper.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    this.setZoom(this.zoom + delta);
+                }, { passive: false });
+                
+                // Text input
+                const textInput = document.getElementById('textInput');
+                textInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        this.placeText(textInput.value, parseInt(textInput.style.left), parseInt(textInput.style.top));
+                        textInput.style.display = 'none';
+                        textInput.value = '';
+                    }
+                    if (e.key === 'Escape') {
+                        textInput.style.display = 'none';
+                        textInput.value = '';
+                    }
+                });
+                
+                textInput.addEventListener('blur', () => {
+                    if (textInput.value.trim()) {
+                        this.placeText(textInput.value, parseInt(textInput.style.left), parseInt(textInput.style.top));
+                    }
+                    textInput.style.display = 'none';
+                    textInput.value = '';
+                });
+            },
+            
+            getCanvasPoint(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: (e.clientX - rect.left - this.panX) / this.zoom,
+                    y: (e.clientY - rect.top - this.panY) / this.zoom
+                };
+            },
+            
+            onPointerDown(e) {
+                if (this.isPanning) return;
+                
+                const point = this.getCanvasPoint(e);
+                this.isDrawing = true;
+                this.startPoint = point;
+                this.currentPath = [point];
+                
+                if (this.tool === 'text') {
+                    const textInput = document.getElementById('textInput');
+                    textInput.style.left = (e.clientX || e.pageX) + 'px';
+                    textInput.style.top = (e.clientY || e.pageY) + 'px';
+                    textInput.style.display = 'block';
+                    textInput.style.color = this.color;
+                    textInput.focus();
+                    this.isDrawing = false;
+                    return;
+                }
+                
+                if (this.tool === 'pen' || this.tool === 'eraser') {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(point.x * this.zoom + this.panX, point.y * this.zoom + this.panY);
+                }
+            },
+            
+            onPointerMove(e) {
+                // Send cursor position to Firebase
+                this.sendCursorPosition(e);
+                
+                if (!this.isDrawing) return;
+                
+                const point = this.getCanvasPoint(e);
+                this.currentPath.push(point);
+                
+                if (this.tool === 'pen') {
+                    this.ctx.strokeStyle = this.color;
+                    this.ctx.lineWidth = this.size;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.lineJoin = 'round';
+                    this.ctx.lineTo(point.x * this.zoom + this.panX, point.y * this.zoom + this.panY);
+                    this.ctx.stroke();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(point.x * this.zoom + this.panX, point.y * this.zoom + this.panY);
+                } else if (this.tool === 'eraser') {
+                    this.ctx.strokeStyle = '#0a0a0a';
+                    this.ctx.lineWidth = this.size * 4;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.lineJoin = 'round';
+                    this.ctx.lineTo(point.x * this.zoom + this.panX, point.y * this.zoom + this.panY);
+                    this.ctx.stroke();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(point.x * this.zoom + this.panX, point.y * this.zoom + this.panY);
+                } else {
+                    // Preview shapes
+                    this.redraw();
+                    this.drawShape(this.startPoint, point, true);
+                }
+            },
+            
+            onPointerUp(e) {
+                if (!this.isDrawing) return;
+                this.isDrawing = false;
+                
+                if (this.currentPath.length < 2) return;
+                
+                const endPoint = this.currentPath[this.currentPath.length - 1];
+                
+                // Create stroke object
+                const stroke = {
+                    id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                    tool: this.tool,
+                    color: this.tool === 'eraser' ? '#0a0a0a' : this.color,
+                    size: this.tool === 'eraser' ? this.size * 4 : this.size,
+                    path: this.currentPath,
+                    startPoint: this.startPoint,
+                    endPoint: endPoint,
+                    userId: this.userId,
+                    userName: this.userName,
+                    timestamp: Date.now()
+                };
+                
+                // Add to history
+                this.addStroke(stroke);
+                
+                // Sync to Firebase
+                this.syncStroke(stroke);
+                
+                // Reset
+                this.currentPath = [];
+                this.startPoint = null;
+            },
+            
+            // ==================== DRAWING ====================
+            drawShape(start, end, preview = false) {
+                this.ctx.strokeStyle = this.color;
+                this.ctx.lineWidth = this.size;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                
+                const sx = start.x * this.zoom + this.panX;
+                const sy = start.y * this.zoom + this.panY;
+                const ex = end.x * this.zoom + this.panX;
+                const ey = end.y * this.zoom + this.panY;
+                
+                this.ctx.beginPath();
+                
+                switch (this.tool) {
+                    case 'line':
+                        this.ctx.moveTo(sx, sy);
+                        this.ctx.lineTo(ex, ey);
+                        break;
+                        
+                    case 'rect':
+                        this.ctx.rect(sx, sy, ex - sx, ey - sy);
+                        break;
+                        
+                    case 'circle':
+                        const rx = Math.abs(ex - sx) / 2;
+                        const ry = Math.abs(ey - sy) / 2;
+                        const cx = sx + (ex - sx) / 2;
+                        const cy = sy + (ey - sy) / 2;
+                        this.ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                        break;
+                        
+                    case 'arrow':
+                        this.ctx.moveTo(sx, sy);
+                        this.ctx.lineTo(ex, ey);
+                        // Arrowhead
+                        const angle = Math.atan2(ey - sy, ex - sx);
+                        const headLen = 15;
+                        this.ctx.lineTo(
+                            ex - headLen * Math.cos(angle - Math.PI / 6),
+                            ey - headLen * Math.sin(angle - Math.PI / 6)
+                        );
+                        this.ctx.moveTo(ex, ey);
+                        this.ctx.lineTo(
+                            ex - headLen * Math.cos(angle + Math.PI / 6),
+                            ey - headLen * Math.sin(angle + Math.PI / 6)
+                        );
+                        break;
+                }
+                
+                this.ctx.stroke();
+            },
+            
+            drawStroke(stroke) {
+                this.ctx.strokeStyle = stroke.color;
+                this.ctx.lineWidth = stroke.size;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                
+                if (stroke.tool === 'pen' || stroke.tool === 'eraser') {
+                    if (stroke.path && stroke.path.length > 1) {
+                        this.ctx.beginPath();
+                        const first = stroke.path[0];
+                        this.ctx.moveTo(first.x * this.zoom + this.panX, first.y * this.zoom + this.panY);
+                        
+                        for (let i = 1; i < stroke.path.length; i++) {
+                            const p = stroke.path[i];
+                            this.ctx.lineTo(p.x * this.zoom + this.panX, p.y * this.zoom + this.panY);
+                        }
+                        this.ctx.stroke();
+                    }
+                } else if (stroke.tool === 'text') {
+                    this.ctx.font = `${stroke.size * 4}px sans-serif`;
+                    this.ctx.fillStyle = stroke.color;
+                    this.ctx.fillText(
+                        stroke.text,
+                        stroke.startPoint.x * this.zoom + this.panX,
+                        stroke.startPoint.y * this.zoom + this.panY
+                    );
+                } else {
+                    this.drawShapeFromStroke(stroke);
+                }
+            },
+            
+            drawShapeFromStroke(stroke) {
+                this.ctx.strokeStyle = stroke.color;
+                this.ctx.lineWidth = stroke.size;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                
+                const sx = stroke.startPoint.x * this.zoom + this.panX;
+                const sy = stroke.startPoint.y * this.zoom + this.panY;
+                const ex = stroke.endPoint.x * this.zoom + this.panX;
+                const ey = stroke.endPoint.y * this.zoom + this.panY;
+                
+                this.ctx.beginPath();
+                
+                switch (stroke.tool) {
+                    case 'line':
+                        this.ctx.moveTo(sx, sy);
+                        this.ctx.lineTo(ex, ey);
+                        break;
+                        
+                    case 'rect':
+                        this.ctx.rect(sx, sy, ex - sx, ey - sy);
+                        break;
+                        
+                    case 'circle':
+                        const rx = Math.abs(ex - sx) / 2;
+                        const ry = Math.abs(ey - sy) / 2;
+                        const cx = sx + (ex - sx) / 2;
+                        const cy = sy + (ey - sy) / 2;
+                        this.ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                        break;
+                        
+                    case 'arrow':
+                        this.ctx.moveTo(sx, sy);
+                        this.ctx.lineTo(ex, ey);
+                        const angle = Math.atan2(ey - sy, ex - sx);
+                        const headLen = 15;
+                        this.ctx.lineTo(
+                            ex - headLen * Math.cos(angle - Math.PI / 6),
+                            ey - headLen * Math.sin(angle - Math.PI / 6)
+                        );
+                        this.ctx.moveTo(ex, ey);
+                        this.ctx.lineTo(
+                            ex - headLen * Math.cos(angle + Math.PI / 6),
+                            ey - headLen * Math.sin(angle + Math.PI / 6)
+                        );
+                        break;
+                }
+                
+                this.ctx.stroke();
+            },
+            
+            placeText(text, x, y) {
+                if (!text.trim()) return;
+                
+                const point = this.getCanvasPoint({ clientX: x, clientY: y });
+                
+                const stroke = {
+                    id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                    tool: 'text',
+                    color: this.color,
+                    size: this.size,
+                    text: text,
+                    startPoint: point,
+                    userId: this.userId,
+                    userName: this.userName,
+                    timestamp: Date.now()
+                };
+                
+                this.addStroke(stroke);
+                this.syncStroke(stroke);
+                this.redraw();
+            },
+            
+            redraw() {
+                // Clear canvas
+                this.ctx.fillStyle = '#0a0a0a';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw all strokes
+                this.history.slice(0, this.historyIndex + 1).forEach(stroke => {
+                    this.drawStroke(stroke);
+                });
+            },
+            
+            // ==================== HISTORY ====================
+            addStroke(stroke) {
+                // Remove any redo history
+                if (this.historyIndex < this.history.length - 1) {
+                    this.history = this.history.slice(0, this.historyIndex + 1);
+                }
+                
+                this.history.push(stroke);
+                this.historyIndex = this.history.length - 1;
+                
+                // Limit history size
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                    this.historyIndex--;
+                }
+                
+                this.redraw();
+            },
+            
+            saveToHistory() {
+                // Initial empty state is already set
+            },
+            
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.redraw();
+                    this.showToast('Rückgängig');
+                }
+            },
+            
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.redraw();
+                    this.showToast('Wiederholt');
+                }
+            },
+            
+            clearAll() {
+                this.history = [];
+                this.historyIndex = -1;
+                this.redraw();
+                
+                // Clear in Firebase
+                if (this.roomCode && this.db) {
+                    this.db.ref(`whiteboard/${this.roomCode}/strokes`).remove();
+                    this.db.ref(`whiteboard/${this.roomCode}/background`).remove();
+                }
+                
+                // Clear background
+                const bg = document.getElementById('wbBackground');
+                bg.src = '';
+                bg.style.display = 'none';
+                
+                this.showToast('Whiteboard gelöscht');
+            },
+            
+            // ==================== ZOOM ====================
+            setupZoom() {
+                document.getElementById('zoomInBtn').addEventListener('click', () => this.setZoom(this.zoom + 0.25));
+                document.getElementById('zoomOutBtn').addEventListener('click', () => this.setZoom(this.zoom - 0.25));
+                document.getElementById('zoomResetBtn').addEventListener('click', () => {
+                    this.zoom = 1;
+                    this.panX = 0;
+                    this.panY = 0;
+                    this.updateZoomDisplay();
+                    this.redraw();
+                });
+            },
+            
+            setZoom(newZoom) {
+                this.zoom = Math.max(0.25, Math.min(4, newZoom));
+                this.updateZoomDisplay();
+                this.redraw();
+            },
+            
+            updateZoomDisplay() {
+                document.getElementById('zoomLevel').textContent = Math.round(this.zoom * 100) + '%';
+            },
+            
+            // ==================== KEYBOARD ====================
+            setupKeyboard() {
+                document.addEventListener('keydown', (e) => {
+                    // Don't trigger if typing in input
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    
+                    // Undo: Ctrl+Z
+                    if (e.ctrlKey && e.key === 'z') {
+                        e.preventDefault();
+                        this.undo();
+                    }
+                    
+                    // Redo: Ctrl+Y or Ctrl+Shift+Z
+                    if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
+                        e.preventDefault();
+                        this.redo();
+                    }
+                    
+                    // Tool shortcuts
+                    const toolMap = {
+                        'p': 'pen',
+                        'l': 'line',
+                        'r': 'rect',
+                        'c': 'circle',
+                        'a': 'arrow',
+                        't': 'text',
+                        'e': 'eraser'
+                    };
+                    
+                    if (toolMap[e.key.toLowerCase()]) {
+                        const tool = toolMap[e.key.toLowerCase()];
+                        document.querySelector(`[data-tool="${tool}"]`)?.click();
+                    }
+                    
+                    // Grid: G
+                    if (e.key.toLowerCase() === 'g') {
+                        document.getElementById('gridBtn').click();
+                    }
+                });
+            },
+            
+            // ==================== UPLOAD ====================
+            setupUpload() {
+                const overlay = document.getElementById('uploadOverlay');
+                const box = document.getElementById('uploadBox');
+                const input = document.getElementById('bgFileInput');
+                const btn = document.getElementById('uploadBtn');
+                const close = document.getElementById('uploadClose');
+                
+                close.addEventListener('click', () => overlay.classList.remove('visible'));
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) overlay.classList.remove('visible');
+                });
+                
+                btn.addEventListener('click', () => input.click());
+                
+                input.addEventListener('change', (e) => {
+                    if (e.target.files[0]) {
+                        this.handleBackgroundUpload(e.target.files[0]);
+                    }
+                });
+                
+                // Drag and drop
+                box.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    box.classList.add('dragover');
+                });
+                
+                box.addEventListener('dragleave', () => {
+                    box.classList.remove('dragover');
+                });
+                
+                box.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    box.classList.remove('dragover');
+                    if (e.dataTransfer.files[0]) {
+                        this.handleBackgroundUpload(e.dataTransfer.files[0]);
+                    }
+                });
+            },
+            
+            async handleBackgroundUpload(file) {
+                if (!file.type.startsWith('image/')) {
+                    this.showToast('Bitte nur Bilder hochladen');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const bg = document.getElementById('wbBackground');
+                    bg.src = e.target.result;
+                    bg.style.display = 'block';
+                    
+                    // Sync to Firebase
+                    if (this.roomCode && this.db) {
+                        this.db.ref(`whiteboard/${this.roomCode}/background`).set({
+                            dataUrl: e.target.result,
+                            uploadedBy: this.userName,
+                            timestamp: Date.now()
+                        });
+                    }
+                    
+                    document.getElementById('uploadOverlay').classList.remove('visible');
+                    this.showToast('Hintergrund gesetzt');
+                };
+                reader.readAsDataURL(file);
+            },
+            
+            // ==================== EXPORT ====================
+            exportImage() {
+                // Create a temporary canvas with background
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = this.canvas.width;
+                tempCanvas.height = this.canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Draw background color
+                tempCtx.fillStyle = '#0a0a0a';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                
+                // Draw background image if present
+                const bg = document.getElementById('wbBackground');
+                if (bg.src && bg.style.display !== 'none') {
+                    tempCtx.drawImage(bg, 0, 0, tempCanvas.width, tempCanvas.height);
+                }
+                
+                // Draw canvas content
+                tempCtx.drawImage(this.canvas, 0, 0);
+                
+                // Download
+                const link = document.createElement('a');
+                link.download = `whiteboard-${Date.now()}.png`;
+                link.href = tempCanvas.toDataURL('image/png');
+                link.click();
+                
+                this.showToast('Bild exportiert');
+            },
+            
+            // ==================== FIREBASE ====================
+            async connectFirebase() {
+                try {
+                    this.db = firebase.database();
+                    
+                    // Listen for strokes
+                    this.db.ref(`whiteboard/${this.roomCode}/strokes`).on('child_added', (snapshot) => {
+                        const stroke = snapshot.val();
+                        if (stroke && stroke.userId !== this.userId) {
+                            // Add remote stroke
+                            const exists = this.history.some(s => s.id === stroke.id);
+                            if (!exists) {
+                                this.history.push(stroke);
+                                this.historyIndex = this.history.length - 1;
+                                this.redraw();
+                            }
+                        }
+                    });
+                    
+                    // Listen for background changes
+                    this.db.ref(`whiteboard/${this.roomCode}/background`).on('value', (snapshot) => {
+                        const data = snapshot.val();
+                        const bg = document.getElementById('wbBackground');
+                        if (data && data.dataUrl) {
+                            bg.src = data.dataUrl;
+                            bg.style.display = 'block';
+                        } else {
+                            bg.src = '';
+                            bg.style.display = 'none';
+                        }
+                    });
+                    
+                    // Listen for clear events
+                    this.db.ref(`whiteboard/${this.roomCode}/cleared`).on('value', (snapshot) => {
+                        const data = snapshot.val();
+                        if (data && data.timestamp > Date.now() - 5000) {
+                            this.history = [];
+                            this.historyIndex = -1;
+                            this.redraw();
+                        }
+                    });
+                    
+                    // Listen for remote cursors
+                    this.db.ref(`whiteboard/${this.roomCode}/cursors`).on('value', (snapshot) => {
+                        const cursors = snapshot.val() || {};
+                        this.updateRemoteCursors(cursors);
+                    });
+                    
+                    // Load existing strokes
+                    const existingStrokes = await this.db.ref(`whiteboard/${this.roomCode}/strokes`).once('value');
+                    const strokes = existingStrokes.val();
+                    if (strokes) {
+                        Object.values(strokes).forEach(stroke => {
+                            const exists = this.history.some(s => s.id === stroke.id);
+                            if (!exists) {
+                                this.history.push(stroke);
+                            }
+                        });
+                        this.historyIndex = this.history.length - 1;
+                        this.redraw();
+                    }
+                    
+                    // Clean up cursor on disconnect
+                    this.db.ref(`whiteboard/${this.roomCode}/cursors/${this.userId}`).onDisconnect().remove();
+                    
+                    console.log('[Whiteboard] Firebase connected');
+                } catch (error) {
+                    console.error('[Whiteboard] Firebase error:', error);
+                }
+            },
+            
+            syncStroke(stroke) {
+                if (!this.roomCode || !this.db) return;
+                
+                this.db.ref(`whiteboard/${this.roomCode}/strokes/${stroke.id}`).set(stroke);
+            },
+            
+            sendCursorPosition(e) {
+                if (!this.roomCode || !this.db) return;
+                
+                const point = this.getCanvasPoint(e);
+                
+                this.db.ref(`whiteboard/${this.roomCode}/cursors/${this.userId}`).set({
+                    x: point.x,
+                    y: point.y,
+                    name: this.userName,
+                    color: this.userColor,
+                    timestamp: Date.now()
+                });
+            },
+            
+            updateRemoteCursors(cursors) {
+                const container = document.getElementById('cursorsContainer');
+                
+                // Remove stale cursors
+                Object.keys(this.remoteCursors).forEach(id => {
+                    if (!cursors[id] || id === this.userId) {
+                        this.remoteCursors[id]?.remove();
+                        delete this.remoteCursors[id];
+                    }
+                });
+                
+                // Update/create cursors
+                Object.entries(cursors).forEach(([id, data]) => {
+                    if (id === this.userId) return; // Don't show own cursor
+                    if (Date.now() - data.timestamp > 10000) return; // Skip stale cursors
+                    
+                    let cursor = this.remoteCursors[id];
+                    
+                    if (!cursor) {
+                        cursor = document.createElement('div');
+                        cursor.className = 'wb-cursor';
+                        cursor.innerHTML = `
+                            <div class="wb-cursor__pointer" style="background: ${data.color};"></div>
+                            <div class="wb-cursor__name" style="background: ${data.color};">${data.name}</div>
+                        `;
+                        container.appendChild(cursor);
+                        this.remoteCursors[id] = cursor;
+                    }
+                    
+                    cursor.style.left = (data.x * this.zoom + this.panX) + 'px';
+                    cursor.style.top = (data.y * this.zoom + this.panY) + 'px';
+                });
+            },
+            
+            // ==================== TOAST ====================
+            showToast(message) {
+                const toast = document.getElementById('wbToast');
+                toast.textContent = message;
+                toast.classList.add('visible');
+                
+                setTimeout(() => {
+                    toast.classList.remove('visible');
+                }, 2000);
+            }
+        };
+        
+        // Initialize when ready
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => Whiteboard.init(), 300);
+        });
+    </script>
 </body>
 </html>
