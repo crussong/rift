@@ -196,12 +196,12 @@
                 linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px);
             background-size: 40px 40px;
-            z-index: 2;
+            z-index: 10;
             transition: opacity 0.2s ease;
         }
         
         #wbGrid.visible {
-            opacity: 0.3;
+            opacity: 0.5;
         }
         
         #wbCanvas {
@@ -899,32 +899,50 @@
             // ==================== TEXT INPUT ====================
             setupTextInput() {
                 const textInput = document.getElementById('textInput');
+                let isTextInputActive = false;
                 
                 textInput.addEventListener('keydown', (e) => {
+                    e.stopPropagation();
                     if (e.key === 'Enter' && textInput.value.trim()) {
                         e.preventDefault();
-                        const x = parseInt(textInput.dataset.x || 0);
-                        const y = parseInt(textInput.dataset.y || 0);
+                        const x = parseFloat(textInput.dataset.x || 0);
+                        const y = parseFloat(textInput.dataset.y || 0);
                         this.placeText(textInput.value, x, y);
                         textInput.style.display = 'none';
                         textInput.value = '';
+                        isTextInputActive = false;
                     }
                     if (e.key === 'Escape') {
+                        e.preventDefault();
                         textInput.style.display = 'none';
                         textInput.value = '';
+                        isTextInputActive = false;
                     }
                 });
                 
+                textInput.addEventListener('focus', () => {
+                    isTextInputActive = true;
+                });
+                
                 textInput.addEventListener('blur', () => {
+                    // Delay to allow click events to process first
                     setTimeout(() => {
-                        if (textInput.value.trim()) {
-                            const x = parseInt(textInput.dataset.x || 0);
-                            const y = parseInt(textInput.dataset.y || 0);
-                            this.placeText(textInput.value, x, y);
+                        if (textInput.style.display !== 'none') {
+                            if (textInput.value.trim()) {
+                                const x = parseFloat(textInput.dataset.x || 0);
+                                const y = parseFloat(textInput.dataset.y || 0);
+                                this.placeText(textInput.value, x, y);
+                            }
+                            textInput.style.display = 'none';
+                            textInput.value = '';
                         }
-                        textInput.style.display = 'none';
-                        textInput.value = '';
-                    }, 100);
+                        isTextInputActive = false;
+                    }, 200);
+                });
+                
+                // Prevent canvas click from immediately blurring the input
+                textInput.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
                 });
             },
             
@@ -937,7 +955,11 @@
                 textInput.dataset.x = canvasX;
                 textInput.dataset.y = canvasY;
                 textInput.value = '';
-                textInput.focus();
+                
+                // Focus after a small delay to prevent immediate blur
+                setTimeout(() => {
+                    textInput.focus();
+                }, 50);
             },
             
             // ==================== CANVAS EVENTS ====================
@@ -1210,9 +1232,17 @@
             },
             
             redraw() {
+                // Hintergrundfarbe
                 this.ctx.fillStyle = '#0a0a0a';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 
+                // Hintergrundbild zeichnen (falls vorhanden)
+                const bg = document.getElementById('wbBackground');
+                if (bg && bg.src && bg.complete && bg.naturalWidth > 0) {
+                    this.ctx.drawImage(bg, 0, 0, this.canvas.width, this.canvas.height);
+                }
+                
+                // Strokes zeichnen
                 this.history.slice(0, this.historyIndex + 1).forEach(stroke => {
                     this.drawStroke(stroke);
                 });
@@ -1254,7 +1284,6 @@
             clearAll() {
                 this.history = [];
                 this.historyIndex = -1;
-                this.redraw();
                 
                 if (this.roomCode && this.db) {
                     this.db.ref(`whiteboard/${this.roomCode}/strokes`).remove();
@@ -1265,6 +1294,7 @@
                 bg.src = '';
                 bg.style.display = 'none';
                 
+                this.redraw();
                 this.showToast('Whiteboard gelöscht');
             },
             
@@ -1370,6 +1400,10 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const bg = document.getElementById('wbBackground');
+                    bg.onload = () => {
+                        this.redraw();
+                        this.showToast('Hintergrund gesetzt');
+                    };
                     bg.src = e.target.result;
                     bg.style.display = 'block';
                     
@@ -1382,7 +1416,6 @@
                     }
                     
                     document.getElementById('uploadOverlay').classList.remove('visible');
-                    this.showToast('Hintergrund gesetzt');
                 };
                 reader.readAsDataURL(file);
             },
@@ -1396,6 +1429,7 @@
                     this.db.ref(`whiteboard/${this.roomCode}/background`).remove();
                 }
                 
+                this.redraw();
                 this.showToast('Hintergrund entfernt');
             },
             
@@ -1457,11 +1491,13 @@
                         const data = snapshot.val();
                         const bg = document.getElementById('wbBackground');
                         if (data && data.dataUrl) {
+                            bg.onload = () => this.redraw();
                             bg.src = data.dataUrl;
                             bg.style.display = 'block';
                         } else {
                             bg.src = '';
                             bg.style.display = 'none';
+                            this.redraw();
                         }
                     });
                     
