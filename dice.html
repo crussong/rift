@@ -2402,6 +2402,12 @@
                     await diceCollection.add(logEntry);
                     console.log('[DiceRoller] Roll logged to Firestore');
                     
+                    // Send toast notification (only for non-secret rolls)
+                    if (!logEntry.secret && window.RIFTToast) {
+                        const isSuccess = logEntry.critical === 'success' ? true : logEntry.critical === 'failure' ? false : null;
+                        RIFTToast.diceRoll(logEntry.player, logEntry.total, logEntry.notation, isSuccess);
+                    }
+                    
                 } catch (e) {
                     console.warn('[DiceRoller] Firestore log failed:', e);
                     // Don't throw - Firestore logging is optional
