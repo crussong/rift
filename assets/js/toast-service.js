@@ -164,7 +164,7 @@ window.RIFTToast = {
                 #rift-toast-container {
                     position: fixed;
                     bottom: 24px;
-                    left: 24px;
+                    right: 100px;
                     display: flex;
                     flex-direction: column-reverse;
                     gap: 10px;
@@ -190,7 +190,7 @@ window.RIFTToast = {
                 }
                 
                 .rift-toast:hover {
-                    transform: translateX(4px);
+                    transform: translateX(-4px);
                 }
                 
                 .rift-toast.hiding {
@@ -200,7 +200,7 @@ window.RIFTToast = {
                 @keyframes toastSlideIn {
                     from {
                         opacity: 0;
-                        transform: translateX(-20px);
+                        transform: translateX(20px);
                     }
                     to {
                         opacity: 1;
@@ -215,7 +215,7 @@ window.RIFTToast = {
                     }
                     to {
                         opacity: 0;
-                        transform: translateX(-20px);
+                        transform: translateX(20px);
                     }
                 }
                 
@@ -277,10 +277,10 @@ window.RIFTToast = {
                 
                 @media (max-width: 768px) {
                     #rift-toast-container {
-                        bottom: 16px;
-                        left: 16px;
+                        bottom: 80px;
                         right: 16px;
-                        max-width: none;
+                        left: auto;
+                        max-width: calc(100vw - 100px);
                     }
                     
                     .rift-toast {
@@ -299,14 +299,16 @@ window.RIFTToast = {
         const cleanCode = this.roomCode.replace(/-/g, '').toUpperCase();
         const toastsRef = firebase.database().ref(`rooms/${cleanCode}/toasts`);
         
-        // Only listen for new toasts (last 30 seconds)
-        const cutoff = Date.now() - 30000;
-        
-        this.unsubscribe = toastsRef.orderByChild('timestamp').startAt(cutoff).on('child_added', (snapshot) => {
+        // Listen for new toasts only (child_added fires for each existing + new)
+        // We use limitToLast to avoid loading old history
+        this.unsubscribe = toastsRef.orderByChild('timestamp').limitToLast(10).on('child_added', (snapshot) => {
             const toast = snapshot.val();
             const id = snapshot.key;
             
-            // Skip if already processed or own toast (for some types)
+            // Skip if too old (more than 10 seconds ago)
+            if (toast.timestamp && Date.now() - toast.timestamp > 10000) return;
+            
+            // Skip if already processed
             if (this.processedIds.has(id)) return;
             this.processedIds.add(id);
             
@@ -322,6 +324,12 @@ window.RIFTToast = {
             
             // Skip whisper/mention not for this user
             if ((toast.type === 'whisper' || toast.type === 'mention') && toast.targetUserId && toast.targetUserId !== this.userId) return;
+            
+            // Skip dice toasts on dice page (they see it directly)
+            if ((toast.type === 'dice' || toast.type === 'diceSuccess' || toast.type === 'diceFail') && currentPage === 'dice') return;
+            
+            // Skip HP/Level toasts on sheet pages (they see it directly)
+            if ((toast.type === 'hpGain' || toast.type === 'hpLoss' || toast.type === 'levelUp') && currentPage.startsWith('sheet-')) return;
             
             this.show(toast);
         });
@@ -507,10 +515,15 @@ window.RIFTToast = {
 // Auto-initialize when Firebase is ready
 document.addEventListener('DOMContentLoaded', () => {
     const initToast = () => {
-        if (typeof firebase !== 'undefined' && firebase.database) {
-            setTimeout(() => RIFTToast.init(), 1000);
+        if (typeof firebase !== 'undefined' && firebase.database && firebase.auth) {
+            // Wait for auth state
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    RIFTToast.init();
+                }
+            });
         } else {
-            setTimeout(initToast, 500);
+            setTimeout(initToast, 200);
         }
     };
     initToast();
