@@ -157,36 +157,43 @@ window.RIFTToast = {
     createContainer() {
         if (document.getElementById('rift-toast-container')) return;
         
+        // Check if on chat page for offset
+        const page = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+        const isChat = page === 'chat';
+        const bottomOffset = isChat ? 100 : 24;
+        
         const container = document.createElement('div');
         container.id = 'rift-toast-container';
         container.innerHTML = `
             <style>
                 #rift-toast-container {
                     position: fixed;
-                    bottom: 24px;
+                    bottom: ${bottomOffset}px;
                     right: 100px;
                     display: flex;
                     flex-direction: column-reverse;
                     gap: 10px;
                     z-index: 9999;
                     pointer-events: none;
-                    max-width: 380px;
+                    max-width: 340px;
                 }
                 
                 .rift-toast {
                     display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
-                    padding: 14px 18px;
+                    align-items: center;
+                    gap: 14px;
+                    padding: 16px 20px;
+                    min-height: 124px;
                     background: rgba(17, 17, 17, 0.95);
                     backdrop-filter: blur(12px);
-                    border-radius: 14px;
+                    border-radius: 16px;
                     border: 1px solid rgba(255,255,255,0.1);
                     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
                     animation: toastSlideIn 0.3s ease;
                     pointer-events: auto;
                     cursor: pointer;
                     transition: transform 0.2s, opacity 0.2s;
+                    box-sizing: border-box;
                 }
                 
                 .rift-toast:hover {
@@ -220,9 +227,9 @@ window.RIFTToast = {
                 }
                 
                 .rift-toast__icon {
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 10px;
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 14px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -230,20 +237,23 @@ window.RIFTToast = {
                 }
                 
                 .rift-toast__icon svg {
-                    width: 20px;
-                    height: 20px;
+                    width: 24px;
+                    height: 24px;
                 }
                 
                 .rift-toast__content {
                     flex: 1;
                     min-width: 0;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    gap: 4px;
                 }
                 
                 .rift-toast__title {
-                    font-size: 14px;
+                    font-size: 15px;
                     font-weight: 600;
                     color: #fff;
-                    margin-bottom: 2px;
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
@@ -251,16 +261,18 @@ window.RIFTToast = {
                 
                 .rift-toast__message {
                     font-size: 13px;
-                    color: rgba(255,255,255,0.7);
+                    color: rgba(255,255,255,0.6);
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
                 
                 .rift-toast__result {
-                    font-size: 18px;
+                    font-size: 28px;
                     font-weight: 700;
                     font-family: 'JetBrains Mono', monospace;
+                    flex-shrink: 0;
+                    padding-left: 12px;
                 }
                 
                 .rift-toast__result--success {
@@ -277,14 +289,29 @@ window.RIFTToast = {
                 
                 @media (max-width: 768px) {
                     #rift-toast-container {
-                        bottom: 80px;
-                        right: 16px;
-                        left: auto;
+                        bottom: ${isChat ? 80 : 16}px;
+                        right: 80px;
                         max-width: calc(100vw - 100px);
                     }
                     
                     .rift-toast {
-                        padding: 12px 14px;
+                        min-height: 106px;
+                        padding: 14px 16px;
+                        border-radius: 14px;
+                    }
+                    
+                    .rift-toast__icon {
+                        width: 40px;
+                        height: 40px;
+                    }
+                    
+                    .rift-toast__icon svg {
+                        width: 20px;
+                        height: 20px;
+                    }
+                    
+                    .rift-toast__result {
+                        font-size: 22px;
                     }
                 }
             </style>
