@@ -2046,12 +2046,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => window.RIFTFab.init(), 100);
 });
 
-// Load Toast Service dynamically
+// Load Toast Service
 (function loadToastService() {
     if (document.querySelector('script[src*="toast-service"]')) return;
     const script = document.createElement('script');
     script.src = 'assets/js/toast-service.js';
-    script.async = true;
     document.head.appendChild(script);
 })();
 

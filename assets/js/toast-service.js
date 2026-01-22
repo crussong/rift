@@ -416,7 +416,21 @@ window.RIFTToast = {
     
     // Send a toast to all users
     async send(type, title, message = '', extra = {}) {
+        // Lazy init roomCode if not set
+        if (!this.roomCode) {
+            this.roomCode = localStorage.getItem('rift_current_room');
+        }
         if (!this.roomCode) return;
+        
+        // Lazy init userId if not set
+        if (!this.userId) {
+            const user = firebase.auth?.()?.currentUser;
+            this.userId = user?.uid;
+        }
+        if (!this.userName) {
+            const stored = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            this.userName = stored.name || stored.displayName || 'Spieler';
+        }
         
         const cleanCode = this.roomCode.replace(/-/g, '').toUpperCase();
         const toastsRef = firebase.database().ref(`rooms/${cleanCode}/toasts`);
@@ -476,7 +490,7 @@ window.RIFTToast = {
     
     // Chat mention
     chatMention(senderName, preview, targetUserId) {
-        this.send('mention', `@${senderName}`, preview.substring(0, 60), { targetUserId });
+        this.send('mention', senderName, preview.substring(0, 60), { targetUserId });
     },
     
     // Whisper
