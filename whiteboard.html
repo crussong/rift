@@ -15,21 +15,27 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
-        /* ==================== MAIN CONTENT OVERRIDE ==================== */
-        .main__content {
-            padding: 0 !important;
-            height: calc(100vh - 120px);
-            overflow: hidden;
+        /* ==================== WHITEBOARD PAGE LAYOUT ==================== */
+        /* Footer verstecken für mehr Platz */
+        .footer { display: none !important; }
+        
+        .whiteboard-page {
+            min-height: calc(100vh - 60px);
+            padding: 0;
+            display: flex;
+            flex-direction: column;
         }
         
-        /* ==================== WHITEBOARD CONTAINER ==================== */
         .whiteboard-container {
-            width: 100%;
-            height: 100%;
+            flex: 1;
             display: flex;
             flex-direction: column;
             background: #0a0a0a;
+            margin: 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             overflow: hidden;
+            max-height: calc(100vh - 84px);
         }
         
         /* ==================== TOOLBAR ==================== */
@@ -471,6 +477,7 @@
         <main class="main">
             <div class="main__content">
                 
+                <div class="whiteboard-page">
                 <div class="whiteboard-container">
                     <!-- Toolbar -->
                     <div class="wb-toolbar">
@@ -644,6 +651,7 @@
                         <div id="cursorsContainer"></div>
                     </div>
                 </div>
+                </div><!-- /whiteboard-page -->
                 
             </div>
         </main>
@@ -1524,13 +1532,33 @@
             }
         };
         
-        // Initialize after layout is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            // Wait for layout to be fully loaded
-            setTimeout(() => {
-                Whiteboard.init();
-            }, 500);
-        });
+        // Initialize after layout is FULLY ready
+        function initWhiteboardWhenReady() {
+            // Check if layout elements exist
+            const sidebar = document.querySelector('.sidebar');
+            const topbar = document.querySelector('.topbar');
+            const footer = document.querySelector('.footer');
+            
+            if (sidebar && topbar && footer) {
+                console.log('[Whiteboard] Layout ready, initializing...');
+                // Small additional delay to ensure CSS has been applied
+                setTimeout(() => {
+                    Whiteboard.init();
+                }, 100);
+            } else {
+                console.log('[Whiteboard] Waiting for layout...');
+                setTimeout(initWhiteboardWhenReady, 100);
+            }
+        }
+        
+        // Start checking after DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(initWhiteboardWhenReady, 200);
+            });
+        } else {
+            setTimeout(initWhiteboardWhenReady, 200);
+        }
     </script>
 </body>
 </html>
