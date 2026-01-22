@@ -2046,6 +2046,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => window.RIFTFab.init(), 100);
 });
 
+// Load Toast Service dynamically
+(function loadToastService() {
+    if (document.querySelector('script[src*="toast-service"]')) return;
+    const script = document.createElement('script');
+    script.src = 'assets/js/toast-service.js';
+    script.async = true;
+    document.head.appendChild(script);
+})();
+
 // Export for use in pages
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { createSidebar, createTopbar, createFooter, initLayout };
