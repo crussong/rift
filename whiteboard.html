@@ -69,6 +69,15 @@
         .wb-resize-handle--w { top: 50%; left: -6px; transform: translateY(-50%); cursor: ew-resize; }
         .wb-resize-handle--e { top: 50%; right: -6px; transform: translateY(-50%); cursor: ew-resize; }
         
+        /* Format Toolbar (appears above selected text/stroke) */
+        .wb-format-bar { position: absolute; display: none; background: rgba(22,22,22,0.98); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 4px 8px; gap: 4px; z-index: 210; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        .wb-format-bar.visible { display: flex; }
+        .wb-format-bar__btn { width: 28px; height: 28px; border: none; background: transparent; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); font-size: 12px; }
+        .wb-format-bar__btn:hover { background: rgba(255,255,255,0.1); color: white; }
+        .wb-format-bar__btn.active { background: var(--accent); color: white; }
+        .wb-format-bar__color { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); cursor: pointer; }
+        .wb-format-bar__sep { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 4px; }
+        
         /* Draggable Image */
         .wb-image { position: absolute; cursor: move; z-index: 45; user-select: none; }
         .wb-image.selected { outline: 3px solid #fbbf24; outline-offset: 2px; }
@@ -256,6 +265,17 @@
                             <div class="wb-resize-handle wb-resize-handle--w" data-handle="w"></div>
                             <div class="wb-resize-handle wb-resize-handle--e" data-handle="e"></div>
                         </div>
+                        <!-- Format Toolbar for selected elements -->
+                        <div class="wb-format-bar" id="formatBar">
+                            <button class="wb-format-bar__btn" id="fmtColorBtn" title="Farbe"><div class="wb-format-bar__color" id="fmtColorPreview" style="background:#ffffff"></div></button>
+                            <div class="wb-format-bar__sep"></div>
+                            <button class="wb-format-bar__btn" id="fmtSizeDown" title="Kleiner">−</button>
+                            <span id="fmtSizeLabel" style="color:white;font-size:11px;min-width:24px;text-align:center">4</span>
+                            <button class="wb-format-bar__btn" id="fmtSizeUp" title="Größer">+</button>
+                            <div class="wb-format-bar__sep"></div>
+                            <button class="wb-format-bar__btn" id="fmtBgToggle" title="Hintergrund">BG</button>
+                        </div>
+                        <input type="color" id="fmtColorPicker" style="position:absolute;opacity:0;pointer-events:none">
                         <div class="wb-ruler-info" id="rulerInfo"></div>
                         <div class="wb-zoom-controls">
                             <button class="wb-zoom-btn" id="zoomInBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -357,6 +377,7 @@ const WB = {
         this.setupModals();
         this.setupContextMenu();
         this.setupResizeHandles();
+        this.setupFormatBar();
         
         if (this.roomCode) await this.connectFirebase();
         this.render();
@@ -462,11 +483,32 @@ const WB = {
     setupCanvas() {
         const ui = this.uiCanvas;
         ui.addEventListener('mousedown', e => this.onDown(e));
-        ui.addEventListener('mousemove', e => this.onMove(e));
-        ui.addEventListener('mouseup', e => this.onUp(e));
-        ui.addEventListener('mouseleave', e => this.onUp(e));
         ui.addEventListener('dblclick', e => this.onDblClick(e));
         ui.addEventListener('contextmenu', e => this.onContext(e));
+        
+        // Mouse move/up on WINDOW so dragging works when mouse leaves canvas or is over DOM elements
+        window.addEventListener('mousemove', e => {
+            if (this.isDragging || this.isDrawing || this.isResizing) {
+                this.onMove(e);
+            }
+        });
+        window.addEventListener('mouseup', e => {
+            if (this.isDragging || this.isDrawing || this.isResizing) {
+                this.onUp(e);
+            }
+        });
+        
+        // Also listen on canvas for regular drawing
+        ui.addEventListener('mousemove', e => {
+            if (!this.isDragging && !this.isResizing) {
+                this.onMove(e);
+            }
+        });
+        ui.addEventListener('mouseleave', e => {
+            if (!this.isDragging && !this.isResizing) {
+                this.onUp(e);
+            }
+        });
         
         ui.addEventListener('touchstart', e => { e.preventDefault(); this.onDown(e.touches[0]); }, { passive: false });
         ui.addEventListener('touchmove', e => { e.preventDefault(); this.onMove(e.touches[0]); }, { passive: false });
@@ -509,7 +551,8 @@ const WB = {
             x = Math.round(x / this.gridSize) * this.gridSize;
             y = Math.round(y / this.gridSize) * this.gridSize;
         }
-        return { x, y, sx: e.clientX, sy: e.clientY };
+        // rx, ry = relative to canvasWrapper (for DOM elements like ping)
+        return { x, y, sx: e.clientX, sy: e.clientY, rx: e.clientX - r.left, ry: e.clientY - r.top };
     },
     
     onDown(e) {
@@ -532,7 +575,7 @@ const WB = {
             return;
         }
         
-        if (this.tool === 'ping') { this.createPing(p.sx, p.sy); return; }
+        if (this.tool === 'ping') { this.createPing(p.rx, p.ry); return; }
         if (this.tool === 'text') { this.showTextInput(p); return; }
         if (this.tool === 'stamp' && this.selectedStamp) { this.placeStamp(p); return; }
         if (this.tool === 'polygon') { this.polygonPoints.push(p); this.renderUI(); return; }
@@ -620,7 +663,7 @@ const WB = {
         }
         
         if (this.tool === 'polygon' && this.polygonPoints.length >= 3) this.finishPolygon();
-        else this.createPing(p.sx, p.sy);
+        else this.createPing(p.rx, p.ry);
     },
     
     editText(stroke, p) {
@@ -652,13 +695,13 @@ const WB = {
     
     // ==================== SELECTION ====================
     hitTest(p) {
-        // Check tokens first (top layer)
+        // Check tokens first (top layer) - circles
         for (let i = this.tokens.length - 1; i >= 0; i--) {
             const t = this.tokens[i];
             const dx = p.x - t.x, dy = p.y - t.y;
             if (Math.sqrt(dx * dx + dy * dy) < t.size / 2) return { type: 'token', item: t, index: i };
         }
-        // Check images
+        // Check images - rectangles
         for (let i = this.images.length - 1; i >= 0; i--) {
             const img = this.images[i];
             if (p.x >= img.x && p.x <= img.x + img.w && p.y >= img.y && p.y <= img.y + img.h) 
@@ -668,37 +711,115 @@ const WB = {
         for (let i = this.strokes.length - 1; i >= 0; i--) {
             const s = this.strokes[i];
             if (s.layer !== 'main') continue;
-            const bounds = this.getStrokeBounds(s);
-            if (bounds && p.x >= bounds.x && p.x <= bounds.x + bounds.w && p.y >= bounds.y && p.y <= bounds.y + bounds.h)
-                return { type: 'stroke', item: s, index: i };
+            if (this.hitTestStroke(s, p)) return { type: 'stroke', item: s, index: i };
         }
         return null;
+    },
+    
+    hitTestStroke(s, p) {
+        // More accurate hit testing for each stroke type
+        if (s.tool === 'stamp') {
+            const size = s.stampSize || 40;
+            // Emoji is drawn at x,y with baseline - actual visible area is above y
+            const cx = s.x, cy = s.y - size * 0.4; // Center of stamp
+            const halfSize = size * 0.6;
+            return p.x >= cx - halfSize && p.x <= cx + halfSize && 
+                   p.y >= cy - halfSize && p.y <= cy + halfSize;
+        }
+        if (s.tool === 'text') {
+            const fontSize = s.size * 4 + 12;
+            const textWidth = Math.max((s.text?.length || 5) * fontSize * 0.55, 40);
+            // Text baseline at start.y - text renders above
+            return p.x >= s.start.x && p.x <= s.start.x + textWidth &&
+                   p.y >= s.start.y - fontSize * 0.9 && p.y <= s.start.y + fontSize * 0.2;
+        }
+        if (s.tool === 'pen' && s.path && s.path.length > 0) {
+            // Check proximity to any point in path
+            const threshold = Math.max(s.size * 2, 15);
+            for (const pt of s.path) {
+                const dx = p.x - pt.x, dy = p.y - pt.y;
+                if (Math.sqrt(dx*dx + dy*dy) < threshold) return true;
+            }
+            return false;
+        }
+        if (s.tool === 'polygon' && s.points && s.points.length > 0) {
+            // Check if point is inside polygon or near edges
+            return this.pointInPolygon(p, s.points) || this.nearPolygonEdge(p, s.points, s.size + 5);
+        }
+        if (['line', 'rect', 'circle', 'arrow'].includes(s.tool) && s.start && s.end) {
+            const bounds = this.getShapeBounds(s);
+            const pad = Math.max(s.size, 8);
+            return p.x >= bounds.x - pad && p.x <= bounds.x + bounds.w + pad &&
+                   p.y >= bounds.y - pad && p.y <= bounds.y + bounds.h + pad;
+        }
+        return false;
+    },
+    
+    pointInPolygon(p, points) {
+        let inside = false;
+        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+            const xi = points[i].x, yi = points[i].y;
+            const xj = points[j].x, yj = points[j].y;
+            if (((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    },
+    
+    nearPolygonEdge(p, points, threshold) {
+        for (let i = 0; i < points.length; i++) {
+            const a = points[i], b = points[(i + 1) % points.length];
+            if (this.distToSegment(p, a, b) < threshold) return true;
+        }
+        return false;
+    },
+    
+    distToSegment(p, a, b) {
+        const l2 = (b.x-a.x)*(b.x-a.x) + (b.y-a.y)*(b.y-a.y);
+        if (l2 === 0) return Math.sqrt((p.x-a.x)*(p.x-a.x) + (p.y-a.y)*(p.y-a.y));
+        let t = ((p.x-a.x)*(b.x-a.x) + (p.y-a.y)*(b.y-a.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        const proj = { x: a.x + t*(b.x-a.x), y: a.y + t*(b.y-a.y) };
+        return Math.sqrt((p.x-proj.x)*(p.x-proj.x) + (p.y-proj.y)*(p.y-proj.y));
+    },
+    
+    getShapeBounds(s) {
+        if (!s.start || !s.end) return null;
+        return {
+            x: Math.min(s.start.x, s.end.x),
+            y: Math.min(s.start.y, s.end.y),
+            w: Math.abs(s.end.x - s.start.x),
+            h: Math.abs(s.end.y - s.start.y)
+        };
     },
     
     getStrokeBounds(s) {
         if (s.tool === 'text') {
             const fontSize = s.size * 4 + 12;
-            const textWidth = (s.text?.length || 5) * fontSize * 0.6;
-            return { x: s.start.x, y: s.start.y - fontSize, w: textWidth, h: fontSize * 1.2 };
+            const textWidth = Math.max((s.text?.length || 5) * fontSize * 0.55, 40);
+            return { x: s.start.x, y: s.start.y - fontSize * 0.9, w: textWidth, h: fontSize * 1.1 };
         }
         if (s.tool === 'stamp') {
             const size = s.stampSize || 40;
-            return { x: s.x - size/2, y: s.y - size, w: size, h: size };
+            return { x: s.x - size * 0.5, y: s.y - size * 0.95, w: size, h: size };
         }
         if (s.tool === 'pen' && s.path && s.path.length > 0) {
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             s.path.forEach(pt => { minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y); maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y); });
-            return { x: minX - s.size, y: minY - s.size, w: maxX - minX + s.size*2, h: maxY - minY + s.size*2 };
+            const pad = Math.max(s.size * 2, 10);
+            return { x: minX - pad, y: minY - pad, w: Math.max(maxX - minX + pad*2, 20), h: Math.max(maxY - minY + pad*2, 20) };
         }
         if (s.tool === 'polygon' && s.points && s.points.length > 0) {
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             s.points.forEach(pt => { minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y); maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y); });
-            return { x: minX - s.size, y: minY - s.size, w: maxX - minX + s.size*2, h: maxY - minY + s.size*2 };
+            const pad = Math.max(s.size, 5);
+            return { x: minX - pad, y: minY - pad, w: maxX - minX + pad*2, h: maxY - minY + pad*2 };
         }
         if (['line', 'rect', 'circle', 'arrow'].includes(s.tool) && s.start && s.end) {
-            const minX = Math.min(s.start.x, s.end.x), minY = Math.min(s.start.y, s.end.y);
-            const maxX = Math.max(s.start.x, s.end.x), maxY = Math.max(s.start.y, s.end.y);
-            return { x: minX - s.size, y: minY - s.size, w: maxX - minX + s.size*2, h: maxY - minY + s.size*2 };
+            const b = this.getShapeBounds(s);
+            const pad = Math.max(s.size, 5);
+            return { x: b.x - pad, y: b.y - pad, w: b.w + pad*2, h: b.h + pad*2 };
         }
         return null;
     },
@@ -712,6 +833,7 @@ const WB = {
     deselect() {
         this.selected = null;
         document.getElementById('selectBox').classList.remove('visible');
+        document.getElementById('formatBar').classList.remove('visible');
         this.render();
     },
     
@@ -732,6 +854,89 @@ const WB = {
         box.style.width = w + 'px';
         box.style.height = h + 'px';
         box.classList.add('visible');
+        
+        // Show format bar for text and strokes
+        this.updateFormatBar(x, y, w, h);
+    },
+    
+    updateFormatBar(x, y, w, h) {
+        const bar = document.getElementById('formatBar');
+        if (!this.selected) { bar.classList.remove('visible'); return; }
+        
+        const { type, item } = this.selected;
+        
+        // Show format bar for text, stamps, and shapes
+        if (type === 'stroke' && ['text', 'stamp', 'rect', 'circle', 'line', 'arrow', 'polygon', 'pen'].includes(item.tool)) {
+            bar.style.left = x + 'px';
+            bar.style.top = (y - 44) + 'px';
+            bar.classList.add('visible');
+            
+            // Update color preview
+            document.getElementById('fmtColorPreview').style.background = item.color || '#ffffff';
+            document.getElementById('fmtSizeLabel').textContent = item.tool === 'stamp' ? (item.stampSize || 40) : (item.size || 4);
+            
+            // Show/hide BG toggle for text
+            document.getElementById('fmtBgToggle').style.display = item.tool === 'text' ? 'flex' : 'none';
+            if (item.tool === 'text') {
+                document.getElementById('fmtBgToggle').classList.toggle('active', !!item.bg);
+            }
+        } else {
+            bar.classList.remove('visible');
+        }
+    },
+    
+    setupFormatBar() {
+        document.getElementById('fmtColorBtn').onclick = () => {
+            const picker = document.getElementById('fmtColorPicker');
+            picker.value = this.selected?.item?.color || '#ffffff';
+            picker.click();
+        };
+        
+        document.getElementById('fmtColorPicker').oninput = (e) => {
+            if (this.selected?.type === 'stroke') {
+                this.selected.item.color = e.target.value;
+                document.getElementById('fmtColorPreview').style.background = e.target.value;
+                this.syncStroke(this.selected.item);
+                this.render();
+            }
+        };
+        
+        document.getElementById('fmtSizeUp').onclick = () => {
+            if (!this.selected?.item) return;
+            const item = this.selected.item;
+            if (item.tool === 'stamp') {
+                item.stampSize = Math.min(120, (item.stampSize || 40) + 5);
+            } else {
+                item.size = Math.min(32, (item.size || 4) + 1);
+            }
+            document.getElementById('fmtSizeLabel').textContent = item.tool === 'stamp' ? item.stampSize : item.size;
+            this.syncStroke(item);
+            this.render();
+            this.updateSelectBox();
+        };
+        
+        document.getElementById('fmtSizeDown').onclick = () => {
+            if (!this.selected?.item) return;
+            const item = this.selected.item;
+            if (item.tool === 'stamp') {
+                item.stampSize = Math.max(20, (item.stampSize || 40) - 5);
+            } else {
+                item.size = Math.max(1, (item.size || 4) - 1);
+            }
+            document.getElementById('fmtSizeLabel').textContent = item.tool === 'stamp' ? item.stampSize : item.size;
+            this.syncStroke(item);
+            this.render();
+            this.updateSelectBox();
+        };
+        
+        document.getElementById('fmtBgToggle').onclick = () => {
+            if (!this.selected?.item || this.selected.item.tool !== 'text') return;
+            const item = this.selected.item;
+            item.bg = !item.bg;
+            document.getElementById('fmtBgToggle').classList.toggle('active', item.bg);
+            this.syncStroke(item);
+            this.render();
+        };
     },
     
     getSelectedBounds() {
@@ -796,7 +1001,15 @@ const WB = {
                 if (!this.selected) return;
                 this.isResizing = true;
                 this.resizeHandle = handle.dataset.handle;
-                this.resizeStart = { x: e.clientX, y: e.clientY, bounds: this.getSelectedBounds() };
+                // Store original state for resize
+                const { type, item } = this.selected;
+                this.resizeStart = { 
+                    x: e.clientX, 
+                    y: e.clientY, 
+                    bounds: this.getSelectedBounds(),
+                    // Store original item properties
+                    origItem: JSON.parse(JSON.stringify(item))
+                };
             });
         });
         
@@ -824,22 +1037,49 @@ const WB = {
         const h = this.resizeHandle;
         const { type, item } = this.selected;
         const orig = this.resizeStart.bounds;
+        const origItem = this.resizeStart.origItem;
         
         if (type === 'token') {
             // Token: resize = change size (keep center)
             let sizeDelta = 0;
             if (h.includes('e') || h.includes('s')) sizeDelta = Math.max(dx, dy);
             if (h.includes('w') || h.includes('n')) sizeDelta = -Math.min(dx, dy);
-            item.size = Math.max(20, Math.min(200, orig.w + sizeDelta * 2));
+            item.size = Math.max(20, Math.min(200, origItem.size + sizeDelta * 2));
         } 
         else if (type === 'image') {
-            // Image: resize keeping aspect or free
-            if (h.includes('e')) item.w = Math.max(30, orig.w + dx);
-            if (h.includes('w')) { item.x = orig.x + dx; item.w = Math.max(30, orig.w - dx); }
-            if (h.includes('s')) item.h = Math.max(30, orig.h + dy);
-            if (h.includes('n')) { item.y = orig.y + dy; item.h = Math.max(30, orig.h - dy); }
+            // Image: resize by edge/corner
+            if (h.includes('e')) item.w = Math.max(30, origItem.w + dx);
+            if (h.includes('w')) { item.x = origItem.x + dx; item.w = Math.max(30, origItem.w - dx); }
+            if (h.includes('s')) item.h = Math.max(30, origItem.h + dy);
+            if (h.includes('n')) { item.y = origItem.y + dy; item.h = Math.max(30, origItem.h - dy); }
         }
-        // TODO: Add stroke scaling here if needed
+        else if (type === 'stroke') {
+            // Handle different stroke types
+            if (item.tool === 'text') {
+                // Text: resize = change font size
+                let sizeDelta = Math.max(dx, dy) / 4;
+                if (h.includes('w') || h.includes('n')) sizeDelta = -sizeDelta;
+                item.size = Math.max(1, Math.min(32, origItem.size + sizeDelta));
+            }
+            else if (item.tool === 'stamp') {
+                // Stamp: resize = change stamp size
+                let sizeDelta = Math.max(dx, dy);
+                if (h.includes('w') || h.includes('n')) sizeDelta = -sizeDelta;
+                item.stampSize = Math.max(20, Math.min(120, (origItem.stampSize || 40) + sizeDelta));
+            }
+            else if (['rect', 'circle', 'line', 'arrow'].includes(item.tool)) {
+                // Shapes: resize by moving start/end points
+                if (h.includes('e')) item.end.x = origItem.end.x + dx;
+                if (h.includes('w')) item.start.x = origItem.start.x + dx;
+                if (h.includes('s')) item.end.y = origItem.end.y + dy;
+                if (h.includes('n')) item.start.y = origItem.start.y + dy;
+                // Corner handles move both
+                if (h === 'se') { item.end.x = origItem.end.x + dx; item.end.y = origItem.end.y + dy; }
+                if (h === 'nw') { item.start.x = origItem.start.x + dx; item.start.y = origItem.start.y + dy; }
+                if (h === 'ne') { item.end.x = origItem.end.x + dx; item.start.y = origItem.start.y + dy; }
+                if (h === 'sw') { item.start.x = origItem.start.x + dx; item.end.y = origItem.end.y + dy; }
+            }
+        }
         
         this.render();
         this.updateSelectBox();
@@ -945,13 +1185,14 @@ const WB = {
         this.tokens.forEach((t, i) => {
             const el = document.createElement('div');
             const isSelected = this.selected?.type === 'token' && this.selected?.item === t;
+            const displaySize = t.size * this.zoom;
             el.className = 'wb-token' + (isSelected ? ' selected' : '');
-            el.style.left = (t.x * this.zoom + this.panX - t.size / 2) + 'px';
-            el.style.top = (t.y * this.zoom + this.panY - t.size / 2) + 'px';
-            el.style.width = t.size + 'px';
-            el.style.height = t.size + 'px';
+            el.style.left = (t.x * this.zoom + this.panX - displaySize / 2) + 'px';
+            el.style.top = (t.y * this.zoom + this.panY - displaySize / 2) + 'px';
+            el.style.width = displaySize + 'px';
+            el.style.height = displaySize + 'px';
             el.style.background = t.color;
-            el.style.fontSize = (t.size * 0.4) + 'px';
+            el.style.fontSize = (displaySize * 0.4) + 'px';
             el.innerHTML = t.img ? `<img src="${t.img}">` : (t.label || t.name?.charAt(0) || '?');
             el.innerHTML += `<span class="wb-token__label">${t.name || ''}</span>`;
             el.dataset.idx = i;
@@ -1017,10 +1258,24 @@ const WB = {
                 ctx.stroke();
             }
         } else if (s.tool === 'text') {
-            ctx.font = ((s.size * 4 + 12) * this.zoom) + 'px sans-serif';
-            ctx.fillText(s.text, s.start.x * this.zoom + this.panX, s.start.y * this.zoom + this.panY);
+            const fontSize = (s.size * 4 + 12) * this.zoom;
+            ctx.font = fontSize + 'px sans-serif';
+            const tx = s.start.x * this.zoom + this.panX;
+            const ty = s.start.y * this.zoom + this.panY;
+            
+            // Draw background if enabled
+            if (s.bg) {
+                const textWidth = ctx.measureText(s.text).width;
+                const pad = 4 * this.zoom;
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(tx - pad, ty - fontSize * 0.85, textWidth + pad * 2, fontSize * 1.1);
+            }
+            
+            ctx.fillStyle = s.color;
+            ctx.fillText(s.text, tx, ty);
         } else if (s.tool === 'stamp') {
-            ctx.font = (s.stampSize * this.zoom) + 'px sans-serif';
+            const stampSize = (s.stampSize || 40) * this.zoom;
+            ctx.font = stampSize + 'px sans-serif';
             ctx.fillText(s.stamp, s.x * this.zoom + this.panX, s.y * this.zoom + this.panY);
         } else if (s.tool === 'polygon' && s.points) {
             ctx.beginPath();
