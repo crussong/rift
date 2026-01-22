@@ -720,11 +720,10 @@ const WB = {
         // More accurate hit testing for each stroke type
         if (s.tool === 'stamp') {
             const size = s.stampSize || 40;
-            // Emoji is drawn at x,y with baseline - actual visible area is above y
-            const cx = s.x, cy = s.y - size * 0.4; // Center of stamp
-            const halfSize = size * 0.6;
-            return p.x >= cx - halfSize && p.x <= cx + halfSize && 
-                   p.y >= cy - halfSize && p.y <= cy + halfSize;
+            // fillText: x = left edge, y = baseline (bottom of emoji)
+            // Emoji goes from x to x+size horizontally, and from y-size to y vertically
+            return p.x >= s.x && p.x <= s.x + size && 
+                   p.y >= s.y - size && p.y <= s.y;
         }
         if (s.tool === 'text') {
             const fontSize = s.size * 4 + 12;
@@ -802,7 +801,8 @@ const WB = {
         }
         if (s.tool === 'stamp') {
             const size = s.stampSize || 40;
-            return { x: s.x - size * 0.5, y: s.y - size * 0.95, w: size, h: size };
+            // fillText: x = left edge, y = baseline. Emoji goes from y-size to y
+            return { x: s.x, y: s.y - size, w: size, h: size };
         }
         if (s.tool === 'pen' && s.path && s.path.length > 0) {
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
