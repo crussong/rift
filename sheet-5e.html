@@ -6545,13 +6545,14 @@
                 
                 collectData();
                 
+                // Get current values
+                const currentHP = parseInt(char.combat?.hpCurrent) || 0;
+                const currentLevel = parseInt(char.header?.level) || 1;
+                
                 // Check for HP/Level changes and send toasts
-                if (window.RIFTToast && char.header?.name) {
-                    const currentHP = parseInt(char.combat?.hpCurrent) || 0;
-                    const currentLevel = parseInt(char.header?.level) || 1;
-                    
+                if (window.RIFTToast?.initialized && char.header?.name) {
                     // HP change toast
-                    if (oldHP !== null && currentHP !== oldHP) {
+                    if (oldHP !== null && currentHP !== oldHP && currentHP !== 0) {
                         const diff = currentHP - oldHP;
                         RIFTToast.hpChange(char.header.name, diff);
                     }
@@ -6560,11 +6561,11 @@
                     if (oldLevel !== null && currentLevel > oldLevel) {
                         RIFTToast.levelUp(char.header.name, currentLevel);
                     }
-                    
-                    // Update tracked values
-                    prevHP = currentHP;
-                    prevLevel = currentLevel;
                 }
+                
+                // Always update tracked values
+                prevHP = currentHP;
+                prevLevel = currentLevel;
                 
                 localStorage.setItem(STORAGE_KEY_OLD, JSON.stringify(char)); // Legacy
                 // V2 CharacterStorage
@@ -10095,10 +10096,6 @@
             renderWeapons();
             renderSpells();
             renderResources();
-            
-            // Initialize HP/Level tracking for toasts
-            prevHP = parseInt(char.combat?.hpCurrent) || 0;
-            prevLevel = parseInt(char.header?.level) || 1;
         }
 
         function loadChar() {
