@@ -15,23 +15,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
-        /* ==================== LAYOUT ==================== */
+        /* ==================== MAIN CONTENT OVERRIDE ==================== */
+        .main__content {
+            padding: 0 !important;
+            height: calc(100vh - 120px);
+            overflow: hidden;
+        }
+        
+        /* ==================== WHITEBOARD CONTAINER ==================== */
         .whiteboard-container {
-            position: fixed;
-            top: 60px;
-            left: var(--sidebar-width, 240px);
-            right: 0;
-            bottom: 60px;
+            width: 100%;
+            height: 100%;
             display: flex;
             flex-direction: column;
             background: #0a0a0a;
             overflow: hidden;
-        }
-        
-        @media (max-width: 1024px) {
-            .whiteboard-container {
-                left: 0;
-            }
         }
         
         /* ==================== TOOLBAR ==================== */
@@ -44,6 +42,7 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             flex-wrap: wrap;
             z-index: 10;
+            flex-shrink: 0;
         }
         
         .wb-toolbar__group {
@@ -148,10 +147,11 @@
             position: relative;
             overflow: hidden;
             cursor: crosshair;
+            min-height: 0;
         }
         
         .wb-canvas-wrapper.tool-eraser {
-            cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="1"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>') 12 12, crosshair;
+            cursor: cell;
         }
         
         .wb-canvas-wrapper.tool-text {
@@ -175,6 +175,7 @@
             object-fit: contain;
             pointer-events: none;
             opacity: 0.8;
+            z-index: 1;
         }
         
         #wbGrid {
@@ -184,39 +185,46 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            opacity: 0.15;
+            opacity: 0;
             background-image: 
-                linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px);
+                linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px);
             background-size: 40px 40px;
-            display: none;
+            z-index: 2;
+            transition: opacity 0.2s ease;
         }
         
         #wbGrid.visible {
-            display: block;
+            opacity: 0.3;
         }
         
         #wbCanvas {
             position: absolute;
             top: 0;
             left: 0;
+            z-index: 3;
             touch-action: none;
         }
         
         /* ==================== TEXT INPUT OVERLAY ==================== */
         .wb-text-input {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.8);
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
             border: 2px solid var(--accent, #8b5cf6);
             border-radius: 8px;
-            padding: 8px 12px;
+            padding: 10px 14px;
             color: white;
-            font-size: 16px;
+            font-size: 18px;
             font-family: inherit;
-            min-width: 150px;
+            min-width: 200px;
             outline: none;
-            z-index: 100;
+            z-index: 1000;
             display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        
+        .wb-text-input:focus {
+            border-color: #a78bfa;
         }
         
         /* ==================== ZOOM CONTROLS ==================== */
@@ -231,6 +239,7 @@
             border-radius: 12px;
             padding: 6px;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
         }
         
         .wb-zoom-btn {
@@ -279,7 +288,6 @@
             position: absolute;
             left: 16px;
             top: -4px;
-            background: inherit;
             padding: 2px 8px;
             border-radius: 4px;
             font-size: 11px;
@@ -291,13 +299,16 @@
         
         /* ==================== UPLOAD OVERLAY ==================== */
         .wb-upload-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.8);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 200;
+            z-index: 2000;
         }
         
         .wb-upload-overlay.visible {
@@ -311,11 +322,13 @@
             padding: 48px 64px;
             text-align: center;
             transition: all 0.2s ease;
+            max-width: 90%;
         }
         
         .wb-upload-box.dragover {
             border-color: #8b5cf6;
             background: rgba(139, 92, 246, 0.1);
+            transform: scale(1.02);
         }
         
         .wb-upload-box svg {
@@ -337,6 +350,12 @@
             margin-bottom: 24px;
         }
         
+        .wb-upload-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        
         .wb-upload-btn {
             background: var(--accent, #8b5cf6);
             color: white;
@@ -354,12 +373,20 @@
             transform: translateY(-1px);
         }
         
+        .wb-upload-btn--secondary {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .wb-upload-btn--secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
         .wb-upload-close {
             position: absolute;
             top: 24px;
             right: 24px;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             background: rgba(255, 255, 255, 0.1);
             border: none;
             border-radius: 50%;
@@ -368,6 +395,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .wb-upload-close:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
         
         /* ==================== MOBILE ADJUSTMENTS ==================== */
@@ -404,6 +436,10 @@
             .wb-zoom-controls {
                 bottom: 80px;
             }
+            
+            .wb-upload-box {
+                padding: 32px 24px;
+            }
         }
         
         /* ==================== TOAST für Aktionen ==================== */
@@ -418,7 +454,7 @@
             border-radius: 12px;
             color: white;
             font-size: 14px;
-            z-index: 1000;
+            z-index: 3000;
             opacity: 0;
             transition: all 0.3s ease;
             pointer-events: none;
@@ -582,7 +618,6 @@
                         <img id="wbBackground" src="" alt="" style="display: none;">
                         <div id="wbGrid"></div>
                         <canvas id="wbCanvas"></canvas>
-                        <input type="text" class="wb-text-input" id="textInput" placeholder="Text eingeben...">
                         
                         <!-- Zoom Controls -->
                         <div class="wb-zoom-controls">
@@ -608,34 +643,40 @@
                         <!-- User Cursors Container -->
                         <div id="cursorsContainer"></div>
                     </div>
-                    
-                    <!-- Upload Overlay -->
-                    <div class="wb-upload-overlay" id="uploadOverlay">
-                        <button class="wb-upload-close" id="uploadClose">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        </button>
-                        <div class="wb-upload-box" id="uploadBox">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                <path d="M21 15l-5-5L5 21"/>
-                            </svg>
-                            <h3>Battle Map hochladen</h3>
-                            <p>Ziehe ein Bild hierher oder klicke zum Auswählen</p>
-                            <button class="wb-upload-btn" id="uploadBtn">Bild auswählen</button>
-                            <input type="file" id="bgFileInput" accept="image/*" style="display: none;">
-                        </div>
-                    </div>
                 </div>
-                
-                <!-- Toast -->
-                <div class="wb-toast" id="wbToast"></div>
                 
             </div>
         </main>
     </div>
+    
+    <!-- Text Input (outside container for proper positioning) -->
+    <input type="text" class="wb-text-input" id="textInput" placeholder="Text eingeben... (Enter zum Bestätigen)">
+    
+    <!-- Upload Overlay -->
+    <div class="wb-upload-overlay" id="uploadOverlay">
+        <button class="wb-upload-close" id="uploadClose">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+        <div class="wb-upload-box" id="uploadBox">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
+            </svg>
+            <h3>Battle Map hochladen</h3>
+            <p>Ziehe ein Bild hierher oder klicke zum Auswählen</p>
+            <div class="wb-upload-actions">
+                <button class="wb-upload-btn" id="uploadBtn">Bild auswählen</button>
+                <button class="wb-upload-btn wb-upload-btn--secondary" id="removeBgBtn">Hintergrund entfernen</button>
+            </div>
+            <input type="file" id="bgFileInput" accept="image/*" style="display: none;">
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="wb-toast" id="wbToast"></div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <!-- Firebase SDK -->
@@ -689,7 +730,6 @@
             // Firebase
             roomCode: null,
             db: null,
-            unsubscribe: null,
             userId: null,
             userName: null,
             userColor: null,
@@ -700,13 +740,15 @@
             
             // ==================== INIT ====================
             async init() {
+                console.log('[Whiteboard] Initializing...');
+                
                 this.canvas = document.getElementById('wbCanvas');
                 this.ctx = this.canvas.getContext('2d');
                 
                 // Get room and user info
                 this.roomCode = localStorage.getItem('rift_current_room');
                 const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-                this.userId = userData.odUserId || userData.odUserId || Math.random().toString(36).substr(2, 9);
+                this.userId = userData.odUserId || Math.random().toString(36).substr(2, 9);
                 this.userName = userData.displayName || 'Anonym';
                 this.userColor = userData.color || '#8b5cf6';
                 this.isGM = userData.isGM || userData.isCogm || false;
@@ -723,22 +765,20 @@
                 this.resizeCanvas();
                 window.addEventListener('resize', () => this.resizeCanvas());
                 
-                // Setup event listeners
+                // Setup all event listeners
                 this.setupToolbar();
                 this.setupCanvas();
                 this.setupKeyboard();
                 this.setupUpload();
                 this.setupZoom();
+                this.setupTextInput();
                 
                 // Connect to Firebase
                 if (this.roomCode) {
                     await this.connectFirebase();
                 }
                 
-                // Save initial state
-                this.saveToHistory();
-                
-                console.log('[Whiteboard] Initialized', { room: this.roomCode, user: this.userName });
+                console.log('[Whiteboard] Ready!', { room: this.roomCode, user: this.userName, isGM: this.isGM });
             },
             
             // ==================== CANVAS SETUP ====================
@@ -746,11 +786,9 @@
                 const wrapper = document.getElementById('canvasWrapper');
                 const rect = wrapper.getBoundingClientRect();
                 
-                // Set canvas size
                 this.canvas.width = rect.width;
                 this.canvas.height = rect.height;
                 
-                // Redraw
                 this.redraw();
             },
             
@@ -758,7 +796,8 @@
             setupToolbar() {
                 // Tool buttons
                 document.querySelectorAll('[data-tool]').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
                         document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
                         this.tool = btn.dataset.tool;
@@ -768,12 +807,15 @@
                         wrapper.className = 'wb-canvas-wrapper';
                         if (this.tool === 'eraser') wrapper.classList.add('tool-eraser');
                         if (this.tool === 'text') wrapper.classList.add('tool-text');
+                        
+                        console.log('[Whiteboard] Tool:', this.tool);
                     });
                 });
                 
                 // Color buttons
                 document.querySelectorAll('.wb-color-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
                         document.querySelectorAll('.wb-color-btn').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
                         this.color = btn.dataset.color;
@@ -782,7 +824,8 @@
                 
                 // Size buttons
                 document.querySelectorAll('.wb-size-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
                         document.querySelectorAll('.wb-size-btn').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
                         this.size = parseInt(btn.dataset.size);
@@ -794,15 +837,20 @@
                 document.getElementById('redoBtn').addEventListener('click', () => this.redo());
                 
                 // Grid toggle
-                document.getElementById('gridBtn').addEventListener('click', () => {
+                document.getElementById('gridBtn').addEventListener('click', (e) => {
+                    e.preventDefault();
                     const grid = document.getElementById('wbGrid');
+                    const btn = document.getElementById('gridBtn');
                     grid.classList.toggle('visible');
-                    document.getElementById('gridBtn').classList.toggle('active');
+                    btn.classList.toggle('active');
+                    console.log('[Whiteboard] Grid:', grid.classList.contains('visible'));
                 });
                 
                 // Background button
-                document.getElementById('bgBtn').addEventListener('click', () => {
+                document.getElementById('bgBtn').addEventListener('click', (e) => {
+                    e.preventDefault();
                     document.getElementById('uploadOverlay').classList.add('visible');
+                    console.log('[Whiteboard] Upload overlay opened');
                 });
                 
                 // Export button
@@ -818,16 +866,19 @@
             
             addUserColorToPalette() {
                 const palette = document.getElementById('colorPalette');
-                const existingColors = Array.from(palette.querySelectorAll('.wb-color-btn')).map(b => b.dataset.color);
+                if (!palette) return;
                 
-                if (!existingColors.includes(this.userColor)) {
+                const existingColors = Array.from(palette.querySelectorAll('.wb-color-btn')).map(b => b.dataset.color.toLowerCase());
+                
+                if (!existingColors.includes(this.userColor.toLowerCase())) {
                     const btn = document.createElement('button');
                     btn.className = 'wb-color-btn';
                     btn.dataset.color = this.userColor;
                     btn.style.background = this.userColor;
                     btn.title = 'Deine Farbe';
                     btn.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.3)';
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
                         document.querySelectorAll('.wb-color-btn').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
                         this.color = btn.dataset.color;
@@ -836,73 +887,16 @@
                 }
             },
             
-            // ==================== CANVAS EVENTS ====================
-            setupCanvas() {
-                const wrapper = document.getElementById('canvasWrapper');
-                
-                // Mouse events
-                this.canvas.addEventListener('mousedown', (e) => this.onPointerDown(e));
-                this.canvas.addEventListener('mousemove', (e) => this.onPointerMove(e));
-                this.canvas.addEventListener('mouseup', (e) => this.onPointerUp(e));
-                this.canvas.addEventListener('mouseleave', (e) => this.onPointerUp(e));
-                
-                // Touch events
-                this.canvas.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    this.onPointerDown(touch);
-                }, { passive: false });
-                this.canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    this.onPointerMove(touch);
-                }, { passive: false });
-                this.canvas.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.onPointerUp(e);
-                }, { passive: false });
-                
-                // Middle mouse pan
-                this.canvas.addEventListener('mousedown', (e) => {
-                    if (e.button === 1) {
-                        e.preventDefault();
-                        this.isPanning = true;
-                        this.lastPanPoint = { x: e.clientX, y: e.clientY };
-                        wrapper.classList.add('panning');
-                    }
-                });
-                
-                window.addEventListener('mousemove', (e) => {
-                    if (this.isPanning && this.lastPanPoint) {
-                        const dx = e.clientX - this.lastPanPoint.x;
-                        const dy = e.clientY - this.lastPanPoint.y;
-                        this.panX += dx;
-                        this.panY += dy;
-                        this.lastPanPoint = { x: e.clientX, y: e.clientY };
-                        this.redraw();
-                    }
-                });
-                
-                window.addEventListener('mouseup', (e) => {
-                    if (e.button === 1) {
-                        this.isPanning = false;
-                        this.lastPanPoint = null;
-                        wrapper.classList.remove('panning');
-                    }
-                });
-                
-                // Wheel zoom
-                wrapper.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                    this.setZoom(this.zoom + delta);
-                }, { passive: false });
-                
-                // Text input
+            // ==================== TEXT INPUT ====================
+            setupTextInput() {
                 const textInput = document.getElementById('textInput');
+                
                 textInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        this.placeText(textInput.value, parseInt(textInput.style.left), parseInt(textInput.style.top));
+                    if (e.key === 'Enter' && textInput.value.trim()) {
+                        e.preventDefault();
+                        const x = parseInt(textInput.dataset.x || 0);
+                        const y = parseInt(textInput.dataset.y || 0);
+                        this.placeText(textInput.value, x, y);
                         textInput.style.display = 'none';
                         textInput.value = '';
                     }
@@ -913,12 +907,89 @@
                 });
                 
                 textInput.addEventListener('blur', () => {
-                    if (textInput.value.trim()) {
-                        this.placeText(textInput.value, parseInt(textInput.style.left), parseInt(textInput.style.top));
-                    }
-                    textInput.style.display = 'none';
-                    textInput.value = '';
+                    setTimeout(() => {
+                        if (textInput.value.trim()) {
+                            const x = parseInt(textInput.dataset.x || 0);
+                            const y = parseInt(textInput.dataset.y || 0);
+                            this.placeText(textInput.value, x, y);
+                        }
+                        textInput.style.display = 'none';
+                        textInput.value = '';
+                    }, 100);
                 });
+            },
+            
+            showTextInput(screenX, screenY, canvasX, canvasY) {
+                const textInput = document.getElementById('textInput');
+                textInput.style.left = screenX + 'px';
+                textInput.style.top = screenY + 'px';
+                textInput.style.display = 'block';
+                textInput.style.color = this.color;
+                textInput.dataset.x = canvasX;
+                textInput.dataset.y = canvasY;
+                textInput.value = '';
+                textInput.focus();
+            },
+            
+            // ==================== CANVAS EVENTS ====================
+            setupCanvas() {
+                const canvas = this.canvas;
+                
+                // Mouse events
+                canvas.addEventListener('mousedown', (e) => this.onPointerDown(e));
+                canvas.addEventListener('mousemove', (e) => this.onPointerMove(e));
+                canvas.addEventListener('mouseup', (e) => this.onPointerUp(e));
+                canvas.addEventListener('mouseleave', (e) => this.onPointerUp(e));
+                
+                // Touch events
+                canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.onPointerDown(e.touches[0]);
+                }, { passive: false });
+                
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    this.onPointerMove(e.touches[0]);
+                }, { passive: false });
+                
+                canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.onPointerUp(e);
+                }, { passive: false });
+                
+                // Middle mouse pan
+                canvas.addEventListener('mousedown', (e) => {
+                    if (e.button === 1) {
+                        e.preventDefault();
+                        this.isPanning = true;
+                        this.lastPanPoint = { x: e.clientX, y: e.clientY };
+                        document.getElementById('canvasWrapper').classList.add('panning');
+                    }
+                });
+                
+                window.addEventListener('mousemove', (e) => {
+                    if (this.isPanning && this.lastPanPoint) {
+                        this.panX += e.clientX - this.lastPanPoint.x;
+                        this.panY += e.clientY - this.lastPanPoint.y;
+                        this.lastPanPoint = { x: e.clientX, y: e.clientY };
+                        this.redraw();
+                    }
+                });
+                
+                window.addEventListener('mouseup', (e) => {
+                    if (e.button === 1) {
+                        this.isPanning = false;
+                        this.lastPanPoint = null;
+                        document.getElementById('canvasWrapper').classList.remove('panning');
+                    }
+                });
+                
+                // Wheel zoom
+                document.getElementById('canvasWrapper').addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    this.setZoom(this.zoom + delta);
+                }, { passive: false });
             },
             
             getCanvasPoint(e) {
@@ -933,20 +1004,16 @@
                 if (this.isPanning) return;
                 
                 const point = this.getCanvasPoint(e);
+                
+                // Text tool - show input
+                if (this.tool === 'text') {
+                    this.showTextInput(e.clientX, e.clientY, point.x, point.y);
+                    return;
+                }
+                
                 this.isDrawing = true;
                 this.startPoint = point;
                 this.currentPath = [point];
-                
-                if (this.tool === 'text') {
-                    const textInput = document.getElementById('textInput');
-                    textInput.style.left = (e.clientX || e.pageX) + 'px';
-                    textInput.style.top = (e.clientY || e.pageY) + 'px';
-                    textInput.style.display = 'block';
-                    textInput.style.color = this.color;
-                    textInput.focus();
-                    this.isDrawing = false;
-                    return;
-                }
                 
                 if (this.tool === 'pen' || this.tool === 'eraser') {
                     this.ctx.beginPath();
@@ -955,7 +1022,6 @@
             },
             
             onPointerMove(e) {
-                // Send cursor position to Firebase
                 this.sendCursorPosition(e);
                 
                 if (!this.isDrawing) return;
@@ -984,7 +1050,7 @@
                 } else {
                     // Preview shapes
                     this.redraw();
-                    this.drawShape(this.startPoint, point, true);
+                    this.drawShape(this.startPoint, point);
                 }
             },
             
@@ -996,7 +1062,6 @@
                 
                 const endPoint = this.currentPath[this.currentPath.length - 1];
                 
-                // Create stroke object
                 const stroke = {
                     id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
                     tool: this.tool,
@@ -1010,19 +1075,15 @@
                     timestamp: Date.now()
                 };
                 
-                // Add to history
                 this.addStroke(stroke);
-                
-                // Sync to Firebase
                 this.syncStroke(stroke);
                 
-                // Reset
                 this.currentPath = [];
                 this.startPoint = null;
             },
             
             // ==================== DRAWING ====================
-            drawShape(start, end, preview = false) {
+            drawShape(start, end) {
                 this.ctx.strokeStyle = this.color;
                 this.ctx.lineWidth = this.size;
                 this.ctx.lineCap = 'round';
@@ -1040,11 +1101,9 @@
                         this.ctx.moveTo(sx, sy);
                         this.ctx.lineTo(ex, ey);
                         break;
-                        
                     case 'rect':
                         this.ctx.rect(sx, sy, ex - sx, ey - sy);
                         break;
-                        
                     case 'circle':
                         const rx = Math.abs(ex - sx) / 2;
                         const ry = Math.abs(ey - sy) / 2;
@@ -1052,22 +1111,14 @@
                         const cy = sy + (ey - sy) / 2;
                         this.ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
                         break;
-                        
                     case 'arrow':
                         this.ctx.moveTo(sx, sy);
                         this.ctx.lineTo(ex, ey);
-                        // Arrowhead
                         const angle = Math.atan2(ey - sy, ex - sx);
                         const headLen = 15;
-                        this.ctx.lineTo(
-                            ex - headLen * Math.cos(angle - Math.PI / 6),
-                            ey - headLen * Math.sin(angle - Math.PI / 6)
-                        );
+                        this.ctx.lineTo(ex - headLen * Math.cos(angle - Math.PI / 6), ey - headLen * Math.sin(angle - Math.PI / 6));
                         this.ctx.moveTo(ex, ey);
-                        this.ctx.lineTo(
-                            ex - headLen * Math.cos(angle + Math.PI / 6),
-                            ey - headLen * Math.sin(angle + Math.PI / 6)
-                        );
+                        this.ctx.lineTo(ex - headLen * Math.cos(angle + Math.PI / 6), ey - headLen * Math.sin(angle + Math.PI / 6));
                         break;
                 }
                 
@@ -1085,7 +1136,6 @@
                         this.ctx.beginPath();
                         const first = stroke.path[0];
                         this.ctx.moveTo(first.x * this.zoom + this.panX, first.y * this.zoom + this.panY);
-                        
                         for (let i = 1; i < stroke.path.length; i++) {
                             const p = stroke.path[i];
                             this.ctx.lineTo(p.x * this.zoom + this.panX, p.y * this.zoom + this.panY);
@@ -1093,73 +1143,44 @@
                         this.ctx.stroke();
                     }
                 } else if (stroke.tool === 'text') {
-                    this.ctx.font = `${stroke.size * 4}px sans-serif`;
+                    this.ctx.font = `${stroke.size * 4 + 12}px sans-serif`;
                     this.ctx.fillStyle = stroke.color;
-                    this.ctx.fillText(
-                        stroke.text,
-                        stroke.startPoint.x * this.zoom + this.panX,
-                        stroke.startPoint.y * this.zoom + this.panY
-                    );
-                } else {
-                    this.drawShapeFromStroke(stroke);
+                    this.ctx.fillText(stroke.text, stroke.startPoint.x * this.zoom + this.panX, stroke.startPoint.y * this.zoom + this.panY);
+                } else if (stroke.startPoint && stroke.endPoint) {
+                    const sx = stroke.startPoint.x * this.zoom + this.panX;
+                    const sy = stroke.startPoint.y * this.zoom + this.panY;
+                    const ex = stroke.endPoint.x * this.zoom + this.panX;
+                    const ey = stroke.endPoint.y * this.zoom + this.panY;
+                    
+                    this.ctx.beginPath();
+                    switch (stroke.tool) {
+                        case 'line':
+                            this.ctx.moveTo(sx, sy);
+                            this.ctx.lineTo(ex, ey);
+                            break;
+                        case 'rect':
+                            this.ctx.rect(sx, sy, ex - sx, ey - sy);
+                            break;
+                        case 'circle':
+                            const rx = Math.abs(ex - sx) / 2;
+                            const ry = Math.abs(ey - sy) / 2;
+                            this.ctx.ellipse(sx + (ex - sx) / 2, sy + (ey - sy) / 2, rx, ry, 0, 0, Math.PI * 2);
+                            break;
+                        case 'arrow':
+                            this.ctx.moveTo(sx, sy);
+                            this.ctx.lineTo(ex, ey);
+                            const angle = Math.atan2(ey - sy, ex - sx);
+                            this.ctx.lineTo(ex - 15 * Math.cos(angle - Math.PI / 6), ey - 15 * Math.sin(angle - Math.PI / 6));
+                            this.ctx.moveTo(ex, ey);
+                            this.ctx.lineTo(ex - 15 * Math.cos(angle + Math.PI / 6), ey - 15 * Math.sin(angle + Math.PI / 6));
+                            break;
+                    }
+                    this.ctx.stroke();
                 }
-            },
-            
-            drawShapeFromStroke(stroke) {
-                this.ctx.strokeStyle = stroke.color;
-                this.ctx.lineWidth = stroke.size;
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                
-                const sx = stroke.startPoint.x * this.zoom + this.panX;
-                const sy = stroke.startPoint.y * this.zoom + this.panY;
-                const ex = stroke.endPoint.x * this.zoom + this.panX;
-                const ey = stroke.endPoint.y * this.zoom + this.panY;
-                
-                this.ctx.beginPath();
-                
-                switch (stroke.tool) {
-                    case 'line':
-                        this.ctx.moveTo(sx, sy);
-                        this.ctx.lineTo(ex, ey);
-                        break;
-                        
-                    case 'rect':
-                        this.ctx.rect(sx, sy, ex - sx, ey - sy);
-                        break;
-                        
-                    case 'circle':
-                        const rx = Math.abs(ex - sx) / 2;
-                        const ry = Math.abs(ey - sy) / 2;
-                        const cx = sx + (ex - sx) / 2;
-                        const cy = sy + (ey - sy) / 2;
-                        this.ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-                        break;
-                        
-                    case 'arrow':
-                        this.ctx.moveTo(sx, sy);
-                        this.ctx.lineTo(ex, ey);
-                        const angle = Math.atan2(ey - sy, ex - sx);
-                        const headLen = 15;
-                        this.ctx.lineTo(
-                            ex - headLen * Math.cos(angle - Math.PI / 6),
-                            ey - headLen * Math.sin(angle - Math.PI / 6)
-                        );
-                        this.ctx.moveTo(ex, ey);
-                        this.ctx.lineTo(
-                            ex - headLen * Math.cos(angle + Math.PI / 6),
-                            ey - headLen * Math.sin(angle + Math.PI / 6)
-                        );
-                        break;
-                }
-                
-                this.ctx.stroke();
             },
             
             placeText(text, x, y) {
                 if (!text.trim()) return;
-                
-                const point = this.getCanvasPoint({ clientX: x, clientY: y });
                 
                 const stroke = {
                     id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
@@ -1167,7 +1188,7 @@
                     color: this.color,
                     size: this.size,
                     text: text,
-                    startPoint: point,
+                    startPoint: { x, y },
                     userId: this.userId,
                     userName: this.userName,
                     timestamp: Date.now()
@@ -1176,14 +1197,13 @@
                 this.addStroke(stroke);
                 this.syncStroke(stroke);
                 this.redraw();
+                this.showToast('Text platziert');
             },
             
             redraw() {
-                // Clear canvas
                 this.ctx.fillStyle = '#0a0a0a';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 
-                // Draw all strokes
                 this.history.slice(0, this.historyIndex + 1).forEach(stroke => {
                     this.drawStroke(stroke);
                 });
@@ -1191,7 +1211,6 @@
             
             // ==================== HISTORY ====================
             addStroke(stroke) {
-                // Remove any redo history
                 if (this.historyIndex < this.history.length - 1) {
                     this.history = this.history.slice(0, this.historyIndex + 1);
                 }
@@ -1199,7 +1218,6 @@
                 this.history.push(stroke);
                 this.historyIndex = this.history.length - 1;
                 
-                // Limit history size
                 if (this.history.length > this.maxHistory) {
                     this.history.shift();
                     this.historyIndex--;
@@ -1208,12 +1226,8 @@
                 this.redraw();
             },
             
-            saveToHistory() {
-                // Initial empty state is already set
-            },
-            
             undo() {
-                if (this.historyIndex > 0) {
+                if (this.historyIndex >= 0) {
                     this.historyIndex--;
                     this.redraw();
                     this.showToast('Rückgängig');
@@ -1233,13 +1247,11 @@
                 this.historyIndex = -1;
                 this.redraw();
                 
-                // Clear in Firebase
                 if (this.roomCode && this.db) {
                     this.db.ref(`whiteboard/${this.roomCode}/strokes`).remove();
                     this.db.ref(`whiteboard/${this.roomCode}/background`).remove();
                 }
                 
-                // Clear background
                 const bg = document.getElementById('wbBackground');
                 bg.src = '';
                 bg.style.display = 'none';
@@ -1273,41 +1285,17 @@
             // ==================== KEYBOARD ====================
             setupKeyboard() {
                 document.addEventListener('keydown', (e) => {
-                    // Don't trigger if typing in input
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
                     
-                    // Undo: Ctrl+Z
-                    if (e.ctrlKey && e.key === 'z') {
-                        e.preventDefault();
-                        this.undo();
-                    }
+                    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); this.undo(); }
+                    if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) { e.preventDefault(); this.redo(); }
                     
-                    // Redo: Ctrl+Y or Ctrl+Shift+Z
-                    if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
-                        e.preventDefault();
-                        this.redo();
-                    }
-                    
-                    // Tool shortcuts
-                    const toolMap = {
-                        'p': 'pen',
-                        'l': 'line',
-                        'r': 'rect',
-                        'c': 'circle',
-                        'a': 'arrow',
-                        't': 'text',
-                        'e': 'eraser'
-                    };
-                    
+                    const toolMap = { 'p': 'pen', 'l': 'line', 'r': 'rect', 'c': 'circle', 'a': 'arrow', 't': 'text', 'e': 'eraser' };
                     if (toolMap[e.key.toLowerCase()]) {
-                        const tool = toolMap[e.key.toLowerCase()];
-                        document.querySelector(`[data-tool="${tool}"]`)?.click();
+                        document.querySelector(`[data-tool="${toolMap[e.key.toLowerCase()]}"]`)?.click();
                     }
                     
-                    // Grid: G
-                    if (e.key.toLowerCase() === 'g') {
-                        document.getElementById('gridBtn').click();
-                    }
+                    if (e.key.toLowerCase() === 'g') document.getElementById('gridBtn').click();
                 });
             },
             
@@ -1318,18 +1306,31 @@
                 const input = document.getElementById('bgFileInput');
                 const btn = document.getElementById('uploadBtn');
                 const close = document.getElementById('uploadClose');
+                const removeBtn = document.getElementById('removeBgBtn');
                 
-                close.addEventListener('click', () => overlay.classList.remove('visible'));
+                close.addEventListener('click', () => {
+                    overlay.classList.remove('visible');
+                });
+                
                 overlay.addEventListener('click', (e) => {
                     if (e.target === overlay) overlay.classList.remove('visible');
                 });
                 
-                btn.addEventListener('click', () => input.click());
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    input.click();
+                });
                 
                 input.addEventListener('change', (e) => {
-                    if (e.target.files[0]) {
+                    if (e.target.files && e.target.files[0]) {
                         this.handleBackgroundUpload(e.target.files[0]);
                     }
+                });
+                
+                removeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.removeBackground();
+                    overlay.classList.remove('visible');
                 });
                 
                 // Drag and drop
@@ -1345,13 +1346,13 @@
                 box.addEventListener('drop', (e) => {
                     e.preventDefault();
                     box.classList.remove('dragover');
-                    if (e.dataTransfer.files[0]) {
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                         this.handleBackgroundUpload(e.dataTransfer.files[0]);
                     }
                 });
             },
             
-            async handleBackgroundUpload(file) {
+            handleBackgroundUpload(file) {
                 if (!file.type.startsWith('image/')) {
                     this.showToast('Bitte nur Bilder hochladen');
                     return;
@@ -1363,7 +1364,6 @@
                     bg.src = e.target.result;
                     bg.style.display = 'block';
                     
-                    // Sync to Firebase
                     if (this.roomCode && this.db) {
                         this.db.ref(`whiteboard/${this.roomCode}/background`).set({
                             dataUrl: e.target.result,
@@ -1378,28 +1378,35 @@
                 reader.readAsDataURL(file);
             },
             
+            removeBackground() {
+                const bg = document.getElementById('wbBackground');
+                bg.src = '';
+                bg.style.display = 'none';
+                
+                if (this.roomCode && this.db) {
+                    this.db.ref(`whiteboard/${this.roomCode}/background`).remove();
+                }
+                
+                this.showToast('Hintergrund entfernt');
+            },
+            
             // ==================== EXPORT ====================
             exportImage() {
-                // Create a temporary canvas with background
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = this.canvas.width;
                 tempCanvas.height = this.canvas.height;
                 const tempCtx = tempCanvas.getContext('2d');
                 
-                // Draw background color
                 tempCtx.fillStyle = '#0a0a0a';
                 tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
                 
-                // Draw background image if present
                 const bg = document.getElementById('wbBackground');
                 if (bg.src && bg.style.display !== 'none') {
                     tempCtx.drawImage(bg, 0, 0, tempCanvas.width, tempCanvas.height);
                 }
                 
-                // Draw canvas content
                 tempCtx.drawImage(this.canvas, 0, 0);
                 
-                // Download
                 const link = document.createElement('a');
                 link.download = `whiteboard-${Date.now()}.png`;
                 link.href = tempCanvas.toDataURL('image/png');
@@ -1413,21 +1420,30 @@
                 try {
                     this.db = firebase.database();
                     
-                    // Listen for strokes
+                    // Load existing strokes
+                    const existingStrokes = await this.db.ref(`whiteboard/${this.roomCode}/strokes`).once('value');
+                    const strokes = existingStrokes.val();
+                    if (strokes) {
+                        Object.values(strokes).forEach(stroke => {
+                            if (!this.history.some(s => s.id === stroke.id)) {
+                                this.history.push(stroke);
+                            }
+                        });
+                        this.historyIndex = this.history.length - 1;
+                        this.redraw();
+                    }
+                    
+                    // Listen for new strokes
                     this.db.ref(`whiteboard/${this.roomCode}/strokes`).on('child_added', (snapshot) => {
                         const stroke = snapshot.val();
-                        if (stroke && stroke.userId !== this.userId) {
-                            // Add remote stroke
-                            const exists = this.history.some(s => s.id === stroke.id);
-                            if (!exists) {
-                                this.history.push(stroke);
-                                this.historyIndex = this.history.length - 1;
-                                this.redraw();
-                            }
+                        if (stroke && stroke.userId !== this.userId && !this.history.some(s => s.id === stroke.id)) {
+                            this.history.push(stroke);
+                            this.historyIndex = this.history.length - 1;
+                            this.redraw();
                         }
                     });
                     
-                    // Listen for background changes
+                    // Listen for background
                     this.db.ref(`whiteboard/${this.roomCode}/background`).on('value', (snapshot) => {
                         const data = snapshot.val();
                         const bg = document.getElementById('wbBackground');
@@ -1440,37 +1456,12 @@
                         }
                     });
                     
-                    // Listen for clear events
-                    this.db.ref(`whiteboard/${this.roomCode}/cleared`).on('value', (snapshot) => {
-                        const data = snapshot.val();
-                        if (data && data.timestamp > Date.now() - 5000) {
-                            this.history = [];
-                            this.historyIndex = -1;
-                            this.redraw();
-                        }
-                    });
-                    
-                    // Listen for remote cursors
+                    // Listen for cursors
                     this.db.ref(`whiteboard/${this.roomCode}/cursors`).on('value', (snapshot) => {
-                        const cursors = snapshot.val() || {};
-                        this.updateRemoteCursors(cursors);
+                        this.updateRemoteCursors(snapshot.val() || {});
                     });
                     
-                    // Load existing strokes
-                    const existingStrokes = await this.db.ref(`whiteboard/${this.roomCode}/strokes`).once('value');
-                    const strokes = existingStrokes.val();
-                    if (strokes) {
-                        Object.values(strokes).forEach(stroke => {
-                            const exists = this.history.some(s => s.id === stroke.id);
-                            if (!exists) {
-                                this.history.push(stroke);
-                            }
-                        });
-                        this.historyIndex = this.history.length - 1;
-                        this.redraw();
-                    }
-                    
-                    // Clean up cursor on disconnect
+                    // Cleanup on disconnect
                     this.db.ref(`whiteboard/${this.roomCode}/cursors/${this.userId}`).onDisconnect().remove();
                     
                     console.log('[Whiteboard] Firebase connected');
@@ -1481,20 +1472,15 @@
             
             syncStroke(stroke) {
                 if (!this.roomCode || !this.db) return;
-                
                 this.db.ref(`whiteboard/${this.roomCode}/strokes/${stroke.id}`).set(stroke);
             },
             
             sendCursorPosition(e) {
                 if (!this.roomCode || !this.db) return;
-                
                 const point = this.getCanvasPoint(e);
-                
                 this.db.ref(`whiteboard/${this.roomCode}/cursors/${this.userId}`).set({
-                    x: point.x,
-                    y: point.y,
-                    name: this.userName,
-                    color: this.userColor,
+                    x: point.x, y: point.y,
+                    name: this.userName, color: this.userColor,
                     timestamp: Date.now()
                 });
             },
@@ -1502,7 +1488,6 @@
             updateRemoteCursors(cursors) {
                 const container = document.getElementById('cursorsContainer');
                 
-                // Remove stale cursors
                 Object.keys(this.remoteCursors).forEach(id => {
                     if (!cursors[id] || id === this.userId) {
                         this.remoteCursors[id]?.remove();
@@ -1510,13 +1495,10 @@
                     }
                 });
                 
-                // Update/create cursors
                 Object.entries(cursors).forEach(([id, data]) => {
-                    if (id === this.userId) return; // Don't show own cursor
-                    if (Date.now() - data.timestamp > 10000) return; // Skip stale cursors
+                    if (id === this.userId || Date.now() - data.timestamp > 10000) return;
                     
                     let cursor = this.remoteCursors[id];
-                    
                     if (!cursor) {
                         cursor = document.createElement('div');
                         cursor.className = 'wb-cursor';
@@ -1538,16 +1520,16 @@
                 const toast = document.getElementById('wbToast');
                 toast.textContent = message;
                 toast.classList.add('visible');
-                
-                setTimeout(() => {
-                    toast.classList.remove('visible');
-                }, 2000);
+                setTimeout(() => toast.classList.remove('visible'), 2000);
             }
         };
         
-        // Initialize when ready
+        // Initialize after layout is ready
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => Whiteboard.init(), 300);
+            // Wait for layout to be fully loaded
+            setTimeout(() => {
+                Whiteboard.init();
+            }, 500);
         });
     </script>
 </body>
