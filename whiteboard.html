@@ -83,6 +83,11 @@
         #wbGrid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; background-image: linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px); background-size: 40px 40px; z-index: 10; transition: opacity 0.2s; }
         #wbGrid.visible { opacity: 0.5; }
         
+        #imagesContainer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
+        #imagesContainer .wb-image { pointer-events: auto; }
+        #tokensContainer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+        #tokensContainer .wb-token { pointer-events: auto; }
+        
         .wb-text-input { position: fixed; background: rgba(0,0,0,0.95); border: 2px solid var(--accent, #8b5cf6); border-radius: 8px; padding: 10px 14px; color: white; font-size: 18px; min-width: 200px; outline: none; z-index: 1000; display: none; }
         
         .wb-zoom-controls { position: absolute; bottom: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; background: rgba(22,22,22,0.95); border-radius: 10px; padding: 6px; border: 1px solid rgba(255,255,255,0.1); z-index: 100; }
@@ -512,6 +517,7 @@ const WB = {
         const p = this.getPoint(e);
         this.startPoint = p;
         this.currentPath = [p];
+        this.lastDragPoint = p; // Track for delta movement
         
         // SELECT TOOL - Main new logic
         if (this.tool === 'select') {
@@ -519,7 +525,7 @@ const WB = {
             if (hit) {
                 this.select(hit);
                 this.isDragging = true;
-                this.dragOffset = { x: p.x - hit.x, y: p.y - hit.y };
+                this.lastDragPoint = p;
             } else {
                 this.deselect();
             }
@@ -537,25 +543,18 @@ const WB = {
     onMove(e) {
         const p = this.getPoint(e);
         
-        // Dragging selected item
-        if (this.isDragging && this.selected) {
-            let newX = p.x - this.dragOffset.x;
-            let newY = p.y - this.dragOffset.y;
-            if (this.snap) {
-                newX = Math.round(newX / this.gridSize) * this.gridSize;
-                newY = Math.round(newY / this.gridSize) * this.gridSize;
-            }
-            this.selected.x = newX;
-            this.selected.y = newY;
-            this.renderImages();
-            this.renderTokens();
-            this.updateSelectBox();
+        // Dragging selected item - use delta movement
+        if (this.isDragging && this.selected && this.lastDragPoint) {
+            const dx = p.x - this.lastDragPoint.x;
+            const dy = p.y - this.lastDragPoint.y;
+            this.lastDragPoint = p;
+            this.moveSelected(dx, dy);
             return;
         }
         
         // Resizing selected item
         if (this.isResizing && this.selected && this.resizeHandle) {
-            this.handleResize(p);
+            this.handleResize(e);
             return;
         }
         
@@ -571,9 +570,8 @@ const WB = {
     onUp(e) {
         if (this.isDragging) {
             this.isDragging = false;
-            if (this.selected) {
-                if (this.tokens.includes(this.selected)) this.syncToken(this.selected);
-            }
+            this.lastDragPoint = null;
+            // Already synced in real-time via moveSelected()
             return;
         }
         
@@ -614,8 +612,29 @@ const WB = {
     
     onDblClick(e) {
         const p = this.getPoint(e);
+        
+        // Double-click on text to edit
+        if (this.tool === 'select' && this.selected?.type === 'stroke' && this.selected.item.tool === 'text') {
+            this.editText(this.selected.item, p);
+            return;
+        }
+        
         if (this.tool === 'polygon' && this.polygonPoints.length >= 3) this.finishPolygon();
         else this.createPing(p.sx, p.sy);
+    },
+    
+    editText(stroke, p) {
+        const inp = document.getElementById('textInput');
+        const canvasRect = this.uiCanvas.getBoundingClientRect();
+        inp.style.left = (stroke.start.x * this.zoom + this.panX + canvasRect.left) + 'px';
+        inp.style.top = (stroke.start.y * this.zoom + this.panY + canvasRect.top) + 'px';
+        inp.style.display = 'block';
+        inp.style.color = stroke.color;
+        inp.dataset.strokeId = stroke.id;
+        inp.dataset.x = stroke.start.x;
+        inp.dataset.y = stroke.start.y;
+        inp.value = stroke.text || '';
+        setTimeout(() => { inp.focus(); inp.select(); }, 50);
     },
     
     onContext(e) {
@@ -637,56 +656,136 @@ const WB = {
         for (let i = this.tokens.length - 1; i >= 0; i--) {
             const t = this.tokens[i];
             const dx = p.x - t.x, dy = p.y - t.y;
-            if (Math.sqrt(dx * dx + dy * dy) < t.size / 2) return t;
+            if (Math.sqrt(dx * dx + dy * dy) < t.size / 2) return { type: 'token', item: t, index: i };
         }
         // Check images
         for (let i = this.images.length - 1; i >= 0; i--) {
             const img = this.images[i];
-            if (p.x >= img.x && p.x <= img.x + img.w && p.y >= img.y && p.y <= img.y + img.h) return img;
+            if (p.x >= img.x && p.x <= img.x + img.w && p.y >= img.y && p.y <= img.y + img.h) 
+                return { type: 'image', item: img, index: i };
+        }
+        // Check strokes (text, stamps, shapes) - reverse order for top-most first
+        for (let i = this.strokes.length - 1; i >= 0; i--) {
+            const s = this.strokes[i];
+            if (s.layer !== 'main') continue;
+            const bounds = this.getStrokeBounds(s);
+            if (bounds && p.x >= bounds.x && p.x <= bounds.x + bounds.w && p.y >= bounds.y && p.y <= bounds.y + bounds.h)
+                return { type: 'stroke', item: s, index: i };
         }
         return null;
     },
     
-    select(item) {
-        this.selected = item;
-        this.renderImages();
-        this.renderTokens();
+    getStrokeBounds(s) {
+        if (s.tool === 'text') {
+            const fontSize = s.size * 4 + 12;
+            const textWidth = (s.text?.length || 5) * fontSize * 0.6;
+            return { x: s.start.x, y: s.start.y - fontSize, w: textWidth, h: fontSize * 1.2 };
+        }
+        if (s.tool === 'stamp') {
+            const size = s.stampSize || 40;
+            return { x: s.x - size/2, y: s.y - size, w: size, h: size };
+        }
+        if (s.tool === 'pen' && s.path && s.path.length > 0) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            s.path.forEach(pt => { minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y); maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y); });
+            return { x: minX - s.size, y: minY - s.size, w: maxX - minX + s.size*2, h: maxY - minY + s.size*2 };
+        }
+        if (s.tool === 'polygon' && s.points && s.points.length > 0) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            s.points.forEach(pt => { minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y); maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y); });
+            return { x: minX - s.size, y: minY - s.size, w: maxX - minX + s.size*2, h: maxY - minY + s.size*2 };
+        }
+        if (['line', 'rect', 'circle', 'arrow'].includes(s.tool) && s.start && s.end) {
+            const minX = Math.min(s.start.x, s.end.x), minY = Math.min(s.start.y, s.end.y);
+            const maxX = Math.max(s.start.x, s.end.x), maxY = Math.max(s.start.y, s.end.y);
+            return { x: minX - s.size, y: minY - s.size, w: maxX - minX + s.size*2, h: maxY - minY + s.size*2 };
+        }
+        return null;
+    },
+    
+    select(hit) {
+        this.selected = hit;
+        this.render();
         this.updateSelectBox();
     },
     
     deselect() {
         this.selected = null;
         document.getElementById('selectBox').classList.remove('visible');
-        this.renderImages();
-        this.renderTokens();
+        this.render();
     },
     
     updateSelectBox() {
         const box = document.getElementById('selectBox');
         if (!this.selected) { box.classList.remove('visible'); return; }
         
-        const s = this.selected;
-        let x, y, w, h;
+        const bounds = this.getSelectedBounds();
+        if (!bounds) { box.classList.remove('visible'); return; }
         
-        if (this.tokens.includes(s)) {
-            // Token (circle)
-            x = (s.x - s.size / 2) * this.zoom + this.panX;
-            y = (s.y - s.size / 2) * this.zoom + this.panY;
-            w = s.size * this.zoom;
-            h = s.size * this.zoom;
-        } else {
-            // Image (rectangle)
-            x = s.x * this.zoom + this.panX;
-            y = s.y * this.zoom + this.panY;
-            w = s.w * this.zoom;
-            h = s.h * this.zoom;
-        }
+        const x = bounds.x * this.zoom + this.panX;
+        const y = bounds.y * this.zoom + this.panY;
+        const w = bounds.w * this.zoom;
+        const h = bounds.h * this.zoom;
         
         box.style.left = x + 'px';
         box.style.top = y + 'px';
         box.style.width = w + 'px';
         box.style.height = h + 'px';
         box.classList.add('visible');
+    },
+    
+    getSelectedBounds() {
+        if (!this.selected) return null;
+        const { type, item } = this.selected;
+        
+        if (type === 'token') {
+            return { x: item.x - item.size/2, y: item.y - item.size/2, w: item.size, h: item.size };
+        }
+        if (type === 'image') {
+            return { x: item.x, y: item.y, w: item.w, h: item.h };
+        }
+        if (type === 'stroke') {
+            return this.getStrokeBounds(item);
+        }
+        return null;
+    },
+    
+    // Move selected item by delta
+    moveSelected(dx, dy) {
+        if (!this.selected) return;
+        const { type, item } = this.selected;
+        
+        if (type === 'token') {
+            item.x += dx;
+            item.y += dy;
+            if (this.snap) {
+                item.x = Math.round(item.x / this.gridSize) * this.gridSize;
+                item.y = Math.round(item.y / this.gridSize) * this.gridSize;
+            }
+            // Real-time sync
+            this.syncToken(item);
+        }
+        if (type === 'image') {
+            item.x += dx;
+            item.y += dy;
+            if (this.snap) {
+                item.x = Math.round(item.x / this.gridSize) * this.gridSize;
+                item.y = Math.round(item.y / this.gridSize) * this.gridSize;
+            }
+        }
+        if (type === 'stroke') {
+            // Move stroke points
+            if (item.start) { item.start.x += dx; item.start.y += dy; }
+            if (item.end) { item.end.x += dx; item.end.y += dy; }
+            if (item.path) item.path.forEach(p => { p.x += dx; p.y += dy; });
+            if (item.points) item.points.forEach(p => { p.x += dx; p.y += dy; });
+            if (item.x !== undefined) { item.x += dx; item.y += dy; }
+            // Sync stroke
+            this.syncStroke(item);
+        }
+        
+        this.render();
+        this.updateSelectBox();
     },
     
     // ==================== RESIZE HANDLES ====================
@@ -697,7 +796,7 @@ const WB = {
                 if (!this.selected) return;
                 this.isResizing = true;
                 this.resizeHandle = handle.dataset.handle;
-                this.resizeStart = { x: e.clientX, y: e.clientY, item: { ...this.selected } };
+                this.resizeStart = { x: e.clientX, y: e.clientY, bounds: this.getSelectedBounds() };
             });
         });
         
@@ -709,6 +808,10 @@ const WB = {
             if (this.isResizing) {
                 this.isResizing = false;
                 this.resizeHandle = null;
+                this.resizeStart = null;
+                // Sync after resize
+                if (this.selected?.type === 'token') this.syncToken(this.selected.item);
+                if (this.selected?.type === 'stroke') this.syncStroke(this.selected.item);
             }
         });
     },
@@ -718,25 +821,27 @@ const WB = {
         
         const dx = (e.clientX - this.resizeStart.x) / this.zoom;
         const dy = (e.clientY - this.resizeStart.y) / this.zoom;
-        const orig = this.resizeStart.item;
         const h = this.resizeHandle;
+        const { type, item } = this.selected;
+        const orig = this.resizeStart.bounds;
         
-        if (this.tokens.includes(this.selected)) {
-            // Token: resize = change size
-            let newSize = orig.size;
-            if (h.includes('e') || h.includes('s')) newSize = orig.size + Math.max(dx, dy);
-            if (h.includes('w') || h.includes('n')) newSize = orig.size - Math.min(dx, dy);
-            this.selected.size = Math.max(20, Math.min(200, newSize));
-        } else {
-            // Image: resize by corner/edge
-            if (h.includes('e')) this.selected.w = Math.max(30, orig.w + dx);
-            if (h.includes('w')) { this.selected.x = orig.x + dx; this.selected.w = Math.max(30, orig.w - dx); }
-            if (h.includes('s')) this.selected.h = Math.max(30, orig.h + dy);
-            if (h.includes('n')) { this.selected.y = orig.y + dy; this.selected.h = Math.max(30, orig.h - dy); }
+        if (type === 'token') {
+            // Token: resize = change size (keep center)
+            let sizeDelta = 0;
+            if (h.includes('e') || h.includes('s')) sizeDelta = Math.max(dx, dy);
+            if (h.includes('w') || h.includes('n')) sizeDelta = -Math.min(dx, dy);
+            item.size = Math.max(20, Math.min(200, orig.w + sizeDelta * 2));
+        } 
+        else if (type === 'image') {
+            // Image: resize keeping aspect or free
+            if (h.includes('e')) item.w = Math.max(30, orig.w + dx);
+            if (h.includes('w')) { item.x = orig.x + dx; item.w = Math.max(30, orig.w - dx); }
+            if (h.includes('s')) item.h = Math.max(30, orig.h + dy);
+            if (h.includes('n')) { item.y = orig.y + dy; item.h = Math.max(30, orig.h - dy); }
         }
+        // TODO: Add stroke scaling here if needed
         
-        this.renderImages();
-        this.renderTokens();
+        this.render();
         this.updateSelectBox();
     },
     
@@ -814,7 +919,8 @@ const WB = {
         c.innerHTML = '';
         this.images.forEach((img, i) => {
             const el = document.createElement('div');
-            el.className = 'wb-image' + (this.selected === img ? ' selected' : '');
+            const isSelected = this.selected?.type === 'image' && this.selected?.item === img;
+            el.className = 'wb-image' + (isSelected ? ' selected' : '');
             el.style.left = (img.x * this.zoom + this.panX) + 'px';
             el.style.top = (img.y * this.zoom + this.panY) + 'px';
             el.style.width = (img.w * this.zoom) + 'px';
@@ -824,10 +930,9 @@ const WB = {
             el.onmousedown = e => {
                 if (this.tool === 'select') {
                     e.stopPropagation();
-                    this.select(img);
+                    this.select({ type: 'image', item: img, index: i });
                     this.isDragging = true;
-                    const p = this.getPoint(e);
-                    this.dragOffset = { x: p.x - img.x, y: p.y - img.y };
+                    this.lastDragPoint = this.getPoint(e);
                 }
             };
             c.appendChild(el);
@@ -839,7 +944,8 @@ const WB = {
         c.innerHTML = '';
         this.tokens.forEach((t, i) => {
             const el = document.createElement('div');
-            el.className = 'wb-token' + (this.selected === t ? ' selected' : '');
+            const isSelected = this.selected?.type === 'token' && this.selected?.item === t;
+            el.className = 'wb-token' + (isSelected ? ' selected' : '');
             el.style.left = (t.x * this.zoom + this.panX - t.size / 2) + 'px';
             el.style.top = (t.y * this.zoom + this.panY - t.size / 2) + 'px';
             el.style.width = t.size + 'px';
@@ -852,10 +958,9 @@ const WB = {
             el.onmousedown = e => {
                 e.stopPropagation();
                 if (this.tool === 'select') {
-                    this.select(t);
+                    this.select({ type: 'token', item: t, index: i });
                     this.isDragging = true;
-                    const p = this.getPoint(e);
-                    this.dragOffset = { x: p.x - t.x, y: p.y - t.y };
+                    this.lastDragPoint = this.getPoint(e);
                 }
             };
             c.appendChild(el);
@@ -1179,13 +1284,17 @@ const WB = {
         const inp = document.getElementById('textInput');
         inp.onkeydown = e => {
             e.stopPropagation();
-            if (e.key === 'Enter' && inp.value.trim()) { this.placeText(inp.value, inp.dataset.x, inp.dataset.y); inp.style.display = 'none'; }
-            if (e.key === 'Escape') inp.style.display = 'none';
+            if (e.key === 'Enter' && inp.value.trim()) { 
+                this.handleTextInput(inp);
+                inp.style.display = 'none'; 
+            }
+            if (e.key === 'Escape') { inp.style.display = 'none'; inp.dataset.strokeId = ''; }
         };
         inp.onblur = () => {
             setTimeout(() => {
-                if (inp.style.display !== 'none' && inp.value.trim()) this.placeText(inp.value, inp.dataset.x, inp.dataset.y);
+                if (inp.style.display !== 'none' && inp.value.trim()) this.handleTextInput(inp);
                 inp.style.display = 'none';
+                inp.dataset.strokeId = '';
             }, 150);
         };
         
@@ -1200,6 +1309,23 @@ const WB = {
             this.createToken(name, this.pendingTokenColor);
             document.getElementById('tokenOverlay').classList.remove('visible');
         };
+    },
+    
+    handleTextInput(inp) {
+        const strokeId = inp.dataset.strokeId;
+        if (strokeId) {
+            // Editing existing text
+            const stroke = this.strokes.find(s => s.id === strokeId);
+            if (stroke) {
+                stroke.text = inp.value;
+                this.syncStroke(stroke);
+                this.render();
+            }
+        } else {
+            // New text
+            this.placeText(inp.value, inp.dataset.x, inp.dataset.y);
+        }
+        inp.dataset.strokeId = '';
     },
     
     saveMap() {
@@ -1261,10 +1387,25 @@ const WB = {
     
     deleteSelected() {
         if (!this.selected) return;
-        const ti = this.tokens.indexOf(this.selected);
-        if (ti > -1) this.tokens.splice(ti, 1);
-        const ii = this.images.indexOf(this.selected);
-        if (ii > -1) this.images.splice(ii, 1);
+        const { type, item, index } = this.selected;
+        
+        if (type === 'token') {
+            const idx = this.tokens.indexOf(item);
+            if (idx > -1) this.tokens.splice(idx, 1);
+            // Delete from Firebase
+            if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/tokens/' + item.id).remove();
+        }
+        if (type === 'image') {
+            const idx = this.images.indexOf(item);
+            if (idx > -1) this.images.splice(idx, 1);
+        }
+        if (type === 'stroke') {
+            const idx = this.strokes.indexOf(item);
+            if (idx > -1) this.strokes.splice(idx, 1);
+            // Delete from Firebase
+            if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/strokes/' + item.id).remove();
+        }
+        
         this.deselect();
         this.render();
         this.toast('Gelöscht');
@@ -1272,33 +1413,70 @@ const WB = {
     
     duplicateSelected() {
         if (!this.selected) return;
-        if (this.tokens.includes(this.selected)) {
-            const copy = { ...this.selected, id: Date.now() + '-' + Math.random().toString(36).substr(2, 9), x: this.selected.x + 50, y: this.selected.y + 50 };
+        const { type, item } = this.selected;
+        const newId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
+        if (type === 'token') {
+            const copy = { ...item, id: newId, x: item.x + 50, y: item.y + 50 };
             this.tokens.push(copy);
             this.syncToken(copy);
-        } else if (this.images.includes(this.selected)) {
-            const copy = { ...this.selected, id: Date.now(), x: this.selected.x + 50, y: this.selected.y + 50 };
+        }
+        if (type === 'image') {
+            const copy = { ...item, id: Date.now(), x: item.x + 50, y: item.y + 50 };
             this.images.push(copy);
         }
+        if (type === 'stroke') {
+            const copy = JSON.parse(JSON.stringify(item));
+            copy.id = newId;
+            // Offset the duplicate
+            if (copy.start) { copy.start.x += 50; copy.start.y += 50; }
+            if (copy.end) { copy.end.x += 50; copy.end.y += 50; }
+            if (copy.path) copy.path.forEach(p => { p.x += 50; p.y += 50; });
+            if (copy.points) copy.points.forEach(p => { p.x += 50; p.y += 50; });
+            if (copy.x !== undefined) { copy.x += 50; copy.y += 50; }
+            this.strokes.push(copy);
+            this.syncStroke(copy);
+        }
+        
         this.render();
         this.toast('Dupliziert');
     },
     
     moveToFront() {
         if (!this.selected) return;
-        const ti = this.tokens.indexOf(this.selected);
-        if (ti > -1) { this.tokens.splice(ti, 1); this.tokens.push(this.selected); }
-        const ii = this.images.indexOf(this.selected);
-        if (ii > -1) { this.images.splice(ii, 1); this.images.push(this.selected); }
+        const { type, item } = this.selected;
+        
+        if (type === 'token') {
+            const idx = this.tokens.indexOf(item);
+            if (idx > -1) { this.tokens.splice(idx, 1); this.tokens.push(item); }
+        }
+        if (type === 'image') {
+            const idx = this.images.indexOf(item);
+            if (idx > -1) { this.images.splice(idx, 1); this.images.push(item); }
+        }
+        if (type === 'stroke') {
+            const idx = this.strokes.indexOf(item);
+            if (idx > -1) { this.strokes.splice(idx, 1); this.strokes.push(item); }
+        }
         this.render();
     },
     
     moveToBack() {
         if (!this.selected) return;
-        const ti = this.tokens.indexOf(this.selected);
-        if (ti > -1) { this.tokens.splice(ti, 1); this.tokens.unshift(this.selected); }
-        const ii = this.images.indexOf(this.selected);
-        if (ii > -1) { this.images.splice(ii, 1); this.images.unshift(this.selected); }
+        const { type, item } = this.selected;
+        
+        if (type === 'token') {
+            const idx = this.tokens.indexOf(item);
+            if (idx > -1) { this.tokens.splice(idx, 1); this.tokens.unshift(item); }
+        }
+        if (type === 'image') {
+            const idx = this.images.indexOf(item);
+            if (idx > -1) { this.images.splice(idx, 1); this.images.unshift(item); }
+        }
+        if (type === 'stroke') {
+            const idx = this.strokes.indexOf(item);
+            if (idx > -1) { this.strokes.splice(idx, 1); this.strokes.unshift(item); }
+        }
         this.render();
     },
     
