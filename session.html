@@ -62,24 +62,29 @@
             border: 1px solid var(--border);
             overflow: hidden;
             display: grid;
-            grid-template-columns: 220px 1fr;
+            grid-template-columns: auto 1fr;
             min-height: 320px;
         }
         
-        @media (max-width: 800px) {
+        @media (max-width: 900px) {
             .session-hero {
                 grid-template-columns: 1fr;
             }
             .session-hero__cover {
-                height: 240px;
+                width: 100%;
+                height: auto;
+                aspect-ratio: 3/1;
             }
         }
         
-        /* Cover */
+        /* Cover - fixed 2:3 aspect ratio */
         .session-hero__cover {
             position: relative;
             background: linear-gradient(135deg, var(--red-dim) 0%, var(--gray-dark) 100%);
             cursor: pointer;
+            width: 240px;
+            aspect-ratio: 2/3;
+            flex-shrink: 0;
         }
         
         .session-hero__cover img {
@@ -138,6 +143,8 @@
             padding: 24px;
             display: flex;
             flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
         }
         
         .session-hero__top-row {
@@ -371,6 +378,55 @@
         
         .session-hero__description-text p:last-child {
             margin-bottom: 0;
+        }
+        
+        /* Session Meta (Duration, Recurrence) */
+        .session-hero__meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .session-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .session-meta-item svg {
+            width: 16px;
+            height: 16px;
+            color: var(--text-dim);
+        }
+        
+        /* Session Tags */
+        .session-hero__tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .session-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .session-tag--highlight {
+            background: rgba(255, 70, 85, 0.15);
+            color: var(--accent);
+        }
         }
         
         /* Voice Link inline */
@@ -1182,6 +1238,21 @@
             background: var(--red-dim);
         }
         
+        .settings-tag__remove {
+            background: none;
+            border: none;
+            color: currentColor;
+            cursor: pointer;
+            padding: 0 0 0 4px;
+            font-size: 16px;
+            line-height: 1;
+            opacity: 0.6;
+        }
+        
+        .settings-tag__remove:hover {
+            opacity: 1;
+        }
+        
         /* Footer */
         .settings-modal__footer {
             display: flex;
@@ -1679,6 +1750,31 @@
                             <span class="settings-tag" data-tag="comedy">😄 Comedy</span>
                             <span class="settings-tag" data-tag="newbie">🌱 Anfänger</span>
                             <span class="settings-tag" data-tag="oneshot">⚡ One-Shot</span>
+                            <span class="settings-tag" data-tag="campaign">📚 Kampagne</span>
+                            <span class="settings-tag" data-tag="sandbox">🏜️ Sandbox</span>
+                            <span class="settings-tag" data-tag="mystery">🔍 Mystery</span>
+                            <span class="settings-tag" data-tag="social">💬 Social</span>
+                            <span class="settings-tag" data-tag="stealth">🥷 Stealth</span>
+                            <span class="settings-tag" data-tag="dungeon">🏰 Dungeon</span>
+                            <span class="settings-tag" data-tag="boss">💀 Bosskampf</span>
+                            <span class="settings-tag" data-tag="homebrew">🧪 Homebrew</span>
+                            <span class="settings-tag" data-tag="pvp">⚔️ PvP</span>
+                            <span class="settings-tag" data-tag="mature">🔞 18+</span>
+                        </div>
+                        
+                        <!-- Custom Tags -->
+                        <div class="settings-custom-tags" style="margin-top: 12px;">
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" class="settings-input" id="customTagInput" placeholder="Eigenen Tag hinzufügen..." style="flex: 1;">
+                                <button type="button" class="settings-cover-btn" id="addCustomTagBtn" style="padding: 10px 16px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                        <line x1="12" y1="5" x2="12" y2="19"/>
+                                        <line x1="5" y1="12" x2="19" y2="12"/>
+                                    </svg>
+                                    Hinzufügen
+                                </button>
+                            </div>
+                            <div class="settings-tags" id="customTagsList" style="margin-top: 10px;"></div>
                         </div>
                     </div>
                     
@@ -2034,6 +2130,40 @@
                                 ${getVoicePlatformName(sessionData.voiceLink)}
                             </a>
                         ` : ''}
+                        
+                        <!-- Session Meta (Duration, Recurrence) -->
+                        ${(sessionData.duration || sessionData.recurring) ? `
+                            <div class="session-hero__meta">
+                                ${sessionData.duration ? `
+                                    <div class="session-meta-item">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12 6 12 12 16 14"/>
+                                        </svg>
+                                        ~${sessionData.duration} Stunden
+                                    </div>
+                                ` : ''}
+                                ${sessionData.recurring && sessionData.recurring !== 'once' ? `
+                                    <div class="session-meta-item">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M17 2l4 4-4 4"/>
+                                            <path d="M3 11v-1a4 4 0 0 1 4-4h14"/>
+                                            <path d="M7 22l-4-4 4-4"/>
+                                            <path d="M21 13v1a4 4 0 0 1-4 4H3"/>
+                                        </svg>
+                                        ${getRecurrenceLabel(sessionData.recurring)}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Tags -->
+                        ${(sessionData.tags && sessionData.tags.length > 0) || (sessionData.customTags && sessionData.customTags.length > 0) ? `
+                            <div class="session-hero__tags">
+                                ${(sessionData.tags || []).map(tag => `<span class="session-tag">${getTagLabel(tag)}</span>`).join('')}
+                                ${(sessionData.customTags || []).map(tag => `<span class="session-tag session-tag--highlight">🏷️ ${tag}</span>`).join('')}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 
@@ -2086,7 +2216,7 @@
                             </svg>
                             Würfeln
                         </a>
-                        <a href="sheet.html" class="quick-action">
+                        <a href="${getCharacterSheetLink(sessionData.ruleset)}" class="quick-action">
                             <svg class="quick-action__icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                 <path fill-rule="evenodd" clip-rule="evenodd" d="M4.17157 3.17157C3 4.34315 3 6.22876 3 10V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V10C21 6.22876 21 4.34315 19.8284 3.17157C18.6569 2 16.7712 2 13 2H11C7.22876 2 5.34315 2 4.17157 3.17157ZM7.25 8C7.25 7.58579 7.58579 7.25 8 7.25H16C16.4142 7.25 16.75 7.58579 16.75 8C16.75 8.41421 16.4142 8.75 16 8.75H8C7.58579 8.75 7.25 8.41421 7.25 8ZM7.25 12C7.25 11.5858 7.58579 11.25 8 11.25H16C16.4142 11.25 16.75 11.5858 16.75 12C16.75 12.4142 16.4142 12.75 16 12.75H8C7.58579 12.75 7.25 12.4142 7.25 12ZM8 15.25C7.58579 15.25 7.25 15.5858 7.25 16C7.25 16.4142 7.58579 16.75 8 16.75H13C13.4142 16.75 13.75 16.4142 13.75 16C13.75 15.5858 13.4142 15.25 13 15.25H8Z"/>
                             </svg>
@@ -2308,6 +2438,64 @@
             if (lower.includes('zoom')) return 'Zoom';
             if (lower.includes('meet.google')) return 'Google Meet';
             return 'Voice Chat';
+        }
+        
+        function getRecurrenceLabel(recurrence) {
+            const labels = {
+                'once': 'Einmalig',
+                'weekly': 'Wöchentlich',
+                'biweekly': 'Alle 2 Wochen',
+                'monthly': 'Monatlich',
+                'flexible': 'Flexibel',
+                'spontan': 'Spontan / Flexibel'
+            };
+            return labels[recurrence] || recurrence;
+        }
+        
+        function getTagLabel(tag) {
+            const labels = {
+                'roleplay': '🎭 Roleplay',
+                'combat': '⚔️ Combat',
+                'exploration': '🗺️ Exploration',
+                'puzzle': '🧩 Rätsel',
+                'horror': '👻 Horror',
+                'comedy': '😄 Comedy',
+                'newbie': '🌱 Anfänger',
+                'oneshot': '⚡ One-Shot',
+                'campaign': '📚 Kampagne',
+                'sandbox': '🏜️ Sandbox',
+                'mystery': '🔍 Mystery',
+                'social': '💬 Social',
+                'stealth': '🥷 Stealth',
+                'dungeon': '🏰 Dungeon',
+                'boss': '💀 Bosskampf',
+                'homebrew': '🧪 Homebrew',
+                'pvp': '⚔️ PvP',
+                'mature': '🔞 18+'
+            };
+            return labels[tag] || tag;
+        }
+        
+        function getCharacterSheetLink(ruleset) {
+            // Prüfe ob der User einen Charakter für dieses Ruleset hat
+            const characters = getCharactersForRuleset(ruleset);
+            if (characters.length > 0) {
+                // Nimm den ersten/einzigen Charakter oder den zuletzt bearbeiteten
+                const sortedChars = characters.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+                const char = sortedChars[0];
+                
+                // Bestimme die richtige Sheet-Seite basierend auf dem Ruleset
+                const sheetPages = {
+                    '5e2024': 'sheet-5e2024.html',
+                    'worldsapart': 'sheet-worldsapart.html',
+                    'htbah': 'sheet-htbah.html',
+                    'cyberpunk': 'sheet-cyberpunk.html'
+                };
+                const sheetPage = sheetPages[ruleset] || 'sheet.html';
+                return `${sheetPage}?id=${char.id}`;
+            }
+            // Kein Charakter → zur Übersicht
+            return 'sheet.html';
         }
         
         function copyInviteLink() {
@@ -2591,6 +2779,18 @@
                 }
             });
             
+            // Custom Tags
+            const customTagsList = document.getElementById('customTagsList');
+            customTagsList.innerHTML = '';
+            const customTags = sessionData.customTags || [];
+            customTags.forEach(tagText => {
+                const tag = document.createElement('span');
+                tag.className = 'settings-tag settings-tag--active';
+                tag.dataset.customTag = tagText;
+                tag.innerHTML = `🏷️ ${tagText} <button type="button" class="settings-tag__remove" onclick="this.parentElement.remove()">×</button>`;
+                customTagsList.appendChild(tag);
+            });
+            
             // Cover preview
             if (sessionData.hasCover) {
                 CoverDB.get(sessionId).then(coverImage => {
@@ -2634,6 +2834,12 @@
             sessionData.tags = [];
             document.querySelectorAll('.settings-tag--active[data-tag]').forEach(tag => {
                 sessionData.tags.push(tag.dataset.tag);
+            });
+            
+            // Custom Tags
+            sessionData.customTags = [];
+            document.querySelectorAll('#customTagsList .settings-tag[data-custom-tag]').forEach(tag => {
+                sessionData.customTags.push(tag.dataset.customTag);
             });
             
             saveSession();
@@ -2867,6 +3073,55 @@
                 tag.classList.toggle('settings-tag--active');
             });
         });
+        
+        // Custom Tags
+        document.getElementById('addCustomTagBtn')?.addEventListener('click', addCustomTag);
+        document.getElementById('customTagInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomTag();
+            }
+        });
+        
+        function addCustomTag() {
+            const input = document.getElementById('customTagInput');
+            const list = document.getElementById('customTagsList');
+            const tagText = input.value.trim();
+            
+            if (!tagText || tagText.length < 2) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.error('Tag muss mindestens 2 Zeichen haben');
+                }
+                return;
+            }
+            
+            if (tagText.length > 20) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.error('Tag darf maximal 20 Zeichen haben');
+                }
+                return;
+            }
+            
+            // Prüfe ob Tag schon existiert
+            const existingTags = list.querySelectorAll('.settings-tag');
+            for (const t of existingTags) {
+                if (t.dataset.customTag === tagText) {
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.info('Tag existiert bereits');
+                    }
+                    return;
+                }
+            }
+            
+            // Erstelle neuen Tag
+            const tag = document.createElement('span');
+            tag.className = 'settings-tag settings-tag--active';
+            tag.dataset.customTag = tagText;
+            tag.innerHTML = `🏷️ ${tagText} <button type="button" class="settings-tag__remove" onclick="this.parentElement.remove()">×</button>`;
+            list.appendChild(tag);
+            
+            input.value = '';
+        }
 
         // ========================================
         // LOAD SESSION
