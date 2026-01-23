@@ -89,7 +89,7 @@
         #fogCanvas { z-index: 4; }
         #uiCanvas { z-index: 5; }
         
-        #wbGrid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; background-image: linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px); background-size: 40px 40px; z-index: 10; transition: opacity 0.2s; }
+        #wbGrid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; background-image: linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px); background-size: 70px 70px; z-index: 10; transition: opacity 0.2s; }
         #wbGrid.visible { opacity: 0.5; }
         
         #imagesContainer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
@@ -143,6 +143,14 @@
         .wb-modal__title { font-size: 18px; font-weight: 600; color: white; margin-bottom: 16px; }
         .wb-modal__input { width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; margin-bottom: 16px; box-sizing: border-box; }
         .wb-modal__input:focus { outline: none; border-color: var(--accent); }
+        
+        /* Grid Settings */
+        .wb-grid-preset { padding: 8px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: white; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+        .wb-grid-preset:hover { background: rgba(255,255,255,0.15); }
+        .wb-grid-preset.active { background: var(--accent); border-color: var(--accent); }
+        .wb-grid-color { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
+        .wb-grid-color:hover { transform: scale(1.1); }
+        .wb-grid-color.active { border-color: white; box-shadow: 0 0 0 2px var(--accent); }
         .wb-modal__actions { display: flex; gap: 12px; justify-content: flex-end; }
         .wb-save-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s; }
         .wb-save-item:hover { background: rgba(255,255,255,0.1); }
@@ -229,6 +237,7 @@
                         <button class="wb-toggle" id="fillToggle"><span class="wb-toggle__dot"></span>Füllen</button>
                         <button class="wb-toggle" id="snapToggle"><span class="wb-toggle__dot"></span>Snap</button>
                         <button class="wb-toggle" id="gridToggle"><span class="wb-toggle__dot"></span>Raster</button>
+                        <button class="wb-btn" id="gridSettingsBtn" title="Raster-Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
                         <div class="wb-toolbar__divider"></div>
                         <div class="wb-toolbar__group">
                             <button class="wb-btn" id="undoBtn" title="Rückgängig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg></button>
@@ -293,6 +302,75 @@
                 <div class="wb-overlay" id="loadOverlay"><div class="wb-modal__content" style="min-width:450px"><div class="wb-modal__title">Laden</div><div id="savedList" style="max-height:350px;overflow-y:auto;margin-bottom:16px"></div><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('loadOverlay').classList.remove('visible')">Schließen</button></div></div></div>
                 <div class="wb-overlay" id="tokenOverlay"><div class="wb-modal__content" style="min-width:340px"><div class="wb-modal__title">Token erstellen</div><input type="text" class="wb-modal__input" id="tokenNameInput" placeholder="Name..."><div style="display:flex;gap:16px;margin-bottom:16px"><div id="tokenPortraitPreview" style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;border:3px solid #8b5cf6" title="Portrait hochladen"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><div style="flex:1"><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px">Hintergrund</div><div style="display:flex;gap:6px;flex-wrap:wrap" id="tokenColorPicker"></div></div></div><div style="margin-bottom:16px"><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px">Rahmenfarbe</div><div style="display:flex;gap:6px;flex-wrap:wrap" id="tokenBorderPicker"></div></div><input type="file" id="tokenPortraitInput" accept="image/*" style="display:none"><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('tokenOverlay').classList.remove('visible')">Abbrechen</button><button class="wb-upload-btn" id="tokenCreateBtn">Erstellen</button></div></div></div>
                 <div class="wb-context-menu" id="contextMenu"><button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button><button class="wb-context-item" data-action="front"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>Nach vorne</button><button class="wb-context-item" data-action="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>Nach hinten</button><div class="wb-context-divider"></div><button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button></div>
+                <!-- Grid Settings Overlay -->
+                <div class="wb-overlay" id="gridOverlay">
+                    <div class="wb-modal__content" style="min-width:380px">
+                        <div class="wb-modal__title">Raster-Einstellungen</div>
+                        
+                        <div style="margin-bottom:16px">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase">Raster-Größe (px pro Feld)</div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="gridPresets">
+                                <button class="wb-grid-preset" data-size="40">40</button>
+                                <button class="wb-grid-preset" data-size="50">50</button>
+                                <button class="wb-grid-preset active" data-size="70">70</button>
+                                <button class="wb-grid-preset" data-size="100">100</button>
+                                <button class="wb-grid-preset" data-size="140">140</button>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span style="font-size:12px;color:rgba(255,255,255,0.6)">Custom:</span>
+                                <input type="number" id="gridSizeInput" class="wb-modal__input" style="width:80px;padding:6px 10px" value="70" min="10" max="500">
+                                <span style="font-size:12px;color:rgba(255,255,255,0.4)">px</span>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom:16px">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase">Raster-Offset (Verschiebung)</div>
+                            <div style="display:flex;gap:16px">
+                                <div style="flex:1">
+                                    <label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">X:</label>
+                                    <input type="number" id="gridOffsetX" class="wb-modal__input" style="width:100%;padding:6px 10px" value="0">
+                                </div>
+                                <div style="flex:1">
+                                    <label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">Y:</label>
+                                    <input type="number" id="gridOffsetY" class="wb-modal__input" style="width:100%;padding:6px 10px" value="0">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom:16px;padding:12px;background:rgba(255,255,255,0.05);border-radius:8px">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase">An Karte anpassen</div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:10px">Gib die Anzahl Felder der Karte ein</div>
+                            <div style="display:flex;gap:12px;align-items:end">
+                                <div style="flex:1">
+                                    <label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">Breite:</label>
+                                    <input type="number" id="gridFitWidth" class="wb-modal__input" style="width:100%;padding:6px 10px" placeholder="z.B. 30">
+                                </div>
+                                <div style="flex:1">
+                                    <label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">Höhe:</label>
+                                    <input type="number" id="gridFitHeight" class="wb-modal__input" style="width:100%;padding:6px 10px" placeholder="z.B. 20">
+                                </div>
+                                <button class="wb-upload-btn" id="gridFitBtn" style="white-space:nowrap">Anpassen</button>
+                            </div>
+                            <div id="gridFitInfo" style="font-size:11px;color:rgba(139,92,246,0.8);margin-top:8px;display:none"></div>
+                        </div>
+                        
+                        <div style="margin-bottom:16px">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase">Raster-Farbe</div>
+                            <div style="display:flex;gap:6px" id="gridColorPicker">
+                                <button class="wb-grid-color active" data-color="rgba(255,255,255,0.12)" style="background:rgba(255,255,255,0.3)"></button>
+                                <button class="wb-grid-color" data-color="rgba(0,0,0,0.2)" style="background:rgba(0,0,0,0.5)"></button>
+                                <button class="wb-grid-color" data-color="rgba(139,92,246,0.3)" style="background:rgba(139,92,246,0.6)"></button>
+                                <button class="wb-grid-color" data-color="rgba(59,130,246,0.3)" style="background:rgba(59,130,246,0.6)"></button>
+                                <button class="wb-grid-color" data-color="rgba(234,179,8,0.3)" style="background:rgba(234,179,8,0.6)"></button>
+                            </div>
+                        </div>
+                        
+                        <div class="wb-modal__actions">
+                            <button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('gridOverlay').classList.remove('visible')">Schließen</button>
+                            <button class="wb-upload-btn" id="gridApplyBtn">Anwenden</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="wb-toast" id="wbToast"></div>
                 </div>
             </div>
@@ -324,7 +402,8 @@ const WB = {
     
     // State
     layer: 'main', tool: 'pen', color: '#ffffff', size: 4,
-    fill: false, snap: false, gridSize: 40, zoom: 1, panX: 0, panY: 0,
+    fill: false, snap: false, gridSize: 70, gridOffsetX: 0, gridOffsetY: 0,
+    gridColor: 'rgba(255,255,255,0.12)', zoom: 1, panX: 0, panY: 0,
     
     // Drawing
     isDrawing: false, isPanning: false, isDragging: false, isResizing: false,
@@ -451,6 +530,7 @@ const WB = {
             this.classList.toggle('active');
             document.getElementById('wbGrid').classList.toggle('visible');
         };
+        document.getElementById('gridSettingsBtn').onclick = () => this.showGridSettings();
         
         document.getElementById('undoBtn').onclick = () => this.undo();
         document.getElementById('redoBtn').onclick = () => this.redo();
@@ -478,6 +558,139 @@ const WB = {
     
     setZoom(z) { this.zoom = Math.max(0.25, Math.min(4, z)); this.updateZoom(); this.render(); },
     updateZoom() { document.getElementById('zoomLevel').textContent = Math.round(this.zoom * 100) + '%'; },
+    
+    // ==================== GRID SETTINGS ====================
+    showGridSettings() {
+        const overlay = document.getElementById('gridOverlay');
+        
+        // Set current values
+        document.getElementById('gridSizeInput').value = this.gridSize;
+        document.getElementById('gridOffsetX').value = this.gridOffsetX;
+        document.getElementById('gridOffsetY').value = this.gridOffsetY;
+        
+        // Update preset buttons
+        document.querySelectorAll('.wb-grid-preset').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.size) === this.gridSize);
+        });
+        
+        // Update color buttons
+        document.querySelectorAll('.wb-grid-color').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.color === this.gridColor);
+        });
+        
+        // Setup event handlers if not already done
+        if (!this.gridSettingsInitialized) {
+            this.setupGridSettingsEvents();
+            this.gridSettingsInitialized = true;
+        }
+        
+        overlay.classList.add('visible');
+    },
+    
+    setupGridSettingsEvents() {
+        // Preset buttons
+        document.querySelectorAll('.wb-grid-preset').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.wb-grid-preset').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('gridSizeInput').value = btn.dataset.size;
+            };
+        });
+        
+        // Custom input updates presets
+        document.getElementById('gridSizeInput').oninput = (e) => {
+            const val = parseInt(e.target.value);
+            document.querySelectorAll('.wb-grid-preset').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.size) === val);
+            });
+        };
+        
+        // Color buttons
+        document.querySelectorAll('.wb-grid-color').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.wb-grid-color').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
+        
+        // Fit to map button
+        document.getElementById('gridFitBtn').onclick = () => this.fitGridToMap();
+        
+        // Apply button
+        document.getElementById('gridApplyBtn').onclick = () => this.applyGridSettings();
+    },
+    
+    fitGridToMap() {
+        if (!this.bgImage) {
+            this.toast('Kein Hintergrund geladen!');
+            return;
+        }
+        
+        const widthFields = parseInt(document.getElementById('gridFitWidth').value);
+        const heightFields = parseInt(document.getElementById('gridFitHeight').value);
+        
+        if (!widthFields || !heightFields) {
+            this.toast('Bitte Breite und Höhe eingeben');
+            return;
+        }
+        
+        // Calculate grid size based on background image dimensions
+        const bgW = this.bgImage.width;
+        const bgH = this.bgImage.height;
+        
+        const gridFromWidth = bgW / widthFields;
+        const gridFromHeight = bgH / heightFields;
+        
+        // Use average or the one that fits better
+        const calculatedSize = Math.round((gridFromWidth + gridFromHeight) / 2);
+        
+        document.getElementById('gridSizeInput').value = calculatedSize;
+        
+        // Update preset buttons
+        document.querySelectorAll('.wb-grid-preset').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.size) === calculatedSize);
+        });
+        
+        // Show info
+        const info = document.getElementById('gridFitInfo');
+        info.style.display = 'block';
+        info.innerHTML = `
+            Berechnet: <strong>${calculatedSize}px</strong> pro Feld<br>
+            Karte: ${bgW}×${bgH}px → ${widthFields}×${heightFields} Felder
+        `;
+        
+        this.toast(`Grid: ${calculatedSize}px (${widthFields}×${heightFields})`);
+    },
+    
+    applyGridSettings() {
+        this.gridSize = parseInt(document.getElementById('gridSizeInput').value) || 70;
+        this.gridOffsetX = parseInt(document.getElementById('gridOffsetX').value) || 0;
+        this.gridOffsetY = parseInt(document.getElementById('gridOffsetY').value) || 0;
+        
+        // Get selected color
+        const activeColor = document.querySelector('.wb-grid-color.active');
+        if (activeColor) {
+            this.gridColor = activeColor.dataset.color;
+        }
+        
+        this.updateGrid();
+        document.getElementById('gridOverlay').classList.remove('visible');
+        this.toast(`Raster: ${this.gridSize}px`);
+    },
+    
+    updateGrid() {
+        const grid = document.getElementById('wbGrid');
+        const size = this.gridSize * this.zoom;
+        const offsetX = this.gridOffsetX * this.zoom + this.panX;
+        const offsetY = this.gridOffsetY * this.zoom + this.panY;
+        
+        grid.style.backgroundImage = `
+            linear-gradient(${this.gridColor} 1px, transparent 1px),
+            linear-gradient(90deg, ${this.gridColor} 1px, transparent 1px)
+        `;
+        grid.style.backgroundSize = `${size}px ${size}px`;
+        grid.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
+    },
     
     // ==================== CANVAS EVENTS ====================
     setupCanvas() {
@@ -553,8 +766,8 @@ const WB = {
         let x = (e.clientX - r.left - this.panX) / this.zoom;
         let y = (e.clientY - r.top - this.panY) / this.zoom;
         if (this.snap) {
-            x = Math.round(x / this.gridSize) * this.gridSize;
-            y = Math.round(y / this.gridSize) * this.gridSize;
+            x = Math.round((x - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX;
+            y = Math.round((y - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY;
         }
         // rx, ry = relative to canvasWrapper (for DOM elements like ping)
         return { x, y, sx: e.clientX, sy: e.clientY, rx: e.clientX - r.left, ry: e.clientY - r.top };
@@ -969,8 +1182,8 @@ const WB = {
             item.x += dx;
             item.y += dy;
             if (this.snap) {
-                item.x = Math.round(item.x / this.gridSize) * this.gridSize;
-                item.y = Math.round(item.y / this.gridSize) * this.gridSize;
+                item.x = Math.round((item.x - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX;
+                item.y = Math.round((item.y - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY;
             }
             // Real-time sync
             this.syncToken(item);
@@ -979,8 +1192,8 @@ const WB = {
             item.x += dx;
             item.y += dy;
             if (this.snap) {
-                item.x = Math.round(item.x / this.gridSize) * this.gridSize;
-                item.y = Math.round(item.y / this.gridSize) * this.gridSize;
+                item.x = Math.round((item.x - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX;
+                item.y = Math.round((item.y - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY;
             }
         }
         if (type === 'stroke') {
@@ -1142,6 +1355,7 @@ const WB = {
         this.renderImages();
         this.renderTokens();
         this.renderFog();
+        this.updateGrid();
         if (this.selected) this.updateSelectBox();
     },
     
