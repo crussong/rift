@@ -79,17 +79,17 @@
         .wb-format-bar__sep { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 4px; }
         
         /* Draggable Image */
-        .wb-image { position: absolute; cursor: move; z-index: 45; user-select: none; -webkit-user-drag: none; }
+        .wb-image { position: absolute; left: 0; top: 0; cursor: move; z-index: 45; user-select: none; -webkit-user-drag: none; will-change: transform; }
         .wb-image.selected { outline: 3px solid #fbbf24; outline-offset: 2px; }
         .wb-image img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
         
-        .wb-canvas { position: absolute; top: 0; left: 0; touch-action: none; }
+        .wb-canvas { position: absolute; top: 0; left: 0; touch-action: none; will-change: contents; }
         #bgCanvas { z-index: 1; }
         #mainCanvas { z-index: 2; }
         #fogCanvas { z-index: 4; }
         #uiCanvas { z-index: 5; }
         
-        #wbGrid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; background-image: linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px); background-size: 70px 70px; z-index: 10; transition: opacity 0.2s; }
+        #wbGrid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; background-image: linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px); background-size: 70px 70px; z-index: 10; transition: opacity 0.2s, background-position 0.05s ease-out; will-change: background-position, background-size; }
         #wbGrid.visible { opacity: 0.5; }
         
         #imagesContainer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
@@ -112,7 +112,7 @@
         
         .wb-ruler-info { position: absolute; background: rgba(0,0,0,0.9); color: #fbbf24; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; pointer-events: none; z-index: 150; display: none; border: 2px solid #fbbf24; }
         
-        .wb-token { position: absolute; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.5); cursor: move; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.8); user-select: none; -webkit-user-drag: none; z-index: 50; }
+        .wb-token { position: absolute; left: 0; top: 0; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.5); cursor: move; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.8); user-select: none; -webkit-user-drag: none; z-index: 50; will-change: transform; }
         .wb-token:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
         .wb-token.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251,191,36,0.4), 0 4px 20px rgba(0,0,0,0.6); }
         .wb-token img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
@@ -405,6 +405,10 @@ const WB = {
     fill: false, snap: false, gridSize: 70, gridOffsetX: 0, gridOffsetY: 0,
     gridColor: 'rgba(255,255,255,0.12)', zoom: 1, panX: 0, panY: 0,
     
+    // Smooth animation targets
+    targetZoom: 1, targetPanX: 0, targetPanY: 0,
+    animationFrame: null, lastFrameTime: 0,
+    
     // Drawing
     isDrawing: false, isPanning: false, isDragging: false, isResizing: false,
     spacePressed: false, // For hand tool (spacebar pan)
@@ -434,6 +438,12 @@ const WB = {
         this.mainCtx = this.mainCanvas.getContext('2d');
         this.fogCtx = this.fogCanvas.getContext('2d');
         this.uiCtx = this.uiCanvas.getContext('2d');
+        
+        // Enable high-quality image rendering
+        [this.bgCtx, this.mainCtx, this.fogCtx, this.uiCtx].forEach(ctx => {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+        });
         
         this.roomCode = localStorage.getItem('rift_current_room');
         const u = JSON.parse(localStorage.getItem('rift_user') || '{}');
@@ -535,9 +545,14 @@ const WB = {
         
         document.getElementById('undoBtn').onclick = () => this.undo();
         document.getElementById('redoBtn').onclick = () => this.redo();
-        document.getElementById('zoomInBtn').onclick = () => this.setZoom(this.zoom + 0.25);
-        document.getElementById('zoomOutBtn').onclick = () => this.setZoom(this.zoom - 0.25);
-        document.getElementById('zoomResetBtn').onclick = () => { this.zoom = 1; this.panX = 0; this.panY = 0; this.updateZoom(); this.render(); };
+        document.getElementById('zoomInBtn').onclick = () => this.setZoom(this.targetZoom + 0.25);
+        document.getElementById('zoomOutBtn').onclick = () => this.setZoom(this.targetZoom - 0.25);
+        document.getElementById('zoomResetBtn').onclick = () => { 
+            this.targetZoom = 1; 
+            this.targetPanX = 0; 
+            this.targetPanY = 0; 
+            this.startAnimation(); 
+        };
         document.getElementById('exportBtn').onclick = () => this.exportPNG();
         document.getElementById('clearBtn')?.addEventListener('click', () => { if(confirm('Alles löschen?')) this.clearAll(); });
         document.getElementById('stampBtn').onclick = () => document.getElementById('stampsPanel').classList.toggle('visible');
@@ -557,8 +572,104 @@ const WB = {
         else if (this.tool === 'text') w.classList.add('tool-text');
     },
     
-    setZoom(z) { this.zoom = Math.max(0.25, Math.min(4, z)); this.updateZoom(); this.render(); },
-    updateZoom() { document.getElementById('zoomLevel').textContent = Math.round(this.zoom * 100) + '%'; },
+    setZoom(z) { 
+        this.targetZoom = Math.max(0.25, Math.min(4, z)); 
+        this.startAnimation();
+    },
+    
+    smoothZoomTo(z, centerX, centerY) {
+        // Zoom towards a point (for wheel zoom)
+        const oldZoom = this.zoom;
+        const newZoom = Math.max(0.25, Math.min(4, z));
+        
+        // Calculate pan adjustment to zoom towards cursor
+        if (centerX !== undefined && centerY !== undefined) {
+            const zoomRatio = newZoom / oldZoom;
+            this.targetPanX = centerX - (centerX - this.panX) * zoomRatio;
+            this.targetPanY = centerY - (centerY - this.panY) * zoomRatio;
+        }
+        
+        this.targetZoom = newZoom;
+        this.startAnimation();
+    },
+    
+    updateZoom() { 
+        document.getElementById('zoomLevel').textContent = Math.round(this.zoom * 100) + '%'; 
+    },
+    
+    // ==================== SMOOTH ANIMATION ====================
+    startAnimation() {
+        if (!this.animationFrame) {
+            this.lastFrameTime = performance.now();
+            this.animationFrame = requestAnimationFrame(t => this.animateLoop(t));
+        }
+    },
+    
+    animateLoop(timestamp) {
+        const deltaTime = Math.min((timestamp - this.lastFrameTime) / 1000, 0.1); // Cap at 100ms
+        this.lastFrameTime = timestamp;
+        
+        // Lerp factor - exponential decay for smooth deceleration
+        // Higher base = faster animation (0.00001 = very smooth, 0.001 = snappy)
+        const lerpFactor = 1 - Math.pow(0.00005, deltaTime);
+        
+        // Smooth zoom
+        const zoomDiff = Math.abs(this.targetZoom - this.zoom);
+        if (zoomDiff > 0.001) {
+            this.zoom += (this.targetZoom - this.zoom) * lerpFactor;
+            this.updateZoom();
+        } else {
+            this.zoom = this.targetZoom;
+        }
+        
+        // Smooth pan
+        const panXDiff = Math.abs(this.targetPanX - this.panX);
+        const panYDiff = Math.abs(this.targetPanY - this.panY);
+        
+        if (panXDiff > 0.5) {
+            this.panX += (this.targetPanX - this.panX) * lerpFactor;
+        } else {
+            this.panX = this.targetPanX;
+        }
+        
+        if (panYDiff > 0.5) {
+            this.panY += (this.targetPanY - this.panY) * lerpFactor;
+        } else {
+            this.panY = this.targetPanY;
+        }
+        
+        // Render
+        this.render();
+        
+        // Continue animation if not settled
+        const needsMore = zoomDiff > 0.001 || panXDiff > 0.5 || panYDiff > 0.5;
+        if (needsMore) {
+            this.animationFrame = requestAnimationFrame(t => this.animateLoop(t));
+        } else {
+            this.animationFrame = null;
+        }
+    },
+    
+    // Immediate pan (for dragging - no animation delay)
+    setPanImmediate(x, y) {
+        this.panX = x;
+        this.panY = y;
+        this.targetPanX = x;
+        this.targetPanY = y;
+        this.scheduleRender();
+    },
+    
+    // Throttled render - max once per frame
+    renderScheduled: false,
+    scheduleRender() {
+        if (!this.renderScheduled) {
+            this.renderScheduled = true;
+            requestAnimationFrame(() => {
+                this.renderScheduled = false;
+                this.render();
+            });
+        }
+    },
     
     // ==================== GRID SETTINGS ====================
     showGridSettings() {
@@ -739,10 +850,14 @@ const WB = {
         });
         window.addEventListener('mousemove', e => {
             if (this.isPanning && this.lastPan) {
-                this.panX += e.clientX - this.lastPan.x;
-                this.panY += e.clientY - this.lastPan.y;
+                const dx = e.clientX - this.lastPan.x;
+                const dy = e.clientY - this.lastPan.y;
+                this.panX += dx;
+                this.panY += dy;
+                this.targetPanX = this.panX;
+                this.targetPanY = this.panY;
                 this.lastPan = { x: e.clientX, y: e.clientY };
-                this.render();
+                this.scheduleRender();
             }
         });
         window.addEventListener('mouseup', e => { if (e.button === 1) this.isPanning = false; });
@@ -782,10 +897,16 @@ const WB = {
             }
         });
         
-        // Wheel zoom
+        // Wheel zoom (smooth, towards cursor)
         document.getElementById('canvasWrapper').addEventListener('wheel', e => {
             e.preventDefault();
-            this.setZoom(this.zoom + (e.deltaY > 0 ? -0.1 : 0.1));
+            const rect = wrapper.getBoundingClientRect();
+            const cursorX = e.clientX - rect.left;
+            const cursorY = e.clientY - rect.top;
+            
+            // Smaller steps for smoother feel
+            const zoomDelta = e.deltaY > 0 ? -0.15 : 0.15;
+            this.smoothZoomTo(this.targetZoom + zoomDelta, cursorX, cursorY);
         }, { passive: false });
         
         // Close panels on click outside
@@ -1243,7 +1364,7 @@ const WB = {
             this.syncStroke(item);
         }
         
-        this.render();
+        this.scheduleRender();
         this.updateSelectBox();
     },
     
@@ -1335,7 +1456,7 @@ const WB = {
             }
         }
         
-        this.render();
+        this.scheduleRender();
         this.updateSelectBox();
     },
     
@@ -1415,11 +1536,15 @@ const WB = {
         this.images.forEach((img, i) => {
             const el = document.createElement('div');
             const isSelected = this.selected?.type === 'image' && this.selected?.item === img;
+            const x = img.x * this.zoom + this.panX;
+            const y = img.y * this.zoom + this.panY;
+            const w = img.w * this.zoom;
+            const h = img.h * this.zoom;
+            
             el.className = 'wb-image' + (isSelected ? ' selected' : '');
-            el.style.left = (img.x * this.zoom + this.panX) + 'px';
-            el.style.top = (img.y * this.zoom + this.panY) + 'px';
-            el.style.width = (img.w * this.zoom) + 'px';
-            el.style.height = (img.h * this.zoom) + 'px';
+            el.style.width = w + 'px';
+            el.style.height = h + 'px';
+            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
             el.innerHTML = `<img src="${img.src}" draggable="false">`;
             el.dataset.idx = i;
             el.draggable = false;
@@ -1444,11 +1569,13 @@ const WB = {
             const el = document.createElement('div');
             const isSelected = this.selected?.type === 'token' && this.selected?.item === t;
             const displaySize = t.size * this.zoom;
+            const x = t.x * this.zoom + this.panX - displaySize / 2;
+            const y = t.y * this.zoom + this.panY - displaySize / 2;
+            
             el.className = 'wb-token' + (isSelected ? ' selected' : '');
-            el.style.left = (t.x * this.zoom + this.panX - displaySize / 2) + 'px';
-            el.style.top = (t.y * this.zoom + this.panY - displaySize / 2) + 'px';
             el.style.width = displaySize + 'px';
             el.style.height = displaySize + 'px';
+            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
             el.style.background = t.img ? 'transparent' : t.color;
             el.style.borderColor = t.borderColor || '#8b5cf6';
             el.style.fontSize = (displaySize * 0.4) + 'px';
