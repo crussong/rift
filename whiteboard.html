@@ -407,6 +407,7 @@ const WB = {
     
     // Drawing
     isDrawing: false, isPanning: false, isDragging: false, isResizing: false,
+    spacePressed: false, // For hand tool (spacebar pan)
     startPoint: null, currentPath: [], polygonPoints: [],
     resizeHandle: null, dragOffset: { x: 0, y: 0 },
     
@@ -746,6 +747,41 @@ const WB = {
         });
         window.addEventListener('mouseup', e => { if (e.button === 1) this.isPanning = false; });
         
+        // Spacebar hand tool (pan mode)
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space' && !this.spacePressed && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                this.spacePressed = true;
+                wrapper.style.cursor = 'grab';
+            }
+        });
+        window.addEventListener('keyup', e => {
+            if (e.code === 'Space') {
+                this.spacePressed = false;
+                this.isPanning = false;
+                this.lastPan = null;
+                wrapper.style.cursor = '';
+                this.updateCursor();
+            }
+        });
+        // Spacebar + mouse = pan
+        wrapper.addEventListener('mousedown', e => {
+            if (this.spacePressed && e.button === 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.isPanning = true;
+                this.lastPan = { x: e.clientX, y: e.clientY };
+                wrapper.style.cursor = 'grabbing';
+            }
+        });
+        window.addEventListener('mouseup', e => {
+            if (this.spacePressed && e.button === 0) {
+                this.isPanning = false;
+                this.lastPan = null;
+                wrapper.style.cursor = 'grab';
+            }
+        });
+        
         // Wheel zoom
         document.getElementById('canvasWrapper').addEventListener('wheel', e => {
             e.preventDefault();
@@ -774,7 +810,7 @@ const WB = {
     },
     
     onDown(e) {
-        if (this.isPanning || this.isResizing) return;
+        if (this.isPanning || this.isResizing || this.spacePressed) return;
         const p = this.getPoint(e);
         this.startPoint = p;
         this.currentPath = [p];
