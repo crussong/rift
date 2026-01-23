@@ -460,6 +460,103 @@
             color: var(--accent);
         }
         
+        /* ========================================
+           DESCRIPTION SECTION (Collapsible)
+           ======================================== */
+        .session-description-section {
+            margin: 0 24px 24px;
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .session-description__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .session-description__header:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .session-description__header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .session-description__toggle {
+            background: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-dim);
+        }
+        
+        .session-description__toggle:hover {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+        
+        .session-description__toggle svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.3s ease;
+        }
+        
+        .session-description-section.expanded .session-description__toggle svg {
+            transform: rotate(180deg);
+        }
+        
+        .session-description__content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        
+        .session-description-section.expanded .session-description__content {
+            max-height: 500px;
+        }
+        
+        .session-description__text {
+            padding: 0 20px 20px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-muted);
+        }
+        
+        .session-description__text p {
+            margin: 0 0 12px;
+        }
+        
+        .session-description__text p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .session-description__text a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        .session-description__text a:hover {
+            text-decoration: underline;
+        }
+        
         /* Voice Button (in Hero section) */
         .session-hero__voice-btn {
             display: inline-flex;
@@ -2376,14 +2473,6 @@
                             ` : '')}
                         </div>
                         
-                        <!-- Description -->
-                        ${(visibility.showDescription || isGM) && sessionData.description ? `
-                            <div class="session-hero__description">
-                                <div class="session-hero__description-title">Beschreibung</div>
-                                <div class="session-hero__description-text">${formatDescription(sessionData.description)}</div>
-                            </div>
-                        ` : ''}
-                        
                         <!-- Voice Link (Quick Action Style) -->
                         ${sessionData.voiceLink ? `
                             <a href="${sessionData.voiceLink}" target="_blank" class="session-hero__voice-btn">
@@ -2430,6 +2519,30 @@
                         ` : ''}
                     </div>
                 </div>
+                
+                <!-- Description Section (Collapsible) -->
+                ${(visibility.showDescription || isGM) && sessionData.description ? `
+                    <section class="session-description-section" id="descriptionSection">
+                        <div class="session-description__header" onclick="toggleDescription()">
+                            <div class="session-description__header-left">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="color: var(--accent);">
+                                    <path d="M3 3h18v2H3V3zm0 4h12v2H3V7zm0 4h18v2H3v-2zm0 4h12v2H3v-2zm0 4h18v2H3v-2z"/>
+                                </svg>
+                                <span>Über dieses Abenteuer</span>
+                            </div>
+                            <button class="session-description__toggle" id="descToggleBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="session-description__content" id="descriptionContent">
+                            <div class="session-description__text">
+                                ${formatDescription(sessionData.description)}
+                            </div>
+                        </div>
+                    </section>
+                ` : ''}
                 
                 <!-- Party Section -->
                 <section class="session-section">
@@ -2528,6 +2641,9 @@
             
             // Update document title
             document.title = `RIFT – ${sessionData.name || 'Session'}`;
+            
+            // Initialize description collapsed/expanded state
+            initDescriptionState();
         }
         
         function renderPartyCards(visibility) {
@@ -2767,6 +2883,32 @@
             }
             // Kein Charakter → zur Übersicht
             return 'sheet.html';
+        }
+        
+        // ========================================
+        // DESCRIPTION TOGGLE
+        // ========================================
+        
+        function toggleDescription() {
+            const section = document.getElementById('descriptionSection');
+            if (section) {
+                section.classList.toggle('expanded');
+                
+                // Save preference
+                const isExpanded = section.classList.contains('expanded');
+                localStorage.setItem('rift_desc_expanded', isExpanded ? '1' : '0');
+            }
+        }
+        
+        // Auto-expand description on page load if previously expanded
+        function initDescriptionState() {
+            const section = document.getElementById('descriptionSection');
+            const wasExpanded = localStorage.getItem('rift_desc_expanded');
+            
+            // Default: expanded on first visit
+            if (wasExpanded === null || wasExpanded === '1') {
+                section?.classList.add('expanded');
+            }
         }
         
         function copyInviteLink() {
