@@ -1848,7 +1848,20 @@
         // RENDER SESSION CONTENT
         // ========================================
         function renderSessionPage() {
-            const content = document.getElementById('sessionContent');
+            // Nach initLayout() ist der DOM neu aufgebaut - finde main__content
+            const mainContent = document.querySelector('.main__content');
+            if (!mainContent) {
+                console.error('[Session] main__content not found');
+                return;
+            }
+            
+            // Finde oder erstelle sessionContent Container (nach Topbar)
+            let content = document.getElementById('sessionContent');
+            if (!content) {
+                content = document.createElement('div');
+                content.id = 'sessionContent';
+                mainContent.appendChild(content);
+            }
             
             // Get visibility settings
             const visibility = { ...defaultVisibility, ...(sessionData.visibility || {}) };
@@ -2847,6 +2860,23 @@
         // ========================================
         
         async function loadSession() {
+            // Zeige Loading State
+            const mainContent = document.querySelector('.main__content');
+            if (mainContent) {
+                let content = document.getElementById('sessionContent');
+                if (!content) {
+                    content = document.createElement('div');
+                    content.id = 'sessionContent';
+                    mainContent.appendChild(content);
+                }
+                content.innerHTML = `
+                    <div class="session-loading" id="sessionLoading">
+                        <div class="session-loading__spinner"></div>
+                        <span style="color: var(--text-muted);">Session wird geladen...</span>
+                    </div>
+                `;
+            }
+            
             if (!sessionId) {
                 showSessionNotFound();
                 return;
@@ -2924,7 +2954,17 @@
         }
         
         function showSessionNotFound() {
-            document.getElementById('sessionContent').innerHTML = `
+            const mainContent = document.querySelector('.main__content');
+            if (!mainContent) return;
+            
+            let content = document.getElementById('sessionContent');
+            if (!content) {
+                content = document.createElement('div');
+                content.id = 'sessionContent';
+                mainContent.appendChild(content);
+            }
+            
+            content.innerHTML = `
                 <div class="session-not-found">
                     <svg class="session-not-found__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <circle cx="12" cy="12" r="10"/>
@@ -2976,17 +3016,27 @@
         // INIT
         // ========================================
         
-        // Initialize Layout (Sidebar, Topbar, Footer)
+        // Initialize Layout and load session
         document.addEventListener('DOMContentLoaded', () => {
+            // Init Layout (Sidebar, Topbar, Footer)
             if (typeof initLayout === 'function') {
                 initLayout();
             }
+            
+            // Wait for Firebase to be ready, then load session
+            const waitForFirebase = () => {
+                if (typeof RIFT !== 'undefined' && RIFT.firebase) {
+                    console.log('[Session] Firebase ready, loading session...');
+                    loadSession();
+                } else {
+                    console.log('[Session] Waiting for Firebase...');
+                    setTimeout(waitForFirebase, 200);
+                }
+            };
+            
+            // Start waiting after a brief delay for layout to settle
+            setTimeout(waitForFirebase, 300);
         });
-        
-        // Load session after Firebase is ready
-        setTimeout(() => {
-            loadSession();
-        }, 500);
     </script>
     <script src="assets/js/broadcast.js"></script>
 </body>
