@@ -1964,19 +1964,19 @@
     </div>
     
     <!-- Cover Cropper Modal -->
-    <div class="settings-modal" id="cropperModal">
-        <div class="settings-modal__backdrop" id="cropperBackdrop"></div>
+    <div class="settings-modal" id="coverCropperModal">
+        <div class="settings-modal__backdrop" id="coverCropperBackdrop"></div>
         <div class="settings-modal__dialog" style="width: 500px;">
             <div class="settings-modal__header">
                 <h2 class="settings-modal__title">Cover zuschneiden</h2>
-                <button class="settings-modal__close" id="closeCropperModal">✕</button>
+                <button class="settings-modal__close" id="closeCoverCropperModal">✕</button>
             </div>
             <div style="padding: 24px; background: #000;">
-                <img id="cropperImage" style="max-width: 100%; display: block;">
+                <img id="coverCropperImage" style="max-width: 100%; display: block;">
             </div>
             <div class="settings-modal__footer">
-                <button class="settings-modal__btn settings-modal__btn--cancel" id="cancelCropBtn">Abbrechen</button>
-                <button class="settings-modal__btn settings-modal__btn--save" id="applyCropBtn">Anwenden</button>
+                <button class="settings-modal__btn settings-modal__btn--cancel" id="coverCancelCropBtn">Abbrechen</button>
+                <button class="settings-modal__btn settings-modal__btn--save" id="coverApplyCropBtn">Anwenden</button>
             </div>
         </div>
     </div>
@@ -2061,16 +2061,20 @@
             async upload(sessionId, imageDataUrl) {
                 try {
                     console.log('[CoverStorage] Uploading cover via Cloudinary...');
+                    console.log('[CoverStorage] Image data length:', imageDataUrl.length);
                     
                     // Convert data URL to blob
                     const response = await fetch(imageDataUrl);
                     const blob = await response.blob();
                     
-                    // Create form data
+                    console.log('[CoverStorage] Blob size:', blob.size, 'type:', blob.type);
+                    
+                    // Create form data - unique public_id to avoid caching
+                    const timestamp = Date.now();
                     const formData = new FormData();
                     formData.append('file', blob);
                     formData.append('upload_preset', this.uploadPreset);
-                    formData.append('public_id', `session-covers/${sessionId}`);
+                    formData.append('public_id', `session-covers/${sessionId}_${timestamp}`);
                     
                     // Upload to Cloudinary
                     const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`, {
@@ -2079,14 +2083,19 @@
                     });
                     
                     if (!uploadResponse.ok) {
+                        const errorText = await uploadResponse.text();
+                        console.error('[CoverStorage] Upload response error:', errorText);
                         throw new Error('Upload failed');
                     }
                     
                     const result = await uploadResponse.json();
+                    console.log('[CoverStorage] Cloudinary result:', result);
                     
                     if (result.secure_url) {
-                        console.log('[CoverStorage] Upload complete, URL:', result.secure_url);
-                        return result.secure_url;
+                        // Add cache-buster to URL
+                        const urlWithCacheBuster = result.secure_url + '?v=' + timestamp;
+                        console.log('[CoverStorage] Upload complete, URL:', urlWithCacheBuster);
+                        return urlWithCacheBuster;
                     } else {
                         console.error('[CoverStorage] Upload failed:', result);
                         return null;
@@ -3222,10 +3231,10 @@
             
             const reader = new FileReader();
             reader.onload = (event) => {
-                const img = document.getElementById('cropperImage');
+                const img = document.getElementById('coverCropperImage');
                 img.src = event.target.result;
                 
-                document.getElementById('cropperModal').classList.add('settings-modal--open');
+                document.getElementById('coverCropperModal').classList.add('settings-modal--open');
                 
                 // Destroy existing cropper
                 if (cropper) cropper.destroy();
@@ -3250,7 +3259,7 @@
             reader.readAsDataURL(file);
         });
         
-        document.getElementById('applyCropBtn')?.addEventListener('click', async () => {
+        document.getElementById('coverApplyCropBtn')?.addEventListener('click', async () => {
             if (!cropper) return;
             
             const canvas = cropper.getCroppedCanvas({
@@ -3280,7 +3289,7 @@
                 document.getElementById('settingsCoverPreview').innerHTML = `<img src="${coverUrl}" alt="">`;
                 
                 // Close cropper modal
-                document.getElementById('cropperModal').classList.remove('settings-modal--open');
+                document.getElementById('coverCropperModal').classList.remove('settings-modal--open');
                 cropper.destroy();
                 cropper = null;
                 
@@ -3406,22 +3415,22 @@
         document.getElementById('saveSessionSettingsBtn')?.addEventListener('click', saveSettings);
         
         // Cropper Modal
-        document.getElementById('closeCropperModal')?.addEventListener('click', () => {
-            document.getElementById('cropperModal').classList.remove('settings-modal--open');
+        document.getElementById('closeCoverCropperModal')?.addEventListener('click', () => {
+            document.getElementById('coverCropperModal').classList.remove('settings-modal--open');
             if (cropper) {
                 cropper.destroy();
                 cropper = null;
             }
         });
-        document.getElementById('cropperBackdrop')?.addEventListener('click', () => {
-            document.getElementById('cropperModal').classList.remove('settings-modal--open');
+        document.getElementById('coverCropperBackdrop')?.addEventListener('click', () => {
+            document.getElementById('coverCropperModal').classList.remove('settings-modal--open');
             if (cropper) {
                 cropper.destroy();
                 cropper = null;
             }
         });
-        document.getElementById('cancelCropBtn')?.addEventListener('click', () => {
-            document.getElementById('cropperModal').classList.remove('settings-modal--open');
+        document.getElementById('coverCancelCropBtn')?.addEventListener('click', () => {
+            document.getElementById('coverCropperModal').classList.remove('settings-modal--open');
             if (cropper) {
                 cropper.destroy();
                 cropper = null;
