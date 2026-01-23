@@ -1427,14 +1427,19 @@
                 <path d="M20 20h25v60h-25zM55 20h25v25h-25zM55 55h25l-25 25z"/>
             </svg>`;
             
-            // Determine which image to use: thumbnail first, then cover
+            // Check for Cloudinary coverUrl first, then fallback to IndexedDB
+            const hasCoverUrl = !!session.coverUrl;
             const thumbKey = session.hasThumbnail ? 'thumb_' + session.id : (session.hasCover ? session.id : null);
             
             return `
                 <a href="session.html?id=${session.id}" class="session-card session-card--${isPast ? 'past' : 'upcoming'}" data-session-id="${session.id}">
                     <div class="session-card__cover session-card__cover--${ruleset.class}" data-cover-id="${session.id}">
-                        <img class="session-card__cover-img" src="" alt="" data-cover-img="${thumbKey || session.id}" data-has-image="${thumbKey ? 'true' : 'false'}">
-                        <div class="session-card__cover-fallback">
+                        ${hasCoverUrl ? `
+                            <img class="session-card__cover-img loaded" src="${session.coverUrl}" alt="">
+                        ` : `
+                            <img class="session-card__cover-img" src="" alt="" data-cover-img="${thumbKey || session.id}" data-has-image="${thumbKey ? 'true' : 'false'}">
+                        `}
+                        <div class="session-card__cover-fallback" ${hasCoverUrl ? 'style="display: none;"' : ''}>
                             ${riftLogoSvg}
                         </div>
                     </div>
