@@ -115,8 +115,17 @@
         .wb-token { position: absolute; left: 0; top: 0; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.5); cursor: move; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.8); user-select: none; -webkit-user-drag: none; z-index: 50; will-change: transform; }
         .wb-token:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
         .wb-token.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251,191,36,0.4), 0 4px 20px rgba(0,0,0,0.6); }
+        .wb-token.dead { opacity: 0.5; filter: grayscale(80%); }
+        .wb-token.active-turn { box-shadow: 0 0 0 4px rgba(34,197,94,0.6), 0 0 20px rgba(34,197,94,0.4), 0 4px 20px rgba(0,0,0,0.6); }
         .wb-token img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
         .wb-token__label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 2px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; pointer-events: none; }
+        .wb-token__hp { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 80%; height: 6px; background: rgba(0,0,0,0.6); border-radius: 3px; overflow: hidden; pointer-events: none; }
+        .wb-token__hp-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #4ade80); border-radius: 3px; transition: width 0.3s ease; }
+        .wb-token__hp-fill.low { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .wb-token__hp-fill.critical { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .wb-token__initiative { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; background: #1e1e1e; border: 2px solid #8b5cf6; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        .wb-token__status { position: absolute; top: -6px; left: -6px; display: flex; gap: 2px; pointer-events: none; }
+        .wb-token__status-icon { width: 18px; height: 18px; background: rgba(0,0,0,0.8); border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); }
         
         .wb-stamps-panel { position: absolute; top: 60px; left: 16px; background: rgba(22,22,22,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; z-index: 100; display: none; max-width: 260px; }
         .wb-stamps-panel.visible { display: block; }
@@ -169,6 +178,41 @@
         .wb-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(22,22,22,0.95); border: 1px solid rgba(255,255,255,0.1); padding: 12px 24px; border-radius: 12px; color: white; font-size: 14px; z-index: 3000; opacity: 0; transition: all 0.3s; pointer-events: none; }
         .wb-toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
         
+        /* Initiative Panel */
+        .wb-initiative-panel { position: absolute; top: 70px; right: 16px; background: rgba(22,22,22,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; z-index: 100; min-width: 200px; max-height: 60vh; overflow-y: auto; display: none; }
+        .wb-initiative-panel.visible { display: block; }
+        .wb-initiative-panel__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .wb-initiative-panel__title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; }
+        .wb-initiative-panel__controls { display: flex; gap: 6px; }
+        .wb-initiative-panel__btn { width: 28px; height: 28px; background: rgba(255,255,255,0.08); border: none; border-radius: 6px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .wb-initiative-panel__btn:hover { background: rgba(255,255,255,0.15); }
+        .wb-initiative-panel__btn.active { background: var(--accent); }
+        .wb-initiative-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin-bottom: 4px; }
+        .wb-initiative-item:hover { background: rgba(255,255,255,0.08); }
+        .wb-initiative-item.active { background: rgba(34,197,94,0.2); border: 1px solid rgba(34,197,94,0.4); }
+        .wb-initiative-item.dead { opacity: 0.5; }
+        .wb-initiative-item__portrait { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; overflow: hidden; }
+        .wb-initiative-item__portrait img { width: 100%; height: 100%; object-fit: cover; }
+        .wb-initiative-item__info { flex: 1; min-width: 0; }
+        .wb-initiative-item__name { font-size: 13px; font-weight: 500; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wb-initiative-item__hp { font-size: 11px; color: rgba(255,255,255,0.5); }
+        .wb-initiative-item__init { width: 28px; height: 28px; background: rgba(139,92,246,0.3); border-radius: 6px; font-size: 12px; font-weight: 700; color: white; display: flex; align-items: center; justify-content: center; }
+        .wb-initiative-item__init input { width: 100%; height: 100%; background: transparent; border: none; color: white; font-size: 12px; font-weight: 700; text-align: center; }
+        
+        /* Token Edit Modal */
+        .wb-token-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .wb-token-edit__field { display: flex; flex-direction: column; gap: 4px; }
+        .wb-token-edit__label { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; }
+        .wb-token-edit__input { padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white; font-size: 14px; }
+        .wb-token-edit__input:focus { outline: none; border-color: var(--accent); }
+        .wb-size-preset { padding: 8px 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; }
+        .wb-size-preset:hover { background: rgba(255,255,255,0.15); }
+        .wb-size-preset.active { background: var(--accent); border-color: var(--accent); }
+        .wb-status-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+        .wb-status-btn { width: 32px; height: 32px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 16px; cursor: pointer; }
+        .wb-status-btn:hover { background: rgba(255,255,255,0.15); }
+        .wb-status-btn.active { background: var(--accent); border-color: var(--accent); }
+        
         @media (max-width: 768px) {
             .wb-toolbar { padding: 6px 8px; gap: 4px; }
             .wb-toolbar__group { gap: 1px; padding: 2px; }
@@ -191,6 +235,7 @@
                             <button class="wb-layer-tab active" data-layer="main">Zeichnen</button>
                             <button class="wb-layer-tab" data-layer="token">Token</button>
                             <button class="wb-layer-tab wb-layer-tab--fog" data-layer="fog" id="fogTab">Nebel</button>
+                            <button class="wb-btn" id="fogRevealBtn" title="Nebel aufdecken (nur Radierer im Nebel-Modus)" style="display:none;background:rgba(34,197,94,0.3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></button>
                         </div>
                         <div class="wb-toolbar__divider"></div>
                         <div class="wb-toolbar__group" id="drawTools">
@@ -252,6 +297,7 @@
                         </div>
                         <div class="wb-toolbar__divider"></div>
                         <div class="wb-toolbar__group" id="gmActions" style="display:none">
+                            <button class="wb-btn" id="initiativeBtn" title="Initiative Tracker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
                             <button class="wb-btn wb-btn--danger" id="clearBtn" title="Löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                         </div>
                     </div>
@@ -301,7 +347,83 @@
                 <div class="wb-overlay" id="saveOverlay"><div class="wb-modal__content"><div class="wb-modal__title">Speichern</div><input type="text" class="wb-modal__input" id="saveNameInput" placeholder="Name..."><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('saveOverlay').classList.remove('visible')">Abbrechen</button><button class="wb-upload-btn" id="saveConfirmBtn">Speichern</button></div></div></div>
                 <div class="wb-overlay" id="loadOverlay"><div class="wb-modal__content" style="min-width:450px"><div class="wb-modal__title">Laden</div><div id="savedList" style="max-height:350px;overflow-y:auto;margin-bottom:16px"></div><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('loadOverlay').classList.remove('visible')">Schließen</button></div></div></div>
                 <div class="wb-overlay" id="tokenOverlay"><div class="wb-modal__content" style="min-width:340px"><div class="wb-modal__title">Token erstellen</div><input type="text" class="wb-modal__input" id="tokenNameInput" placeholder="Name..."><div style="display:flex;gap:16px;margin-bottom:16px"><div id="tokenPortraitPreview" style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;border:3px solid #8b5cf6" title="Portrait hochladen"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><div style="flex:1"><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px">Hintergrund</div><div style="display:flex;gap:6px;flex-wrap:wrap" id="tokenColorPicker"></div></div></div><div style="margin-bottom:16px"><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px">Rahmenfarbe</div><div style="display:flex;gap:6px;flex-wrap:wrap" id="tokenBorderPicker"></div></div><input type="file" id="tokenPortraitInput" accept="image/*" style="display:none"><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('tokenOverlay').classList.remove('visible')">Abbrechen</button><button class="wb-upload-btn" id="tokenCreateBtn">Erstellen</button></div></div></div>
-                <div class="wb-context-menu" id="contextMenu"><button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button><button class="wb-context-item" data-action="front"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>Nach vorne</button><button class="wb-context-item" data-action="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>Nach hinten</button><div class="wb-context-divider"></div><button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button></div>
+                <div class="wb-context-menu" id="contextMenu"><button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button><button class="wb-context-item" data-action="front"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>Nach vorne</button><button class="wb-context-item" data-action="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>Nach hinten</button><div class="wb-context-divider"></div><button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button><button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button></div>
+                
+                <!-- Initiative Panel -->
+                <div class="wb-initiative-panel" id="initiativePanel">
+                    <div class="wb-initiative-panel__header">
+                        <span class="wb-initiative-panel__title">Initiative</span>
+                        <div class="wb-initiative-panel__controls">
+                            <button class="wb-initiative-panel__btn" id="initPrevBtn" title="Vorheriger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+                            <button class="wb-initiative-panel__btn" id="initNextBtn" title="Nächster"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+                            <button class="wb-initiative-panel__btn" id="initSortBtn" title="Sortieren"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"/></svg></button>
+                            <button class="wb-initiative-panel__btn" id="initResetBtn" title="Zurücksetzen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                        </div>
+                    </div>
+                    <div id="initiativeList"></div>
+                </div>
+                
+                <!-- Token Edit Modal -->
+                <div class="wb-overlay" id="tokenEditOverlay">
+                    <div class="wb-modal__content" style="min-width:380px">
+                        <div class="wb-modal__title">Token bearbeiten</div>
+                        <input type="text" class="wb-modal__input" id="editTokenName" placeholder="Name...">
+                        
+                        <div class="wb-token-edit">
+                            <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">HP</label>
+                                <input type="number" class="wb-token-edit__input" id="editTokenHp" placeholder="0">
+                            </div>
+                            <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">Max HP</label>
+                                <input type="number" class="wb-token-edit__input" id="editTokenMaxHp" placeholder="0">
+                            </div>
+                            <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">Initiative</label>
+                                <input type="number" class="wb-token-edit__input" id="editTokenInit" placeholder="0">
+                            </div>
+                            <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">AC / Rüstung</label>
+                                <input type="number" class="wb-token-edit__input" id="editTokenAc" placeholder="10">
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom:16px">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase">Token-Größe</div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap" id="tokenSizePresets">
+                                <button class="wb-size-preset" data-size="44" data-grid="1">Klein (1×1)</button>
+                                <button class="wb-size-preset" data-size="70" data-grid="1">Normal (1×1)</button>
+                                <button class="wb-size-preset" data-size="140" data-grid="2">Groß (2×2)</button>
+                                <button class="wb-size-preset" data-size="210" data-grid="3">Riesig (3×3)</button>
+                                <button class="wb-size-preset" data-size="280" data-grid="4">Kolossal (4×4)</button>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom:16px">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase">Status-Effekte</div>
+                            <div class="wb-status-grid" id="statusGrid">
+                                <button class="wb-status-btn" data-status="dead" title="Tot">💀</button>
+                                <button class="wb-status-btn" data-status="unconscious" title="Bewusstlos">😵</button>
+                                <button class="wb-status-btn" data-status="poisoned" title="Vergiftet">🤢</button>
+                                <button class="wb-status-btn" data-status="burning" title="Brennend">🔥</button>
+                                <button class="wb-status-btn" data-status="frozen" title="Gefroren">❄️</button>
+                                <button class="wb-status-btn" data-status="stunned" title="Betäubt">⚡</button>
+                                <button class="wb-status-btn" data-status="invisible" title="Unsichtbar">👁️</button>
+                                <button class="wb-status-btn" data-status="blessed" title="Gesegnet">✨</button>
+                                <button class="wb-status-btn" data-status="cursed" title="Verflucht">💜</button>
+                                <button class="wb-status-btn" data-status="prone" title="Liegend">🛏️</button>
+                                <button class="wb-status-btn" data-status="grappled" title="Gepackt">🤝</button>
+                                <button class="wb-status-btn" data-status="concentrating" title="Konzentriert">🎯</button>
+                            </div>
+                        </div>
+                        
+                        <div class="wb-modal__actions">
+                            <button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('tokenEditOverlay').classList.remove('visible')">Abbrechen</button>
+                            <button class="wb-upload-btn" id="tokenEditSaveBtn">Speichern</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Grid Settings Overlay -->
                 <div class="wb-overlay" id="gridOverlay">
                     <div class="wb-modal__content" style="min-width:380px">
@@ -428,6 +550,11 @@ const WB = {
     stamps: ['⚔️','🛡️','💀','👑','🗝️','💎','🔥','❄️','⚡','💧','🌟','🏰','🚪','⬆️','⬇️','⬅️','➡️','❌','✅','❓','💰','📜','🧪','🗡️','🏹','🪄','🎭','👁️','🐉','🧙'],
     selectedStamp: null, pendingTokenColor: '#8b5cf6',
     
+    // Initiative tracker
+    initiativeActive: null, // Token ID of currently active turn
+    initiativeOrder: [], // Sorted list of token IDs
+    editingToken: null, // Token being edited in modal
+    
     async init() {
         console.log('[WB] Starting...');
         this.bgCanvas = document.getElementById('bgCanvas');
@@ -468,6 +595,8 @@ const WB = {
         this.setupContextMenu();
         this.setupResizeHandles();
         this.setupFormatBar();
+        this.setupTokenEditModal();
+        this.setupInitiative();
         
         if (this.roomCode) await this.connectFirebase();
         this.render();
@@ -503,8 +632,30 @@ const WB = {
                 document.querySelectorAll('.wb-layer-tab').forEach(x => x.classList.remove('active'));
                 t.classList.add('active');
                 this.layer = t.dataset.layer;
+                // Show fog reveal hint when on fog layer
+                const revealBtn = document.getElementById('fogRevealBtn');
+                if (revealBtn) {
+                    revealBtn.style.display = (this.layer === 'fog' && this.isGM) ? 'flex' : 'none';
+                }
             };
         });
+        
+        // Fog reveal button just switches to eraser for convenience
+        const fogRevealBtn = document.getElementById('fogRevealBtn');
+        if (fogRevealBtn) {
+            fogRevealBtn.onclick = () => {
+                // Switch to fog layer and eraser tool
+                document.querySelectorAll('.wb-layer-tab').forEach(x => x.classList.remove('active'));
+                document.getElementById('fogTab').classList.add('active');
+                this.layer = 'fog';
+                
+                document.querySelectorAll('[data-tool]').forEach(x => x.classList.remove('active'));
+                document.querySelector('[data-tool="eraser"]').classList.add('active');
+                this.tool = 'eraser';
+                this.updateCursor();
+                this.toast('Nebel aufdecken: Male um Nebel zu entfernen');
+            };
+        }
         
         document.querySelectorAll('[data-tool]').forEach(b => {
             b.onclick = () => {
@@ -1477,11 +1628,36 @@ const WB = {
     },
     
     eraseLive(p) {
-        this.mainCtx.globalCompositeOperation = 'destination-out';
-        this.mainCtx.beginPath();
-        this.mainCtx.arc(p.x * this.zoom + this.panX, p.y * this.zoom + this.panY, this.size * 2, 0, Math.PI * 2);
-        this.mainCtx.fill();
-        this.mainCtx.globalCompositeOperation = 'source-over';
+        // Use fog canvas if on fog layer, otherwise main canvas
+        const ctx = this.layer === 'fog' ? this.fogCtx : this.mainCtx;
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(p.x * this.zoom + this.panX, p.y * this.zoom + this.panY, this.size * 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+    },
+    
+    // Reveal fog with shape tools (rect, circle)
+    revealFogShape(start, end) {
+        const ctx = this.fogCtx;
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'black';
+        
+        const sx = start.x * this.zoom + this.panX;
+        const sy = start.y * this.zoom + this.panY;
+        const ex = end.x * this.zoom + this.panX;
+        const ey = end.y * this.zoom + this.panY;
+        
+        ctx.beginPath();
+        if (this.tool === 'rect') {
+            ctx.fillRect(Math.min(sx, ex), Math.min(sy, ey), Math.abs(ex - sx), Math.abs(ey - sy));
+        } else if (this.tool === 'circle') {
+            const rx = Math.abs(ex - sx) / 2;
+            const ry = Math.abs(ey - sy) / 2;
+            ctx.ellipse((sx + ex) / 2, (sy + ey) / 2, rx, ry, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalCompositeOperation = 'source-over';
     },
     
     addStroke(s) {
@@ -1568,11 +1744,13 @@ const WB = {
         this.tokens.forEach((t, i) => {
             const el = document.createElement('div');
             const isSelected = this.selected?.type === 'token' && this.selected?.item === t;
+            const isActiveTurn = this.initiativeActive === t.id;
+            const isDead = t.status?.includes('dead') || (t.hp !== undefined && t.hp <= 0);
             const displaySize = t.size * this.zoom;
             const x = t.x * this.zoom + this.panX - displaySize / 2;
             const y = t.y * this.zoom + this.panY - displaySize / 2;
             
-            el.className = 'wb-token' + (isSelected ? ' selected' : '');
+            el.className = 'wb-token' + (isSelected ? ' selected' : '') + (isActiveTurn ? ' active-turn' : '') + (isDead ? ' dead' : '');
             el.style.width = displaySize + 'px';
             el.style.height = displaySize + 'px';
             el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
@@ -1580,12 +1758,45 @@ const WB = {
             el.style.borderColor = t.borderColor || '#8b5cf6';
             el.style.fontSize = (displaySize * 0.4) + 'px';
             
+            // Inner content (portrait or letter)
+            let html = '';
             if (t.img) {
-                el.innerHTML = `<img src="${t.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" draggable="false">`;
+                html += `<img src="${t.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" draggable="false">`;
             } else {
-                el.innerHTML = t.label || t.name?.charAt(0) || '?';
+                html += t.label || t.name?.charAt(0) || '?';
             }
-            el.innerHTML += `<span class="wb-token__label">${t.name || ''}</span>`;
+            
+            // HP bar (only show if maxHp > 0)
+            if (t.maxHp && t.maxHp > 0) {
+                const hpPercent = Math.max(0, Math.min(100, (t.hp / t.maxHp) * 100));
+                const hpClass = hpPercent <= 25 ? 'critical' : hpPercent <= 50 ? 'low' : '';
+                html += `<div class="wb-token__hp"><div class="wb-token__hp-fill ${hpClass}" style="width:${hpPercent}%"></div></div>`;
+            }
+            
+            // Name label (moved down if HP bar exists)
+            const labelBottom = (t.maxHp && t.maxHp > 0) ? '-28px' : '-20px';
+            html += `<span class="wb-token__label" style="bottom:${labelBottom}">${t.name || ''}</span>`;
+            
+            // Initiative badge
+            if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '') {
+                html += `<div class="wb-token__initiative">${t.initiative}</div>`;
+            }
+            
+            // Status effects
+            if (t.status && t.status.length > 0) {
+                const statusIcons = {
+                    dead: '💀', unconscious: '😵', poisoned: '🤢', burning: '🔥', 
+                    frozen: '❄️', stunned: '⚡', invisible: '👁️', blessed: '✨',
+                    cursed: '💜', prone: '🛏️', grappled: '🤝', concentrating: '🎯'
+                };
+                html += '<div class="wb-token__status">';
+                t.status.forEach(s => {
+                    if (statusIcons[s]) html += `<div class="wb-token__status-icon">${statusIcons[s]}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            el.innerHTML = html;
             el.dataset.idx = i;
             el.draggable = false;
             el.ondragstart = () => false;
@@ -1597,6 +1808,11 @@ const WB = {
                     this.isDragging = true;
                     this.lastDragPoint = this.getPoint(e);
                 }
+            };
+            el.ondblclick = e => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showTokenEditModal(t);
             };
             c.appendChild(el);
         });
@@ -1891,18 +2107,235 @@ const WB = {
             id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
             x: x ?? (this.mainCanvas.width / 2 / this.zoom - this.panX / this.zoom),
             y: y ?? (this.mainCanvas.height / 2 / this.zoom - this.panY / this.zoom),
-            size: 44, 
+            size: this.gridSize || 70, // Default to grid size for 1x1 token
             color: color || this.userColor,
             borderColor: borderColor || '#8b5cf6',
             name: name || this.userName, 
             label: (name || this.userName).charAt(0).toUpperCase(),
-            userId: this.userId
+            userId: this.userId,
+            hp: 0,
+            maxHp: 0,
+            initiative: null,
+            ac: 10,
+            status: []
         };
         if (img) t.img = img;
         this.tokens.push(t);
         this.syncToken(t);
         this.renderTokens();
+        this.renderInitiative();
         this.toast('Token: ' + t.name);
+    },
+    
+    // ==================== TOKEN EDIT MODAL ====================
+    showTokenEditModal(token) {
+        this.editingToken = token;
+        document.getElementById('editTokenName').value = token.name || '';
+        document.getElementById('editTokenHp').value = token.hp || 0;
+        document.getElementById('editTokenMaxHp').value = token.maxHp || 0;
+        document.getElementById('editTokenInit').value = token.initiative ?? '';
+        document.getElementById('editTokenAc').value = token.ac || 10;
+        
+        // Size presets
+        document.querySelectorAll('#tokenSizePresets .wb-size-preset').forEach(btn => {
+            const size = parseInt(btn.dataset.size);
+            btn.classList.toggle('active', Math.abs(token.size - size) < 10);
+        });
+        
+        // Status effects
+        document.querySelectorAll('#statusGrid .wb-status-btn').forEach(btn => {
+            const status = btn.dataset.status;
+            btn.classList.toggle('active', token.status?.includes(status));
+        });
+        
+        document.getElementById('tokenEditOverlay').classList.add('visible');
+    },
+    
+    saveTokenEdit() {
+        if (!this.editingToken) return;
+        
+        const t = this.editingToken;
+        t.name = document.getElementById('editTokenName').value || t.name;
+        t.label = t.name.charAt(0).toUpperCase();
+        t.hp = parseInt(document.getElementById('editTokenHp').value) || 0;
+        t.maxHp = parseInt(document.getElementById('editTokenMaxHp').value) || 0;
+        const initVal = document.getElementById('editTokenInit').value;
+        t.initiative = initVal === '' ? null : parseInt(initVal);
+        t.ac = parseInt(document.getElementById('editTokenAc').value) || 10;
+        
+        // Get selected size
+        const activeSize = document.querySelector('#tokenSizePresets .wb-size-preset.active');
+        if (activeSize) t.size = parseInt(activeSize.dataset.size);
+        
+        // Get active statuses
+        t.status = [];
+        document.querySelectorAll('#statusGrid .wb-status-btn.active').forEach(btn => {
+            t.status.push(btn.dataset.status);
+        });
+        
+        this.syncToken(t);
+        this.renderTokens();
+        this.renderInitiative();
+        document.getElementById('tokenEditOverlay').classList.remove('visible');
+        this.editingToken = null;
+        this.toast('Token aktualisiert');
+    },
+    
+    setupTokenEditModal() {
+        // Size presets
+        document.querySelectorAll('#tokenSizePresets .wb-size-preset').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('#tokenSizePresets .wb-size-preset').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
+        
+        // Status toggles
+        document.querySelectorAll('#statusGrid .wb-status-btn').forEach(btn => {
+            btn.onclick = () => btn.classList.toggle('active');
+        });
+        
+        // Save button
+        document.getElementById('tokenEditSaveBtn').onclick = () => this.saveTokenEdit();
+    },
+    
+    // ==================== INITIATIVE TRACKER ====================
+    setupInitiative() {
+        document.getElementById('initiativeBtn').onclick = () => {
+            document.getElementById('initiativePanel').classList.toggle('visible');
+            this.renderInitiative();
+        };
+        
+        document.getElementById('initNextBtn').onclick = () => this.nextTurn();
+        document.getElementById('initPrevBtn').onclick = () => this.prevTurn();
+        document.getElementById('initSortBtn').onclick = () => this.sortInitiative();
+        document.getElementById('initResetBtn').onclick = () => this.resetInitiative();
+    },
+    
+    renderInitiative() {
+        const list = document.getElementById('initiativeList');
+        if (!list) return;
+        
+        // Build initiative order from tokens with initiative values
+        const tokensWithInit = this.tokens
+            .filter(t => t.initiative !== null && t.initiative !== undefined)
+            .sort((a, b) => (b.initiative || 0) - (a.initiative || 0));
+        
+        list.innerHTML = '';
+        tokensWithInit.forEach(t => {
+            const isDead = t.status?.includes('dead') || (t.hp !== undefined && t.hp <= 0);
+            const isActive = this.initiativeActive === t.id;
+            
+            const item = document.createElement('div');
+            item.className = 'wb-initiative-item' + (isActive ? ' active' : '') + (isDead ? ' dead' : '');
+            item.dataset.id = t.id;
+            
+            item.innerHTML = `
+                <div class="wb-initiative-item__portrait" style="background:${t.img ? 'transparent' : t.color}">
+                    ${t.img ? `<img src="${t.img}">` : t.label || '?'}
+                </div>
+                <div class="wb-initiative-item__info">
+                    <div class="wb-initiative-item__name">${t.name || 'Token'}</div>
+                    <div class="wb-initiative-item__hp">${t.maxHp ? `HP: ${t.hp}/${t.maxHp}` : ''} ${t.ac ? `AC: ${t.ac}` : ''}</div>
+                </div>
+                <div class="wb-initiative-item__init">
+                    <input type="number" value="${t.initiative ?? ''}" style="width:100%;background:transparent;border:none;color:white;text-align:center;font-weight:700">
+                </div>
+            `;
+            
+            // Click to make active turn
+            item.onclick = e => {
+                if (e.target.tagName === 'INPUT') return;
+                this.initiativeActive = t.id;
+                this.renderTokens();
+                this.renderInitiative();
+                // Pan to token
+                this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
+                this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
+                this.startAnimation();
+            };
+            
+            // Initiative input change
+            const input = item.querySelector('input');
+            input.onchange = () => {
+                t.initiative = input.value === '' ? null : parseInt(input.value);
+                this.syncToken(t);
+                this.renderTokens();
+            };
+            input.onclick = e => e.stopPropagation();
+            
+            list.appendChild(item);
+        });
+        
+        // If no tokens with initiative, show hint
+        if (tokensWithInit.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);font-size:12px">Doppelklicke auf Token um Initiative zu setzen</div>';
+        }
+    },
+    
+    nextTurn() {
+        const tokensWithInit = this.tokens
+            .filter(t => t.initiative !== null && t.initiative !== undefined)
+            .sort((a, b) => (b.initiative || 0) - (a.initiative || 0));
+        
+        if (tokensWithInit.length === 0) return;
+        
+        const currentIdx = tokensWithInit.findIndex(t => t.id === this.initiativeActive);
+        const nextIdx = (currentIdx + 1) % tokensWithInit.length;
+        this.initiativeActive = tokensWithInit[nextIdx].id;
+        
+        // Skip dead tokens
+        const nextToken = tokensWithInit[nextIdx];
+        if (nextToken.status?.includes('dead') || (nextToken.hp !== undefined && nextToken.hp <= 0)) {
+            this.nextTurn(); // Recursive skip
+            return;
+        }
+        
+        this.renderTokens();
+        this.renderInitiative();
+        
+        // Pan to active token
+        const t = tokensWithInit[nextIdx];
+        this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
+        this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
+        this.startAnimation();
+        this.toast(`${t.name} ist dran!`);
+    },
+    
+    prevTurn() {
+        const tokensWithInit = this.tokens
+            .filter(t => t.initiative !== null && t.initiative !== undefined)
+            .sort((a, b) => (b.initiative || 0) - (a.initiative || 0));
+        
+        if (tokensWithInit.length === 0) return;
+        
+        const currentIdx = tokensWithInit.findIndex(t => t.id === this.initiativeActive);
+        const prevIdx = currentIdx <= 0 ? tokensWithInit.length - 1 : currentIdx - 1;
+        this.initiativeActive = tokensWithInit[prevIdx].id;
+        
+        this.renderTokens();
+        this.renderInitiative();
+        
+        const t = tokensWithInit[prevIdx];
+        this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
+        this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
+        this.startAnimation();
+    },
+    
+    sortInitiative() {
+        // Already sorted in renderInitiative, just re-render
+        this.renderInitiative();
+        this.toast('Initiative sortiert');
+    },
+    
+    resetInitiative() {
+        this.initiativeActive = null;
+        this.tokens.forEach(t => {
+            t.initiative = null;
+        });
+        this.renderTokens();
+        this.renderInitiative();
+        this.toast('Initiative zurückgesetzt');
     },
     
     // ==================== UPLOADS ====================
@@ -2072,9 +2505,18 @@ const WB = {
                 else if (action === 'duplicate') this.duplicateSelected();
                 else if (action === 'front') this.moveToFront();
                 else if (action === 'back') this.moveToBack();
+                else if (action === 'edit') this.editSelected();
                 document.getElementById('contextMenu').classList.remove('visible');
             };
         });
+    },
+    
+    editSelected() {
+        if (!this.selected) return;
+        const { type, item } = this.selected;
+        if (type === 'token') {
+            this.showTokenEditModal(item);
+        }
     },
     
     deleteSelected() {
@@ -2086,6 +2528,9 @@ const WB = {
             if (idx > -1) this.tokens.splice(idx, 1);
             // Delete from Firebase
             if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/tokens/' + item.id).remove();
+            // Update initiative if this token was active
+            if (this.initiativeActive === item.id) this.initiativeActive = null;
+            this.renderInitiative();
         }
         if (type === 'image') {
             const idx = this.images.indexOf(item);
@@ -2109,9 +2554,17 @@ const WB = {
         const newId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         
         if (type === 'token') {
-            const copy = { ...item, id: newId, x: item.x + 50, y: item.y + 50 };
+            const copy = { 
+                ...item, 
+                id: newId, 
+                x: item.x + 50, 
+                y: item.y + 50,
+                status: item.status ? [...item.status] : [], // Deep copy status array
+                initiative: null // Reset initiative for duplicate
+            };
             this.tokens.push(copy);
             this.syncToken(copy);
+            this.renderInitiative();
         }
         if (type === 'image') {
             const copy = { ...item, id: Date.now(), x: item.x + 50, y: item.y + 50 };
