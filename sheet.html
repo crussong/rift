@@ -87,7 +87,7 @@
         }
         
         .ruleset-tab--active {
-            background: var(--bg-card);
+            background: color-mix(in srgb, var(--tab-color, var(--accent)) 15%, var(--bg-card));
             border-color: var(--tab-color, var(--accent));
             color: white;
         }
@@ -163,11 +163,16 @@
         .ruleset-hero__cover-pattern {
             position: absolute;
             inset: 0;
-            background-image: url('assets/img/pattern-r.svg');
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: 180%;
-            opacity: 0.15;
+            opacity: 0.1;
+            background-image: 
+                linear-gradient(30deg, rgba(255,255,255,0.1) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.1) 87.5%, rgba(255,255,255,0.1)),
+                linear-gradient(150deg, rgba(255,255,255,0.1) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.1) 87.5%, rgba(255,255,255,0.1)),
+                linear-gradient(30deg, rgba(255,255,255,0.1) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.1) 87.5%, rgba(255,255,255,0.1)),
+                linear-gradient(150deg, rgba(255,255,255,0.1) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.1) 87.5%, rgba(255,255,255,0.1)),
+                linear-gradient(60deg, rgba(255,255,255,0.08) 25%, transparent 25.5%, transparent 75%, rgba(255,255,255,0.08) 75%, rgba(255,255,255,0.08)),
+                linear-gradient(60deg, rgba(255,255,255,0.08) 25%, transparent 25.5%, transparent 75%, rgba(255,255,255,0.08) 75%, rgba(255,255,255,0.08));
+            background-size: 40px 70px;
+            background-position: 0 0, 0 0, 20px 35px, 20px 35px, 0 0, 20px 35px;
         }
         
         .ruleset-hero__cover-icon {
@@ -258,6 +263,25 @@
             letter-spacing: 0.5px;
         }
         
+        .ruleset-hero__slots {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .ruleset-hero__slot {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
+        }
+        
+        .ruleset-hero__slot--filled {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        
         .ruleset-hero__actions {
             margin-top: auto;
             display: flex;
@@ -340,14 +364,6 @@
         
         .sheet-section__title svg {
             color: var(--accent);
-        }
-        
-        .sheet-section__count {
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-dim);
-            margin-left: 8px;
         }
         
         /* Character Grid */
@@ -546,19 +562,28 @@
         .char-card--empty {
             border-style: solid;
             border-color: var(--border);
-            opacity: 0.5;
+            opacity: 0.4;
             min-height: 88px;
         }
         
-        .char-card--empty:hover {
+        .char-card--empty.char-card--clickable {
+            cursor: pointer;
+            opacity: 0.5;
+        }
+        
+        .char-card--empty.char-card--clickable:hover {
             opacity: 0.8;
             border-color: var(--accent);
             background: var(--red-dim);
         }
         
-        .char-card--empty:hover .char-card__portrait {
+        .char-card--empty.char-card--clickable:hover .char-card__portrait {
             color: var(--accent);
             border-color: var(--accent);
+        }
+        
+        .char-card--empty:not(.char-card--clickable) {
+            cursor: default;
         }
         
         .char-card__empty-text {
@@ -573,26 +598,6 @@
         
         .char-card__empty-text span {
             font-size: 12px;
-        }
-        
-        /* Limit Reached */
-        .char-card--limit {
-            cursor: not-allowed;
-        }
-        
-        .char-card--limit:hover {
-            border-color: rgba(255, 193, 7, 0.3);
-            background: rgba(255, 193, 7, 0.05);
-            opacity: 0.6;
-        }
-        
-        .char-card--limit .char-card__portrait {
-            color: #FFC107;
-            border-color: rgba(255, 193, 7, 0.3);
-        }
-        
-        .char-card--limit .char-card__empty-text strong {
-            color: #FFC107;
         }
         
         /* ========================================
@@ -706,7 +711,6 @@
                                     <path d="M12 11C14.21 11 16 9.21 16 7S14.21 3 12 3 8 4.79 8 7 9.79 11 12 11Z"/>
                                 </svg>
                                 Deine Charaktere
-                                <span class="sheet-section__count" id="charCount">0 / 3</span>
                             </h2>
                         </div>
                         <div class="char-grid" id="charGrid">
@@ -814,6 +818,25 @@
             const count = chars.length;
             const canCreate = count < MAX_CHARS;
             
+            // Get last played date
+            let lastPlayedText = '–';
+            if (chars.length > 0) {
+                const sortedByPlayed = [...chars].sort((a, b) => 
+                    new Date(b.lastPlayed || 0) - new Date(a.lastPlayed || 0)
+                );
+                if (sortedByPlayed[0]?.lastPlayed) {
+                    const date = new Date(sortedByPlayed[0].lastPlayed);
+                    lastPlayedText = date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+                }
+            }
+            
+            // Build slot indicators
+            let slotsHtml = '';
+            for (let i = 0; i < MAX_CHARS; i++) {
+                const filled = i < count;
+                slotsHtml += `<div class="ruleset-hero__slot ${filled ? 'ruleset-hero__slot--filled' : ''}"></div>`;
+            }
+            
             const hero = document.getElementById('rulesetHero');
             hero.innerHTML = `
                 <div class="ruleset-hero__cover">
@@ -832,12 +855,12 @@
                     <p class="ruleset-hero__subtitle">${config.subtitle}</p>
                     <div class="ruleset-hero__stats">
                         <div class="ruleset-hero__stat">
-                            <span class="ruleset-hero__stat-value">${count}</span>
-                            <span class="ruleset-hero__stat-label">Charaktere</span>
+                            <div class="ruleset-hero__slots">${slotsHtml}</div>
+                            <span class="ruleset-hero__stat-label">${count} von ${MAX_CHARS} Slots</span>
                         </div>
                         <div class="ruleset-hero__stat">
-                            <span class="ruleset-hero__stat-value">${MAX_CHARS - count}</span>
-                            <span class="ruleset-hero__stat-label">Verfügbar</span>
+                            <span class="ruleset-hero__stat-value">${lastPlayedText}</span>
+                            <span class="ruleset-hero__stat-label">Zuletzt gespielt</span>
                         </div>
                     </div>
                     <div class="ruleset-hero__actions">
@@ -859,9 +882,6 @@
         function renderCharacters() {
             const chars = CharacterStorage.getByRuleset(currentRuleset);
             const count = chars.length;
-            
-            // Update count display
-            document.getElementById('charCount').textContent = `${count} / ${MAX_CHARS}`;
             
             // Sort: Main first, then by lastPlayed
             chars.sort((a, b) => {
@@ -951,38 +971,23 @@
         
         // Render empty slot
         function renderEmptySlot(isClickable) {
-            if (isClickable) {
-                return `
-                    <div class="char-card char-card--empty" onclick="createCharacter()">
-                        <div class="char-card__portrait">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
-                                <line x1="12" y1="5" x2="12" y2="19"/>
-                                <line x1="5" y1="12" x2="19" y2="12"/>
-                            </svg>
-                        </div>
-                        <div class="char-card__empty-text">
-                            <strong>Freier Platz</strong>
-                            <span>Klicken zum Erstellen</span>
-                        </div>
+            const clickableClass = isClickable ? 'char-card--clickable' : '';
+            const onclick = isClickable ? 'onclick="createCharacter()"' : '';
+            
+            return `
+                <div class="char-card char-card--empty ${clickableClass}" ${onclick}>
+                    <div class="char-card__portrait">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
                     </div>
-                `;
-            } else {
-                return `
-                    <div class="char-card char-card--empty char-card--limit">
-                        <div class="char-card__portrait">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                        </div>
-                        <div class="char-card__empty-text">
-                            <strong>Reserviert</strong>
-                            <span>Slot ${MAX_CHARS}</span>
-                        </div>
+                    <div class="char-card__empty-text">
+                        <strong>Freier Platz</strong>
+                        <span>${isClickable ? 'Klicken zum Erstellen' : 'Slot verfügbar'}</span>
                     </div>
-                `;
-            }
+                </div>
+            `;
         }
         
         // Actions
