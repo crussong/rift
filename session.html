@@ -4424,18 +4424,7 @@
         async function saveSession() {
             if (!sessionData) return;
             
-            // Try Firebase first
-            if (currentRoomCode && RIFT?.rooms?.updateSession) {
-                try {
-                    await RIFT.rooms.updateSession(currentRoomCode, sessionData.id, sessionData);
-                    console.log('[Session] Saved to Firebase');
-                    return;
-                } catch (err) {
-                    console.error('[Session] Firebase save failed:', err);
-                }
-            }
-            
-            // Fallback to localStorage
+            // Always save to localStorage first
             const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
             const index = sessions.findIndex(s => s.id === sessionData.id);
             if (index >= 0) {
@@ -4444,6 +4433,17 @@
                 sessions.push(sessionData);
             }
             localStorage.setItem('rift_sessions', JSON.stringify(sessions));
+            console.log('[Session] Saved to localStorage, status:', sessionData.status);
+            
+            // Also try Firebase if available
+            if (currentRoomCode && RIFT?.rooms?.updateSession) {
+                try {
+                    await RIFT.rooms.updateSession(currentRoomCode, sessionData.id, sessionData);
+                    console.log('[Session] Also saved to Firebase');
+                } catch (err) {
+                    console.error('[Session] Firebase save failed:', err);
+                }
+            }
         }
         
         // Cleanup on page unload

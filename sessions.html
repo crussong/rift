@@ -1877,21 +1877,31 @@
             
             console.log('[Sessions] Loading sessions, roomCode:', currentRoomCode, 'userId:', currentUserId);
             console.log('[Sessions] Total sessions in storage:', allSessions.length);
+            allSessions.forEach(s => console.log('[Sessions] Session:', s.id, s.name, 'status:', s.status, 'roomCode:', s.roomCode, 'ownerId:', s.ownerId));
             
             // Filter sessions for current room AND/OR current user
             const sessions = allSessions.filter(s => {
-                // If we have a room code, filter by room
-                if (currentRoomCode) {
-                    return s.roomCode === currentRoomCode;
+                // If no filtering criteria, show all sessions
+                if (!currentRoomCode && !currentUserId) {
+                    return true;
                 }
                 
-                // If no room code, show only sessions without room OR owned by current user
-                if (currentUserId) {
-                    return (!s.roomCode && s.ownerId === currentUserId) || s.ownerId === currentUserId;
+                // Always show sessions owned by current user
+                if (currentUserId && s.ownerId === currentUserId) {
+                    return true;
                 }
                 
-                // Fallback: show sessions without room code
-                return !s.roomCode;
+                // If we have a room code, also show sessions for this room
+                if (currentRoomCode && s.roomCode === currentRoomCode) {
+                    return true;
+                }
+                
+                // If no room code, show sessions without room code
+                if (!currentRoomCode && !s.roomCode) {
+                    return true;
+                }
+                
+                return false;
             });
             
             console.log('[Sessions] Filtered sessions:', sessions.length);
