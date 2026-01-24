@@ -8,8 +8,14 @@ const CharacterStorage = {
     // Storage key prefix for localStorage cache
     STORAGE_KEY: 'rift_characters',
     
+    // Main character storage key
+    MAIN_CHAR_KEY: 'rift_main_characters',
+    
     // Firebase collection name
     COLLECTION: 'characters',
+    
+    // Maximum characters per ruleset
+    MAX_PER_RULESET: 3,
     
     // Get Firestore instance
     getFirestore() {
@@ -246,9 +252,20 @@ const CharacterStorage = {
     save(character) {
         try {
             // Ensure ID exists
-            if (!character.id || character.id === null || character.id === '') {
+            const isNewCharacter = !character.id || character.id === null || character.id === '';
+            
+            if (isNewCharacter) {
                 character.id = this.generateId();
                 console.log('[CharacterStorage] Generated new ID:', character.id);
+                
+                // Check limit for new characters
+                if (character.ruleset) {
+                    const existing = this.getByRuleset(character.ruleset);
+                    if (existing.length >= this.MAX_PER_RULESET) {
+                        console.warn('[CharacterStorage] Limit reached for ruleset:', character.ruleset);
+                        throw new Error(`Maximale Anzahl von ${this.MAX_PER_RULESET} Charakteren für dieses Regelwerk erreicht!`);
+                    }
+                }
             }
             
             // Add timestamps
@@ -326,9 +343,14 @@ const CharacterStorage = {
             
             const charDoc = await charRef.get();
             
+            // Get owner name for GM view (Multi-Character Support)
+            const currentUser = firebase?.auth?.()?.currentUser;
+            const ownerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Spieler';
+            
             const roomCharData = {
                 id: character.id,
                 ownerId: userId,
+                ownerName: ownerName,
                 name: character.name || 'Unbenannt',
                 ruleset: character.ruleset,
                 class: character.class || '',
@@ -589,9 +611,126 @@ const CharacterStorage = {
         console.log('[CharacterStorage] Demo characters disabled');
     },
     
+    // ========================================
+    // MAIN CHARACTER SYSTEM
+    // ========================================
+    
+    // Get all main characters (returns { ruleset: charId })
+    getMainCharacters() {
+        try {
+            const data = localStorage.getItem(this.MAIN_CHAR_KEY);
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            console.error('[CharacterStorage] Error loading main characters:', e);
+            return {};
+        }
+    },
+    
+    // Get main character for a specific ruleset
+    getMainCharacter(ruleset) {
+        const mains = this.getMainCharacters();
+        const charId = mains[ruleset];
+        
+        if (!charId) {
+            // No main set - return first character of ruleset as default
+            const chars = this.getByRuleset(ruleset);
+            return chars.length > 0 ? chars[0] : null;
+        }
+        
+        // Get the actual character
+        const char = this.getById(charId);
+        
+        // If main character was deleted, return first available
+        if (!char) {
+            const chars = this.getByRuleset(ruleset);
+            if (chars.length > 0) {
+                // Auto-fix: set first as new main
+                this.setMainCharacter(chars[0].id, ruleset);
+                return chars[0];
+            }
+            return null;
+        }
+        
+        return char;
+    },
+    
+    // Set a character as main for its ruleset
+    setMainCharacter(charId, ruleset = null) {
+        try {
+            // Get character to verify it exists and get ruleset
+            const char = this.getById(charId);
+            if (!char) {
+                console.error('[CharacterStorage] Cannot set main: character not found:', charId);
+                return false;
+            }
+            
+            const targetRuleset = ruleset || char.ruleset;
+            if (!targetRuleset) {
+                console.error('[CharacterStorage] Cannot set main: no ruleset');
+                return false;
+            }
+            
+            // Update main characters
+            const mains = this.getMainCharacters();
+            mains[targetRuleset] = charId;
+            localStorage.setItem(this.MAIN_CHAR_KEY, JSON.stringify(mains));
+            
+            console.log('[CharacterStorage] Set main character:', charId, 'for ruleset:', targetRuleset);
+            
+            // Sync to Firebase user profile
+            this.syncMainCharacterToFirebase(targetRuleset, charId);
+            
+            return true;
+        } catch (e) {
+            console.error('[CharacterStorage] Error setting main character:', e);
+            return false;
+        }
+    },
+    
+    // Check if a character is the main for its ruleset
+    isMainCharacter(charId) {
+        const char = this.getById(charId);
+        if (!char || !char.ruleset) return false;
+        
+        const mains = this.getMainCharacters();
+        return mains[char.ruleset] === charId;
+    },
+    
+    // Sync main character to Firebase
+    async syncMainCharacterToFirebase(ruleset, charId) {
+        const db = this.getFirestore();
+        const userId = this.getUserId();
+        
+        if (!db || !userId) return;
+        
+        try {
+            const userRef = db.collection('users').doc(userId);
+            await userRef.set({
+                mainCharacters: {
+                    [ruleset]: charId
+                }
+            }, { merge: true });
+            
+            console.log('[CharacterStorage] Synced main character to Firebase');
+        } catch (e) {
+            console.warn('[CharacterStorage] Failed to sync main character:', e);
+        }
+    },
+    
+    // Get count of characters for a ruleset
+    getCountForRuleset(ruleset) {
+        return this.getByRuleset(ruleset).length;
+    },
+    
+    // Check if user can create more characters for a ruleset
+    canCreateCharacter(ruleset) {
+        return this.getCountForRuleset(ruleset) < this.MAX_PER_RULESET;
+    },
+    
     // Clear all data (dangerous!)
     clearAll() {
         localStorage.removeItem(this.STORAGE_KEY);
+        localStorage.removeItem(this.MAIN_CHAR_KEY);
         console.log('[CharacterStorage] All local characters deleted');
         // Note: Does NOT delete from Firebase for safety
     }
