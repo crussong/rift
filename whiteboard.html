@@ -2645,10 +2645,41 @@ const WB = {
     },
     
     clearAll() {
-        this.strokes = []; this.images = []; this.tokens = []; this.fogAreas = [];
-        this.bgImage = null; this.history = []; this.historyIdx = -1;
+        // Set flag to prevent listeners from re-adding data
+        this.isClearing = true;
+        
+        // Clear local state
+        this.strokes = []; 
+        this.images = []; 
+        this.tokens = []; 
+        this.fogAreas = [];
+        this.bgImage = null; 
+        this.history = []; 
+        this.historyIdx = -1;
+        this.initiativeActive = null;
+        this.initiativeOrder = [];
         this.deselect();
         this.render();
+        this.renderInitiativePanel();
+        
+        // Clear Firebase data for this room
+        if (this.db && this.roomCode) {
+            this.db.ref('whiteboard/' + this.roomCode).set(null)
+                .then(() => {
+                    console.log('[WB] Firebase cleared for room:', this.roomCode);
+                    // Reset flag after successful clear
+                    setTimeout(() => {
+                        this.isClearing = false;
+                    }, 500);
+                })
+                .catch(err => {
+                    console.error('[WB] Error clearing Firebase:', err);
+                    this.isClearing = false;
+                });
+        } else {
+            this.isClearing = false;
+        }
+        
         this.toast('Alles gelöscht');
     },
     
@@ -2715,6 +2746,9 @@ const WB = {
     },
     
     // ==================== FIREBASE ====================
+    firebaseListeners: [], // Track listeners for cleanup
+    isClearing: false, // Flag to prevent re-adding during clear
+    
     async connectFirebase() {
         try {
             this.db = firebase.database();
@@ -2726,35 +2760,103 @@ const WB = {
                 this.render();
             }
             
-            this.db.ref('whiteboard/' + this.roomCode + '/strokes').on('child_added', snap => {
-                const s = snap.val();
-                if (s && s.userId !== this.userId && !this.strokes.find(x => x.id === s.id)) {
-                    this.strokes.push(s);
-                    this.render();
-                }
-            });
-            
-            this.db.ref('whiteboard/' + this.roomCode + '/tokens').on('value', snap => {
-                const tokens = snap.val();
-                if (tokens) {
-                    Object.values(tokens).forEach(rt => {
-                        const existing = this.tokens.find(t => t.id === rt.id);
-                        if (existing) { if (rt.userId !== this.userId) Object.assign(existing, rt); }
-                        else this.tokens.push(rt);
-                    });
-                    this.renderTokens();
-                }
-            });
-            
-            this.db.ref('whiteboard/' + this.roomCode + '/pings').on('child_added', snap => {
-                const p = snap.val();
-                if (p && p.userId !== this.userId && Date.now() - p.ts < 3000) this.showRemotePing(p);
-            });
+            // Setup listeners and track them
+            this.setupFirebaseListeners();
             
             console.log('[WB] Firebase connected');
         } catch (err) {
             console.error('[WB] Firebase error:', err);
         }
+    },
+    
+    setupFirebaseListeners() {
+        if (!this.db || !this.roomCode) return;
+        
+        // Clear existing listeners first
+        this.detachFirebaseListeners();
+        
+        const strokesRef = this.db.ref('whiteboard/' + this.roomCode + '/strokes');
+        const tokensRef = this.db.ref('whiteboard/' + this.roomCode + '/tokens');
+        const pingsRef = this.db.ref('whiteboard/' + this.roomCode + '/pings');
+        
+        // Strokes: child_added
+        strokesRef.on('child_added', snap => {
+            if (this.isClearing) return;
+            const s = snap.val();
+            if (s && s.userId !== this.userId && !this.strokes.find(x => x.id === s.id)) {
+                this.strokes.push(s);
+                this.render();
+            }
+        });
+        
+        // Strokes: child_removed - NEW!
+        strokesRef.on('child_removed', snap => {
+            const s = snap.val();
+            if (s) {
+                const idx = this.strokes.findIndex(x => x.id === s.id);
+                if (idx !== -1) {
+                    this.strokes.splice(idx, 1);
+                    this.render();
+                }
+            }
+        });
+        
+        // Tokens: value listener with proper null handling
+        tokensRef.on('value', snap => {
+            if (this.isClearing) return;
+            const tokens = snap.val();
+            
+            if (!tokens) {
+                // Firebase cleared - sync local state
+                if (this.tokens.length > 0) {
+                    this.tokens = [];
+                    this.renderTokens();
+                    console.log('[WB] Tokens cleared from remote');
+                }
+                return;
+            }
+            
+            // Get remote token IDs
+            const remoteIds = Object.keys(tokens);
+            
+            // Remove tokens that no longer exist remotely
+            this.tokens = this.tokens.filter(t => {
+                if (t.userId === this.userId) return true; // Keep own tokens
+                return remoteIds.includes(t.id);
+            });
+            
+            // Add/update remote tokens
+            Object.values(tokens).forEach(rt => {
+                const existing = this.tokens.find(t => t.id === rt.id);
+                if (existing) { 
+                    if (rt.userId !== this.userId) Object.assign(existing, rt); 
+                } else {
+                    this.tokens.push(rt);
+                }
+            });
+            this.renderTokens();
+        });
+        
+        // Pings
+        pingsRef.on('child_added', snap => {
+            const p = snap.val();
+            if (p && p.userId !== this.userId && Date.now() - p.ts < 3000) this.showRemotePing(p);
+        });
+        
+        // Track refs for cleanup
+        this.firebaseListeners = [
+            { ref: strokesRef, event: 'child_added' },
+            { ref: strokesRef, event: 'child_removed' },
+            { ref: tokensRef, event: 'value' },
+            { ref: pingsRef, event: 'child_added' }
+        ];
+    },
+    
+    detachFirebaseListeners() {
+        this.firebaseListeners.forEach(l => {
+            try { l.ref.off(l.event); } catch(e) {}
+        });
+        this.firebaseListeners = [];
     },
     
     syncStroke(s) { if (!this.db || !this.roomCode) return; this.db.ref('whiteboard/' + this.roomCode + '/strokes/' + s.id).set(s); },
