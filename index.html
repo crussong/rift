@@ -996,7 +996,7 @@
             if (sessionsUnsubscribe) sessionsUnsubscribe();
         });
         
-        function loadDashboardData() {
+        async function loadDashboardData() {
             // Use Firebase sessions (already filtered by room)
             const sessions = firebaseSessions;
             
@@ -1180,66 +1180,46 @@
                             classEl.style.display = 'none';
                         }
                         
-                        // LP & Moral Stats - Support verschiedene Datenstrukturen
-                        // Worlds Apart: status.lp, status.moral oder lp.current, moral.current
-                        // D&D: hp.current, hp.max
-                        let lpValue = null;
-                        let lpMax = null;
-                        let moralValue = null;
-                        let moralMax = null;
-                        
-                        // LP Varianten
-                        if (selectedChar.status?.lp !== undefined) {
-                            lpValue = selectedChar.status.lp;
-                            lpMax = selectedChar.status.lpMax || 100;
-                        } else if (selectedChar.lp?.current !== undefined) {
-                            lpValue = selectedChar.lp.current;
-                            lpMax = selectedChar.lp.max || 100;
-                        } else if (selectedChar.hp?.current !== undefined) {
-                            lpValue = selectedChar.hp.current;
-                            lpMax = selectedChar.hp.max || selectedChar.hp.current;
-                        } else if (typeof selectedChar.lp === 'number') {
-                            lpValue = selectedChar.lp;
-                            lpMax = selectedChar.lpMax || 100;
-                        } else if (typeof selectedChar.hp === 'number') {
-                            lpValue = selectedChar.hp;
-                            lpMax = selectedChar.maxHp || selectedChar.hp;
-                        }
-                        
-                        // Moral Varianten
-                        if (selectedChar.status?.moral !== undefined) {
-                            moralValue = selectedChar.status.moral;
-                            moralMax = selectedChar.status.moralMax || 100;
-                        } else if (selectedChar.moral?.current !== undefined) {
-                            moralValue = selectedChar.moral.current;
-                            moralMax = selectedChar.moral.max || 100;
-                        } else if (typeof selectedChar.moral === 'number') {
-                            moralValue = selectedChar.moral;
-                            moralMax = selectedChar.moralMax || 100;
-                        }
-                        
-                        const statsEl = document.getElementById('characterHeroStats');
+                        // LP & Moral Stats - Load from Firebase
                         const lpBarEl = document.getElementById('characterHeroLpBar');
                         const lpValueEl = document.getElementById('characterHeroLpValue');
                         const moralBarEl = document.getElementById('characterHeroMoralBar');
                         const moralValueEl = document.getElementById('characterHeroMoralValue');
                         
-                        if (lpValue !== null && lpMax !== null) {
-                            const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
-                            lpBarEl.style.width = `${lpPercent}%`;
-                            lpValueEl.textContent = `${lpValue}`;
-                        } else {
-                            lpValueEl.textContent = '--';
-                            lpBarEl.style.width = '0%';
-                        }
-                        
-                        if (moralValue !== null && moralMax !== null) {
-                            const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
-                            moralBarEl.style.width = `${moralPercent}%`;
-                            moralValueEl.textContent = `${moralValue}`;
-                        } else {
-                            moralValueEl.textContent = '--';
-                            moralBarEl.style.width = '0%';
+                        // Try to load status from Firebase
+                        const roomCode = heroSession.roomCode || localStorage.getItem('rift_current_room');
+                        if (roomCode && selectedChar.id && typeof firebase !== 'undefined') {
+                            try {
+                                const charRef = firebase.database().ref(`rooms/${roomCode}/characters/${selectedChar.id}`);
+                                const snap = await charRef.once('value');
+                                const fbChar = snap.val();
+                                
+                                console.log('[Hub] Firebase character data:', fbChar);
+                                
+                                if (fbChar) {
+                                    // Health/LP
+                                    let lpValue = fbChar.status?.health ?? fbChar.health ?? null;
+                                    let lpMax = fbChar.status?.healthMax ?? 100;
+                                    
+                                    // Moral
+                                    let moralValue = fbChar.status?.moral ?? fbChar.moral ?? null;
+                                    let moralMax = fbChar.status?.moralMax ?? 100;
+                                    
+                                    if (lpValue !== null) {
+                                        const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
+                                        lpBarEl.style.width = `${lpPercent}%`;
+                                        lpValueEl.textContent = `${lpValue}`;
+                                    }
+                                    
+                                    if (moralValue !== null) {
+                                        const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
+                                        moralBarEl.style.width = `${moralPercent}%`;
+                                        moralValueEl.textContent = `${moralValue}`;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('[Hub] Could not load character stats from Firebase:', e);
+                            }
                         }
                     } else {
                         characterHeroCard.style.display = 'none';
