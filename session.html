@@ -1639,6 +1639,34 @@
             transform: translateX(4px);
         }
         
+        /* Assigned character state */
+        .char-select-item--assigned {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+        
+        .char-select-item__badge {
+            display: inline-block;
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        
+        /* Main character state */
+        .char-select-item--main {
+            background: rgba(255, 193, 7, 0.08);
+            border-color: rgba(255, 193, 7, 0.4);
+        }
+        
+        .char-select-item--main:hover {
+            border-color: #FFC107;
+        }
+        
+        .char-select-item__badge--main {
+            color: #FFC107;
+        }
+        
         /* Footer */
         .settings-modal__footer {
             display: flex;
@@ -3603,10 +3631,65 @@
             modal.classList.add('settings-modal--open');
             document.body.style.overflow = 'hidden';
             
-            // Get characters for this ruleset
-            const characters = getCharactersForRuleset(sessionData?.ruleset);
+            // Get characters for this ruleset from localStorage
+            let characters = getCharactersForRuleset(sessionData?.ruleset);
             const list = document.getElementById('charSelectList');
             const empty = document.getElementById('charSelectEmpty');
+            
+            // Get current user's assigned character
+            const currentUserId = firebase?.auth()?.currentUser?.uid;
+            const assignedChar = (sessionData?.partyCharacters || []).find(c => c.ownerId === currentUserId);
+            const assignedCharId = assignedChar?.id;
+            
+            // Also try to get Room Characters for this user (Multi-Char Support)
+            // This is async, so we render first then update
+            if (currentRoomCode && typeof RIFT !== 'undefined' && RIFT.rooms?.getPlayerCharacters) {
+                RIFT.rooms.getPlayerCharacters(currentRoomCode, currentUserId).then(roomChars => {
+                    if (roomChars && roomChars.length > 0) {
+                        // Filter for matching ruleset
+                        const matchingRoomChars = roomChars.filter(c => c.ruleset === sessionData?.ruleset);
+                        
+                        // Merge with localStorage chars (avoid duplicates by ID)
+                        const existingIds = new Set(characters.map(c => c.id));
+                        matchingRoomChars.forEach(rc => {
+                            if (!existingIds.has(rc.id)) {
+                                characters.push({
+                                    id: rc.id,
+                                    name: rc.name || 'Unbenannt',
+                                    class: rc.class || rc.data?.role || '',
+                                    level: rc.level || rc.data?.level || 1,
+                                    portrait: rc.portrait || rc.data?.portrait || null,
+                                    avatar: rc.portrait || rc.data?.portrait || null,
+                                    color: '#8B5CF6',
+                                    ruleset: rc.ruleset,
+                                    data: rc.data,
+                                    fromRoom: true // Mark as from room
+                                });
+                            }
+                        });
+                        
+                        // Re-render if we found more characters
+                        if (matchingRoomChars.length > 0) {
+                            renderCharacterSelectList(characters, assignedCharId);
+                        }
+                    }
+                }).catch(e => {
+                    console.warn('[Session] Could not load Room characters:', e);
+                });
+            }
+            
+            // Initial render with localStorage characters
+            renderCharacterSelectList(characters, assignedCharId);
+        }
+        
+        function renderCharacterSelectList(characters, assignedCharId) {
+            const list = document.getElementById('charSelectList');
+            const empty = document.getElementById('charSelectEmpty');
+            
+            // Get main character for this ruleset
+            const mainCharId = typeof CharacterStorage !== 'undefined' 
+                ? CharacterStorage.getMainCharacters()[sessionData?.ruleset]
+                : null;
             
             if (characters.length === 0) {
                 list.style.display = 'none';
@@ -3615,20 +3698,35 @@
                 list.style.display = 'flex';
                 empty.style.display = 'none';
                 
-                list.innerHTML = characters.map(char => `
-                    <div class="char-select-item" onclick="selectCharacterForSession('${char.id}')">
+                // Sort: main character first, then assigned, then others
+                const sortedChars = [...characters].sort((a, b) => {
+                    if (a.id === mainCharId) return -1;
+                    if (b.id === mainCharId) return 1;
+                    if (a.id === assignedCharId) return -1;
+                    if (b.id === assignedCharId) return 1;
+                    return 0;
+                });
+                
+                list.innerHTML = sortedChars.map(char => {
+                    const isAssigned = char.id === assignedCharId;
+                    const isMain = char.id === mainCharId;
+                    return `
+                    <div class="char-select-item ${isAssigned ? 'char-select-item--assigned' : ''} ${isMain ? 'char-select-item--main' : ''}" onclick="selectCharacterForSession('${char.id}')">
                         <div class="char-select-item__avatar" style="background-color: ${char.color || '#FF4655'}20; border-color: ${char.color || '#FF4655'}; color: ${char.color || '#FF4655'};">
                             ${char.avatar ? `<img src="${char.avatar}" alt="">` : char.name?.charAt(0).toUpperCase()}
                         </div>
                         <div class="char-select-item__info">
-                            <strong>${char.name || 'Unbenannt'}</strong>
-                            <span>${char.class || char.profession || 'Charakter'} ${char.level ? `• Level ${char.level}` : ''}</span>
+                            <strong>${isMain ? '★ ' : ''}${char.name || 'Unbenannt'}</strong>
+                            <span>${char.class || char.profession || char.data?.role || 'Charakter'} ${char.level ? `• Level ${char.level}` : ''}</span>
+                            ${isMain && !isAssigned ? '<span class="char-select-item__badge char-select-item__badge--main">★ Hauptcharakter</span>' : ''}
+                            ${isAssigned ? '<span class="char-select-item__badge">✓ Aktuell zugewiesen</span>' : ''}
                         </div>
                         <svg class="char-select-item__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="9 18 15 12 9 6"/>
                         </svg>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             }
         }
         
@@ -3638,15 +3736,86 @@
             document.body.style.overflow = '';
         }
         
-        function selectCharacterForSession(charId) {
-            // TODO: Implement character assignment to session
-            // This would typically update the session's partyCharacters array
-            if (window.RIFT?.ui?.Toast) {
-                RIFT.ui.Toast.success('Charakter zugewiesen!');
+        async function selectCharacterForSession(charId) {
+            if (!sessionData || !charId) return;
+            
+            // Get character data from localStorage
+            const characters = getCharactersForRuleset(sessionData.ruleset);
+            const selectedChar = characters.find(c => c.id === charId);
+            
+            if (!selectedChar) {
+                RIFT?.ui?.Toast?.error('Charakter nicht gefunden');
+                return;
             }
+            
+            // Get current user info
+            const currentUser = firebase?.auth()?.currentUser;
+            const userId = currentUser?.uid;
+            const userName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Spieler';
+            
+            if (!userId) {
+                RIFT?.ui?.Toast?.error('Nicht angemeldet');
+                return;
+            }
+            
+            // Build party character entry
+            const partyChar = {
+                id: charId,
+                name: selectedChar.name || 'Unbenannt',
+                class: selectedChar.class || selectedChar.profession || selectedChar.data?.role || 'Abenteurer',
+                level: selectedChar.level || 1,
+                portrait: selectedChar.portrait || selectedChar.avatar || null,
+                color: selectedChar.color || '#8B5CF6',
+                hp: selectedChar.data?.status?.health || selectedChar.data?.health?.current || 100,
+                maxHp: selectedChar.data?.status?.maxHealth || selectedChar.data?.health?.max || 100,
+                playerId: userId,
+                playerName: userName,
+                ownerId: userId,
+                assignedAt: Date.now()
+            };
+            
+            // Remove any existing character from this user (replace mode)
+            // or allow multiple (uncomment the filter to enable replace mode)
+            sessionData.partyCharacters = (sessionData.partyCharacters || [])
+                .filter(c => c.ownerId !== userId); // Replace existing char from same user
+            
+            // Add new character
+            sessionData.partyCharacters.push(partyChar);
+            
+            // Track active character for this user in this session
+            const activeChars = JSON.parse(localStorage.getItem('rift_active_chars') || '{}');
+            activeChars[sessionData.id] = charId;
+            localStorage.setItem('rift_active_chars', JSON.stringify(activeChars));
+            
+            // Save to Firebase
+            await saveSession();
+            
+            // Also sync to Room system for Multi-Character Support
+            if (currentRoomCode && typeof RIFT !== 'undefined' && RIFT.rooms) {
+                try {
+                    // 1. Sync character to room (if not already there)
+                    if (typeof CharacterStorage !== 'undefined') {
+                        await CharacterStorage.syncToRoom(selectedChar);
+                    }
+                    
+                    // 2. Set as active character for this user in the room
+                    await RIFT.rooms.assignCharacterToMember(currentRoomCode, userId, charId);
+                    console.log('[Session] Character assigned in Room Members:', charId);
+                } catch (e) {
+                    console.warn('[Session] Room sync failed (non-critical):', e);
+                }
+            }
+            
+            // Re-render party section
+            renderSession();
+            
+            // Show success
+            RIFT?.ui?.Toast?.success(`${selectedChar.name} zugewiesen!`);
+            
+            // Close modal
             closeCharacterSelectModal();
-            // For now, just close the modal
-            // Full implementation would sync with Firebase
+            
+            console.log('[Session] Character assigned:', charId, 'for user:', userId);
         }
         
         // Character Select Modal Event Listeners

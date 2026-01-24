@@ -587,6 +587,7 @@
     <script src="assets/js/firebase-config.js"></script>
     <script src="assets/js/room-service.js"></script>
     <script src="assets/js/user-service.js"></script>
+    <script src="assets/js/character-storage.js"></script>
     
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/ui.js"></script>
@@ -1151,10 +1152,29 @@
                     const heroSession = sessions.find(s => s.status !== 'ended') || sessions[0];
                     const ruleset = rulesetConfig[heroSession.ruleset] || rulesetConfig['worldsapart'];
                     
-                    // Find selected character for this session
-                    const selectedChar = heroSession.selectedCharacterId 
-                        ? characters.find(c => c.id === heroSession.selectedCharacterId)
-                        : characters.find(c => c.sessionId === heroSession.id) || characters[0];
+                    // Find Main Character for this session's ruleset (Multi-Char Support)
+                    let selectedChar = null;
+                    
+                    // 1. Try Main Character from CharacterStorage
+                    if (typeof CharacterStorage !== 'undefined') {
+                        selectedChar = CharacterStorage.getMainCharacter(heroSession.ruleset);
+                        console.log('[Hub] Main character for', heroSession.ruleset, ':', selectedChar?.name || 'none');
+                    }
+                    
+                    // 2. Fallback: session's selected character
+                    if (!selectedChar && heroSession.selectedCharacterId) {
+                        selectedChar = characters.find(c => c.id === heroSession.selectedCharacterId);
+                    }
+                    
+                    // 3. Fallback: any character with matching ruleset
+                    if (!selectedChar) {
+                        selectedChar = characters.find(c => c.ruleset === heroSession.ruleset);
+                    }
+                    
+                    // 4. Last fallback: first character
+                    if (!selectedChar && characters.length > 0) {
+                        selectedChar = characters[0];
+                    }
                     
                     // Show the hero cards container
                     const heroCardsContainer = document.getElementById('heroCardsContainer');
@@ -1194,47 +1214,60 @@
                             classEl.style.display = 'none';
                         }
                         
-                        // LP & Moral Stats - Load from Firebase or localStorage
+                        // LP & Moral Stats - Load from Room Characters (Multi-Char Support)
                         const lpBarEl = document.getElementById('characterHeroLpBar');
                         const lpValueEl = document.getElementById('characterHeroLpValue');
                         const moralBarEl = document.getElementById('characterHeroMoralBar');
                         const moralValueEl = document.getElementById('characterHeroMoralValue');
                         
-                        // Get username (Firebase uses login name, not character name)
-                        const username = window.currentUser?.displayName || window.currentUser?.email?.split('@')[0] || null;
-                        const sessionId = heroSession.id;
+                        const userId = window.currentUser?.uid || null;
+                        const roomCode = currentRoomCode;
                         
-                        console.log('[Hub] Loading character stats - sessionId:', sessionId, 'username:', username);
+                        console.log('[Hub] Loading character stats - roomCode:', roomCode, 'userId:', userId);
                         
                         let lpValue = null;
                         let moralValue = null;
+                        let lpMax = 100;
+                        let moralMax = 100;
                         
-                        // Try Firebase first
-                        if (sessionId && username && typeof firebase !== 'undefined') {
+                        // Try Room Characters first (Firestore) - Multi-Char Ready!
+                        if (roomCode && userId && typeof RIFT !== 'undefined' && RIFT.rooms?.getActiveCharacter) {
                             try {
-                                // Path: sessions/{sessionId}/characters/{username}/worldsapart
-                                const snap = await firebase.database().ref(`sessions/${sessionId}/characters/${username}/worldsapart`).once('value');
-                                const fbChar = snap.val();
-                                console.log('[Hub] Firebase character data:', fbChar ? 'found' : 'not found');
+                                const activeChar = await RIFT.rooms.getActiveCharacter(roomCode, userId);
+                                console.log('[Hub] Active character from Room:', activeChar ? activeChar.name : 'none');
                                 
-                                if (fbChar) {
-                                    // Worlds Apart structure: health.current, moral.current
-                                    lpValue = fbChar.health?.current ?? null;
-                                    moralValue = fbChar.moral?.current ?? null;
-                                    console.log('[Hub] Firebase stats:', { lpValue, moralValue });
+                                if (activeChar && activeChar.data) {
+                                    // Worlds Apart structure: data.status.health/moral
+                                    lpValue = activeChar.data.status?.health ?? activeChar.data.health?.current ?? null;
+                                    moralValue = activeChar.data.status?.moral ?? activeChar.data.moral?.current ?? null;
+                                    
+                                    // Also check for max values
+                                    lpMax = activeChar.data.health?.max || 100;
+                                    moralMax = activeChar.data.moral?.max || 100;
+                                    
+                                    console.log('[Hub] Room Character stats:', { lpValue, moralValue, lpMax, moralMax });
                                 }
                             } catch (e) {
-                                console.warn('[Hub] Firebase error:', e);
+                                console.warn('[Hub] Room Character error:', e);
                             }
                         }
                         
-                        // Fallback: Try localStorage (worldsapart_character_v5)
+                        // Fallback 1: Try selected character's data directly
+                        if (lpValue === null && selectedChar?.data) {
+                            lpValue = selectedChar.data.status?.health ?? selectedChar.data.health?.current ?? null;
+                            moralValue = selectedChar.data.status?.moral ?? selectedChar.data.moral?.current ?? null;
+                            console.log('[Hub] Selected char stats:', { lpValue, moralValue });
+                        }
+                        
+                        // Fallback 2: Try localStorage (worldsapart_character_v5)
                         if (lpValue === null) {
                             try {
                                 const localData = JSON.parse(localStorage.getItem('worldsapart_character_v5') || 'null');
                                 if (localData) {
                                     lpValue = localData.health?.current ?? null;
                                     moralValue = localData.moral?.current ?? null;
+                                    lpMax = localData.health?.max || 100;
+                                    moralMax = localData.moral?.max || 100;
                                     console.log('[Hub] LocalStorage stats:', { lpValue, moralValue });
                                 }
                             } catch (e) {
@@ -1244,14 +1277,12 @@
                         
                         // Update UI
                         if (lpValue !== null) {
-                            const lpMax = 100;
                             const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
                             lpBarEl.style.width = `${lpPercent}%`;
                             lpValueEl.textContent = `${lpValue}`;
                         }
                         
                         if (moralValue !== null) {
-                            const moralMax = 100;
                             const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
                             moralBarEl.style.width = `${moralPercent}%`;
                             moralValueEl.textContent = `${moralValue}`;
@@ -1396,7 +1427,17 @@
             if (characters.length > 0) {
                 charactersEmpty.style.display = 'none';
                 charactersFooter.style.display = 'block';
-                charactersList.innerHTML = characters.slice(0, 3).map(renderCharacterItem).join('');
+                
+                // Sort: main characters first
+                const sortedChars = [...characters].sort((a, b) => {
+                    const aIsMain = typeof CharacterStorage !== 'undefined' && CharacterStorage.isMainCharacter(a.id);
+                    const bIsMain = typeof CharacterStorage !== 'undefined' && CharacterStorage.isMainCharacter(b.id);
+                    if (aIsMain && !bIsMain) return -1;
+                    if (!aIsMain && bIsMain) return 1;
+                    return 0;
+                });
+                
+                charactersList.innerHTML = sortedChars.slice(0, 3).map(renderCharacterItem).join('');
             } else {
                 charactersEmpty.style.display = 'flex';
                 charactersFooter.style.display = 'none';
@@ -1474,14 +1515,27 @@
         }
         
         function renderCharacterItem(char) {
+            // Check if this is the main character for its ruleset
+            const isMain = typeof CharacterStorage !== 'undefined' && CharacterStorage.isMainCharacter(char.id);
+            
+            // Get correct sheet URL based on ruleset
+            const sheetUrl = {
+                'worldsapart': 'sheet-worldsapart.html',
+                'dnd5e': 'sheet-5e.html',
+                '5e': 'sheet-5e-en.html',
+                '5e-de': 'sheet-5e-de.html',
+                'htbah': 'sheet-htbah.html',
+                'cyberpunk': 'sheet-cyberpunk.html'
+            }[char.ruleset] || 'sheet-worldsapart.html';
+            
             return `
-                <a href="sheet.html?id=${char.id}" class="widget__item character-item">
-                    <div class="character-item__portrait" style="background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);">
-                        <span class="character-item__initial">${char.name ? char.name.charAt(0).toUpperCase() : '?'}</span>
+                <a href="${sheetUrl}?id=${char.id}" class="widget__item character-item ${isMain ? 'character-item--main' : ''}">
+                    <div class="character-item__portrait" style="background: linear-gradient(135deg, ${isMain ? '#FFC107' : '#7c3aed'} 0%, ${isMain ? '#FF8F00' : '#4c1d95'} 100%);">
+                        <span class="character-item__initial">${isMain ? '★' : (char.name ? char.name.charAt(0).toUpperCase() : '?')}</span>
                     </div>
                     <div class="widget__item-info">
-                        <span class="character-item__name">${char.name || 'Unbenannt'}</span>
-                        <span class="widget__item-meta">${char.race || ''} · ${char.class || ''}</span>
+                        <span class="character-item__name">${isMain ? '★ ' : ''}${char.name || 'Unbenannt'}</span>
+                        <span class="widget__item-meta">${char.race || char.class || char.data?.role || ''}</span>
                     </div>
                 </a>
             `;

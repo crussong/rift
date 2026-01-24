@@ -3747,6 +3747,23 @@
             color: #FF4655;
         }
 
+        .action-btn.primary {
+            background: rgba(255, 193, 7, 0.12);
+            border-color: #FFC107;
+            color: #FFC107;
+        }
+
+        .action-btn.primary:hover {
+            background: #FFC107;
+            color: #121212;
+        }
+
+        .action-btn.primary.active {
+            background: #FFC107;
+            color: #121212;
+            cursor: default;
+        }
+
         .action-btn svg {
             width: 12px;
             height: 12px;
@@ -5327,6 +5344,12 @@
                 
                 <!-- Action Buttons (wie bei Worlds Apart) -->
                 <div class="action-buttons">
+                    <button class="action-btn primary" id="mainCharBtn" onclick="toggleMainCharacter()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                        <span id="mainCharBtnText">Hauptcharakter</span>
+                    </button>
                     <button class="action-btn" onclick="document.getElementById('jsonUpload').click()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -7634,6 +7657,7 @@
         initSpellSlots();
         initAttunement();
         loadCharFromStorage(); // V2: Use CharacterStorage with URL params
+        setTimeout(() => updateMainCharButton(), 100); // Update main char button state
         initModifiers();
         updateProfBonus();
         updateSpellStats();
@@ -9730,6 +9754,59 @@
                 console.warn('Error loading character:', e);
             }
             populateFields();
+        }
+
+        // ===== HAUPTCHARAKTER =====
+        function toggleMainCharacter() {
+            if (!currentCharId) {
+                // Character not saved yet - save first
+                collectData();
+                if (typeof CharacterStorage !== 'undefined') {
+                    saveToCharacterStorage();
+                }
+                if (!currentCharId) {
+                    alert('Bitte speichere zuerst den Charakter (gib ihm einen Namen).');
+                    return;
+                }
+            }
+            
+            if (typeof CharacterStorage === 'undefined') {
+                console.error('[5e-Sheet] CharacterStorage not available');
+                return;
+            }
+            
+            const isMain = CharacterStorage.isMainCharacter(currentCharId);
+            
+            if (!isMain) {
+                // Set as main - get ruleset from sheet (5e, 5e-de, etc)
+                const ruleset = document.documentElement.lang === 'de' ? '5e-de' : '5e';
+                CharacterStorage.setMainCharacter(currentCharId, ruleset);
+                updateMainCharButton(true);
+                
+                // Show toast if available
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.success('Als Hauptcharakter gesetzt!');
+                }
+            }
+        }
+        
+        function updateMainCharButton(isMain = null) {
+            const btn = document.getElementById('mainCharBtn');
+            const text = document.getElementById('mainCharBtnText');
+            if (!btn || !text) return;
+            
+            // Check if main
+            if (isMain === null && currentCharId && typeof CharacterStorage !== 'undefined') {
+                isMain = CharacterStorage.isMainCharacter(currentCharId);
+            }
+            
+            if (isMain) {
+                btn.classList.add('active');
+                text.textContent = '★ Hauptcharakter';
+            } else {
+                btn.classList.remove('active');
+                text.textContent = 'Hauptcharakter';
+            }
         }
 
         function downloadJSON() {

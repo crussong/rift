@@ -2219,6 +2219,23 @@
             color: var(--accent-primary);
         }
 
+        .action-btn.primary {
+            background: var(--gold-dim);
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .action-btn.primary:hover {
+            background: var(--gold);
+            color: var(--bg-primary);
+        }
+
+        .action-btn.primary.active {
+            background: var(--gold);
+            color: var(--bg-primary);
+            cursor: default;
+        }
+
         .action-btn svg {
             width: 12px;
             height: 12px;
@@ -3940,6 +3957,12 @@
                         <textarea class="notes-textarea" id="char-notes" placeholder="Notizen..."></textarea>
                     </div>
                     <div class="action-buttons">
+                        <button class="action-btn primary" id="mainCharBtn" onclick="toggleMainCharacter()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                            <span id="mainCharBtnText">Hauptcharakter</span>
+                        </button>
                         <button class="action-btn" onclick="document.getElementById('import-file').click()">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -4584,6 +4607,9 @@
             populateFields();
             initializeSkills();
             updateAllCalculations();
+            
+            // Update main character button state
+            setTimeout(() => updateMainCharButton(), 100);
             
             // Initialize Firestore sync AFTER loading character
             setTimeout(() => {
@@ -5338,6 +5364,8 @@
                         const newUrl = `sheet-worldsapart.html?id=${saved.id}`;
                         window.history.replaceState({}, '', newUrl);
                     }
+                    // Note: CharacterStorage.save() already calls syncToRoom() automatically
+                    // for Multi-Character Support via Firestore
                 }
             }
         }
@@ -6562,6 +6590,56 @@
             autoSave();
         }
 
+        // ===== HAUPTCHARAKTER =====
+        function toggleMainCharacter() {
+            if (!window.currentCharId) {
+                // Character not saved yet - save first
+                saveCharacter();
+                if (!window.currentCharId) {
+                    alert('Bitte speichere zuerst den Charakter (gib ihm einen Namen).');
+                    return;
+                }
+            }
+            
+            if (typeof CharacterStorage === 'undefined') {
+                console.error('[WA-Sheet] CharacterStorage not available');
+                return;
+            }
+            
+            const isMain = CharacterStorage.isMainCharacter(window.currentCharId);
+            
+            if (!isMain) {
+                // Set as main
+                CharacterStorage.setMainCharacter(window.currentCharId, 'worldsapart');
+                updateMainCharButton(true);
+                
+                // Show toast if available
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.success('Als Hauptcharakter gesetzt!');
+                }
+            }
+            // Already main - do nothing (can't "unset" main, only set another)
+        }
+        
+        function updateMainCharButton(isMain = null) {
+            const btn = document.getElementById('mainCharBtn');
+            const text = document.getElementById('mainCharBtnText');
+            if (!btn || !text) return;
+            
+            // Check if main
+            if (isMain === null && window.currentCharId && typeof CharacterStorage !== 'undefined') {
+                isMain = CharacterStorage.isMainCharacter(window.currentCharId);
+            }
+            
+            if (isMain) {
+                btn.classList.add('active');
+                text.textContent = '★ Hauptcharakter';
+            } else {
+                btn.classList.remove('active');
+                text.textContent = 'Hauptcharakter';
+            }
+        }
+
         // ===== EXPORT / IMPORT / RESET =====
         function exportCharacter() {
             const blob = new Blob([JSON.stringify(characterData, null, 2)], { type: 'application/json' });
@@ -6664,30 +6742,49 @@
             // Show GM bar
             gmPlayerBar.classList.add('visible');
             
-            // Always show "Eigener Charakter" button first
-            renderPlayerButtons({}, user.username);
+            // Get room code (try multiple sources)
+            const roomCode = localStorage.getItem('rift_current_room')?.replace(/-/g, '').toUpperCase();
             
-            // Listen for online players
-            const sessionId = localStorage.getItem('pnp_session_id');
-            if (!sessionId) {
-                console.log('[GM Bar] No session ID');
+            if (!roomCode) {
+                console.log('[GM Bar] No room code');
+                renderPlayerButtons([], user.username, firebase?.auth?.()?.currentUser?.uid);
                 return;
             }
             
-            if (typeof firebase === 'undefined' || !firebase.database) {
-                console.log('[GM Bar] Firebase not ready');
+            // Check for Firestore availability
+            if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+                console.log('[GM Bar] RIFT.rooms not ready, trying Firestore directly...');
+                
+                // Fallback to direct Firestore
+                if (typeof firebase !== 'undefined' && firebase.firestore) {
+                    const db = firebase.firestore();
+                    db.collection('rooms').doc(roomCode).collection('characters')
+                        .onSnapshot(snapshot => {
+                            const characters = snapshot.docs.map(doc => ({
+                                characterId: doc.id,
+                                ...doc.data()
+                            }));
+                            console.log('[GM Bar] Characters from Firestore:', characters.length);
+                            renderPlayerButtons(characters, user.username, firebase?.auth?.()?.currentUser?.uid);
+                        }, err => {
+                            console.warn('[GM Bar] Firestore error:', err);
+                            renderPlayerButtons([], user.username, firebase?.auth?.()?.currentUser?.uid);
+                        });
+                } else {
+                    renderPlayerButtons([], user.username, null);
+                }
                 return;
             }
             
-            const playersRef = firebase.database().ref(`sessions/${sessionId}/online`);
-            playersRef.on('value', (snapshot) => {
-                const players = snapshot.val() || {};
-                console.log('[GM Bar] Players update:', players);
-                renderPlayerButtons(players, user.username);
+            // Use RIFT.rooms subscription (Firestore-based, Multi-Character Support)
+            RIFT.rooms.subscribeToCharacters(roomCode, (characters) => {
+                console.log('[GM Bar] Characters update:', characters.length, 'characters');
+                const charsWithId = characters.map(c => ({ ...c, characterId: c.id }));
+                renderPlayerButtons(charsWithId, user.username, firebase?.auth?.()?.currentUser?.uid);
             });
         }
         
-        function renderPlayerButtons(players, currentUsername) {
+        function renderPlayerButtons(characters, currentUsername, currentUserId) {
             const container = document.getElementById('gmPlayerList');
             if (!container) return;
             
@@ -6703,24 +6800,30 @@
             ownBtn.onclick = () => switchToOwnCharacter();
             container.appendChild(ownBtn);
             
-            // Add other players
-            Object.values(players).forEach(player => {
-                if (player.username === currentUsername) return;
+            // Add other players' characters (Multi-Character Support)
+            characters.forEach(char => {
+                // Skip own characters
+                if (char.ownerId === currentUserId) return;
+                
+                const charName = char.name || char.data?.name || 'Unbenannt';
+                const ownerName = char.ownerName || 'Spieler';
                 
                 const btn = document.createElement('button');
-                btn.className = 'gm-player-btn' + (currentViewingPlayer === player.username ? ' active' : '');
+                btn.className = 'gm-player-btn' + (currentViewingCharId === char.characterId ? ' active' : '');
                 btn.innerHTML = `
-                    <span class="player-dot" style="background: ${player.color || '#888'};"></span>
-                    ${player.username}
+                    <span class="player-dot" style="background: ${char.color || '#888'};"></span>
+                    ${charName} <span style="opacity: 0.6; font-size: 11px;">(${ownerName})</span>
                 `;
-                btn.onclick = () => switchToPlayerCharacter(player.username, player.color);
+                btn.onclick = () => switchToCharacter(char.characterId, charName, ownerName, char);
                 container.appendChild(btn);
             });
         }
         
-        function switchToPlayerCharacter(username, color) {
-            const sessionId = localStorage.getItem('pnp_session_id');
-            if (!sessionId) return;
+        // Track current viewing character ID for multi-char support
+        let currentViewingCharId = null;
+        
+        function switchToCharacter(characterId, charName, ownerName, charData) {
+            if (!characterId) return;
             
             // Save original data if first switch
             if (!isViewingOther) {
@@ -6728,14 +6831,15 @@
             }
             
             isViewingOther = true;
-            currentViewingPlayer = username;
+            currentViewingPlayer = ownerName;
+            currentViewingCharId = characterId;
             
             // Show viewing badge
             const badge = document.getElementById('gmViewingBadge');
             const nameSpan = document.getElementById('viewingPlayerName');
             if (badge && nameSpan) {
                 badge.classList.add('visible');
-                nameSpan.textContent = `Ansicht: ${username}`;
+                nameSpan.textContent = `Ansicht: ${charName} (${ownerName})`;
             }
             
             // Show readonly overlay
@@ -6745,20 +6849,57 @@
             // Make all inputs readonly
             setSheetReadonly(true);
             
-            // Load player's character data
-            const charRef = firebase.database().ref(`sessions/${sessionId}/characters/${username}/worldsapart`);
-            charRef.once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    characterData = data;
-                    populateFields();
-                    initializeSkills();
-                    updateAllCalculations();
+            // Load character data from charData (already have it from Firestore)
+            if (charData && charData.data) {
+                const data = charData.data;
+                // Merge into characterData format
+                if (data.health || data.status?.health) {
+                    characterData.health = data.health || { current: data.status.health, max: 100 };
                 }
-            });
+                if (data.moral || data.status?.moral) {
+                    characterData.moral = data.moral || { current: data.status.moral, max: 100 };
+                }
+                if (data.name) characterData.name = data.name;
+                if (data.role) characterData.role = data.role;
+                if (data.attributes) characterData.attributes = data.attributes;
+                if (data.skills) characterData.skills = data.skills;
+                if (data.fokus) characterData.fokus = data.fokus;
+                if (data.schwaeche) characterData.schwaeche = data.schwaeche;
+                if (data.age) characterData.age = data.age;
+                if (data.gender) characterData.gender = data.gender;
+                if (data.crew) characterData.crew = data.crew;
+                if (data.appearance) characterData.appearance = data.appearance;
+                if (data.inventory) characterData.inventory = data.inventory;
+                if (data.currency) characterData.currency = data.currency;
+                if (data.weapon) characterData.weapon = data.weapon;
+                if (data.notes) characterData.notes = data.notes;
+                if (data.portrait) characterData.portrait = data.portrait;
+                if (data.jollyRoger) characterData.jollyRoger = data.jollyRoger;
+                if (data.secondChance) characterData.secondChance = data.secondChance;
+                
+                populateFields();
+                initializeSkills();
+                updateAllCalculations();
+            }
             
             // Update button states
             updatePlayerButtonStates();
+        }
+        
+        // Legacy function for backwards compatibility
+        function switchToPlayerCharacter(username, color) {
+            console.log('[GM Bar] Legacy switchToPlayerCharacter called, searching by username:', username);
+            // This function searches by ownerName in the existing character list
+            const container = document.getElementById('gmPlayerList');
+            if (!container) return;
+            
+            // Find matching button and click it
+            const buttons = container.querySelectorAll('.gm-player-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.includes(username)) {
+                    btn.click();
+                }
+            });
         }
         
         function switchToOwnCharacter() {
@@ -6766,6 +6907,7 @@
             
             isViewingOther = false;
             currentViewingPlayer = null;
+            currentViewingCharId = null;
             
             // Hide viewing badge
             const badge = document.getElementById('gmViewingBadge');
