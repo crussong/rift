@@ -1144,190 +1144,216 @@
                 const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
                 
                 // ============================================
-                // SESSION HERO CARD - Unified Design
+                // CHARACTER HERO CARD - Always show if character exists
                 // ============================================
+                const heroCardsContainer = document.getElementById('heroCardsContainer');
+                const characterHeroCard = document.getElementById('characterHeroCard');
+                const sessionHeroCard = document.getElementById('sessionHeroCard');
+                
                 // Filter to only show non-ended sessions
                 const activeSessions = sessions.filter(s => s.status !== 'ended');
+                const heroSession = activeSessions.length > 0 ? activeSessions[0] : null;
                 
-                if (activeSessions.length > 0) {
-                    // Get first active/upcoming session
-                    const heroSession = activeSessions[0];
-                    const ruleset = rulesetConfig[heroSession.ruleset] || rulesetConfig['worldsapart'];
-                    
-                    // Find Main Character for this session's ruleset (Multi-Char Support)
-                    let selectedChar = null;
-                    
-                    // 1. Try Main Character from CharacterStorage
-                    if (typeof CharacterStorage !== 'undefined') {
+                // Determine ruleset (from session or from character)
+                let ruleset = rulesetConfig['worldsapart']; // default
+                if (heroSession) {
+                    ruleset = rulesetConfig[heroSession.ruleset] || rulesetConfig['worldsapart'];
+                } else if (characters.length > 0) {
+                    ruleset = rulesetConfig[characters[0].ruleset] || rulesetConfig['worldsapart'];
+                }
+                
+                // Find Main Character
+                let selectedChar = null;
+                
+                // 1. Try Main Character from CharacterStorage (for session ruleset or any)
+                if (typeof CharacterStorage !== 'undefined') {
+                    if (heroSession) {
                         selectedChar = CharacterStorage.getMainCharacter(heroSession.ruleset);
-                        console.log('[Hub] Main character for', heroSession.ruleset, ':', selectedChar?.name || 'none');
                     }
-                    
-                    // 2. Fallback: session's selected character
-                    if (!selectedChar && heroSession.selectedCharacterId) {
-                        selectedChar = characters.find(c => c.id === heroSession.selectedCharacterId);
-                    }
-                    
-                    // 3. Fallback: any character with matching ruleset
-                    if (!selectedChar) {
-                        selectedChar = characters.find(c => c.ruleset === heroSession.ruleset);
-                    }
-                    
-                    // 4. Last fallback: first character
                     if (!selectedChar && characters.length > 0) {
-                        selectedChar = characters[0];
+                        // Try to get main character for first character's ruleset, or just use first character
+                        const firstRuleset = characters[0].ruleset || 'worldsapart';
+                        selectedChar = CharacterStorage.getMainCharacter(firstRuleset);
+                        if (!selectedChar) {
+                            selectedChar = characters[0];
+                        }
                     }
-                    
-                    // Show the hero cards container
-                    const heroCardsContainer = document.getElementById('heroCardsContainer');
+                    console.log('[Hub] Main character:', selectedChar?.name || 'none');
+                }
+                
+                // 2. Fallback: session's selected character
+                if (!selectedChar && heroSession?.selectedCharacterId) {
+                    selectedChar = characters.find(c => c.id === heroSession.selectedCharacterId);
+                }
+                
+                // 3. Fallback: any character with matching ruleset
+                if (!selectedChar && heroSession) {
+                    selectedChar = characters.find(c => c.ruleset === heroSession.ruleset);
+                }
+                
+                // 4. Last fallback: first character
+                if (!selectedChar && characters.length > 0) {
+                    selectedChar = characters[0];
+                }
+                
+                // Show hero cards container if we have EITHER character OR session
+                if (selectedChar || heroSession) {
                     heroCardsContainer.style.display = 'flex';
+                }
+                
+                // ============================================
+                // CHARACTER HERO CARD (left side) - Show if character exists
+                // ============================================
+                if (selectedChar) {
+                    const charRuleset = rulesetConfig[selectedChar.ruleset] || ruleset;
                     
-                    // ============================================
-                    // CHARACTER HERO CARD (left side)
-                    // ============================================
-                    const characterHeroCard = document.getElementById('characterHeroCard');
+                    characterHeroCard.style.display = 'flex';
+                    characterHeroCard.href = `sheet-${selectedChar.ruleset || 'worldsapart'}.html?id=${selectedChar.id}`;
+                    characterHeroCard.className = `character-hero character-hero--${charRuleset.class}`;
                     
-                    if (selectedChar) {
-                        characterHeroCard.style.display = 'flex';
-                        characterHeroCard.href = `sheet-${heroSession.ruleset || 'worldsapart'}.html?id=${selectedChar.id}`;
-                        characterHeroCard.className = `character-hero character-hero--${ruleset.class}`;
-                        
-                        // Portrait
-                        const portraitEl = document.getElementById('characterHeroPortrait');
-                        if (selectedChar.portrait) {
-                            portraitEl.innerHTML = `<img src="${selectedChar.portrait}" alt="${selectedChar.name}" class="character-hero__portrait-img">`;
-                        } else {
-                            const initial = (selectedChar.name || 'C').charAt(0).toUpperCase();
-                            portraitEl.innerHTML = `
-                                <div class="character-hero__portrait-placeholder">
-                                    <span class="character-hero__portrait-initial">${initial}</span>
-                                </div>`;
-                        }
-                        
-                        // Name
-                        document.getElementById('characterHeroName').textContent = selectedChar.name || 'Charakter';
-                        
-                        // Class
-                        const classEl = document.getElementById('characterHeroClass');
-                        if (selectedChar.class || selectedChar.role) {
-                            classEl.textContent = selectedChar.class || selectedChar.role || '';
-                            classEl.style.display = 'inline';
-                        } else {
-                            classEl.style.display = 'none';
-                        }
-                        
-                        // LP & Moral Stats - Load from Room Characters (Multi-Char Support)
-                        const lpBarEl = document.getElementById('characterHeroLpBar');
-                        const lpValueEl = document.getElementById('characterHeroLpValue');
-                        const moralBarEl = document.getElementById('characterHeroMoralBar');
-                        const moralValueEl = document.getElementById('characterHeroMoralValue');
-                        
-                        const userId = window.currentUser?.uid || null;
-                        const roomCode = currentRoomCode;
-                        
-                        console.log('[Hub] Loading character stats - roomCode:', roomCode, 'userId:', userId);
-                        
-                        let lpValue = null;
-                        let moralValue = null;
-                        let lpMax = 100;
-                        let moralMax = 100;
-                        
-                        // Try Room Characters first (Firestore) - Multi-Char Ready!
-                        if (roomCode && userId && typeof RIFT !== 'undefined' && RIFT.rooms?.getActiveCharacter) {
-                            try {
-                                const activeChar = await RIFT.rooms.getActiveCharacter(roomCode, userId);
-                                console.log('[Hub] Active character from Room:', activeChar ? activeChar.name : 'none');
-                                
-                                if (activeChar && activeChar.data) {
-                                    // Worlds Apart structure: data.status.health/moral
-                                    lpValue = activeChar.data.status?.health ?? activeChar.data.health?.current ?? null;
-                                    moralValue = activeChar.data.status?.moral ?? activeChar.data.moral?.current ?? null;
-                                    
-                                    // Also check for max values
-                                    lpMax = activeChar.data.health?.max || 100;
-                                    moralMax = activeChar.data.moral?.max || 100;
-                                    
-                                    console.log('[Hub] Room Character stats:', { lpValue, moralValue, lpMax, moralMax });
-                                }
-                            } catch (e) {
-                                console.warn('[Hub] Room Character error:', e);
-                            }
-                        }
-                        
-                        // Fallback 1: Try selected character's data directly
-                        if (lpValue === null && selectedChar?.data) {
-                            lpValue = selectedChar.data.status?.health ?? selectedChar.data.health?.current ?? null;
-                            moralValue = selectedChar.data.status?.moral ?? selectedChar.data.moral?.current ?? null;
-                            console.log('[Hub] Selected char stats:', { lpValue, moralValue });
-                        }
-                        
-                        // Fallback 2: Try localStorage (worldsapart_character_v5)
-                        if (lpValue === null) {
-                            try {
-                                const localData = JSON.parse(localStorage.getItem('worldsapart_character_v5') || 'null');
-                                if (localData) {
-                                    lpValue = localData.health?.current ?? null;
-                                    moralValue = localData.moral?.current ?? null;
-                                    lpMax = localData.health?.max || 100;
-                                    moralMax = localData.moral?.max || 100;
-                                    console.log('[Hub] LocalStorage stats:', { lpValue, moralValue });
-                                }
-                            } catch (e) {
-                                console.warn('[Hub] LocalStorage error:', e);
-                            }
-                        }
-                        
-                        // Update UI
-                        if (lpValue !== null) {
-                            const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
-                            lpBarEl.style.width = `${lpPercent}%`;
-                            lpValueEl.textContent = `${lpValue}`;
-                        }
-                        
-                        if (moralValue !== null) {
-                            const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
-                            moralBarEl.style.width = `${moralPercent}%`;
-                            moralValueEl.textContent = `${moralValue}`;
-                        }
+                    // Portrait
+                    const portraitEl = document.getElementById('characterHeroPortrait');
+                    if (selectedChar.portrait) {
+                        // Check if it's a base64 image or a preset name
+                        const portraitSrc = selectedChar.portrait.startsWith('data:') 
+                            ? selectedChar.portrait 
+                            : `assets/img/rift_chars/hero_card/${selectedChar.portrait}.png`;
+                        portraitEl.innerHTML = `<img src="${portraitSrc}" alt="${selectedChar.name}" class="character-hero__portrait-img">`;
                     } else {
-                        // Show Empty State - same card design, just empty with CTA
-                        characterHeroCard.style.display = 'flex';
-                        characterHeroCard.href = 'sheet.html';
-                        characterHeroCard.className = `character-hero character-hero--${ruleset.class} character-hero--empty`;
-                        
-                        // Empty Portrait with icon
-                        const portraitEl = document.getElementById('characterHeroPortrait');
+                        const initial = (selectedChar.name || 'C').charAt(0).toUpperCase();
                         portraitEl.innerHTML = `
                             <div class="character-hero__portrait-placeholder">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                    <circle cx="12" cy="7" r="4"/>
-                                </svg>
+                                <span class="character-hero__portrait-initial">${initial}</span>
                             </div>`;
-                        
-                        // Empty State Text
-                        document.getElementById('characterHeroName').textContent = 'Charakter erstellen';
-                        
-                        const classEl = document.getElementById('characterHeroClass');
-                        classEl.textContent = 'Um mitzuspielen';
-                        classEl.style.display = 'inline';
-                        
-                        // Hide stats, show CTA hint
-                        document.getElementById('characterHeroStats').innerHTML = `
-                            <div class="character-hero__cta">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="5" x2="12" y2="19"/>
-                                    <line x1="5" y1="12" x2="19" y2="12"/>
-                                </svg>
-                                <span>Jetzt erstellen</span>
-                            </div>
-                        `;
                     }
                     
-                    // ============================================
-                    // SESSION HERO CARD (right side)
-                    // ============================================
-                    const sessionHeroCard = document.getElementById('sessionHeroCard');
+                    // Name
+                    document.getElementById('characterHeroName').textContent = selectedChar.name || 'Charakter';
+                    
+                    // Class
+                    const classEl = document.getElementById('characterHeroClass');
+                    if (selectedChar.class || selectedChar.role) {
+                        classEl.textContent = selectedChar.class || selectedChar.role || '';
+                        classEl.style.display = 'inline';
+                    } else {
+                        classEl.style.display = 'none';
+                    }
+                    
+                    // LP & Moral Stats - Load from Room Characters (Multi-Char Support)
+                    const lpBarEl = document.getElementById('characterHeroLpBar');
+                    const lpValueEl = document.getElementById('characterHeroLpValue');
+                    const moralBarEl = document.getElementById('characterHeroMoralBar');
+                    const moralValueEl = document.getElementById('characterHeroMoralValue');
+                    
+                    const userId = window.currentUser?.uid || null;
+                    const roomCode = currentRoomCode;
+                    
+                    console.log('[Hub] Loading character stats - roomCode:', roomCode, 'userId:', userId);
+                    
+                    let lpValue = null;
+                    let moralValue = null;
+                    let lpMax = 100;
+                    let moralMax = 100;
+                    
+                    // Try Room Characters first (Firestore) - Multi-Char Ready!
+                    if (roomCode && userId && typeof RIFT !== 'undefined' && RIFT.rooms?.getActiveCharacter) {
+                        try {
+                            const activeChar = await RIFT.rooms.getActiveCharacter(roomCode, userId);
+                            console.log('[Hub] Active character from Room:', activeChar ? activeChar.name : 'none');
+                            
+                            if (activeChar && activeChar.data) {
+                                // Worlds Apart structure: data.status.health/moral
+                                lpValue = activeChar.data.status?.health ?? activeChar.data.health?.current ?? null;
+                                moralValue = activeChar.data.status?.moral ?? activeChar.data.moral?.current ?? null;
+                                
+                                // Also check for max values
+                                lpMax = activeChar.data.health?.max || 100;
+                                moralMax = activeChar.data.moral?.max || 100;
+                                
+                                console.log('[Hub] Room Character stats:', { lpValue, moralValue, lpMax, moralMax });
+                            }
+                        } catch (e) {
+                            console.warn('[Hub] Room Character error:', e);
+                        }
+                    }
+                    
+                    // Fallback 1: Try selected character's data directly
+                    if (lpValue === null && selectedChar?.data) {
+                        lpValue = selectedChar.data.status?.health ?? selectedChar.data.health?.current ?? null;
+                        moralValue = selectedChar.data.status?.moral ?? selectedChar.data.moral?.current ?? null;
+                        console.log('[Hub] Selected char stats:', { lpValue, moralValue });
+                    }
+                    
+                    // Fallback 2: Try localStorage (worldsapart_character_v5)
+                    if (lpValue === null) {
+                        try {
+                            const localData = JSON.parse(localStorage.getItem('worldsapart_character_v5') || 'null');
+                            if (localData) {
+                                lpValue = localData.health?.current ?? null;
+                                moralValue = localData.moral?.current ?? null;
+                                lpMax = localData.health?.max || 100;
+                                moralMax = localData.moral?.max || 100;
+                                console.log('[Hub] LocalStorage stats:', { lpValue, moralValue });
+                            }
+                        } catch (e) {
+                            console.warn('[Hub] LocalStorage error:', e);
+                        }
+                    }
+                    
+                    // Update UI
+                    if (lpValue !== null) {
+                        const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
+                        lpBarEl.style.width = `${lpPercent}%`;
+                        lpValueEl.textContent = `${lpValue}`;
+                    }
+                    
+                    if (moralValue !== null) {
+                        const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
+                        moralBarEl.style.width = `${moralPercent}%`;
+                        moralValueEl.textContent = `${moralValue}`;
+                    }
+                } else if (heroSession) {
+                    // No character but have session - show empty state prompting to create
+                    characterHeroCard.style.display = 'flex';
+                    characterHeroCard.href = 'sheet.html';
+                    characterHeroCard.className = `character-hero character-hero--${ruleset.class} character-hero--empty`;
+                    
+                    // Empty Portrait with icon
+                    const portraitEl = document.getElementById('characterHeroPortrait');
+                    portraitEl.innerHTML = `
+                        <div class="character-hero__portrait-placeholder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>`;
+                    
+                    // Empty State Text
+                    document.getElementById('characterHeroName').textContent = 'Charakter erstellen';
+                    
+                    const classEl = document.getElementById('characterHeroClass');
+                    classEl.textContent = 'Um mitzuspielen';
+                    classEl.style.display = 'inline';
+                    
+                    // Hide stats, show CTA hint
+                    document.getElementById('characterHeroStats').innerHTML = `
+                        <div class="character-hero__cta">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            <span>Jetzt erstellen</span>
+                        </div>
+                    `;
+                } else {
+                    // No session and no character - hide character card
+                    characterHeroCard.style.display = 'none';
+                }
+                
+                // ============================================
+                // SESSION HERO CARD (right side) - Only if active session exists
+                // ============================================
+                if (heroSession) {
                     const sessionHeroCover = document.getElementById('sessionHeroCover');
                     
                     // Show and configure the card
@@ -1418,9 +1444,13 @@
                     
                     // Hide old next session card (we have the unified hero now)
                     nextSessionCard.style.display = 'none';
+                } else {
+                    // No active session - hide session hero card
+                    sessionHeroCard.style.display = 'none';
                 }
-                // Fallback: Show old next session card if we have upcoming but no active sessions
-                else if (upcomingSessions.length > 0) {
+                
+                // Fallback: Show old next session card if we have upcoming but no active sessions and no character
+                if (!heroSession && !selectedChar && upcomingSessions.length > 0) {
                     const next = upcomingSessions[0];
                     const date = new Date(next.date);
                     
