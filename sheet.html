@@ -74,62 +74,57 @@
 
         /* Main Character Styles */
         .rulebook-panel__char--main {
-            background: rgba(255, 193, 7, 0.08);
-            border-color: rgba(255, 193, 7, 0.3);
+            background: rgba(255, 193, 7, 0.06);
+            border-left: 3px solid #FFC107;
         }
         .rulebook-panel__char--main:hover {
-            background: rgba(255, 193, 7, 0.12);
-            border-color: rgba(255, 193, 7, 0.5);
+            background: rgba(255, 193, 7, 0.10);
         }
-        .rulebook-panel__char--main .rulebook-panel__char-name {
-            color: #FFC107;
+        
+        /* Portrait container needs position for badge */
+        .rulebook-panel__char-portrait {
+            position: relative;
         }
-        .rulebook-panel__char-main-badge {
+        
+        /* Star Badge on Portrait */
+        .rulebook-panel__char-star {
             position: absolute;
-            bottom: -2px;
-            right: -2px;
-            width: 18px;
-            height: 18px;
-            background: #FFC107;
-            color: #121212;
+            bottom: -4px;
+            right: -4px;
+            width: 20px;
+            height: 20px;
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 10px;
-            font-weight: bold;
-        }
-        .rulebook-panel__char-portrait {
-            position: relative;
-        }
-        
-        /* Main Character Button */
-        .rulebook-panel__char-main {
-            background: transparent;
-            border: none;
-            color: rgba(255, 255, 255, 0.3);
             cursor: pointer;
-            padding: 6px;
-            border-radius: 6px;
+            opacity: 0;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            z-index: 2;
         }
-        .rulebook-panel__char-main:hover {
+        .rulebook-panel__char:hover .rulebook-panel__char-star {
+            opacity: 1;
+        }
+        .rulebook-panel__char-star:hover {
+            background: rgba(255, 193, 7, 0.2);
+            border-color: #FFC107;
             color: #FFC107;
-            background: rgba(255, 193, 7, 0.1);
+            transform: scale(1.1);
         }
-        .rulebook-panel__char-main--active {
-            color: #FFC107;
+        .rulebook-panel__char-star--active {
+            opacity: 1 !important;
+            background: #FFC107;
+            border-color: #FFC107;
+            color: #121212;
         }
-        .rulebook-panel__char-main--active:hover {
-            background: transparent;
+        .rulebook-panel__char-star--active:hover {
+            background: #FFC107;
+            transform: none;
             cursor: default;
-        }
-        .rulebook-panel__char-main svg {
-            width: 18px;
-            height: 18px;
         }
 
         /* Disabled New Button */
@@ -753,21 +748,18 @@
                     <div class="rulebook-panel__char ${isMain ? 'rulebook-panel__char--main' : ''}" data-char-id="${charId}">
                         <div class="rulebook-panel__char-portrait" onclick="SheetManager.openCharacter('${charId}')">
                             <img src="${portraitSrc}" alt="" onerror="this.style.display='none'">
-                            ${isMain ? '<span class="rulebook-panel__char-main-badge">★</span>' : ''}
+                            <button class="rulebook-panel__char-star ${isMain ? 'rulebook-panel__char-star--active' : ''}" 
+                                    onclick="event.stopPropagation(); SheetManager.setMainCharacter('${charId}', '${rulebookId}')" 
+                                    title="${isMain ? 'Hauptcharakter' : 'Als Hauptcharakter setzen'}">
+                                ★
+                            </button>
                         </div>
                         <div class="rulebook-panel__char-info" onclick="SheetManager.openCharacter('${charId}')">
-                            <span class="rulebook-panel__char-name">${isMain ? '★ ' : ''}${char.name}</span>
-                            <span class="rulebook-panel__char-meta">${displayClass}</span>
+                            <span class="rulebook-panel__char-name">${char.name}</span>
+                            <span class="rulebook-panel__char-meta">${displayClass || (isMain ? '★ Hauptcharakter' : '')}</span>
                         </div>
                         ${statusHtml}
                         ${rulebookId !== 'worldsapart' ? `<div class="rulebook-panel__char-level">Lvl ${char.level || '?'}</div>` : ''}
-                        <button class="rulebook-panel__char-main ${isMain ? 'rulebook-panel__char-main--active' : ''}" 
-                                onclick="event.stopPropagation(); SheetManager.setMainCharacter('${charId}', '${rulebookId}')" 
-                                title="${isMain ? 'Hauptcharakter' : 'Als Hauptcharakter setzen'}">
-                            <svg viewBox="0 0 24 24" fill="${isMain ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                            </svg>
-                        </button>
                         <button class="rulebook-panel__char-delete" onclick="event.stopPropagation(); SheetManager.confirmDelete('${charId}', '${escapedName}', event)" title="Löschen">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"/>
