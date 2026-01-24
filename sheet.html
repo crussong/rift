@@ -12,122 +12,635 @@
     <link rel="stylesheet" href="assets/css/topbar.css">
     <link rel="stylesheet" href="assets/css/footer.css">
     <link rel="stylesheet" href="assets/css/settings.css">
-    <link rel="stylesheet" href="assets/css/sheet.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    
     <style>
-        /* Character Status Preview Bars */
-        .rulebook-panel__char-status {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 60px;
-            margin-right: 8px;
-        }
-        .rulebook-panel__char-status-bar {
-            height: 4px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 2px;
-            overflow: hidden;
-            position: relative;
-        }
-        .rulebook-panel__char-status-fill {
-            height: 100%;
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-        .rulebook-panel__char-status-fill.health {
-            background: linear-gradient(90deg, #166534, #22c55e);
-        }
-        .rulebook-panel__char-status-fill.moral {
-            background: linear-gradient(90deg, #1d4ed8, #60a5fa);
-        }
-        .rulebook-panel__char-status-label {
-            font-size: 8px;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Recent strip status */
-        .recent-strip__status {
-            display: flex;
-            gap: 4px;
-            margin-top: 4px;
-        }
-        .recent-strip__status-bar {
-            flex: 1;
-            height: 3px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        .recent-strip__status-fill {
-            height: 100%;
-            border-radius: 2px;
-        }
-        .recent-strip__status-fill.health {
-            background: #22c55e;
-        }
-        .recent-strip__status-fill.moral {
-            background: #60a5fa;
-        }
-
-        /* Main Character Styles */
-        .rulebook-panel__char--main {
-            background: rgba(255, 193, 7, 0.06);
-            border-left: 3px solid #FFC107;
-        }
-        .rulebook-panel__char--main:hover {
-            background: rgba(255, 193, 7, 0.10);
+        /* ========================================
+           SHEET PAGE - SESSION INSPIRED
+           ======================================== */
+        
+        .sheet-page {
+            padding-bottom: 60px;
         }
         
-        /* Star Button (right side) */
-        .rulebook-panel__char-star {
-            width: 32px;
-            height: 32px;
-            background: transparent;
-            border: none;
-            color: rgba(255, 255, 255, 0.25);
+        /* Back Button */
+        .sheet-back {
+            padding: 16px 24px;
+        }
+        
+        .sheet-back__btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
             border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .sheet-back__btn:hover {
+            background: var(--bg-card);
+            color: var(--text);
+            border-color: var(--border-hover);
+        }
+        
+        .sheet-back__btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        /* ========================================
+           RULESET TABS
+           ======================================== */
+        .ruleset-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 0 24px 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .ruleset-tab {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .ruleset-tab:hover {
+            background: var(--bg-card);
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+        
+        .ruleset-tab--active {
+            background: var(--bg-card);
+            border-color: var(--tab-color, var(--accent));
+            color: white;
+        }
+        
+        .ruleset-tab__icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            overflow: hidden;
+        }
+        
+        .ruleset-tab__icon img {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .ruleset-tab__count {
+            padding: 3px 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .ruleset-tab--active .ruleset-tab__count {
+            background: var(--tab-color, var(--accent));
+            color: white;
+        }
+        
+        /* Tab Colors */
+        .ruleset-tab[data-ruleset="dnd5e"] { --tab-color: #FF4655; }
+        .ruleset-tab[data-ruleset="worldsapart"] { --tab-color: #8B5CF6; }
+        .ruleset-tab[data-ruleset="htbah"] { --tab-color: #10B981; }
+        .ruleset-tab[data-ruleset="cyberpunkred"] { --tab-color: #FACC15; }
+        
+        /* ========================================
+           HERO SECTION (Ruleset Cover + Info)
+           ======================================== */
+        .ruleset-hero {
+            margin: 0 24px 24px;
+            background: var(--bg-elevated);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            height: 320px;
+            overflow: hidden;
+        }
+        
+        /* Cover */
+        .ruleset-hero__cover {
+            position: relative;
+            width: 220px;
+            min-width: 220px;
+            height: 100%;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        
+        .ruleset-hero__cover-bg {
+            position: absolute;
+            inset: 0;
+            opacity: 0.9;
+        }
+        
+        .ruleset-hero__cover-bg--dnd5e { background: linear-gradient(135deg, #FF4655 0%, #c41e3a 100%); }
+        .ruleset-hero__cover-bg--worldsapart { background: linear-gradient(135deg, #8B5CF6 0%, #6d28d9 100%); }
+        .ruleset-hero__cover-bg--htbah { background: linear-gradient(135deg, #10B981 0%, #059669 100%); }
+        .ruleset-hero__cover-bg--cyberpunkred { background: linear-gradient(135deg, #FACC15 0%, #ca8a04 100%); }
+        
+        .ruleset-hero__cover-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: url('assets/img/pattern-r.svg');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 180%;
+            opacity: 0.15;
+        }
+        
+        .ruleset-hero__cover-icon {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+        }
+        
+        .ruleset-hero__cover-icon img {
+            width: 100%;
+            max-height: 80px;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
+            opacity: 0.9;
+        }
+        
+        /* Info */
+        .ruleset-hero__info {
+            flex: 1;
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .ruleset-hero__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            width: fit-content;
+            margin-bottom: 16px;
+        }
+        
+        .ruleset-hero__badge img {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .ruleset-hero__title {
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 38px;
+            font-weight: 700;
+            color: white;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .ruleset-hero__subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+        
+        .ruleset-hero__stats {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .ruleset-hero__stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .ruleset-hero__stat-value {
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .ruleset-hero__stat-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .ruleset-hero__actions {
+            margin-top: auto;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .ruleset-hero__btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
             cursor: pointer;
             transition: all 0.2s;
-            flex-shrink: 0;
+            border: none;
         }
-        .rulebook-panel__char-star:hover {
-            background: rgba(255, 193, 7, 0.15);
-            color: #FFC107;
-            transform: scale(1.1);
+        
+        .ruleset-hero__btn svg {
+            width: 18px;
+            height: 18px;
         }
-        .rulebook-panel__char-star--active {
-            color: #FFC107;
+        
+        .ruleset-hero__btn--primary {
+            background: var(--accent);
+            color: white;
         }
-        .rulebook-panel__char-star--active:hover {
-            background: transparent;
-            transform: none;
-            cursor: default;
+        
+        .ruleset-hero__btn--primary:hover {
+            background: #e63946;
+            transform: translateY(-1px);
         }
-
-        /* Shorter status bars */
-        .rulebook-panel__char-status {
-            min-width: 45px !important;
-            max-width: 45px;
-        }
-
-        /* Disabled New Button */
-        .rulebook-panel__new--disabled {
-            opacity: 0.6;
+        
+        .ruleset-hero__btn--primary:disabled {
+            background: #444;
+            color: var(--text-dim);
             cursor: not-allowed;
-            background: rgba(255, 193, 7, 0.1);
+            transform: none;
+        }
+        
+        .ruleset-hero__btn--secondary {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        
+        .ruleset-hero__btn--secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        /* ========================================
+           CHARACTERS SECTION
+           ======================================== */
+        .sheet-section {
+            margin: 0 24px 24px;
+        }
+        
+        .sheet-section__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .sheet-section__title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+        
+        .sheet-section__title svg {
+            color: var(--accent);
+        }
+        
+        .sheet-section__count {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-left: 8px;
+        }
+        
+        /* Character Grid */
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        
+        /* Character Card */
+        .char-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .char-card:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-card);
+        }
+        
+        /* Main Character */
+        .char-card--main {
             border-color: rgba(255, 193, 7, 0.3);
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.08) 0%, var(--bg-elevated) 100%);
+        }
+        
+        .char-card--main:hover {
+            border-color: rgba(255, 193, 7, 0.5);
+        }
+        
+        .char-card__main-badge {
+            position: absolute;
+            top: -8px;
+            right: 12px;
+            background: #FFC107;
+            color: #121212;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .char-card__main-badge svg {
+            width: 10px;
+            height: 10px;
+            fill: currentColor;
+        }
+        
+        /* Portrait */
+        .char-card__portrait {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Dharma Gothic', sans-serif;
+            position: relative;
+            flex-shrink: 0;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            overflow: hidden;
+            color: var(--text-dim);
+        }
+        
+        .char-card__portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* Ruleset color accent */
+        .char-card--dnd5e .char-card__portrait { border-color: rgba(255, 70, 85, 0.4); }
+        .char-card--worldsapart .char-card__portrait { border-color: rgba(139, 92, 246, 0.4); }
+        .char-card--htbah .char-card__portrait { border-color: rgba(16, 185, 129, 0.4); }
+        .char-card--cyberpunkred .char-card__portrait { border-color: rgba(250, 204, 21, 0.4); }
+        
+        /* Info */
+        .char-card__info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .char-card__name {
+            font-weight: 600;
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+            color: white;
+        }
+        
+        .char-card__class {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        /* Health bar */
+        .char-card__health {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .char-card__health-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .char-card__health-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+            background: var(--green);
+        }
+        
+        .char-card__health-text {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-variant-numeric: tabular-nums;
+            min-width: 35px;
+            text-align: right;
+        }
+        
+        /* Actions */
+        .char-card__actions {
+            display: none;
+            gap: 4px;
+            margin-left: 8px;
+        }
+        
+        .char-card:hover .char-card__actions {
+            display: flex;
+        }
+        
+        .char-card__action {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .char-card__action:hover {
+            background: var(--bg-elevated);
+            color: white;
+            border-color: var(--border-hover);
+        }
+        
+        .char-card__action--star:hover {
+            color: #FFC107;
+            border-color: rgba(255, 193, 7, 0.4);
+        }
+        
+        .char-card__action--star.active {
             color: #FFC107;
         }
-        .rulebook-panel__new--disabled:hover {
-            background: rgba(255, 193, 7, 0.15);
-            transform: none;
+        
+        .char-card__action--delete:hover {
+            color: var(--accent);
+            border-color: rgba(255, 70, 85, 0.4);
+        }
+        
+        .char-card__action svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* Empty Slot */
+        .char-card--empty {
+            border-style: solid;
+            border-color: var(--border);
+            opacity: 0.5;
+            min-height: 88px;
+        }
+        
+        .char-card--empty:hover {
+            opacity: 0.8;
+            border-color: var(--accent);
+            background: var(--red-dim);
+        }
+        
+        .char-card--empty:hover .char-card__portrait {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        .char-card__empty-text {
+            color: var(--text-dim);
+        }
+        
+        .char-card__empty-text strong {
+            display: block;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        
+        .char-card__empty-text span {
+            font-size: 12px;
+        }
+        
+        /* Limit Reached */
+        .char-card--limit {
+            cursor: not-allowed;
+        }
+        
+        .char-card--limit:hover {
+            border-color: rgba(255, 193, 7, 0.3);
+            background: rgba(255, 193, 7, 0.05);
+            opacity: 0.6;
+        }
+        
+        .char-card--limit .char-card__portrait {
+            color: #FFC107;
+            border-color: rgba(255, 193, 7, 0.3);
+        }
+        
+        .char-card--limit .char-card__empty-text strong {
+            color: #FFC107;
+        }
+        
+        /* ========================================
+           RESPONSIVE
+           ======================================== */
+        @media (max-width: 1100px) {
+            .char-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .ruleset-hero {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .ruleset-hero__cover {
+                width: 100%;
+                height: 180px;
+                border-radius: 16px 16px 0 0;
+            }
+            
+            .ruleset-hero__info {
+                padding: 20px;
+            }
+            
+            .ruleset-hero__title {
+                font-size: 28px;
+            }
+        }
+        
+        @media (max-width: 700px) {
+            .char-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .ruleset-tabs {
+                padding: 0 16px 16px;
+            }
+            
+            .sheet-section {
+                margin: 0 16px 20px;
+            }
+            
+            .ruleset-hero {
+                margin: 0 16px 20px;
+            }
         }
     </style>
 </head>
@@ -135,851 +648,396 @@
     <div class="app">
         <main class="main">
             <div class="main__content">
-                
                 <div class="sheet-page">
-                    <!-- Header -->
-                    <div class="page-header">
-                        <div class="page-header__icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M4.17157 3.17157C3 4.34315 3 6.22876 3 10V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V10C21 6.22876 21 4.34315 19.8284 3.17157C18.6569 2 16.7712 2 13 2H11C7.22876 2 5.34315 2 4.17157 3.17157ZM7.25 8C7.25 7.58579 7.58579 7.25 8 7.25H16C16.4142 7.25 16.75 7.58579 16.75 8C16.75 8.41421 16.4142 8.75 16 8.75H8C7.58579 8.75 7.25 8.41421 7.25 8ZM7.25 12C7.25 11.5858 7.58579 11.25 8 11.25H16C16.4142 11.25 16.75 11.5858 16.75 12C16.75 12.4142 16.4142 12.75 16 12.75H8C7.58579 12.75 7.25 12.4142 7.25 12ZM8 15.25C7.58579 15.25 7.25 15.5858 7.25 16C7.25 16.4142 7.58579 16.75 8 16.75H13C13.4142 16.75 13.75 16.4142 13.75 16C13.75 15.5858 13.4142 15.25 13 15.25H8Z"/>
+                    
+                    <!-- Back Button -->
+                    <div class="sheet-back">
+                        <a href="index.html" class="sheet-back__btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"/>
                             </svg>
-                        </div>
-                        <div class="page-header__divider"></div>
-                        <h1 class="page-header__title">Charakterbogen</h1>
-                        <span class="page-header__tagline">Dein Held, deine Geschichte</span>
+                            Zurück
+                        </a>
                     </div>
                     
-                    <!-- Quick Stats -->
-                    <div class="sheet-stats">
-                        <div class="sheet-stat">
-                            <div class="sheet-stat__value" id="statTotalChars">0</div>
-                            <div class="sheet-stat__label">Charaktere</div>
-                        </div>
-                        <div class="sheet-stat">
-                            <div class="sheet-stat__value" id="statRulesets">4</div>
-                            <div class="sheet-stat__label">Regelwerke</div>
-                        </div>
-                        <div class="sheet-stat">
-                            <div class="sheet-stat__value" id="statLastPlayed">–</div>
-                            <div class="sheet-stat__label">Letzte Session</div>
-                        </div>
+                    <!-- Ruleset Tabs -->
+                    <div class="ruleset-tabs" id="rulesetTabs">
+                        <button class="ruleset-tab ruleset-tab--active" data-ruleset="worldsapart">
+                            <div class="ruleset-tab__icon">
+                                <img src="assets/img/rulesets/ruleset_worldsapart.svg" alt="">
+                            </div>
+                            <span>Worlds Apart</span>
+                            <span class="ruleset-tab__count" id="countWorldsapart">0</span>
+                        </button>
+                        <button class="ruleset-tab" data-ruleset="dnd5e">
+                            <div class="ruleset-tab__icon">
+                                <img src="assets/img/rulesets/ruleset_5e_2024.svg" alt="">
+                            </div>
+                            <span>D&D 5E</span>
+                            <span class="ruleset-tab__count" id="countDnd5e">0</span>
+                        </button>
+                        <button class="ruleset-tab" data-ruleset="htbah">
+                            <div class="ruleset-tab__icon">
+                                <img src="assets/img/rulesets/ruleset_htbah.svg" alt="">
+                            </div>
+                            <span>How To Be A Hero</span>
+                            <span class="ruleset-tab__count" id="countHtbah">0</span>
+                        </button>
+                        <button class="ruleset-tab" data-ruleset="cyberpunkred">
+                            <div class="ruleset-tab__icon">
+                                <img src="assets/img/rulesets/ruleset_cyberpunkred.svg" alt="">
+                            </div>
+                            <span>Cyberpunk Red</span>
+                            <span class="ruleset-tab__count" id="countCyberpunkred">0</span>
+                        </button>
                     </div>
                     
-                    <!-- Divider -->
-                    <div class="section-divider"></div>
+                    <!-- Ruleset Hero -->
+                    <div class="ruleset-hero" id="rulesetHero">
+                        <!-- Filled by JS -->
+                    </div>
                     
-                    <!-- Rulebooks Section -->
+                    <!-- Characters Section -->
                     <section class="sheet-section">
                         <div class="sheet-section__header">
                             <h2 class="sheet-section__title">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M16.5 13C15.3 13 14.29 13.62 13.67 14.5H10.33C9.71 13.62 8.7 13 7.5 13C5.57 13 4 14.57 4 16.5C4 18.43 5.57 20 7.5 20C8.7 20 9.71 19.38 10.33 18.5H13.67C14.29 19.38 15.3 20 16.5 20C18.43 20 20 18.43 20 16.5C20 14.57 18.43 13 16.5 13Z"/>
+                                    <path d="M12 11C14.21 11 16 9.21 16 7S14.21 3 12 3 8 4.79 8 7 9.79 11 12 11Z"/>
                                 </svg>
-                                Regelwerke
+                                Deine Charaktere
+                                <span class="sheet-section__count" id="charCount">0 / 3</span>
                             </h2>
                         </div>
-                        
-                        <!-- Rulebook Selection Grid -->
-                        <div class="rulebook-grid" id="rulebookGrid">
-                        
-                            <!-- D&D 5e -->
-                            <div class="rulebook-wrapper" data-rulebook="dnd5e">
-                                <div class="rulebook-card rulebook-card--red" onclick="SheetManager.toggleRulebook('dnd5e')">
-                                    <div class="rulebook-card__bg"></div>
-                                    
-                                    <!-- Character Badge -->
-                                    <div class="rulebook-card__badge">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                            <circle cx="12" cy="7" r="4"/>
-                                        </svg>
-                                        <span class="rulebook-card__count">3 Charaktere</span>
-                                    </div>
-                                    
-                                    <!-- Expand Indicator -->
-                                    <div class="rulebook-card__expand">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="6 9 12 15 18 9"/>
-                                        </svg>
-                                    </div>
-                                    
-                                    <!-- Character Clip Container -->
-                                    <div class="rulebook-card__clip">
-                                        <img class="rulebook-card__character" src="" alt="" 
-                                             onload="this.src && this.classList.add('loaded')" 
-                                             onerror="this.classList.remove('loaded')">
-                                    </div>
-                                    
-                                    <!-- Glass Info Panel -->
-                                    <div class="rulebook-card__glass">
-                                        <div class="rulebook-card__glass-content">
-                                            <h3 class="rulebook-card__name">D&D 5e</h3>
-                                            <div class="rulebook-card__meta">
-                                                <span class="rulebook-card__meta-item">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                                                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                                                    </svg>
-                                                    Dungeons & Dragons
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_5e_2024.svg" alt="" onerror="this.style.display='none'">
-                                    </div>
-                                </div>
-                                
-                                <!-- Character Panel (Accordion) -->
-                                <div class="rulebook-panel">
-                                    <div class="rulebook-panel__content">
-                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('dnd5e')">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <line x1="12" y1="5" x2="12" y2="19"/>
-                                                <line x1="5" y1="12" x2="19" y2="12"/>
-                                            </svg>
-                                            Neuer Charakterbogen
-                                        </button>
-                                        <div class="rulebook-panel__list" data-rulebook="dnd5e">
-                                            <!-- Characters loaded via JS -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                            <!-- Worlds Apart -->
-                            <div class="rulebook-wrapper" data-rulebook="worldsapart">
-                                <div class="rulebook-card rulebook-card--purple" onclick="SheetManager.toggleRulebook('worldsapart')">
-                                    <div class="rulebook-card__bg"></div>
-                                    
-                                    <div class="rulebook-card__badge">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                            <circle cx="12" cy="7" r="4"/>
-                                        </svg>
-                                        <span class="rulebook-card__count">1 Charakter</span>
-                                    </div>
-                                    
-                                    <div class="rulebook-card__expand">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="6 9 12 15 18 9"/>
-                                        </svg>
-                                    </div>
-                                    
-                                    <div class="rulebook-card__clip">
-                                        <img class="rulebook-card__character" src="" alt="" 
-                                             onload="this.src && this.classList.add('loaded')" 
-                                             onerror="this.classList.remove('loaded')">
-                                    </div>
-                                    
-                                    <div class="rulebook-card__glass">
-                                        <div class="rulebook-card__glass-content">
-                                            <h3 class="rulebook-card__name">Worlds Apart</h3>
-                                            <div class="rulebook-card__meta">
-                                                <span class="rulebook-card__meta-item">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                                        <path d="M12 2L4 7v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V7l-8-5z"/>
-                                                    </svg>
-                                                    Modulares Piraten RPG
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_worldsapart.svg" alt="" onerror="this.style.display='none'">
-                                    </div>
-                                </div>
-                                
-                                <div class="rulebook-panel">
-                                    <div class="rulebook-panel__content">
-                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('worldsapart')">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <line x1="12" y1="5" x2="12" y2="19"/>
-                                                <line x1="5" y1="12" x2="19" y2="12"/>
-                                            </svg>
-                                            Neuer Charakterbogen
-                                        </button>
-                                        <div class="rulebook-panel__list" data-rulebook="worldsapart">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                            <!-- How To Be A Hero -->
-                            <div class="rulebook-wrapper" data-rulebook="htbah">
-                                <div class="rulebook-card rulebook-card--green" onclick="SheetManager.toggleRulebook('htbah')">
-                                    <div class="rulebook-card__bg"></div>
-                                    
-                                    <div class="rulebook-card__badge">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                            <circle cx="12" cy="7" r="4"/>
-                                        </svg>
-                                        <span class="rulebook-card__count">0 Charaktere</span>
-                                    </div>
-                                    
-                                    <div class="rulebook-card__expand">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="6 9 12 15 18 9"/>
-                                        </svg>
-                                    </div>
-                                    
-                                    <div class="rulebook-card__clip">
-                                        <img class="rulebook-card__character" src="" alt="" 
-                                             onload="this.src && this.classList.add('loaded')" 
-                                             onerror="this.classList.remove('loaded')">
-                                    </div>
-                                    
-                                    <div class="rulebook-card__glass">
-                                        <div class="rulebook-card__glass-content">
-                                            <h3 class="rulebook-card__name">How To Be A Hero</h3>
-                                            <div class="rulebook-card__meta">
-                                                <span class="rulebook-card__meta-item">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                                                    </svg>
-                                                    Einsteiger-freundlich
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_htbah.svg" alt="" onerror="this.style.display='none'">
-                                    </div>
-                                </div>
-                                
-                                <div class="rulebook-panel">
-                                    <div class="rulebook-panel__content">
-                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('htbah')">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <line x1="12" y1="5" x2="12" y2="19"/>
-                                                <line x1="5" y1="12" x2="19" y2="12"/>
-                                            </svg>
-                                            Neuer Charakterbogen
-                                        </button>
-                                        <div class="rulebook-panel__list" data-rulebook="htbah">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                            <!-- Cyberpunk RED -->
-                            <div class="rulebook-wrapper" data-rulebook="cyberpunkred">
-                                <div class="rulebook-card rulebook-card--yellow" onclick="SheetManager.toggleRulebook('cyberpunkred')">
-                                    <div class="rulebook-card__bg"></div>
-                                    
-                                    <div class="rulebook-card__badge">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                            <circle cx="12" cy="7" r="4"/>
-                                        </svg>
-                                        <span class="rulebook-card__count">0 Charaktere</span>
-                                    </div>
-                                    
-                                    <div class="rulebook-card__expand">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="6 9 12 15 18 9"/>
-                                        </svg>
-                                    </div>
-                                    
-                                    <div class="rulebook-card__clip">
-                                        <img class="rulebook-card__character" src="" alt="" 
-                                             onload="this.src && this.classList.add('loaded')" 
-                                             onerror="this.classList.remove('loaded')">
-                                    </div>
-                                    
-                                    <div class="rulebook-card__glass">
-                                        <div class="rulebook-card__glass-content">
-                                            <h3 class="rulebook-card__name">Cyberpunk RED</h3>
-                                            <div class="rulebook-card__meta">
-                                                <span class="rulebook-card__meta-item">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                                                        <path d="M2 17l10 5 10-5"/>
-                                                        <path d="M2 12l10 5 10-5"/>
-                                                    </svg>
-                                                    Dystopisches Sci-Fi RPG
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <img class="rulebook-card__icon" src="assets/img/rulesets/ruleset_cyberpunkred.svg" alt="" onerror="this.style.display='none'">
-                                    </div>
-                                </div>
-                                
-                                <div class="rulebook-panel">
-                                    <div class="rulebook-panel__content">
-                                        <button class="rulebook-panel__new" onclick="SheetManager.createCharacter('cyberpunkred')">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <line x1="12" y1="5" x2="12" y2="19"/>
-                                                <line x1="5" y1="12" x2="19" y2="12"/>
-                                            </svg>
-                                            Neuer Charakterbogen
-                                        </button>
-                                        <div class="rulebook-panel__list" data-rulebook="cyberpunkred">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                        </div>
-                    </section>
-                    
-                    <!-- Divider -->
-                    <div class="section-divider"></div>
-                    
-                    <!-- Recently Played Section (Kompakter) -->
-                    <section class="sheet-section">
-                        <div class="sheet-section__header">
-                            <h2 class="sheet-section__title">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <polyline points="12 6 12 12 16 14"/>
-                                </svg>
-                                Zuletzt gespielt
-                            </h2>
-                        </div>
-                        <div class="recent-strip" id="recentCharacters">
-                            <!-- Compact recent characters - loaded via JS -->
+                        <div class="char-grid" id="charGrid">
+                            <!-- Filled by JS -->
                         </div>
                     </section>
                     
                 </div>
-                
             </div>
         </main>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-    <!-- Firebase SDK -->
+    <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
-    <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
     <script src="assets/js/room-service.js"></script>
     <script src="assets/js/user-service.js"></script>
-    
+    <script src="assets/js/character-storage.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/ui.js"></script>
     <script src="assets/js/layout.js"></script>
     <script src="assets/js/settings.js"></script>
     <script src="assets/js/transitions.js"></script>
-    <script src="assets/js/character-storage.js"></script>
-    <script src="assets/js/app.js"></script>
     
     <script>
-        // Initialize Layout
+        // Initialize layout (sidebar, topbar, footer)
         initLayout();
         
-        // Sheet Manager
-        const SheetManager = {
-            // Currently open rulebook
-            openRulebookId: null,
-            
-            // Available character images per rulebook
-            characterImages: {
-                'dnd5e': ['char_5e2024_01', 'char_5e2024_02', 'char_5e2024_03', 'char_5e2024_04', 'char_5e2024_05', 'char_5e2024_06', 'char_5e2024_07'],
-                'worldsapart': ['char_worldsapart_01', 'char_worldsapart_02', 'char_worldsapart_03', 'char_worldsapart_04', 'char_worldsapart_05', 'char_worldsapart_06', 'char_worldsapart_07'],
-                'htbah': ['char_htbah_01', 'char_htbah_02', 'char_htbah_03', 'char_htbah_04', 'char_htbah_05', 'char_htbah_06', 'char_htbah_07'],
-                'cyberpunkred': ['char_cyberpunk_01', 'char_cyberpunk_02', 'char_cyberpunk_03', 'char_cyberpunk_04']
+        // Ruleset Config
+        const rulesetConfig = {
+            worldsapart: {
+                name: 'Worlds Apart',
+                subtitle: 'Modulares Piraten-RPG mit einzigartigen Mechaniken für Moral, Schiffsführung und epische Seeschlachten.',
+                sheetUrl: 'sheet-worldsapart.html',
+                icon: 'assets/img/rulesets/ruleset_worldsapart.svg',
+                color: '#8B5CF6'
             },
-            
-            // Sheet URLs per rulebook
-            sheetUrls: {
-                'dnd5e': 'sheet-5e.html',
-                'worldsapart': 'sheet-worldsapart.html',
-                'htbah': 'sheet-htbah.html',
-                'cyberpunkred': 'sheet-cyberpunkred.html'
+            dnd5e: {
+                name: 'Dungeons & Dragons 5E',
+                subtitle: 'Das beliebteste Tabletop-RPG der Welt. Klassisches Fantasy-Abenteuer mit bewährten Regeln.',
+                sheetUrl: 'sheet-5e.html',
+                icon: 'assets/img/rulesets/ruleset_5e_2024.svg',
+                color: '#FF4655'
             },
-            
-            // Ruleset display names
-            rulesetNames: {
-                'dnd5e': 'D&D 5e',
-                'worldsapart': 'Worlds Apart',
-                'htbah': 'How To Be A Hero',
-                'cyberpunkred': 'Cyberpunk RED'
+            htbah: {
+                name: 'How To Be A Hero',
+                subtitle: 'Einsteigerfreundliches deutsches Pen & Paper System. Simpel, flexibel und kreativ.',
+                sheetUrl: 'sheet-htbah.html',
+                icon: 'assets/img/rulesets/ruleset_htbah.svg',
+                color: '#10B981'
             },
-            
-            // Ruleset colors
-            rulesetColors: {
-                'dnd5e': '#FF4655',
-                'worldsapart': '#8B5CF6',
-                'htbah': '#10B981',
-                'cyberpunkred': '#FACC15'
-            },
-            
-            // Initialize
-            init() {
-                this.loadRandomCharacterImages();
-                this.loadCharacterCounts();
-                this.loadRecentCharacters();
-                this.loadAllCharacterLists();
-            },
-            
-            // Refresh all data
-            refresh() {
-                this.loadCharacterCounts();
-                this.loadRecentCharacters();
-                this.loadAllCharacterLists();
-            },
-            
-            // Toggle rulebook accordion
-            toggleRulebook(rulebookId) {
-                const wrapper = document.querySelector(`.rulebook-wrapper[data-rulebook="${rulebookId}"]`);
-                if (!wrapper) return;
-                
-                const isOpen = wrapper.classList.contains('open');
-                
-                // Close all other panels
-                document.querySelectorAll('.rulebook-wrapper.open').forEach(w => {
-                    if (w !== wrapper) {
-                        w.classList.remove('open');
-                    }
-                });
-                
-                // Toggle current
-                if (isOpen) {
-                    wrapper.classList.remove('open');
-                    this.openRulebookId = null;
-                } else {
-                    wrapper.classList.add('open');
-                    this.openRulebookId = rulebookId;
+            cyberpunkred: {
+                name: 'Cyberpunk Red',
+                subtitle: 'Düstere Zukunft, Megacorporations und Cyberware. Das offizielle Tabletop zu Cyberpunk 2077.',
+                sheetUrl: 'sheet-cyberpunk.html',
+                icon: 'assets/img/rulesets/ruleset_cyberpunkred.svg',
+                color: '#FACC15'
+            }
+        };
+        
+        let currentRuleset = 'worldsapart';
+        const MAX_CHARS = 3;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTabs();
+            updateCounts();
+            renderHero();
+            renderCharacters();
+        });
+        
+        // Setup tab clicks
+        function setupTabs() {
+            document.querySelectorAll('.ruleset-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Update active state
+                    document.querySelectorAll('.ruleset-tab').forEach(t => t.classList.remove('ruleset-tab--active'));
+                    tab.classList.add('ruleset-tab--active');
                     
-                    // Scroll into view if needed
-                    setTimeout(() => {
-                        const panel = wrapper.querySelector('.rulebook-panel');
-                        if (panel) {
-                            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        }
-                    }, 350);
-                }
-            },
-            
-            // Load random character image for each rulebook card
-            loadRandomCharacterImages() {
-                document.querySelectorAll('.rulebook-card[onclick]').forEach(card => {
-                    const wrapper = card.closest('.rulebook-wrapper');
-                    if (!wrapper) return;
-                    
-                    const rulebookId = wrapper.dataset.rulebook;
-                    const images = this.characterImages[rulebookId];
-                    
-                    if (images && images.length > 0) {
-                        const randomImg = images[Math.floor(Math.random() * images.length)];
-                        const imgEl = card.querySelector('.rulebook-card__character');
-                        
-                        if (imgEl) {
-                            imgEl.src = `assets/img/rift_chars/hero_card/${randomImg}.png`;
-                        }
-                    }
+                    // Set current and render
+                    currentRuleset = tab.dataset.ruleset;
+                    renderHero();
+                    renderCharacters();
                 });
-            },
+            });
+        }
+        
+        // Update tab counts
+        function updateCounts() {
+            const counts = CharacterStorage.getCounts();
+            document.getElementById('countWorldsapart').textContent = counts.worldsapart || 0;
+            document.getElementById('countDnd5e').textContent = counts.dnd5e || 0;
+            document.getElementById('countHtbah').textContent = counts.htbah || 0;
+            document.getElementById('countCyberpunkred').textContent = counts.cyberpunkred || 0;
+        }
+        
+        // Render hero section
+        function renderHero() {
+            const config = rulesetConfig[currentRuleset];
+            const chars = CharacterStorage.getByRuleset(currentRuleset);
+            const count = chars.length;
+            const canCreate = count < MAX_CHARS;
             
-            // Load character counts from storage
-            loadCharacterCounts() {
-                const counts = CharacterStorage.getCounts();
-                
-                // Update each rulebook badge
-                ['dnd5e', 'worldsapart', 'htbah', 'cyberpunkred'].forEach(rulebookId => {
-                    const wrapper = document.querySelector(`.rulebook-wrapper[data-rulebook="${rulebookId}"]`);
-                    if (wrapper) {
-                        const countEl = wrapper.querySelector('.rulebook-card__count');
-                        if (countEl) {
-                            const count = counts[rulebookId] || 0;
-                            countEl.textContent = count === 1 ? '1 Charakter' : `${count} Charaktere`;
-                        }
-                    }
-                });
-                
-                // Update total stat
-                const totalEl = document.getElementById('statTotalChars');
-                if (totalEl) totalEl.textContent = counts.total;
-                
-                // Update last played stat
-                const lastPlayedEl = document.getElementById('statLastPlayed');
-                if (lastPlayedEl) {
-                    const recent = CharacterStorage.getRecent(1);
-                    if (recent.length > 0 && recent[0].lastPlayed) {
-                        const lastDate = new Date(recent[0].lastPlayed);
-                        const now = new Date();
-                        const diffMs = now - lastDate;
-                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                        
-                        if (diffHours < 1) {
-                            lastPlayedEl.textContent = 'gerade';
-                        } else if (diffHours < 24) {
-                            lastPlayedEl.textContent = `${diffHours}h`;
-                        } else if (diffDays < 30) {
-                            lastPlayedEl.textContent = `${diffDays}d`;
-                        } else {
-                            lastPlayedEl.textContent = `${Math.floor(diffDays / 30)}m`;
-                        }
-                    } else {
-                        lastPlayedEl.textContent = '–';
-                    }
-                }
-            },
-            
-            // Load all character lists into panels
-            loadAllCharacterLists() {
-                ['dnd5e', 'worldsapart', 'htbah', 'cyberpunkred'].forEach(rulebookId => {
-                    this.loadCharacterList(rulebookId);
-                });
-            },
-            
-            // Load character list for a specific rulebook
-            loadCharacterList(rulebookId) {
-                const listEl = document.querySelector(`.rulebook-panel__list[data-rulebook="${rulebookId}"]`);
-                const panelContent = listEl?.closest('.rulebook-panel__content');
-                const newBtn = panelContent?.querySelector('.rulebook-panel__new');
-                
-                if (!listEl) return;
-                
-                const chars = CharacterStorage.getByRuleset(rulebookId);
-                const maxChars = CharacterStorage.MAX_PER_RULESET || 3;
-                console.log('[SheetManager] loadCharacterList for', rulebookId, ':', chars.length, '/', maxChars, 'characters');
-                
-                // Update "Neuer Charakterbogen" button based on limit
-                if (newBtn) {
-                    if (chars.length >= maxChars) {
-                        // Replace with limit message
-                        newBtn.innerHTML = `
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            Maximum erreicht (${maxChars}/${maxChars})
-                        `;
-                        newBtn.classList.add('rulebook-panel__new--disabled');
-                        newBtn.onclick = (e) => {
-                            e.preventDefault();
-                            if (window.RIFT?.ui?.Toast) {
-                                RIFT.ui.Toast.warning('Lösche erst einen Charakter um einen neuen zu erstellen.');
-                            }
-                        };
-                    } else {
-                        // Restore normal button
-                        newBtn.innerHTML = `
+            const hero = document.getElementById('rulesetHero');
+            hero.innerHTML = `
+                <div class="ruleset-hero__cover">
+                    <div class="ruleset-hero__cover-bg ruleset-hero__cover-bg--${currentRuleset}"></div>
+                    <div class="ruleset-hero__cover-pattern"></div>
+                    <div class="ruleset-hero__cover-icon">
+                        <img src="${config.icon}" alt="${config.name}">
+                    </div>
+                </div>
+                <div class="ruleset-hero__info">
+                    <div class="ruleset-hero__badge">
+                        <img src="${config.icon}" alt="">
+                        ${currentRuleset.toUpperCase()}
+                    </div>
+                    <h1 class="ruleset-hero__title">${config.name}</h1>
+                    <p class="ruleset-hero__subtitle">${config.subtitle}</p>
+                    <div class="ruleset-hero__stats">
+                        <div class="ruleset-hero__stat">
+                            <span class="ruleset-hero__stat-value">${count}</span>
+                            <span class="ruleset-hero__stat-label">Charaktere</span>
+                        </div>
+                        <div class="ruleset-hero__stat">
+                            <span class="ruleset-hero__stat-value">${MAX_CHARS - count}</span>
+                            <span class="ruleset-hero__stat-label">Verfügbar</span>
+                        </div>
+                    </div>
+                    <div class="ruleset-hero__actions">
+                        <button class="ruleset-hero__btn ruleset-hero__btn--primary" 
+                                onclick="createCharacter()" 
+                                ${!canCreate ? 'disabled' : ''}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="12" y1="5" x2="12" y2="19"/>
                                 <line x1="5" y1="12" x2="19" y2="12"/>
                             </svg>
-                            Neuer Charakterbogen
-                        `;
-                        newBtn.classList.remove('rulebook-panel__new--disabled');
-                        newBtn.onclick = () => SheetManager.createCharacter(rulebookId);
-                    }
-                }
-                
-                if (chars.length === 0) {
-                    listEl.innerHTML = `
-                        <div class="rulebook-panel__empty">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
+                            ${canCreate ? 'Neuer Charakter' : 'Maximum erreicht'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Render character grid
+        function renderCharacters() {
+            const chars = CharacterStorage.getByRuleset(currentRuleset);
+            const count = chars.length;
+            
+            // Update count display
+            document.getElementById('charCount').textContent = `${count} / ${MAX_CHARS}`;
+            
+            // Sort: Main first, then by lastPlayed
+            chars.sort((a, b) => {
+                const aIsMain = CharacterStorage.isMainCharacter(a.id);
+                const bIsMain = CharacterStorage.isMainCharacter(b.id);
+                if (aIsMain && !bIsMain) return -1;
+                if (!aIsMain && bIsMain) return 1;
+                return new Date(b.lastPlayed || 0) - new Date(a.lastPlayed || 0);
+            });
+            
+            let html = '';
+            
+            // Render character cards
+            chars.forEach(char => {
+                html += renderCharCard(char);
+            });
+            
+            // Render empty slots
+            for (let i = count; i < MAX_CHARS; i++) {
+                html += renderEmptySlot(i === count); // First empty slot is clickable
+            }
+            
+            document.getElementById('charGrid').innerHTML = html;
+        }
+        
+        // Render character card
+        function renderCharCard(char) {
+            const isMain = CharacterStorage.isMainCharacter(char.id);
+            const portrait = char.portrait || '';
+            const portraitSrc = portrait.startsWith('data:') 
+                ? portrait 
+                : portrait ? `assets/img/rift_chars/hero_card/${portrait}.png` : '';
+            const displayClass = char.race ? `${char.race} · ${char.class}` : (char.class || char.data?.role || '');
+            
+            // Health for Worlds Apart
+            let healthHtml = '';
+            if (currentRuleset === 'worldsapart' && char.data) {
+                const health = char.data.status?.health ?? char.data.health?.current ?? 100;
+                const maxHealth = char.data.health?.max ?? 100;
+                const percent = Math.round((health / maxHealth) * 100);
+                healthHtml = `
+                    <div class="char-card__health">
+                        <div class="char-card__health-bar">
+                            <div class="char-card__health-fill" style="width: ${percent}%"></div>
+                        </div>
+                        <span class="char-card__health-text">${health} LP</span>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="char-card char-card--${currentRuleset} ${isMain ? 'char-card--main' : ''}" onclick="openCharacter('${char.id}')">
+                    ${isMain ? `
+                        <div class="char-card__main-badge">
+                            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            Main
+                        </div>
+                    ` : ''}
+                    <div class="char-card__portrait">
+                        ${portraitSrc ? `<img src="${portraitSrc}" alt="${char.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"><span style="display:none">${(char.name || '?').charAt(0).toUpperCase()}</span>` : (char.name || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div class="char-card__info">
+                        <div class="char-card__name">${char.name || 'Unbenannt'}</div>
+                        <div class="char-card__class">${displayClass || 'Keine Klasse'}</div>
+                        ${healthHtml}
+                    </div>
+                    <div class="char-card__actions">
+                        <button class="char-card__action char-card__action--star ${isMain ? 'active' : ''}" 
+                                onclick="event.stopPropagation(); setMainChar('${char.id}')" 
+                                title="${isMain ? 'Hauptcharakter' : 'Als Hauptcharakter'}">
+                            <svg viewBox="0 0 24 24" fill="${isMain ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                             </svg>
-                            <span>Noch keine Charaktere</span>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                // Sort: Main character first, then by lastPlayed/updatedAt
-                chars.sort((a, b) => {
-                    const aIsMain = CharacterStorage.isMainCharacter(a.id);
-                    const bIsMain = CharacterStorage.isMainCharacter(b.id);
-                    if (aIsMain && !bIsMain) return -1;
-                    if (!aIsMain && bIsMain) return 1;
-                    
-                    const dateA = new Date(a.lastPlayed || a.updatedAt);
-                    const dateB = new Date(b.lastPlayed || b.updatedAt);
-                    return dateB - dateA;
-                });
-                
-                listEl.innerHTML = chars.map(char => {
-                    // Validate and log character ID
-                    const charId = char.id;
-                    console.log('[SheetManager] Character:', char.name, 'ID:', charId, 'Type:', typeof charId);
-                    
-                    if (!charId || charId === 'undefined' || charId === 'null') {
-                        console.error('[SheetManager] Character has invalid ID:', char);
-                        return ''; // Skip characters without valid IDs
-                    }
-                    
-                    const displayClass = char.race ? `${char.race} ${char.class}` : char.class;
-                    const isMain = CharacterStorage.isMainCharacter(charId);
-                    
-                    // Build status preview for Worlds Apart characters
-                    let statusHtml = '';
-                    if (rulebookId === 'worldsapart' && char.data) {
-                        const health = char.data.status?.health ?? 100;
-                        const moral = char.data.status?.moral ?? 100;
-                        statusHtml = `
-                            <div class="rulebook-panel__char-status">
-                                <div class="rulebook-panel__char-status-bar" title="LP: ${health}/100">
-                                    <div class="rulebook-panel__char-status-fill health" style="width: ${health}%"></div>
-                                </div>
-                                <div class="rulebook-panel__char-status-bar" title="Moral: ${moral}/100">
-                                    <div class="rulebook-panel__char-status-fill moral" style="width: ${moral}%"></div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    // Escape the character name for use in onclick
-                    const escapedName = char.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
-                    
-                    // Determine portrait source - base64 or preset filename
-                    const portrait = char.portrait || 'char_5e2024_01';
-                    const portraitSrc = portrait.startsWith('data:') 
-                        ? portrait 
-                        : `assets/img/rift_chars/hero_card/${portrait}.png`;
-                    
-                    return `
-                    <div class="rulebook-panel__char ${isMain ? 'rulebook-panel__char--main' : ''}" data-char-id="${charId}" onclick="SheetManager.openCharacter('${charId}')">
-                        <div class="rulebook-panel__char-portrait">
-                            <img src="${portraitSrc}" alt="" onerror="this.style.display='none'">
-                        </div>
-                        <div class="rulebook-panel__char-info">
-                            <span class="rulebook-panel__char-name">${char.name}</span>
-                            <span class="rulebook-panel__char-meta">${displayClass || (isMain ? '★ Hauptcharakter' : '')}</span>
-                        </div>
-                        ${statusHtml}
-                        ${rulebookId !== 'worldsapart' ? `<div class="rulebook-panel__char-level">Lvl ${char.level || '?'}</div>` : ''}
-                        <button class="rulebook-panel__char-delete" onclick="event.stopPropagation(); SheetManager.confirmDelete('${charId}', '${escapedName}', event)" title="Löschen">
+                        </button>
+                        <button class="char-card__action char-card__action--delete" 
+                                onclick="event.stopPropagation(); deleteChar('${char.id}', '${char.name.replace(/'/g, "\\'")}')" 
+                                title="Löschen">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"/>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                <line x1="10" y1="11" x2="10" y2="17"/>
-                                <line x1="14" y1="11" x2="14" y2="17"/>
                             </svg>
                         </button>
-                        <button class="rulebook-panel__char-star ${isMain ? 'rulebook-panel__char-star--active' : ''}" 
-                                onclick="event.stopPropagation(); SheetManager.setMainCharacter('${charId}', '${rulebookId}')" 
-                                title="${isMain ? 'Hauptcharakter' : 'Als Hauptcharakter setzen'}">
-                            ★
-                        </button>
                     </div>
-                `}).join('');
-            },
-            
-            // Load recent characters strip
-            loadRecentCharacters() {
-                const stripEl = document.getElementById('recentCharacters');
-                if (!stripEl) return;
-                
-                const recent = CharacterStorage.getRecent(6);
-                
-                if (recent.length === 0) {
-                    stripEl.innerHTML = `
-                        <div class="recent-strip__empty">
-                            <span>Keine kürzlich gespielten Charaktere</span>
+                </div>
+            `;
+        }
+        
+        // Render empty slot
+        function renderEmptySlot(isClickable) {
+            if (isClickable) {
+                return `
+                    <div class="char-card char-card--empty" onclick="createCharacter()">
+                        <div class="char-card__portrait">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
                         </div>
-                    `;
-                    return;
-                }
-                
-                stripEl.innerHTML = recent.map(char => {
-                    const color = this.rulesetColors[char.ruleset] || '#8B5CF6';
-                    const displayClass = char.race ? `${char.race} ${char.class}` : char.class;
-                    
-                    // Build status preview for Worlds Apart characters
-                    let statusHtml = '';
-                    if (char.ruleset === 'worldsapart' && char.data) {
-                        const health = char.data.status?.health ?? 100;
-                        const moral = char.data.status?.moral ?? 100;
-                        statusHtml = `
-                            <div class="recent-strip__status">
-                                <div class="recent-strip__status-bar" title="LP: ${health}/100">
-                                    <div class="recent-strip__status-fill health" style="width: ${health}%"></div>
-                                </div>
-                                <div class="recent-strip__status-bar" title="Moral: ${moral}/100">
-                                    <div class="recent-strip__status-fill moral" style="width: ${moral}%"></div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    // Determine portrait source - base64 or preset filename
-                    const portrait = char.portrait || 'char_5e2024_01';
-                    const portraitSrc = portrait.startsWith('data:') 
-                        ? portrait 
-                        : `assets/img/rift_chars/hero_card/${portrait}.png`;
-                    
-                    return `
-                    <div class="recent-strip__item" onclick="SheetManager.openCharacter('${char.id}')" style="--accent-color: ${color}">
-                        <div class="recent-strip__portrait">
-                            <img src="${portraitSrc}" alt="" onerror="this.style.display='none'">
-                        </div>
-                        <div class="recent-strip__info">
-                            <span class="recent-strip__name">${char.name}</span>
-                            <span class="recent-strip__meta">${displayClass}</span>
-                            ${statusHtml}
+                        <div class="char-card__empty-text">
+                            <strong>Freier Platz</strong>
+                            <span>Klicken zum Erstellen</span>
                         </div>
                     </div>
-                `}).join('');
-            },
-            
-            // Create new character
-            createCharacter(rulebookId) {
-                // Check limit first
-                if (!CharacterStorage.canCreateCharacter(rulebookId)) {
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.warning('Maximum erreicht! Lösche erst einen Charakter.');
-                    }
-                    return;
-                }
-                
-                const url = this.sheetUrls[rulebookId];
-                if (url) {
-                    const roomCode = localStorage.getItem('rift_current_room') || '';
-                    const params = new URLSearchParams();
-                    params.set('new', 'true');
-                    if (roomCode) params.set('room', roomCode);
-                    window.location.href = `${url}?${params.toString()}`;
-                } else {
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.info('Dieses Regelwerk wird bald unterstützt!');
-                    }
-                }
-            },
-            
-            // Set character as main for ruleset
-            setMainCharacter(charId, rulebookId) {
-                if (CharacterStorage.isMainCharacter(charId)) {
-                    // Already main - show info
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.info('Bereits dein Hauptcharakter!');
-                    }
-                    return;
-                }
-                
-                const success = CharacterStorage.setMainCharacter(charId, rulebookId);
-                
-                if (success) {
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.success('Als Hauptcharakter gesetzt!');
-                    }
-                    // Refresh the list to update UI
-                    this.loadCharacterList(rulebookId);
-                } else {
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.error('Fehler beim Setzen des Hauptcharakters');
-                    }
-                }
-            },
-            
-            // Open existing character
-            openCharacter(charId) {
-                const char = CharacterStorage.getById(charId);
-                if (!char) {
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.error('Charakter nicht gefunden');
-                    }
-                    return;
-                }
-                
-                // Update last played
-                CharacterStorage.updateLastPlayed(charId);
-                
-                const url = this.sheetUrls[char.ruleset];
-                if (url) {
-                    const roomCode = localStorage.getItem('rift_current_room') || '';
-                    const params = new URLSearchParams();
-                    params.set('id', charId);
-                    if (roomCode) params.set('room', roomCode);
-                    window.location.href = `${url}?${params.toString()}`;
-                }
-            },
-            
-            // Confirm delete dialog
-            confirmDelete(charId, charName, e) {
-                // Stop event propagation
-                if (e) e.stopPropagation();
-                
-                // Use custom modal or confirm
-                const confirmed = confirm(`Möchtest du "${charName}" wirklich unwiderruflich löschen?`);
-                
-                if (confirmed) {
-                    this.deleteCharacter(charId);
-                }
-            },
-            
-            // Delete character
-            deleteCharacter(charId) {
-                console.log('[SheetManager] Attempting to delete character:', charId);
-                console.log('[SheetManager] CharId type:', typeof charId);
-                
-                // Validate charId
-                if (!charId || charId === 'undefined' || charId === 'null') {
-                    console.error('[SheetManager] Invalid charId:', charId);
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.error('Ungültige Charakter-ID');
-                    }
-                    return;
-                }
-                
-                const success = CharacterStorage.delete(charId);
-                
-                if (success) {
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.success('Charakter gelöscht');
-                    }
-                    // Refresh UI
-                    this.refresh();
-                } else {
-                    console.error('[SheetManager] CharacterStorage.delete returned false');
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.error('Fehler beim Löschen');
-                    }
-                }
-            },
-            
-            // Export all characters
-            exportAll() {
-                CharacterStorage.exportAll();
-                if (window.RIFT?.ui?.Toast) {
-                    RIFT.ui.Toast.success('Export gestartet');
-                }
-            },
-            
-            // Import characters
-            importCharacters() {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.json';
-                
-                input.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const count = CharacterStorage.importFromJson(event.target.result);
-                        if (count > 0) {
-                            if (window.RIFT?.ui?.Toast) {
-                                RIFT.ui.Toast.success(`${count} Charakter(e) importiert`);
-                            }
-                            this.refresh();
-                        } else {
-                            if (window.RIFT?.ui?.Toast) {
-                                RIFT.ui.Toast.error('Import fehlgeschlagen');
-                            }
-                        }
-                    };
-                    reader.readAsText(file);
-                };
-                
-                input.click();
+                `;
+            } else {
+                return `
+                    <div class="char-card char-card--empty char-card--limit">
+                        <div class="char-card__portrait">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                        </div>
+                        <div class="char-card__empty-text">
+                            <strong>Reserviert</strong>
+                            <span>Slot ${MAX_CHARS}</span>
+                        </div>
+                    </div>
+                `;
             }
-        };
+        }
         
-        // Make globally available
-        window.SheetManager = SheetManager;
+        // Actions
+        function openCharacter(charId) {
+            const char = CharacterStorage.getById(charId);
+            if (!char) return;
+            
+            CharacterStorage.updateLastPlayed(charId);
+            const url = rulesetConfig[char.ruleset]?.sheetUrl || 'sheet-worldsapart.html';
+            window.location.href = `${url}?id=${charId}`;
+        }
         
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            SheetManager.init();
-        });
+        function createCharacter() {
+            const count = CharacterStorage.getCountForRuleset(currentRuleset);
+            if (count >= MAX_CHARS) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.warning('Maximum erreicht. Lösche erst einen Charakter.');
+                }
+                return;
+            }
+            
+            const url = rulesetConfig[currentRuleset]?.sheetUrl;
+            if (url) {
+                window.location.href = `${url}?new=true`;
+            }
+        }
+        
+        function setMainChar(charId) {
+            if (CharacterStorage.isMainCharacter(charId)) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info('Bereits dein Hauptcharakter!');
+                }
+                return;
+            }
+            
+            CharacterStorage.setMainCharacter(charId, currentRuleset);
+            if (window.RIFT?.ui?.Toast) {
+                RIFT.ui.Toast.success('Als Hauptcharakter gesetzt!');
+            }
+            renderCharacters();
+        }
+        
+        function deleteChar(charId, charName) {
+            if (!confirm(`"${charName}" wirklich löschen?`)) return;
+            
+            const success = CharacterStorage.delete(charId);
+            if (success) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.success('Charakter gelöscht');
+                }
+                updateCounts();
+                renderHero();
+                renderCharacters();
+            }
+        }
     </script>
     <script src="assets/js/broadcast.js"></script>
 </body>
