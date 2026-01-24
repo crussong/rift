@@ -81,7 +81,22 @@
                                 <h3 class="character-hero__name" id="characterHeroName">Charakter</h3>
                                 <div class="character-hero__meta">
                                     <span class="character-hero__class" id="characterHeroClass"></span>
-                                    <span class="character-hero__level" id="characterHeroLevel"></span>
+                                </div>
+                                <div class="character-hero__stats" id="characterHeroStats">
+                                    <div class="character-hero__stat">
+                                        <span class="character-hero__stat-icon">❤️</span>
+                                        <div class="character-hero__stat-bar">
+                                            <div class="character-hero__stat-fill character-hero__stat-fill--lp" id="characterHeroLpBar" style="width: 100%"></div>
+                                        </div>
+                                        <span class="character-hero__stat-value" id="characterHeroLpValue">--</span>
+                                    </div>
+                                    <div class="character-hero__stat">
+                                        <span class="character-hero__stat-icon">💜</span>
+                                        <div class="character-hero__stat-bar">
+                                            <div class="character-hero__stat-fill character-hero__stat-fill--moral" id="characterHeroMoralBar" style="width: 100%"></div>
+                                        </div>
+                                        <span class="character-hero__stat-value" id="characterHeroMoralValue">--</span>
+                                    </div>
                                 </div>
                             </div>
                         </a>
@@ -1156,10 +1171,8 @@
                         // Name
                         document.getElementById('characterHeroName').textContent = selectedChar.name || 'Charakter';
                         
-                        // Class & Level
+                        // Class
                         const classEl = document.getElementById('characterHeroClass');
-                        const levelEl = document.getElementById('characterHeroLevel');
-                        
                         if (selectedChar.class || selectedChar.role) {
                             classEl.textContent = selectedChar.class || selectedChar.role || '';
                             classEl.style.display = 'inline';
@@ -1167,11 +1180,34 @@
                             classEl.style.display = 'none';
                         }
                         
-                        if (selectedChar.level) {
-                            levelEl.textContent = `Lvl ${selectedChar.level}`;
-                            levelEl.style.display = 'inline-flex';
+                        // LP & Moral Stats
+                        const lpValue = selectedChar.lp || selectedChar.hp || selectedChar.currentLp || null;
+                        const lpMax = selectedChar.lpMax || selectedChar.maxLp || selectedChar.maxHp || lpValue || null;
+                        const moralValue = selectedChar.moral || selectedChar.currentMoral || null;
+                        const moralMax = selectedChar.moralMax || selectedChar.maxMoral || moralValue || null;
+                        
+                        const statsEl = document.getElementById('characterHeroStats');
+                        const lpBarEl = document.getElementById('characterHeroLpBar');
+                        const lpValueEl = document.getElementById('characterHeroLpValue');
+                        const moralBarEl = document.getElementById('characterHeroMoralBar');
+                        const moralValueEl = document.getElementById('characterHeroMoralValue');
+                        
+                        if (lpValue !== null && lpMax !== null) {
+                            const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
+                            lpBarEl.style.width = `${lpPercent}%`;
+                            lpValueEl.textContent = `${lpValue}/${lpMax}`;
                         } else {
-                            levelEl.style.display = 'none';
+                            lpValueEl.textContent = '--';
+                            lpBarEl.style.width = '100%';
+                        }
+                        
+                        if (moralValue !== null && moralMax !== null) {
+                            const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
+                            moralBarEl.style.width = `${moralPercent}%`;
+                            moralValueEl.textContent = `${moralValue}/${moralMax}`;
+                        } else {
+                            moralValueEl.textContent = '--';
+                            moralBarEl.style.width = '100%';
                         }
                     } else {
                         characterHeroCard.style.display = 'none';
@@ -1226,11 +1262,11 @@
                     const totalSessions = heroSession.sessionCount || '?';
                     document.getElementById('sessionHeroSessionNum').textContent = `Session ${sessionNum}/${totalSessions}`;
                     
-                    // Tags (uppercase)
+                    // Tags (capitalize via CSS)
                     const tagsContainer = document.getElementById('sessionHeroTags');
                     if (heroSession.tags && heroSession.tags.length > 0) {
                         tagsContainer.innerHTML = heroSession.tags.slice(0, 3).map(tag => 
-                            `<span class="session-hero__tag">${tag.toUpperCase()}</span>`
+                            `<span class="session-hero__tag">${tag}</span>`
                         ).join('');
                         tagsContainer.style.display = 'flex';
                     } else {
