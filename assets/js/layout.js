@@ -348,15 +348,23 @@ function createTopbar() {
                 </div>
             </div>
             
-            <!-- Main Action -->
-            <button class="topbar__action" onclick="startAdventure()">
-                <div class="topbar__action-icon-wrap">
-                    <svg class="topbar__action-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62M11.45 15.96L6.31 15.93V14.91C6.31 14.91 9.74 11.58 9.75 10.57C9.75 9.33 8.73 9.46 8.73 9.46S7.75 9.5 7.64 10.71L6.14 10.76C6.14 10.76 6.18 8.26 8.83 8.26C11.2 8.26 11.23 10.04 11.23 10.5C11.23 12.18 8.15 14.77 8.15 14.77L11.45 14.76V15.96M17.5 13.5C17.5 14.9 16.35 16.05 14.93 16.05C13.5 16.05 12.36 14.9 12.36 13.5V10.84C12.36 9.42 13.5 8.27 14.93 8.27S17.5 9.42 17.5 10.84V13.5M16 10.77V13.53C16 14.12 15.5 14.6 14.92 14.6C14.34 14.6 13.86 14.12 13.86 13.53V10.77C13.86 10.18 14.34 9.71 14.92 9.71C15.5 9.71 16 10.18 16 10.77Z"/>
-                    </svg>
-                </div>
-                <span>Abenteuer starten</span>
-            </button>
+            <!-- Main Action / Session Status -->
+            <div class="topbar__session-area" id="topbarSessionArea">
+                <button class="topbar__action" id="topbarActionBtn" onclick="startAdventure()">
+                    <div class="topbar__action-icon-wrap">
+                        <svg class="topbar__action-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62M11.45 15.96L6.31 15.93V14.91C6.31 14.91 9.74 11.58 9.75 10.57C9.75 9.33 8.73 9.46 8.73 9.46S7.75 9.5 7.64 10.71L6.14 10.76C6.14 10.76 6.18 8.26 8.83 8.26C11.2 8.26 11.23 10.04 11.23 10.5C11.23 12.18 8.15 14.77 8.15 14.77L11.45 14.76V15.96M17.5 13.5C17.5 14.9 16.35 16.05 14.93 16.05C13.5 16.05 12.36 14.9 12.36 13.5V10.84C12.36 9.42 13.5 8.27 14.93 8.27S17.5 9.42 17.5 10.84V13.5M16 10.77V13.53C16 14.12 15.5 14.6 14.92 14.6C14.34 14.6 13.86 14.12 13.86 13.53V10.77C13.86 10.18 14.34 9.71 14.92 9.71C15.5 9.71 16 10.18 16 10.77Z"/>
+                        </svg>
+                    </div>
+                    <span>Abenteuer starten</span>
+                </button>
+                <a href="#" class="topbar__session-status" id="topbarSessionStatus" style="display: none;">
+                    <span class="topbar__session-dot"></span>
+                    <span class="topbar__session-timer" id="topbarSessionTimer">0:00:00</span>
+                    <span class="topbar__session-name" id="topbarSessionName">Session</span>
+                    <svg class="topbar__session-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </a>
+            </div>
             
             <!-- Spacer -->
             <div class="topbar__spacer"></div>
@@ -2053,6 +2061,106 @@ document.addEventListener('DOMContentLoaded', () => {
     script.src = 'assets/js/toast-service.js';
     document.head.appendChild(script);
 })();
+
+// ========================================
+// TOPBAR SESSION STATUS
+// ========================================
+const TopbarSessionStatus = {
+    timerInterval: null,
+    
+    init() {
+        this.checkAndUpdate();
+        // Re-check every 2 seconds for changes
+        setInterval(() => this.checkAndUpdate(), 2000);
+        
+        // Listen for storage changes (from other tabs)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'rift_active_session') {
+                this.checkAndUpdate();
+            }
+        });
+    },
+    
+    checkAndUpdate() {
+        const actionBtn = document.getElementById('topbarActionBtn');
+        const statusEl = document.getElementById('topbarSessionStatus');
+        
+        if (!actionBtn || !statusEl) return;
+        
+        const activeSession = JSON.parse(localStorage.getItem('rift_active_session') || 'null');
+        
+        if (activeSession && (activeSession.status === 'live' || activeSession.status === 'paused')) {
+            // Session is active - show status
+            actionBtn.style.display = 'none';
+            statusEl.style.display = 'flex';
+            statusEl.href = `session.html?id=${activeSession.id}`;
+            
+            // Update name
+            const nameEl = document.getElementById('topbarSessionName');
+            if (nameEl) {
+                nameEl.textContent = activeSession.name || 'Session';
+            }
+            
+            // Update status class (live/paused)
+            statusEl.classList.remove('topbar__session-status--live', 'topbar__session-status--paused');
+            statusEl.classList.add(`topbar__session-status--${activeSession.status}`);
+            
+            // Start/update timer
+            this.startTimer(activeSession);
+        } else {
+            // No active session - show button
+            actionBtn.style.display = 'flex';
+            statusEl.style.display = 'none';
+            this.stopTimer();
+        }
+    },
+    
+    startTimer(session) {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        
+        const timerEl = document.getElementById('topbarSessionTimer');
+        if (!timerEl || !session.startTime) return;
+        
+        const updateDisplay = () => {
+            const startTime = new Date(session.startTime).getTime();
+            const totalPausedMs = session.totalPausedMs || 0;
+            let now = Date.now();
+            
+            // If paused, use pausedTime instead of now
+            if (session.status === 'paused' && session.pausedTime) {
+                now = session.pausedTime;
+            }
+            
+            let elapsed = now - startTime - totalPausedMs;
+            if (elapsed < 0) elapsed = 0;
+            
+            const hours = Math.floor(elapsed / 3600000);
+            const mins = Math.floor((elapsed % 3600000) / 60000);
+            const secs = Math.floor((elapsed % 60000) / 1000);
+            
+            timerEl.textContent = `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        };
+        
+        updateDisplay();
+        
+        // Only tick if live
+        if (session.status === 'live') {
+            this.timerInterval = setInterval(updateDisplay, 1000);
+        }
+    },
+    
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+};
+
+// Initialize after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => TopbarSessionStatus.init(), 200);
+});
 
 // Export for use in pages
 if (typeof module !== 'undefined' && module.exports) {
