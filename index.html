@@ -84,14 +84,18 @@
                                 </div>
                                 <div class="character-hero__stats" id="characterHeroStats">
                                     <div class="character-hero__stat">
-                                        <span class="character-hero__stat-icon">❤️</span>
+                                        <span class="character-hero__stat-icon character-hero__stat-icon--lp">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.979 3.074a6 6 0 0 1 4.988 1.425l.037 .033l.034 -.03a6 6 0 0 1 4.733 -1.44l.246 .036a6 6 0 0 1 3.364 10.008l-.18 .185l-.048 .041l-7.45 7.379a1 1 0 0 1 -1.313 .082l-.094 -.082l-7.493 -7.422a6 6 0 0 1 3.176 -10.215z"/></svg>
+                                        </span>
                                         <div class="character-hero__stat-bar">
                                             <div class="character-hero__stat-fill character-hero__stat-fill--lp" id="characterHeroLpBar" style="width: 100%"></div>
                                         </div>
                                         <span class="character-hero__stat-value" id="characterHeroLpValue">--</span>
                                     </div>
                                     <div class="character-hero__stat">
-                                        <span class="character-hero__stat-icon">💜</span>
+                                        <span class="character-hero__stat-icon character-hero__stat-icon--moral">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-6.627 0-12-4.925-12-11c0-3.073 1.152-5.881 3.051-8.009a1 1 0 0 1 1.47 -.076l2.121 2.121c.603 .603 1.572 .705 2.3 .242l1.894 -1.205a1 1 0 0 1 1.197 .054l2.042 1.701c.68 .567 1.678 .593 2.389 .062l1.724 -1.29a1 1 0 0 1 1.448 .196c1.565 2.091 2.364 4.678 2.364 7.204c0 6.075-5.373 11-12 11z"/></svg>
+                                        </span>
                                         <div class="character-hero__stat-bar">
                                             <div class="character-hero__stat-fill character-hero__stat-fill--moral" id="characterHeroMoralBar" style="width: 100%"></div>
                                         </div>
@@ -1188,34 +1192,64 @@
                         
                         // Try to load status from Firebase
                         const roomCode = heroSession.roomCode || localStorage.getItem('rift_current_room');
-                        if (roomCode && selectedChar.id && typeof firebase !== 'undefined') {
+                        const sessionId = heroSession.id;
+                        const charName = selectedChar.name || selectedChar.odername;
+                        
+                        console.log('[Hub] Loading character stats - sessionId:', sessionId, 'charName:', charName, 'roomCode:', roomCode);
+                        
+                        if (sessionId && typeof firebase !== 'undefined') {
                             try {
-                                const charRef = firebase.database().ref(`rooms/${roomCode}/characters/${selectedChar.id}`);
-                                const snap = await charRef.once('value');
-                                const fbChar = snap.val();
+                                let fbChar = null;
+                                let lpValue = null;
+                                let moralValue = null;
                                 
-                                console.log('[Hub] Firebase character data:', fbChar);
+                                // Path 1: sessions/{sessionId}/characters/{charName}/worldsapart (Worlds Apart format)
+                                if (charName) {
+                                    const snap = await firebase.database().ref(`sessions/${sessionId}/characters/${charName}/worldsapart`).once('value');
+                                    fbChar = snap.val();
+                                    console.log('[Hub] Path sessions/characters/worldsapart:', fbChar ? 'found' : 'not found');
+                                    
+                                    if (fbChar) {
+                                        // Worlds Apart structure: health.current, moral.current
+                                        lpValue = fbChar.health?.current ?? fbChar.status?.health ?? null;
+                                        moralValue = fbChar.moral?.current ?? fbChar.status?.moral ?? null;
+                                    }
+                                }
                                 
-                                if (fbChar) {
-                                    // Health/LP
-                                    let lpValue = fbChar.status?.health ?? fbChar.health ?? null;
-                                    let lpMax = fbChar.status?.healthMax ?? 100;
+                                // Path 2: rooms/{roomCode}/party - check status there
+                                if (lpValue === null && roomCode) {
+                                    const partySnap = await firebase.database().ref(`rooms/${roomCode}/party`).once('value');
+                                    const party = partySnap.val();
+                                    console.log('[Hub] Party data:', party);
                                     
-                                    // Moral
-                                    let moralValue = fbChar.status?.moral ?? fbChar.moral ?? null;
-                                    let moralMax = fbChar.status?.moralMax ?? 100;
-                                    
-                                    if (lpValue !== null) {
-                                        const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
-                                        lpBarEl.style.width = `${lpPercent}%`;
-                                        lpValueEl.textContent = `${lpValue}`;
+                                    if (party) {
+                                        const partyEntry = Object.values(party).find(p => 
+                                            p.odername === charName || 
+                                            p.oderId === selectedChar.id ||
+                                            p.oderId === selectedChar.oderId
+                                        );
+                                        if (partyEntry?.status) {
+                                            lpValue = partyEntry.status.health ?? partyEntry.status.lp ?? null;
+                                            moralValue = partyEntry.status.moral ?? null;
+                                            console.log('[Hub] Found in party status:', { lpValue, moralValue });
+                                        }
                                     }
-                                    
-                                    if (moralValue !== null) {
-                                        const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
-                                        moralBarEl.style.width = `${moralPercent}%`;
-                                        moralValueEl.textContent = `${moralValue}`;
-                                    }
+                                }
+                                
+                                console.log('[Hub] Final stats:', { lpValue, moralValue });
+                                
+                                if (lpValue !== null) {
+                                    const lpMax = 100;
+                                    const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
+                                    lpBarEl.style.width = `${lpPercent}%`;
+                                    lpValueEl.textContent = `${lpValue}`;
+                                }
+                                
+                                if (moralValue !== null) {
+                                    const moralMax = 100;
+                                    const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
+                                    moralBarEl.style.width = `${moralPercent}%`;
+                                    moralValueEl.textContent = `${moralValue}`;
                                 }
                             } catch (e) {
                                 console.warn('[Hub] Could not load character stats from Firebase:', e);
