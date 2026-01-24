@@ -2540,6 +2540,24 @@
         // RENDER SESSION CONTENT
         // ========================================
         function renderSessionPage() {
+            // Sync active session to localStorage for topbar
+            if (sessionData && (sessionData.status === 'live' || sessionData.status === 'paused')) {
+                localStorage.setItem('rift_active_session', JSON.stringify({
+                    id: sessionData.id,
+                    name: sessionData.name,
+                    startTime: sessionData.startTime,
+                    status: sessionData.status,
+                    pausedTime: sessionData.pausedTime || null,
+                    totalPausedMs: sessionData.totalPausedMs || 0
+                }));
+            } else if (sessionData && sessionData.status !== 'live' && sessionData.status !== 'paused') {
+                // Clear localStorage if this session is no longer active
+                const activeSession = JSON.parse(localStorage.getItem('rift_active_session') || 'null');
+                if (activeSession && activeSession.id === sessionData.id) {
+                    localStorage.removeItem('rift_active_session');
+                }
+            }
+            
             // Nach initLayout() ist der DOM neu aufgebaut - finde main__content
             const mainContent = document.querySelector('.main__content');
             if (!mainContent) {
@@ -3408,11 +3426,14 @@
             localStorage.setItem('rift_active_session', JSON.stringify({
                 id: sessionData.id,
                 name: sessionData.name,
-                startTime: sessionData.startTime
+                startTime: sessionData.startTime,
+                status: 'live',
+                totalPausedMs: 0
             }));
             
             saveSession();
             renderSessionPage();
+            startTimer();
             
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.success('Session gestartet!');
@@ -3424,6 +3445,13 @@
             sessionData.status = 'paused';
             sessionData.pausedTime = Date.now();
             stopTimer();
+            
+            // Update localStorage for topbar
+            const activeSession = JSON.parse(localStorage.getItem('rift_active_session') || '{}');
+            activeSession.status = 'paused';
+            activeSession.pausedTime = sessionData.pausedTime;
+            activeSession.totalPausedMs = sessionData.totalPausedMs || 0;
+            localStorage.setItem('rift_active_session', JSON.stringify(activeSession));
             
             saveSession();
             renderSessionPage();
@@ -3443,8 +3471,16 @@
             sessionData.status = 'live';
             sessionData.pausedTime = null;
             
+            // Update localStorage for topbar
+            const activeSession = JSON.parse(localStorage.getItem('rift_active_session') || '{}');
+            activeSession.status = 'live';
+            activeSession.pausedTime = null;
+            activeSession.totalPausedMs = sessionData.totalPausedMs;
+            localStorage.setItem('rift_active_session', JSON.stringify(activeSession));
+            
             saveSession();
             renderSessionPage();
+            startTimer();
             
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.success('Session fortgesetzt!');
@@ -3490,11 +3526,14 @@
             localStorage.setItem('rift_active_session', JSON.stringify({
                 id: sessionData.id,
                 name: sessionData.name,
-                startTime: sessionData.startTime
+                startTime: sessionData.startTime,
+                status: 'live',
+                totalPausedMs: sessionData.totalPausedMs || 0
             }));
             
             saveSession();
             renderSessionPage();
+            startTimer();
             
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.success('Session wiederaufgenommen!');
