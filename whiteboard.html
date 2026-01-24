@@ -2660,23 +2660,35 @@ const WB = {
         this.initiativeOrder = [];
         this.deselect();
         this.render();
-        this.renderInitiativePanel();
+        this.renderInitiative();
         
         // Clear Firebase data for this room
         if (this.db && this.roomCode) {
-            this.db.ref('whiteboard/' + this.roomCode).set(null)
+            const ref = this.db.ref('whiteboard/' + this.roomCode);
+            
+            // Detach listeners BEFORE deleting to prevent re-sync
+            this.detachFirebaseListeners();
+            
+            // Use remove() instead of set(null) - more explicit
+            ref.remove()
                 .then(() => {
-                    console.log('[WB] Firebase cleared for room:', this.roomCode);
-                    // Reset flag after successful clear
+                    console.log('[WB] ✅ Firebase data REMOVED for room:', this.roomCode);
+                    
+                    // Re-attach listeners after delete is confirmed
                     setTimeout(() => {
                         this.isClearing = false;
-                    }, 500);
+                        this.setupFirebaseListeners();
+                        console.log('[WB] Listeners re-attached');
+                    }, 1000);
                 })
                 .catch(err => {
-                    console.error('[WB] Error clearing Firebase:', err);
+                    console.error('[WB] ❌ Error removing Firebase data:', err);
                     this.isClearing = false;
+                    // Re-attach listeners anyway
+                    this.setupFirebaseListeners();
                 });
         } else {
+            console.warn('[WB] No Firebase connection, only cleared locally');
             this.isClearing = false;
         }
         
@@ -2752,12 +2764,24 @@ const WB = {
     async connectFirebase() {
         try {
             this.db = firebase.database();
+            
+            // Force server sync, not cache
             const snap = await this.db.ref('whiteboard/' + this.roomCode).once('value');
             const data = snap.val();
+            
+            console.log('[WB] Firebase data loaded:', data ? 'has data' : 'empty');
+            
             if (data) {
                 this.strokes = data.strokes ? Object.values(data.strokes) : [];
                 this.tokens = data.tokens ? Object.values(data.tokens) : [];
+                console.log('[WB] Loaded', this.strokes.length, 'strokes,', this.tokens.length, 'tokens');
                 this.render();
+            } else {
+                // Ensure local state is empty if Firebase is empty
+                this.strokes = [];
+                this.tokens = [];
+                this.render();
+                console.log('[WB] Firebase empty, cleared local state');
             }
             
             // Setup listeners and track them
@@ -2779,17 +2803,29 @@ const WB = {
         const tokensRef = this.db.ref('whiteboard/' + this.roomCode + '/tokens');
         const pingsRef = this.db.ref('whiteboard/' + this.roomCode + '/pings');
         
-        // Strokes: child_added
+        // Track initial load to ignore cached child_added events
+        let strokesInitialized = false;
+        
+        // Strokes: Use value listener to get current state, then switch to child events
+        strokesRef.once('value').then(() => {
+            strokesInitialized = true;
+            console.log('[WB] Strokes listener initialized');
+        });
+        
+        // Strokes: child_added - only for NEW strokes after init
         strokesRef.on('child_added', snap => {
             if (this.isClearing) return;
+            if (!strokesInitialized) return; // Skip initial sync
+            
             const s = snap.val();
             if (s && s.userId !== this.userId && !this.strokes.find(x => x.id === s.id)) {
                 this.strokes.push(s);
                 this.render();
+                console.log('[WB] Remote stroke added:', s.id);
             }
         });
         
-        // Strokes: child_removed - NEW!
+        // Strokes: child_removed
         strokesRef.on('child_removed', snap => {
             const s = snap.val();
             if (s) {
@@ -2797,6 +2833,7 @@ const WB = {
                 if (idx !== -1) {
                     this.strokes.splice(idx, 1);
                     this.render();
+                    console.log('[WB] Remote stroke removed:', s.id);
                 }
             }
         });
