@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>RIFT – Charakterbogen</title>
+    
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/topbar.css">
+    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    
+    <style>
+        /* ========================================
+           SHEET PAGE - REDESIGNED
+           ======================================== */
+        
+        .sheet-page {
+            padding: 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .sheet-header {
+            margin-bottom: 32px;
+        }
+        
+        .sheet-header__top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .sheet-header__icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+        }
+        
+        .sheet-header__icon svg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .sheet-header__title {
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+        
+        .sheet-header__subtitle {
+            font-size: 14px;
+            color: var(--accent);
+            margin-left: 44px;
+        }
+        
+        /* Filter Tabs */
+        .sheet-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+        
+        .sheet-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: #1b1b1b;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .sheet-filter:hover {
+            background: #222;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .sheet-filter--active {
+            background: #252525;
+            border-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .sheet-filter__icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .sheet-filter__icon img {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .sheet-filter__count {
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .sheet-filter--active .sheet-filter__count {
+            background: var(--accent);
+            color: white;
+        }
+        
+        /* Character Grid */
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        /* Character Card */
+        .char-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            background: #1a1a1a;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+        
+        .char-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Portrait */
+        .char-card__portrait {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+        }
+        
+        .char-card__portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            transition: transform 0.4s ease;
+        }
+        
+        .char-card:hover .char-card__portrait img {
+            transform: scale(1.05);
+        }
+        
+        .char-card__portrait::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(26, 26, 26, 0.9) 100%);
+            pointer-events: none;
+        }
+        
+        /* Portrait Placeholder */
+        .char-card__placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.15);
+        }
+        
+        .char-card__placeholder svg {
+            width: 64px;
+            height: 64px;
+        }
+        
+        .char-card__initial {
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 72px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.12);
+        }
+        
+        /* Main Badge */
+        .char-card__main-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #FFC107;
+            z-index: 2;
+        }
+        
+        .char-card__main-badge svg {
+            width: 12px;
+            height: 12px;
+            fill: currentColor;
+        }
+        
+        /* Ruleset Badge */
+        .char-card__ruleset {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 28px;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        
+        .char-card__ruleset img {
+            width: 18px;
+            height: 18px;
+        }
+        
+        /* Content */
+        .char-card__content {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .char-card__name {
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .char-card__meta {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.45);
+        }
+        
+        /* Actions (on hover) */
+        .char-card__actions {
+            position: absolute;
+            bottom: 60px;
+            right: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: all 0.2s ease;
+            z-index: 3;
+        }
+        
+        .char-card:hover .char-card__actions {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .char-card__action {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            border: none;
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .char-card__action:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+        
+        .char-card__action--star:hover {
+            background: rgba(255, 193, 7, 0.2);
+            color: #FFC107;
+        }
+        
+        .char-card__action--star.active {
+            color: #FFC107;
+        }
+        
+        .char-card__action--delete:hover {
+            background: rgba(255, 70, 85, 0.2);
+            color: #FF4655;
+        }
+        
+        .char-card__action svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* Create New Card */
+        .char-card--new {
+            border-style: solid;
+            border-color: rgba(255, 255, 255, 0.06);
+            min-height: 280px;
+        }
+        
+        .char-card--new:hover {
+            border-color: var(--accent);
+            background: rgba(255, 70, 85, 0.03);
+        }
+        
+        .char-card--new .char-card__portrait {
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .char-card__new-icon {
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            color: rgba(255, 255, 255, 0.25);
+            transition: all 0.3s ease;
+        }
+        
+        .char-card--new:hover .char-card__new-icon {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .char-card__new-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .char-card--new .char-card__content {
+            text-align: center;
+        }
+        
+        .char-card--new .char-card__name {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .char-card--new:hover .char-card__name {
+            color: white;
+        }
+        
+        .char-card--new .char-card__meta {
+            color: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Limit Reached Card */
+        .char-card--limit {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .char-card--limit:hover {
+            transform: none;
+            border-color: rgba(255, 193, 7, 0.3);
+            background: rgba(255, 193, 7, 0.03);
+        }
+        
+        .char-card--limit .char-card__new-icon {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: rgba(255, 193, 7, 0.3);
+            color: #FFC107;
+        }
+        
+        .char-card--limit:hover .char-card__new-icon {
+            background: rgba(255, 193, 7, 0.15);
+            border-color: rgba(255, 193, 7, 0.4);
+            color: #FFC107;
+            transform: none;
+        }
+        
+        .char-card--limit .char-card__name {
+            color: #FFC107;
+        }
+        
+        /* Ruleset color variants for portrait bg */
+        .char-card--dnd5e .char-card__portrait { background: linear-gradient(135deg, rgba(255, 70, 85, 0.15) 0%, rgba(255, 70, 85, 0.05) 100%); }
+        .char-card--worldsapart .char-card__portrait { background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%); }
+        .char-card--htbah .char-card__portrait { background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%); }
+        .char-card--cyberpunkred .char-card__portrait { background: linear-gradient(135deg, rgba(250, 204, 21, 0.15) 0%, rgba(250, 204, 21, 0.05) 100%); }
+        
+        /* Empty State */
+        .sheet-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+            text-align: center;
+        }
+        
+        .sheet-empty__icon {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            color: rgba(255, 255, 255, 0.15);
+            margin-bottom: 24px;
+        }
+        
+        .sheet-empty__icon svg {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .sheet-empty__title {
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 28px;
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .sheet-empty__text {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.4);
+            margin: 0;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sheet-page {
+                padding: 20px;
+            }
+            
+            .sheet-header__title {
+                font-size: 32px;
+            }
+            
+            .sheet-filters {
+                gap: 6px;
+            }
+            
+            .sheet-filter {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            
+            .char-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <main class="main">
+            <div class="main__content">
+                <div class="sheet-page">
+                    
+                    <!-- Header -->
+                    <header class="sheet-header">
+                        <div class="sheet-header__top">
+                            <div class="sheet-header__icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                            </div>
+                            <h1 class="sheet-header__title">Charaktere</h1>
+                        </div>
+                        <p class="sheet-header__subtitle">Deine Helden, deine Geschichten</p>
+                    </header>
+                    
+                    <!-- Filter Tabs -->
+                    <div class="sheet-filters" id="sheetFilters">
+                        <button class="sheet-filter sheet-filter--active" data-filter="all">
+                            <span>Alle</span>
+                            <span class="sheet-filter__count" id="countAll">0</span>
+                        </button>
+                        <button class="sheet-filter" data-filter="dnd5e">
+                            <div class="sheet-filter__icon">
+                                <img src="assets/img/rulesets/ruleset_5e_2024.svg" alt="">
+                            </div>
+                            <span>D&D 5E</span>
+                            <span class="sheet-filter__count" id="countDnd5e">0</span>
+                        </button>
+                        <button class="sheet-filter" data-filter="worldsapart">
+                            <div class="sheet-filter__icon">
+                                <img src="assets/img/rulesets/ruleset_worldsapart.svg" alt="">
+                            </div>
+                            <span>Worlds Apart</span>
+                            <span class="sheet-filter__count" id="countWorldsapart">0</span>
+                        </button>
+                        <button class="sheet-filter" data-filter="htbah">
+                            <div class="sheet-filter__icon">
+                                <img src="assets/img/rulesets/ruleset_htbah.svg" alt="">
+                            </div>
+                            <span>HTBAH</span>
+                            <span class="sheet-filter__count" id="countHtbah">0</span>
+                        </button>
+                        <button class="sheet-filter" data-filter="cyberpunkred">
+                            <div class="sheet-filter__icon">
+                                <img src="assets/img/rulesets/ruleset_cyberpunkred.svg" alt="">
+                            </div>
+                            <span>Cyberpunk</span>
+                            <span class="sheet-filter__count" id="countCyberpunkred">0</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Character Grid -->
+                    <div class="char-grid" id="charGrid">
+                        <!-- Characters loaded via JS -->
+                    </div>
+                    
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/room-service.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    <script src="assets/js/character-storage.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/settings.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    
+    <script>
+        // Sheet URLs for each ruleset
+        const sheetUrls = {
+            'dnd5e': 'sheet-5e.html',
+            'worldsapart': 'sheet-worldsapart.html',
+            'htbah': 'sheet-htbah.html',
+            'cyberpunkred': 'sheet-cyberpunk.html'
+        };
+        
+        // Ruleset icons
+        const rulesetIcons = {
+            'dnd5e': 'assets/img/rulesets/ruleset_5e_2024.svg',
+            'worldsapart': 'assets/img/rulesets/ruleset_worldsapart.svg',
+            'htbah': 'assets/img/rulesets/ruleset_htbah.svg',
+            'cyberpunkred': 'assets/img/rulesets/ruleset_cyberpunkred.svg'
+        };
+        
+        // Ruleset display names
+        const rulesetNames = {
+            'dnd5e': 'D&D 5E',
+            'worldsapart': 'Worlds Apart',
+            'htbah': 'How To Be A Hero',
+            'cyberpunkred': 'Cyberpunk Red'
+        };
+        
+        // Current filter
+        let currentFilter = 'all';
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCharacters();
+            setupFilters();
+        });
+        
+        // Setup filter buttons
+        function setupFilters() {
+            document.querySelectorAll('.sheet-filter').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Update active state
+                    document.querySelectorAll('.sheet-filter').forEach(b => b.classList.remove('sheet-filter--active'));
+                    btn.classList.add('sheet-filter--active');
+                    
+                    // Set filter and reload
+                    currentFilter = btn.dataset.filter;
+                    renderCharacters();
+                });
+            });
+        }
+        
+        // Load all characters
+        function loadCharacters() {
+            updateCounts();
+            renderCharacters();
+        }
+        
+        // Update filter counts
+        function updateCounts() {
+            const counts = CharacterStorage.getCounts();
+            
+            document.getElementById('countAll').textContent = counts.total || 0;
+            document.getElementById('countDnd5e').textContent = counts.dnd5e || 0;
+            document.getElementById('countWorldsapart').textContent = counts.worldsapart || 0;
+            document.getElementById('countHtbah').textContent = counts.htbah || 0;
+            document.getElementById('countCyberpunkred').textContent = counts.cyberpunkred || 0;
+        }
+        
+        // Render character grid
+        function renderCharacters() {
+            const grid = document.getElementById('charGrid');
+            let chars = CharacterStorage.getAll();
+            
+            // Filter if needed
+            if (currentFilter !== 'all') {
+                chars = chars.filter(c => c.ruleset === currentFilter);
+            }
+            
+            // Sort: Main characters first, then by lastPlayed
+            chars.sort((a, b) => {
+                const aIsMain = CharacterStorage.isMainCharacter(a.id);
+                const bIsMain = CharacterStorage.isMainCharacter(b.id);
+                if (aIsMain && !bIsMain) return -1;
+                if (!aIsMain && bIsMain) return 1;
+                
+                const dateA = new Date(a.lastPlayed || a.updatedAt || 0);
+                const dateB = new Date(b.lastPlayed || b.updatedAt || 0);
+                return dateB - dateA;
+            });
+            
+            // Build HTML
+            let html = '';
+            
+            // Character cards
+            chars.forEach(char => {
+                html += renderCharCard(char);
+            });
+            
+            // "Create New" card(s)
+            if (currentFilter === 'all') {
+                // Show one generic "new" card
+                html += renderNewCard(null);
+            } else {
+                // Show ruleset-specific "new" card with limit check
+                const count = CharacterStorage.getCountForRuleset(currentFilter);
+                const maxChars = CharacterStorage.MAX_PER_RULESET || 3;
+                html += renderNewCard(currentFilter, count >= maxChars);
+            }
+            
+            grid.innerHTML = html;
+        }
+        
+        // Render single character card
+        function renderCharCard(char) {
+            const isMain = CharacterStorage.isMainCharacter(char.id);
+            const ruleset = char.ruleset || 'worldsapart';
+            const sheetUrl = sheetUrls[ruleset] || 'sheet-worldsapart.html';
+            
+            // Portrait
+            const portrait = char.portrait || '';
+            const portraitSrc = portrait.startsWith('data:') 
+                ? portrait 
+                : portrait ? `assets/img/rift_chars/hero_card/${portrait}.png` : '';
+            
+            // Display info
+            const displayClass = char.race ? `${char.race} · ${char.class}` : (char.class || char.data?.role || '');
+            
+            return `
+                <div class="char-card char-card--${ruleset}" onclick="openCharacter('${char.id}')">
+                    <div class="char-card__portrait">
+                        ${portraitSrc ? `
+                            <img src="${portraitSrc}" alt="${char.name}" onerror="this.style.display='none'">
+                        ` : `
+                            <div class="char-card__placeholder">
+                                <span class="char-card__initial">${(char.name || '?').charAt(0).toUpperCase()}</span>
+                            </div>
+                        `}
+                        ${isMain ? `
+                            <div class="char-card__main-badge">
+                                <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                Main
+                            </div>
+                        ` : ''}
+                        <div class="char-card__ruleset">
+                            <img src="${rulesetIcons[ruleset]}" alt="${rulesetNames[ruleset]}">
+                        </div>
+                    </div>
+                    <div class="char-card__actions">
+                        <button class="char-card__action char-card__action--star ${isMain ? 'active' : ''}" 
+                                onclick="event.stopPropagation(); setMainChar('${char.id}', '${ruleset}')" 
+                                title="${isMain ? 'Hauptcharakter' : 'Als Hauptcharakter setzen'}">
+                            <svg viewBox="0 0 24 24" fill="${isMain ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                        </button>
+                        <button class="char-card__action char-card__action--delete" 
+                                onclick="event.stopPropagation(); deleteChar('${char.id}', '${char.name.replace(/'/g, "\\'")}')" 
+                                title="Löschen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="char-card__content">
+                        <h3 class="char-card__name">${char.name || 'Unbenannt'}</h3>
+                        <p class="char-card__meta">${displayClass}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Render "Create New" card
+        function renderNewCard(ruleset, limitReached = false) {
+            if (limitReached) {
+                return `
+                    <div class="char-card char-card--new char-card--limit" onclick="showLimitWarning()">
+                        <div class="char-card__portrait">
+                            <div class="char-card__new-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="8" x2="12" y2="12"/>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="char-card__content">
+                            <h3 class="char-card__name">Maximum erreicht</h3>
+                            <p class="char-card__meta">Lösche erst einen Charakter</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            const onclick = ruleset 
+                ? `createCharacter('${ruleset}')`
+                : `showRulesetPicker()`;
+            
+            return `
+                <div class="char-card char-card--new" onclick="${onclick}">
+                    <div class="char-card__portrait">
+                        <div class="char-card__new-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="char-card__content">
+                        <h3 class="char-card__name">Neu erstellen</h3>
+                        <p class="char-card__meta">${ruleset ? rulesetNames[ruleset] : 'Regelwerk wählen'}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Open character
+        function openCharacter(charId) {
+            const char = CharacterStorage.getById(charId);
+            if (!char) return;
+            
+            CharacterStorage.updateLastPlayed(charId);
+            
+            const url = sheetUrls[char.ruleset] || 'sheet-worldsapart.html';
+            const roomCode = localStorage.getItem('rift_current_room') || '';
+            const params = new URLSearchParams();
+            params.set('id', charId);
+            if (roomCode) params.set('room', roomCode);
+            
+            window.location.href = `${url}?${params.toString()}`;
+        }
+        
+        // Create new character
+        function createCharacter(ruleset) {
+            const url = sheetUrls[ruleset];
+            if (!url) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info('Dieses Regelwerk wird bald unterstützt!');
+                }
+                return;
+            }
+            
+            const roomCode = localStorage.getItem('rift_current_room') || '';
+            const params = new URLSearchParams();
+            params.set('new', 'true');
+            if (roomCode) params.set('room', roomCode);
+            
+            window.location.href = `${url}?${params.toString()}`;
+        }
+        
+        // Show ruleset picker (when "Alle" is active)
+        function showRulesetPicker() {
+            // Simple: Just switch to first ruleset tab
+            // TODO: Could show a modal picker instead
+            const firstRuleset = document.querySelector('.sheet-filter[data-filter="dnd5e"]');
+            if (firstRuleset) {
+                firstRuleset.click();
+            }
+        }
+        
+        // Set main character
+        function setMainChar(charId, ruleset) {
+            if (CharacterStorage.isMainCharacter(charId)) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info('Bereits dein Hauptcharakter!');
+                }
+                return;
+            }
+            
+            CharacterStorage.setMainCharacter(charId, ruleset);
+            
+            if (window.RIFT?.ui?.Toast) {
+                RIFT.ui.Toast.success('Als Hauptcharakter gesetzt!');
+            }
+            
+            renderCharacters();
+        }
+        
+        // Delete character
+        function deleteChar(charId, charName) {
+            if (!confirm(`"${charName}" wirklich löschen?`)) return;
+            
+            const success = CharacterStorage.delete(charId);
+            
+            if (success) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.success('Charakter gelöscht');
+                }
+                updateCounts();
+                renderCharacters();
+            } else {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.error('Fehler beim Löschen');
+                }
+            }
+        }
+        
+        // Show limit warning
+        function showLimitWarning() {
+            if (window.RIFT?.ui?.Toast) {
+                RIFT.ui.Toast.warning('Maximum von 3 Charakteren erreicht. Lösche erst einen.');
+            }
+        }
+    </script>
+</body>
+</html>
