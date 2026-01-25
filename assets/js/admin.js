@@ -5,6 +5,7 @@
 
 class AdminSystem {
     constructor() {
+        console.log('[Admin] AdminSystem constructor called');
         this.isAdmin = false;
         this.adminUser = null;
         this.tapCount = 0;
@@ -13,7 +14,7 @@ class AdminSystem {
         // Admin UIDs - add your Firebase UID here after first login
         // Find your UID in Firebase Console > Authentication > Users
         this.ADMIN_UIDS = [
-            // Add your UID here, e.g.: 'abc123xyz456'
+            'geBL1R192jUiPrFK1oJ5u2Z25hM2'  // Mike's UID from console
         ];
         
         // Admin emails (alternative check)
@@ -23,6 +24,9 @@ class AdminSystem {
             'crussong@proton.me',
             'mike1lusson@gmail.com'
         ];
+        
+        console.log('[Admin] Admin UIDs:', this.ADMIN_UIDS);
+        console.log('[Admin] Admin Emails:', this.ADMIN_EMAILS);
         
         this.init();
     }
@@ -38,17 +42,24 @@ class AdminSystem {
     // ========================================
     
     checkAuthState() {
+        console.log('[Admin] checkAuthState called');
         // Wait for Firebase
         const waitForFirebase = () => {
+            console.log('[Admin] Waiting for Firebase...', typeof firebase);
             if (typeof firebase !== 'undefined' && firebase.auth) {
+                console.log('[Admin] Firebase ready, setting up auth listener');
                 firebase.auth().onAuthStateChanged((user) => {
+                    console.log('[Admin] Auth state changed, user:', user ? user.email : 'null');
                     if (user && this.isAdminUser(user)) {
                         this.isAdmin = true;
                         this.adminUser = user;
-                        console.log('[Admin] Authenticated as admin:', user.email);
+                        console.log('[Admin] ✓ Authenticated as admin:', user.email);
                     } else {
                         this.isAdmin = false;
                         this.adminUser = null;
+                        if (user) {
+                            console.log('[Admin] ✗ User logged in but not admin:', user.email);
+                        }
                     }
                     this.updateUI();
                 });
