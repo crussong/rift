@@ -502,18 +502,28 @@ class AdminSystem {
     // ========================================
     
     updateUI() {
+        console.log('[Admin] updateUI called, isAdmin:', this.isAdmin);
+        
         // Toggle admin-only elements
         document.querySelectorAll('[data-admin-only]').forEach(el => {
             el.style.display = this.isAdmin ? '' : 'none';
         });
         
-        // Add/remove admin class on body
+        // Add/remove admin class on body (CSS expects 'admin-mode')
+        document.body.classList.toggle('admin-mode', this.isAdmin);
         document.body.classList.toggle('is-admin', this.isAdmin);
         
         // Show/hide edit buttons
         document.querySelectorAll('.admin-edit-btn, .article-edit-trigger, [data-admin-edit]').forEach(btn => {
             btn.style.display = this.isAdmin ? '' : 'none';
         });
+        
+        // Force show news edit buttons
+        if (this.isAdmin) {
+            document.querySelectorAll('.news-card__edit').forEach(btn => {
+                btn.style.display = 'flex';
+            });
+        }
     }
     
     showToast(message) {
