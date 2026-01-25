@@ -930,31 +930,40 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <!-- Auth Guard Script -->
-    <script>
-        (function authGuard() {
-            const checkAuth = () => {
-                if (typeof firebase === 'undefined' || !firebase.auth) {
-                    setTimeout(checkAuth, 50);
-                    return;
-                }
-                
-                firebase.auth().onAuthStateChanged((user) => {
-                    if (!user) {
-                        console.log('[AuthGuard] No authenticated user, redirecting to login...');
-                        window.location.href = 'login.html';
-                    } else {
-                        console.log('[AuthGuard] User authenticated:', user.uid);
-                        document.body.classList.add('auth-ready');
-                    }
-                });
-            };
-            checkAuth();
-        })();
-    </script>
 
     
     <script src="assets/js/firebase-config.js"></script>
+    <!-- Auth Guard - MUST be after firebase-config.js -->
+    <script>
+        (function() {
+            console.log('[AuthGuard] Initializing...');
+            
+            function waitForFirebase() {
+                if (typeof firebase === 'undefined' || !firebase.auth) {
+                    setTimeout(waitForFirebase, 50);
+                    return;
+                }
+                
+                try {
+                    var auth = firebase.auth();
+                    auth.onAuthStateChanged(function(user) {
+                        console.log('[AuthGuard] Auth state:', user ? 'signed in' : 'signed out');
+                        if (!user) {
+                            console.log('[AuthGuard] Redirecting to login...');
+                            window.location.replace('login.html');
+                        } else {
+                            document.body.classList.add('auth-ready');
+                        }
+                    });
+                } catch (e) {
+                    setTimeout(waitForFirebase, 100);
+                }
+            }
+            
+            waitForFirebase();
+        })();
+    </script>
+
     <script src="assets/js/room-service.js"></script>
     <script src="assets/js/user-service.js"></script>
     <script src="assets/js/character-storage.js"></script>

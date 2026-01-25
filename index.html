@@ -576,6 +576,45 @@
     
     <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
+    
+    <!-- Auth Guard - MUST be after firebase-config.js but before other services -->
+    <script>
+        (function() {
+            console.log('[AuthGuard] Initializing...');
+            
+            // Wait for Firebase to be fully initialized
+            function waitForFirebase() {
+                if (typeof firebase === 'undefined' || !firebase.auth) {
+                    console.log('[AuthGuard] Waiting for Firebase...');
+                    setTimeout(waitForFirebase, 50);
+                    return;
+                }
+                
+                // Check if Firebase app is initialized
+                try {
+                    const auth = firebase.auth();
+                    console.log('[AuthGuard] Firebase ready, checking auth state...');
+                    
+                    auth.onAuthStateChanged(function(user) {
+                        console.log('[AuthGuard] Auth state:', user ? 'signed in' : 'signed out');
+                        
+                        if (!user) {
+                            console.log('[AuthGuard] No user - redirecting to login.html');
+                            window.location.replace('login.html');
+                        } else {
+                            console.log('[AuthGuard] User found:', user.uid);
+                            document.body.classList.add('auth-ready');
+                        }
+                    });
+                } catch (e) {
+                    console.log('[AuthGuard] Firebase not ready yet, retrying...', e.message);
+                    setTimeout(waitForFirebase, 100);
+                }
+            }
+            
+            waitForFirebase();
+        })();
+    </script>
     <script src="assets/js/room-service.js"></script>
     <script src="assets/js/user-service.js"></script>
     <script src="assets/js/character-storage.js"></script>
@@ -590,32 +629,6 @@
     <script src="assets/js/transitions.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
-        // ========================================
-        // AUTH GUARD - Redirect to login if not authenticated
-        // ========================================
-        (function authGuard() {
-            // Wait for Firebase to be ready
-            const checkAuth = () => {
-                if (typeof firebase === 'undefined' || !firebase.auth) {
-                    setTimeout(checkAuth, 50);
-                    return;
-                }
-                
-                firebase.auth().onAuthStateChanged((user) => {
-                    if (!user) {
-                        // No user signed in - redirect to login
-                        console.log('[Hub] No authenticated user, redirecting to login...');
-                        window.location.href = 'login.html';
-                    } else {
-                        console.log('[Hub] User authenticated:', user.uid);
-                        // Show the page content (was hidden during check)
-                        document.body.classList.add('auth-ready');
-                    }
-                });
-            };
-            checkAuth();
-        })();
-        
         initLayout();
         
         // Get current room code for filtering
