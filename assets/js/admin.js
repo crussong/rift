@@ -18,8 +18,7 @@ class AdminSystem {
         
         // Admin emails (alternative check)
         this.ADMIN_EMAILS = [
-            'crussong@proton.me',
-            'mike1lusson@gmail.com',
+            'mike@rift.app',
             'admin@rift.app'
             // Add your admin email here
         ];
@@ -62,16 +61,26 @@ class AdminSystem {
     isAdminUser(user) {
         if (!user) return false;
         
+        console.log('[Admin] Checking user:', user.email, 'UID:', user.uid);
+        console.log('[Admin] Admin emails:', this.ADMIN_EMAILS);
+        console.log('[Admin] Admin UIDs:', this.ADMIN_UIDS);
+        
         // Check UID
         if (this.ADMIN_UIDS.includes(user.uid)) {
+            console.log('[Admin] ✓ Matched by UID');
             return true;
         }
         
-        // Check email
-        if (user.email && this.ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+        // Check email (case-insensitive)
+        const userEmail = user.email?.toLowerCase();
+        const adminEmails = this.ADMIN_EMAILS.map(e => e.toLowerCase());
+        
+        if (userEmail && adminEmails.includes(userEmail)) {
+            console.log('[Admin] ✓ Matched by email');
             return true;
         }
         
+        console.log('[Admin] ✗ No match found');
         return false;
     }
     
