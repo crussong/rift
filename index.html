@@ -29,6 +29,18 @@
     
     <!-- Cropper.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    
+    <!-- Auth Guard: Hide content until authenticated -->
+    <style>
+        body:not(.auth-ready) .app {
+            opacity: 0;
+            pointer-events: none;
+        }
+        body.auth-ready .app {
+            opacity: 1;
+            transition: opacity 0.2s ease;
+        }
+    </style>
 </head>
 <body>
     <div class="app">
@@ -578,6 +590,32 @@
     <script src="assets/js/transitions.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
+        // ========================================
+        // AUTH GUARD - Redirect to login if not authenticated
+        // ========================================
+        (function authGuard() {
+            // Wait for Firebase to be ready
+            const checkAuth = () => {
+                if (typeof firebase === 'undefined' || !firebase.auth) {
+                    setTimeout(checkAuth, 50);
+                    return;
+                }
+                
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (!user) {
+                        // No user signed in - redirect to login
+                        console.log('[Hub] No authenticated user, redirecting to login...');
+                        window.location.href = 'login.html';
+                    } else {
+                        console.log('[Hub] User authenticated:', user.uid);
+                        // Show the page content (was hidden during check)
+                        document.body.classList.add('auth-ready');
+                    }
+                });
+            };
+            checkAuth();
+        })();
+        
         initLayout();
         
         // Get current room code for filtering

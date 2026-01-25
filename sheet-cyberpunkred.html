@@ -14,6 +14,22 @@
     <link rel="stylesheet" href="assets/css/settings.css">
     <link rel="stylesheet" href="assets/css/sheet.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+
+    <!-- Auth Guard: Hide content until authenticated -->
+    <style>
+        body:not(.auth-ready) .app,
+        body:not(.auth-ready) .sheet-container,
+        body:not(.auth-ready) main {
+            opacity: 0;
+            pointer-events: none;
+        }
+        body.auth-ready .app,
+        body.auth-ready .sheet-container,
+        body.auth-ready main {
+            opacity: 1;
+            transition: opacity 0.2s ease;
+        }
+    </style>
 </head>
 <body>
     <div class="app">
@@ -81,6 +97,29 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- Auth Guard Script -->
+    <script>
+        (function authGuard() {
+            const checkAuth = () => {
+                if (typeof firebase === 'undefined' || !firebase.auth) {
+                    setTimeout(checkAuth, 50);
+                    return;
+                }
+                
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (!user) {
+                        console.log('[AuthGuard] No authenticated user, redirecting to login...');
+                        window.location.href = 'login.html';
+                    } else {
+                        console.log('[AuthGuard] User authenticated:', user.uid);
+                        document.body.classList.add('auth-ready');
+                    }
+                });
+            };
+            checkAuth();
+        })();
+    </script>
+
     
     <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
