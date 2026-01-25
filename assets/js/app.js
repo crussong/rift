@@ -95,7 +95,7 @@ const App = {
                 } else {
                     // Not logged in - check if should redirect
                     const currentPage = window.location.pathname.split('/').pop();
-                    const publicPages = ['login', 'login.html', 'about', 'about.html', 'news', 'roadmap', ''];
+                    const publicPages = ['login', 'login.html', 'about', 'about.html', 'privacy', 'privacy.html', 'imprint', 'imprint.html', 'news', 'roadmap'];
                     if (!publicPages.includes(currentPage)) {
                         console.log('[App] Not authenticated, redirecting to login');
                         window.location.href = '/login';
@@ -462,7 +462,7 @@ const App = {
         
         // Not logged in - redirect to login (only if not already on login page)
         const currentPage = window.location.pathname.split('/').pop();
-        const publicPages = ['login', 'login.html', 'about', 'about.html', 'news', 'roadmap', ''];
+        const publicPages = ['login', 'login.html', 'about', 'about.html', 'privacy', 'privacy.html', 'imprint', 'imprint.html', 'news', 'roadmap'];
         if (!publicPages.includes(currentPage)) {
             window.location.href = '/login';
             return false;
