@@ -597,17 +597,26 @@ const DICE = (function() {
     
     // RIFT: Methode um Würfelfarbe zu ändern
     that.setDiceColor = function(color, gradient) {
+        console.log('[DICE] setDiceColor called:', color, gradient);
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
         // Cache löschen damit neue Materialien erstellt werden
         threeD_dice.d4_material = null;
         threeD_dice.dice_material = null;
         threeD_dice.d100_material = null;
+        // Auch die spezifischen Materialien löschen falls vorhanden
+        threeD_dice.d6_material = null;
+        threeD_dice.d8_material = null;
+        threeD_dice.d10_material = null;
+        threeD_dice.d12_material = null;
+        threeD_dice.d20_material = null;
     };
     
     // RIFT: Gradient-Helper Funktion
     function fillWithGradient(context, width, height, gradient) {
+        console.log('[DICE] fillWithGradient called:', gradient);
         if (!gradient || !gradient.colors || gradient.colors.length < 2) {
+            console.log('[DICE] No valid gradient, using solid color');
             return false;
         }
         
@@ -630,10 +639,12 @@ const DICE = (function() {
         
         context.fillStyle = grd;
         context.fillRect(0, 0, width, height);
+        console.log('[DICE] Gradient applied successfully');
         return true;
     }
     
     function create_dice_materials(face_labels, size, margin) {
+        console.log('[DICE] create_dice_materials - dice_gradient:', vars.dice_gradient);
         function create_text_texture(text, color, back_color) {
             if (text == undefined) return null;
             var canvas = document.createElement("canvas");
