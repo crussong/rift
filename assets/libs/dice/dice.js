@@ -37,7 +37,9 @@ const DICE = (function() {
             shading: THREE.FlatShading,
         },
         label_color: '#ffffff',
-        dice_color: '#2a2a2a', // RIFT: Dunkelgrau als Basis (etwas heller)
+        dice_color: '#2a2a2a', // RIFT: Dunkelgrau als Basis
+        // RIFT: Gradient Support
+        dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
         ambient_light_color: 0xffffff,
         spot_light_color: 0xdddddd,
         desk_color: '#101010', //canvas background
@@ -594,13 +596,42 @@ const DICE = (function() {
     }
     
     // RIFT: Methode um Würfelfarbe zu ändern
-    that.setDiceColor = function(color) {
+    that.setDiceColor = function(color, gradient) {
         vars.dice_color = color;
+        vars.dice_gradient = gradient || null;
         // Cache löschen damit neue Materialien erstellt werden
         threeD_dice.d4_material = null;
         threeD_dice.dice_material = null;
         threeD_dice.d100_material = null;
     };
+    
+    // RIFT: Gradient-Helper Funktion
+    function fillWithGradient(context, width, height, gradient) {
+        if (!gradient || !gradient.colors || gradient.colors.length < 2) {
+            return false;
+        }
+        
+        var grd;
+        if (gradient.type === 'radial') {
+            // Radial gradient from center
+            var cx = width / 2;
+            var cy = height / 2;
+            var radius = Math.max(width, height) / 2;
+            grd = context.createRadialGradient(cx * 0.7, cy * 0.7, 0, cx, cy, radius);
+        } else {
+            // Linear gradient (diagonal)
+            grd = context.createLinearGradient(0, 0, width, height);
+        }
+        
+        var stops = gradient.stops || gradient.colors.map((_, i, arr) => i / (arr.length - 1));
+        gradient.colors.forEach((color, i) => {
+            grd.addColorStop(stops[i] || i / (gradient.colors.length - 1), color);
+        });
+        
+        context.fillStyle = grd;
+        context.fillRect(0, 0, width, height);
+        return true;
+    }
     
     function create_dice_materials(face_labels, size, margin) {
         function create_text_texture(text, color, back_color) {
@@ -610,8 +641,13 @@ const DICE = (function() {
             var ts = calc_texture_size(size + size * 2 * margin) * 2;
             canvas.width = canvas.height = ts;
             context.font = ts / (1 + 2 * margin) + "pt Arial";
-            context.fillStyle = back_color;
-            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // RIFT: Try gradient first, fallback to solid color
+            if (!fillWithGradient(context, canvas.width, canvas.height, vars.dice_gradient)) {
+                context.fillStyle = back_color;
+                context.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillStyle = color;
@@ -637,8 +673,13 @@ const DICE = (function() {
             var ts = calc_texture_size(size + margin) * 2;
             canvas.width = canvas.height = ts;
             context.font = (ts - margin) * 0.5 + "pt Arial";
-            context.fillStyle = back_color;
-            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // RIFT: Try gradient first, fallback to solid color
+            if (!fillWithGradient(context, canvas.width, canvas.height, vars.dice_gradient)) {
+                context.fillStyle = back_color;
+                context.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillStyle = color;

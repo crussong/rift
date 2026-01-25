@@ -827,24 +827,69 @@
             
             // Theme colors for 3D dice
             themeColors: {
-                // Basic
-                classic: { primary: '#1a1a1a', secondary: '#f0f0f0', accent: '#ffffff' },
-                blood: { primary: '#8b0000', secondary: '#ffd700', accent: '#ff4655' },
-                ice: { primary: '#1a3a5c', secondary: '#a8d8ff', accent: '#00d4ff' },
-                nature: { primary: '#2d4a1c', secondary: '#c8e6c9', accent: '#4caf50' },
-                royal: { primary: '#2a1a4a', secondary: '#e8d5ff', accent: '#9c27b0' },
-                gold: { primary: '#3d2c0a', secondary: '#ffd700', accent: '#ffd700' },
-                // New themes - vibrant accent colors for 3D dice
-                nebula: { primary: '#1a0a2e', secondary: '#ff6bcb', accent: '#ff6bcb' },
-                fire: { primary: '#4a1c00', secondary: '#ffcc00', accent: '#ff5722' },
-                toxic: { primary: '#0a2a0a', secondary: '#39ff14', accent: '#39ff14' },
-                ocean: { primary: '#001a33', secondary: '#00ffff', accent: '#00ffff' },
-                midnight: { primary: '#0a0a1a', secondary: '#b8c6db', accent: '#5c6bc0' },
-                rainbow: { primary: '#2a1a2a', secondary: '#ff6b6b', accent: '#ff6b6b' },
-                void: { primary: '#000000', secondary: '#8b5cf6', accent: '#8b5cf6' },
-                copper: { primary: '#2a1a0a', secondary: '#b87333', accent: '#cd7f32' },
-                sunset: { primary: '#2a0a1a', secondary: '#ff7e5f', accent: '#ff7e5f' },
-                cyber: { primary: '#0a0a1a', secondary: '#00ffff', accent: '#00ffff' }
+                // Basic - solid colors
+                classic: { primary: '#1a1a1a', secondary: '#f0f0f0', accent: '#2a2a2a' },
+                blood: { 
+                    primary: '#8b0000', secondary: '#ffd700', accent: '#8b0000',
+                    gradient: { type: 'linear', colors: ['#ff4655', '#8b0000'] }
+                },
+                ice: { 
+                    primary: '#1a3a5c', secondary: '#a8d8ff', accent: '#1a3a5c',
+                    gradient: { type: 'linear', colors: ['#00d4ff', '#1a3a5c'] }
+                },
+                nature: { 
+                    primary: '#2d4a1c', secondary: '#c8e6c9', accent: '#2d4a1c',
+                    gradient: { type: 'linear', colors: ['#4caf50', '#2d4a1c'] }
+                },
+                royal: { 
+                    primary: '#2a1a4a', secondary: '#e8d5ff', accent: '#2a1a4a',
+                    gradient: { type: 'linear', colors: ['#9c27b0', '#2a1a4a'] }
+                },
+                gold: { 
+                    primary: '#3d2c0a', secondary: '#ffd700', accent: '#3d2c0a',
+                    gradient: { type: 'linear', colors: ['#ffd700', '#b8860b', '#3d2c0a'] }
+                },
+                // New themes with gradients
+                fire: { 
+                    primary: '#4a1c00', secondary: '#ffcc00', accent: '#4a1c00',
+                    gradient: { type: 'linear', colors: ['#ff5722', '#ff9800', '#4a1c00'] }
+                },
+                ocean: { 
+                    primary: '#001a33', secondary: '#00ffff', accent: '#001a33',
+                    gradient: { type: 'linear', colors: ['#00ffff', '#0099cc', '#001a33'] }
+                },
+                toxic: { 
+                    primary: '#0a2a0a', secondary: '#39ff14', accent: '#0a2a0a',
+                    gradient: { type: 'radial', colors: ['#39ff14', '#00ff00', '#0a2a0a'] }
+                },
+                nebula: { 
+                    primary: '#1a0a2e', secondary: '#ff6bcb', accent: '#1a0a2e',
+                    gradient: { type: 'radial', colors: ['#ff6bcb', '#c56cf0', '#1a0a2e'] }
+                },
+                sunset: { 
+                    primary: '#2a0a1a', secondary: '#ff7e5f', accent: '#2a0a1a',
+                    gradient: { type: 'linear', colors: ['#ff7e5f', '#feb47b', '#2a0a1a'] }
+                },
+                cyber: { 
+                    primary: '#0a0a1a', secondary: '#00ffff', accent: '#0a0a1a',
+                    gradient: { type: 'linear', colors: ['#00ffff', '#ff00ff', '#0a0a1a'] }
+                },
+                midnight: { 
+                    primary: '#0a0a1a', secondary: '#b8c6db', accent: '#0a0a1a',
+                    gradient: { type: 'linear', colors: ['#2c3e50', '#1a1a2e', '#0a0a1a'] }
+                },
+                copper: { 
+                    primary: '#2a1a0a', secondary: '#b87333', accent: '#2a1a0a',
+                    gradient: { type: 'linear', colors: ['#cd7f32', '#b87333', '#2a1a0a'] }
+                },
+                void: { 
+                    primary: '#000000', secondary: '#8b5cf6', accent: '#000000',
+                    gradient: { type: 'radial', colors: ['#8b5cf6', '#4c1d95', '#000000'] }
+                },
+                rainbow: { 
+                    primary: '#2a1a2a', secondary: '#ff6b6b', accent: '#2a1a2a',
+                    gradient: { type: 'linear', colors: ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#5f27cd'] }
+                }
             },
             
             // Firebase
@@ -1485,12 +1530,13 @@
                     arena.style.setProperty('--theme-secondary', colors.secondary);
                 }
                 
-                // Update 3D dice color - store for next roll
+                // Update 3D dice color + gradient - store for next roll
                 this.currentDiceColor = colors.accent;
+                this.currentDiceGradient = colors.gradient || null;
                 
-                // Set color on DICE module (nicht auf box Instanz)
+                // Set color AND gradient on DICE module
                 if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                    DICE.setDiceColor(colors.accent);
+                    DICE.setDiceColor(colors.accent, colors.gradient);
                 }
                 
                 localStorage.setItem('rift_dice_theme', theme);
@@ -1946,9 +1992,9 @@
                 // Clear previous labels immediately
                 this.clearDiceLabels();
                 
-                // Set dice color before roll - DICE.setDiceColor (nicht this.box!)
-                if (this.currentDiceColor && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                    DICE.setDiceColor(this.currentDiceColor);
+                // Set dice color + gradient before roll
+                if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
+                    DICE.setDiceColor(this.currentDiceColor, this.currentDiceGradient);
                 }
                 
                 const arena = document.getElementById('diceArena');
