@@ -137,14 +137,14 @@
         }
     </style>
 
-    <!-- Auth Guard CSS -->
+    <!-- Auth Guard: Hide until authenticated -->
     <style>
-        body:not(.auth-ready) .app,
-        body:not(.auth-ready) .sheet-container,
+        body:not(.auth-ready) .app { opacity: 0; pointer-events: none; }
+        body:not(.auth-ready) .sheet-container { opacity: 0; pointer-events: none; }
         body:not(.auth-ready) main { opacity: 0; pointer-events: none; }
-        body.auth-ready .app,
-        body.auth-ready .sheet-container,
-        body.auth-ready main { opacity: 1; transition: opacity 0.2s ease; }
+        body.auth-ready .app { opacity: 1; transition: opacity 0.15s ease; }
+        body.auth-ready .sheet-container { opacity: 1; transition: opacity 0.15s ease; }
+        body.auth-ready main { opacity: 1; transition: opacity 0.15s ease; }
     </style>
 </head>
 <body>
@@ -654,27 +654,22 @@
     
     <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
-    <!-- Auth Guard -->
     <script>
+        // Auth Guard - redirect to login if not authenticated
         (function() {
-            function checkAuth() {
+            function waitForAuth() {
                 if (typeof firebase === 'undefined' || !firebase.auth) {
-                    setTimeout(checkAuth, 50);
-                    return;
+                    return setTimeout(waitForAuth, 50);
                 }
-                try {
-                    firebase.auth().onAuthStateChanged(function(user) {
-                        if (!user) {
-                            window.location.replace('login.html');
-                        } else {
-                            document.body.classList.add('auth-ready');
-                        }
-                    });
-                } catch (e) {
-                    setTimeout(checkAuth, 100);
-                }
+                firebase.auth().onAuthStateChanged(function(user) {
+                    if (!user) {
+                        window.location.href = 'login.html';
+                    } else {
+                        document.body.classList.add('auth-ready');
+                    }
+                });
             }
-            checkAuth();
+            waitForAuth();
         })();
     </script>
 
