@@ -1217,13 +1217,28 @@
                             </div>
                             
                             <!-- Mobile Settings Button -->
-                            <button class="dice-mobile-settings" onclick="document.getElementById('settingsPopup').classList.add('open'); document.getElementById('diceSettingsOverlay').classList.add('open');">
+                            <button class="dice-mobile-settings" onclick="document.getElementById('mobileSettingsPopup').classList.add('open'); document.getElementById('mobileSettingsOverlay').classList.add('open');">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="3"/>
                                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                                 </svg>
                                 Einstellungen
                             </button>
+                            
+                            <!-- MOBILE SETTINGS POPUP -->
+                            <div class="mobile-settings-overlay" id="mobileSettingsOverlay" onclick="document.getElementById('mobileSettingsPopup').classList.remove('open'); this.classList.remove('open');"></div>
+                            <div class="mobile-settings-popup" id="mobileSettingsPopup">
+                                <div class="mobile-settings-popup__header">
+                                    <span>Einstellungen</span>
+                                    <button class="mobile-settings-popup__close" onclick="document.getElementById('mobileSettingsPopup').classList.remove('open'); document.getElementById('mobileSettingsOverlay').classList.remove('open');">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                                <div class="mobile-settings-popup__content">
+                                    <span class="mobile-settings-popup__label">Würfelfarbe</span>
+                                    <div class="mobile-theme-grid" id="mobileThemeGrid"></div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- History -->
@@ -4652,6 +4667,36 @@
                 setTimeout(() => DicePreview.init(), 200);
             });
         }
+    </script>
+    <script>
+        // Mobile Settings Theme Grid Population
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileGrid = document.getElementById('mobileThemeGrid');
+            const desktopGrid = document.querySelector('.dice-theme-grid');
+            
+            if (mobileGrid && desktopGrid) {
+                // Kopiere alle Theme Cards
+                const cards = desktopGrid.querySelectorAll('.dice-theme-card');
+                cards.forEach(card => {
+                    const clone = card.cloneNode(true);
+                    clone.addEventListener('click', function() {
+                        // Remove active from all
+                        mobileGrid.querySelectorAll('.dice-theme-card').forEach(c => c.classList.remove('active'));
+                        desktopGrid.querySelectorAll('.dice-theme-card').forEach(c => c.classList.remove('active'));
+                        // Add active to clicked and desktop equivalent
+                        this.classList.add('active');
+                        const theme = this.dataset.theme;
+                        const desktopCard = desktopGrid.querySelector(`[data-theme="${theme}"]`);
+                        if (desktopCard) desktopCard.classList.add('active');
+                        // Apply theme
+                        if (window.DiceRoller && DiceRoller.setTheme) {
+                            DiceRoller.setTheme(theme);
+                        }
+                    });
+                    mobileGrid.appendChild(clone);
+                });
+            }
+        });
     </script>
     <script src="assets/js/broadcast.js"></script>
 </body>
