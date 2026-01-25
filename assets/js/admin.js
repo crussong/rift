@@ -1,73 +1,77 @@
 /**
  * RIFT v2 - Admin System
- * Owner-only access for Mike
+ * Secure Firebase Auth-based admin access
  */
 
 class AdminSystem {
     constructor() {
         this.isAdmin = false;
+        this.adminUser = null;
         this.tapCount = 0;
         this.tapTimer = null;
-        this.ADMIN_KEY = 'rift_admin_session';
-        this.SECRET_HASH = this.hash('Gitarrensolo710');
+        
+        // Admin UIDs - add your Firebase UID here after first login
+        // Find your UID in Firebase Console > Authentication > Users
+        this.ADMIN_UIDS = [
+            // Add your UID here, e.g.: 'abc123xyz456'
+        ];
+        
+        // Admin emails (alternative check)
+        this.ADMIN_EMAILS = [
+            'mike@rift.app',
+            'admin@rift.app'
+            // Add your admin email here
+        ];
         
         this.init();
     }
     
-    // Simple hash function (not cryptographically secure, but good enough for this)
-    hash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return hash.toString(36);
-    }
-    
     init() {
-        this.checkAdminSession();
+        this.checkAuthState();
         this.createLoginModal();
         this.bindEvents();
-        this.updateUI();
     }
     
     // ========================================
-    // SESSION MANAGEMENT
+    // FIREBASE AUTH STATE
     // ========================================
     
-    checkAdminSession() {
-        const session = localStorage.getItem(this.ADMIN_KEY);
-        if (session) {
-            try {
-                const data = JSON.parse(session);
-                // Session valid for 7 days
-                if (data.hash === this.SECRET_HASH && data.expires > Date.now()) {
-                    this.isAdmin = true;
-                } else {
-                    localStorage.removeItem(this.ADMIN_KEY);
-                }
-            } catch (e) {
-                localStorage.removeItem(this.ADMIN_KEY);
+    checkAuthState() {
+        // Wait for Firebase
+        const waitForFirebase = () => {
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (user && this.isAdminUser(user)) {
+                        this.isAdmin = true;
+                        this.adminUser = user;
+                        console.log('[Admin] Authenticated as admin:', user.email);
+                    } else {
+                        this.isAdmin = false;
+                        this.adminUser = null;
+                    }
+                    this.updateUI();
+                });
+            } else {
+                setTimeout(waitForFirebase, 100);
             }
-        }
-    }
-    
-    createSession() {
-        const session = {
-            hash: this.SECRET_HASH,
-            expires: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
-            created: Date.now()
         };
-        localStorage.setItem(this.ADMIN_KEY, JSON.stringify(session));
-        this.isAdmin = true;
+        waitForFirebase();
     }
     
-    logout() {
-        localStorage.removeItem(this.ADMIN_KEY);
-        this.isAdmin = false;
-        this.updateUI();
-        this.closeLoginModal();
+    isAdminUser(user) {
+        if (!user) return false;
+        
+        // Check UID
+        if (this.ADMIN_UIDS.includes(user.uid)) {
+            return true;
+        }
+        
+        // Check email
+        if (user.email && this.ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+            return true;
+        }
+        
+        return false;
     }
     
     // ========================================
@@ -77,9 +81,15 @@ class AdminSystem {
     createLoginModal() {
         const modalHTML = `
             <div class="modal-overlay" id="adminLoginModal">
-                <div class="modal" style="max-width: 360px;">
+                <div class="modal" style="max-width: 400px;">
                     <div class="modal__header">
-                        <h2 class="modal__title" style="color: var(--accent);">🔐 Admin</h2>
+                        <h2 class="modal__title" style="color: var(--accent);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            Admin Login
+                        </h2>
                         <button class="modal__close" id="closeAdminLogin">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="18" y1="6" x2="6" y2="18"/>
@@ -90,16 +100,42 @@ class AdminSystem {
                     
                     <div class="modal__body">
                         <div id="adminLoginForm">
+                            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+                                Melde dich mit deinem Admin-Account an.
+                            </p>
+                            
+                            <div class="settings-form-group" style="margin-bottom: 12px;">
+                                <label class="settings-label" for="adminEmailInput">E-Mail</label>
+                                <input type="email" 
+                                       id="adminEmailInput" 
+                                       class="form-input" 
+                                       placeholder="admin@rift.app"
+                                       autocomplete="email">
+                            </div>
+                            
                             <div class="settings-form-group">
                                 <label class="settings-label" for="adminPasswordInput">Passwort</label>
                                 <input type="password" 
                                        id="adminPasswordInput" 
                                        class="form-input" 
                                        placeholder="••••••••••"
-                                       autocomplete="off">
-                                <p class="form-hint admin-error" id="adminError" style="color: var(--accent); display: none;">
-                                    Falsches Passwort
-                                </p>
+                                       autocomplete="current-password">
+                            </div>
+                            
+                            <p class="form-hint admin-error" id="adminError" style="color: var(--accent); display: none; margin-top: 8px;">
+                                Login fehlgeschlagen
+                            </p>
+                            
+                            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                                <button class="btn btn--secondary" id="adminGoogleLogin" style="width: 100%; justify-content: center;">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" style="margin-right: 8px;">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                    </svg>
+                                    Mit Google anmelden
+                                </button>
                             </div>
                         </div>
                         
@@ -110,13 +146,27 @@ class AdminSystem {
                                     <polyline points="22 4 12 14.01 9 11.01"/>
                                 </svg>
                             </div>
-                            <p style="color: var(--text); margin-bottom: 8px;">Du bist eingeloggt als <strong>Admin</strong></p>
+                            <p style="color: var(--text); margin-bottom: 4px;">Eingeloggt als <strong>Admin</strong></p>
+                            <p id="adminUserEmail" style="color: var(--text-muted); font-size: 13px; margin-bottom: 8px;"></p>
                             <p style="color: var(--text-muted); font-size: 13px;">Edit-Buttons sind jetzt sichtbar.</p>
+                        </div>
+                        
+                        <div id="adminNotAuthorized" style="display: none; text-align: center;">
+                            <div style="margin-bottom: 16px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="width: 48px; height: 48px;">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="15" y1="9" x2="9" y2="15"/>
+                                    <line x1="9" y1="9" x2="15" y2="15"/>
+                                </svg>
+                            </div>
+                            <p style="color: var(--text); margin-bottom: 4px;">Kein Admin-Zugriff</p>
+                            <p id="notAdminEmail" style="color: var(--text-muted); font-size: 13px; margin-bottom: 8px;"></p>
+                            <p style="color: var(--text-muted); font-size: 13px;">Dieser Account hat keine Admin-Rechte.</p>
                         </div>
                     </div>
                     
                     <div class="modal__footer">
-                        <button class="btn btn--secondary" id="cancelAdminLogin">Abbrechen</button>
+                        <button class="btn btn--secondary" id="cancelAdminLogin">Schließen</button>
                         <button class="btn btn--primary" id="submitAdminLogin">Einloggen</button>
                         <button class="btn btn--danger" id="adminLogoutBtn" style="display: none;">Ausloggen</button>
                     </div>
@@ -157,6 +207,7 @@ class AdminSystem {
         document.getElementById('cancelAdminLogin')?.addEventListener('click', () => this.closeLoginModal());
         document.getElementById('submitAdminLogin')?.addEventListener('click', () => this.attemptLogin());
         document.getElementById('adminLogoutBtn')?.addEventListener('click', () => this.logout());
+        document.getElementById('adminGoogleLogin')?.addEventListener('click', () => this.loginWithGoogle());
         
         // Enter key in password field
         document.getElementById('adminPasswordInput')?.addEventListener('keydown', (e) => {
@@ -181,13 +232,10 @@ class AdminSystem {
     }
     
     bindLogoTap() {
-        // Find all RIFT logos (sidebar, footer, etc.)
-        // Use more specific selectors and handle dynamically created elements
         const bindTapEvents = () => {
             const logos = document.querySelectorAll('.sidebar__logo, .footer__logo, .login-logo, [data-admin-trigger]');
             
             logos.forEach(logo => {
-                // Avoid double-binding
                 if (logo.dataset.adminBound) return;
                 logo.dataset.adminBound = 'true';
                 
@@ -197,21 +245,18 @@ class AdminSystem {
             });
         };
         
-        // Bind immediately and also after DOM changes (for dynamic layouts)
         bindTapEvents();
-        setTimeout(bindTapEvents, 500); // After layout.js finishes
+        setTimeout(bindTapEvents, 500);
     }
     
     handleLogoTap(e) {
         this.tapCount++;
         
-        // Reset after 2 seconds of no tapping
         clearTimeout(this.tapTimer);
         this.tapTimer = setTimeout(() => {
             this.tapCount = 0;
         }, 2000);
         
-        // 5 taps opens admin login
         if (this.tapCount >= 5) {
             e.preventDefault();
             this.tapCount = 0;
@@ -228,25 +273,35 @@ class AdminSystem {
         const modal = document.getElementById('adminLoginModal');
         const loginForm = document.getElementById('adminLoginForm');
         const loggedIn = document.getElementById('adminLoggedIn');
+        const notAuthorized = document.getElementById('adminNotAuthorized');
         const submitBtn = document.getElementById('submitAdminLogin');
-        const cancelBtn = document.getElementById('cancelAdminLogin');
         const logoutBtn = document.getElementById('adminLogoutBtn');
+        const emailInput = document.getElementById('adminEmailInput');
         const passwordInput = document.getElementById('adminPasswordInput');
         const error = document.getElementById('adminError');
         
-        // Show appropriate view
-        if (this.isAdmin) {
-            loginForm.style.display = 'none';
+        // Reset
+        loginForm.style.display = 'none';
+        loggedIn.style.display = 'none';
+        notAuthorized.style.display = 'none';
+        submitBtn.style.display = 'none';
+        logoutBtn.style.display = 'none';
+        
+        if (this.isAdmin && this.adminUser) {
+            // Logged in as admin
             loggedIn.style.display = '';
-            submitBtn.style.display = 'none';
-            cancelBtn.style.display = 'none';
+            document.getElementById('adminUserEmail').textContent = this.adminUser.email;
+            logoutBtn.style.display = '';
+        } else if (this.adminUser && !this.isAdmin) {
+            // Logged in but not admin
+            notAuthorized.style.display = '';
+            document.getElementById('notAdminEmail').textContent = this.adminUser.email;
             logoutBtn.style.display = '';
         } else {
+            // Not logged in
             loginForm.style.display = '';
-            loggedIn.style.display = 'none';
             submitBtn.style.display = '';
-            cancelBtn.style.display = '';
-            logoutBtn.style.display = 'none';
+            emailInput.value = '';
             passwordInput.value = '';
             error.style.display = 'none';
         }
@@ -254,9 +309,8 @@ class AdminSystem {
         modal?.classList.add('active');
         document.body.style.overflow = 'hidden';
         
-        // Focus password input
-        if (!this.isAdmin) {
-            setTimeout(() => passwordInput?.focus(), 100);
+        if (!this.adminUser) {
+            setTimeout(() => emailInput?.focus(), 100);
         }
     }
     
@@ -266,31 +320,120 @@ class AdminSystem {
         document.body.style.overflow = '';
     }
     
-    attemptLogin() {
+    async attemptLogin() {
+        const emailInput = document.getElementById('adminEmailInput');
         const passwordInput = document.getElementById('adminPasswordInput');
         const error = document.getElementById('adminError');
+        const submitBtn = document.getElementById('submitAdminLogin');
+        
+        const email = emailInput?.value?.trim() || '';
         const password = passwordInput?.value || '';
         
-        if (this.hash(password) === this.SECRET_HASH) {
-            // Success!
-            this.createSession();
-            this.updateUI();
-            this.closeLoginModal();
-            
-            // Show success feedback
-            this.showToast('Admin-Modus aktiviert');
-        } else {
-            // Wrong password
+        if (!email || !password) {
+            error.textContent = 'Bitte E-Mail und Passwort eingeben';
             error.style.display = '';
-            passwordInput.classList.add('error');
+            return;
+        }
+        
+        // Show loading
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<div class="spinner"></div>';
+        error.style.display = 'none';
+        
+        try {
+            const result = await firebase.auth().signInWithEmailAndPassword(email, password);
+            const user = result.user;
+            
+            if (this.isAdminUser(user)) {
+                this.isAdmin = true;
+                this.adminUser = user;
+                this.updateUI();
+                this.closeLoginModal();
+                this.showToast('Admin-Modus aktiviert');
+                console.log('[Admin] Login successful:', user.email, 'UID:', user.uid);
+            } else {
+                // Logged in but not admin
+                this.adminUser = user;
+                this.isAdmin = false;
+                error.textContent = 'Dieser Account hat keine Admin-Rechte';
+                error.style.display = '';
+                console.log('[Admin] User is not admin:', user.email, 'UID:', user.uid);
+            }
+        } catch (err) {
+            console.error('[Admin] Login error:', err);
+            
+            let message = 'Login fehlgeschlagen';
+            if (err.code === 'auth/user-not-found') {
+                message = 'Kein Account mit dieser E-Mail gefunden';
+            } else if (err.code === 'auth/wrong-password') {
+                message = 'Falsches Passwort';
+            } else if (err.code === 'auth/invalid-email') {
+                message = 'Ungültige E-Mail-Adresse';
+            } else if (err.code === 'auth/too-many-requests') {
+                message = 'Zu viele Versuche. Bitte später erneut versuchen.';
+            }
+            
+            error.textContent = message;
+            error.style.display = '';
             passwordInput.value = '';
             passwordInput.focus();
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+    
+    async loginWithGoogle() {
+        const error = document.getElementById('adminError');
+        const googleBtn = document.getElementById('adminGoogleLogin');
+        
+        const originalHTML = googleBtn.innerHTML;
+        googleBtn.disabled = true;
+        googleBtn.innerHTML = '<div class="spinner"></div>';
+        error.style.display = 'none';
+        
+        try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            const result = await firebase.auth().signInWithPopup(provider);
+            const user = result.user;
             
-            // Shake animation
-            passwordInput.style.animation = 'shake 0.5s ease';
-            setTimeout(() => {
-                passwordInput.style.animation = '';
-            }, 500);
+            if (this.isAdminUser(user)) {
+                this.isAdmin = true;
+                this.adminUser = user;
+                this.updateUI();
+                this.closeLoginModal();
+                this.showToast('Admin-Modus aktiviert');
+                console.log('[Admin] Google login successful:', user.email, 'UID:', user.uid);
+            } else {
+                this.adminUser = user;
+                this.isAdmin = false;
+                // Update modal to show "not authorized" state
+                this.openLoginModal();
+                console.log('[Admin] Google user is not admin:', user.email, 'UID:', user.uid);
+            }
+        } catch (err) {
+            console.error('[Admin] Google login error:', err);
+            if (err.code !== 'auth/popup-closed-by-user') {
+                error.textContent = err.message || 'Google-Anmeldung fehlgeschlagen';
+                error.style.display = '';
+            }
+        } finally {
+            googleBtn.disabled = false;
+            googleBtn.innerHTML = originalHTML;
+        }
+    }
+    
+    async logout() {
+        try {
+            await firebase.auth().signOut();
+            this.isAdmin = false;
+            this.adminUser = null;
+            this.updateUI();
+            this.closeLoginModal();
+            this.showToast('Admin-Modus deaktiviert');
+        } catch (err) {
+            console.error('[Admin] Logout error:', err);
         }
     }
     
@@ -299,126 +442,43 @@ class AdminSystem {
     // ========================================
     
     updateUI() {
-        // Show/hide all admin elements
-        document.querySelectorAll('.news-admin-btn, [data-admin-only]').forEach(el => {
+        // Toggle admin-only elements
+        document.querySelectorAll('[data-admin-only]').forEach(el => {
             el.style.display = this.isAdmin ? '' : 'none';
         });
         
-        // Add admin indicator to body
-        document.body.classList.toggle('admin-mode', this.isAdmin);
+        // Add/remove admin class on body
+        document.body.classList.toggle('is-admin', this.isAdmin);
         
-        // Dispatch event for other modules
-        window.dispatchEvent(new CustomEvent('adminStatusChanged', { 
-            detail: { isAdmin: this.isAdmin } 
-        }));
+        // Show/hide edit buttons
+        document.querySelectorAll('.admin-edit-btn, .article-edit-trigger, [data-admin-edit]').forEach(btn => {
+            btn.style.display = this.isAdmin ? '' : 'none';
+        });
     }
     
     showToast(message) {
-        // Simple toast notification
-        const toast = document.createElement('div');
-        toast.className = 'admin-toast';
-        toast.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            ${message}
-        `;
-        document.body.appendChild(toast);
-        
-        // Animate in
-        setTimeout(() => toast.classList.add('visible'), 10);
-        
-        // Remove after 3s
-        setTimeout(() => {
-            toast.classList.remove('visible');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        if (window.RIFT?.ui?.Toast) {
+            RIFT.ui.Toast.success(message);
+        } else {
+            console.log('[Admin]', message);
+        }
     }
     
     // ========================================
     // PUBLIC API
     // ========================================
     
-    isAdminLoggedIn() {
+    checkAdmin() {
         return this.isAdmin;
     }
+    
+    getAdminUser() {
+        return this.adminUser;
+    }
 }
 
-// ========================================
-// STYLES
-// ========================================
+// Initialize
+const RIFTAdmin = new AdminSystem();
 
-const adminStyles = document.createElement('style');
-adminStyles.textContent = `
-    /* Shake animation for wrong password */
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        20%, 60% { transform: translateX(-8px); }
-        40%, 80% { transform: translateX(8px); }
-    }
-    
-    .form-input.error {
-        border-color: var(--accent);
-    }
-    
-    /* Admin toast notification */
-    .admin-toast {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(100px);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 20px;
-        background: var(--success);
-        color: white;
-        font-weight: 500;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        z-index: 9999;
-        opacity: 0;
-        transition: all 0.3s ease;
-    }
-    
-    .admin-toast.visible {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-    }
-    
-    .admin-toast svg {
-        width: 20px;
-        height: 20px;
-    }
-    
-    /* Admin mode indicator (optional subtle hint) */
-    body.admin-mode .sidebar__logo::after {
-        content: '⚙️';
-        position: absolute;
-        top: -4px;
-        right: -4px;
-        font-size: 12px;
-    }
-`;
-document.head.appendChild(adminStyles);
-
-// ========================================
-// INITIALIZATION
-// ========================================
-
-let adminSystem;
-
-document.addEventListener('DOMContentLoaded', () => {
-    adminSystem = new AdminSystem();
-});
-
-// Export
-if (typeof window !== 'undefined') {
-    window.RIFT = window.RIFT || {};
-    window.RIFT.admin = {
-        isAdmin: () => adminSystem?.isAdminLoggedIn(),
-        openLogin: () => adminSystem?.openLoginModal(),
-        logout: () => adminSystem?.logout()
-    };
-}
+// Export for global access
+window.RIFTAdmin = RIFTAdmin;
