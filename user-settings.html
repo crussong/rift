@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>Einstellungen – RIFT</title>
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="assets/icons/icon_rift_r.svg" type="image/svg+xml">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/topbar.css">
+    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    
+    <style>
+        /* User Settings Page Styles */
+        .us-page {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 32px 24px;
+            min-height: 100vh;
+        }
+        
+        .us-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        .us-header__back {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .us-header__back:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+        
+        .us-header__back svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .us-header__title {
+            font-family: 'Dharma Gothic', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        /* Layout */
+        .us-layout {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 32px;
+        }
+        
+        @media (max-width: 768px) {
+            .us-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Sidebar Nav */
+        .us-nav {
+            position: sticky;
+            top: 24px;
+            height: fit-content;
+        }
+        
+        .us-nav__group {
+            margin-bottom: 24px;
+        }
+        
+        .us-nav__label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .us-nav__link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .us-nav__link:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+        }
+        
+        .us-nav__link.active {
+            background: rgba(255,70,85,0.15);
+            color: var(--accent);
+        }
+        
+        .us-nav__link svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        
+        /* Content Sections */
+        .us-section {
+            display: none;
+        }
+        
+        .us-section.active {
+            display: block;
+            animation: fadeInSection 0.3s ease;
+        }
+        
+        @keyframes fadeInSection {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .us-section__title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 8px 0;
+        }
+        
+        .us-section__desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0 0 24px 0;
+        }
+        
+        /* Cards */
+        .us-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .us-card--danger {
+            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.05);
+        }
+        
+        .us-card__header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .us-card__icon {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,70,85,0.1);
+            border-radius: 12px;
+            color: var(--accent);
+        }
+        
+        .us-card--danger .us-card__icon {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+        
+        .us-card__icon svg {
+            width: 22px;
+            height: 22px;
+        }
+        
+        .us-card__title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .us-card__subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 2px 0 0 0;
+        }
+        
+        /* Setting Rows */
+        .us-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .us-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .us-row:first-of-type {
+            padding-top: 0;
+        }
+        
+        .us-row__info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .us-row__label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .us-row__hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        
+        .us-row__control {
+            flex-shrink: 0;
+            margin-left: 16px;
+        }
+        
+        /* Toggle Switch */
+        .us-toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .us-toggle.active {
+            background: var(--accent);
+        }
+        
+        .us-toggle__knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .us-toggle.active .us-toggle__knob {
+            transform: translateX(20px);
+        }
+        
+        /* Input */
+        .us-input {
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.2s;
+            width: 100%;
+            max-width: 280px;
+        }
+        
+        .us-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(255,255,255,0.08);
+        }
+        
+        .us-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        /* Select */
+        .us-select {
+            padding: 10px 36px 10px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+        
+        .us-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .us-select option {
+            background: var(--bg-elevated);
+        }
+        
+        /* Buttons */
+        .us-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .us-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .us-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .us-btn--primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        
+        .us-btn--primary:hover {
+            background: #ff5a6a;
+        }
+        
+        .us-btn--danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+        
+        .us-btn--danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
+        /* Profile Preview */
+        .us-profile {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 14px;
+            margin-bottom: 24px;
+        }
+        
+        .us-profile__avatar {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .us-profile__avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .us-profile__avatar-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 600;
+            color: white;
+            background: var(--accent);
+        }
+        
+        .us-profile__avatar-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .us-profile__avatar:hover .us-profile__avatar-overlay {
+            opacity: 1;
+        }
+        
+        .us-profile__avatar-overlay svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+        
+        .us-profile__info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .us-profile__name {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .us-profile__email {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        
+        .us-profile__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: rgba(255,70,85,0.15);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-top: 8px;
+        }
+        
+        .us-profile__badge svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        /* Color Picker */
+        .us-colors {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .us-color {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .us-color:hover {
+            transform: scale(1.1);
+        }
+        
+        .us-color.active {
+            border-color: white;
+            box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor;
+        }
+        
+        /* Volume Slider */
+        .us-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .us-slider {
+            flex: 1;
+            max-width: 200px;
+            height: 6px;
+            -webkit-appearance: none;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        .us-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .us-slider-value {
+            min-width: 40px;
+            text-align: right;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        /* Shortcut */
+        .us-shortcut {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .us-shortcut:last-child {
+            border-bottom: none;
+        }
+        
+        .us-shortcut__label {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        
+        .us-shortcut__keys {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .us-key {
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+        
+        /* Stats Grid */
+        .us-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        @media (max-width: 600px) {
+            .us-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .us-stat {
+            text-align: center;
+            padding: 16px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+        }
+        
+        .us-stat__value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .us-stat__label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        
+        /* Connected Account */
+        .us-account {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .us-account:last-child {
+            margin-bottom: 0;
+        }
+        
+        .us-account__icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        
+        .us-account__icon img, .us-account__icon svg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .us-account__info {
+            flex: 1;
+        }
+        
+        .us-account__name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .us-account__status {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .us-account__status--connected {
+            color: #22c55e;
+        }
+        
+        /* Toast */
+        .us-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 14px 24px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 10000;
+        }
+        
+        .us-toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .us-toast--success { border-color: rgba(34, 197, 94, 0.4); }
+        .us-toast--error { border-color: rgba(239, 68, 68, 0.4); }
+        
+        /* Mobile nav */
+        @media (max-width: 768px) {
+            .us-nav {
+                position: relative;
+                top: 0;
+                display: flex;
+                gap: 8px;
+                overflow-x: auto;
+                padding-bottom: 16px;
+                margin-bottom: 16px;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .us-nav__group {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 0;
+            }
+            
+            .us-nav__label {
+                display: none;
+            }
+            
+            .us-nav__link {
+                white-space: nowrap;
+                padding: 8px 14px;
+            }
+            
+            .us-nav__link span {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <main class="main">
+            <div class="main__content">
+                <div class="us-page">
+                    
+                    <!-- Header -->
+                    <div class="us-header">
+                        <a href="index.html" class="us-header__back">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                        <h1 class="us-header__title">Einstellungen</h1>
+                    </div>
+                    
+                    <div class="us-layout">
+                        <!-- Sidebar Navigation -->
+                        <nav class="us-nav">
+                            <div class="us-nav__group">
+                                <div class="us-nav__label">Konto</div>
+                                <a href="#profile" class="us-nav__link active" data-section="profile">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    <span>Profil</span>
+                                </a>
+                                <a href="#security" class="us-nav__link" data-section="security">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                    <span>Sicherheit</span>
+                                </a>
+                            </div>
+                            
+                            <div class="us-nav__group">
+                                <div class="us-nav__label">Anpassung</div>
+                                <a href="#appearance" class="us-nav__link" data-section="appearance">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                                    <span>Darstellung</span>
+                                </a>
+                                <a href="#notifications" class="us-nav__link" data-section="notifications">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                                    <span>Benachrichtigungen</span>
+                                </a>
+                                <a href="#audio" class="us-nav__link" data-section="audio">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                                    <span>Audio</span>
+                                </a>
+                            </div>
+                            
+                            <div class="us-nav__group">
+                                <div class="us-nav__label">Spiel</div>
+                                <a href="#game" class="us-nav__link" data-section="game">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                    <span>Spieleinstellungen</span>
+                                </a>
+                                <a href="#shortcuts" class="us-nav__link" data-section="shortcuts">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M6 16h.01M10 16h8"/></svg>
+                                    <span>Tastenkürzel</span>
+                                </a>
+                            </div>
+                            
+                            <div class="us-nav__group">
+                                <div class="us-nav__label">Daten</div>
+                                <a href="#data" class="us-nav__link" data-section="data">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                                    <span>Daten & Speicher</span>
+                                </a>
+                            </div>
+                        </nav>
+                        
+                        <!-- Content Area -->
+                        <div class="us-content">
+                            
+                            <!-- ========== PROFILE ========== -->
+                            <section class="us-section active" id="section-profile">
+                                <h2 class="us-section__title">Profil</h2>
+                                <p class="us-section__desc">Verwalte dein öffentliches Profil</p>
+                                
+                                <!-- Profile Preview -->
+                                <div class="us-profile">
+                                    <div class="us-profile__avatar" onclick="document.getElementById('avatarInput').click()">
+                                        <div class="us-profile__avatar-placeholder" id="avatarPlaceholder">?</div>
+                                        <img class="us-profile__avatar-img" id="avatarImg" src="" alt="" style="display:none;">
+                                        <div class="us-profile__avatar-overlay">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                        </div>
+                                    </div>
+                                    <div class="us-profile__info">
+                                        <div class="us-profile__name" id="profileName">Lädt...</div>
+                                        <div class="us-profile__email" id="profileEmail">—</div>
+                                        <div class="us-profile__badge">
+                                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                                            Alpha Tester
+                                        </div>
+                                    </div>
+                                    <button class="us-btn" onclick="document.getElementById('avatarInput').click()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Bild ändern
+                                    </button>
+                                    <input type="file" id="avatarInput" accept="image/*" style="display:none;" onchange="handleAvatarUpload(this)">
+                                </div>
+                                
+                                <!-- Personal Info -->
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Persönliche Informationen</h3>
+                                            <p class="us-card__subtitle">Wie andere dich in RIFT sehen</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Anzeigename</div>
+                                            <div class="us-row__hint">Sichtbar für andere Spieler</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <input type="text" class="us-input" id="displayNameInput" placeholder="Dein Name" maxlength="24">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Profilfarbe</div>
+                                            <div class="us-row__hint">Deine persönliche Akzentfarbe</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-colors" id="profileColors">
+                                                <div class="us-color" style="background:#ef4444" data-color="#ef4444"></div>
+                                                <div class="us-color" style="background:#f97316" data-color="#f97316"></div>
+                                                <div class="us-color" style="background:#eab308" data-color="#eab308"></div>
+                                                <div class="us-color" style="background:#22c55e" data-color="#22c55e"></div>
+                                                <div class="us-color" style="background:#14b8a6" data-color="#14b8a6"></div>
+                                                <div class="us-color" style="background:#3b82f6" data-color="#3b82f6"></div>
+                                                <div class="us-color active" style="background:#8b5cf6" data-color="#8b5cf6"></div>
+                                                <div class="us-color" style="background:#ec4899" data-color="#ec4899"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Bio</div>
+                                            <div class="us-row__hint">Kurze Beschreibung (optional)</div>
+                                        </div>
+                                        <div class="us-row__control" style="width:100%; max-width:320px;">
+                                            <textarea class="us-input" id="bioInput" placeholder="Erzähl etwas über dich..." rows="2" style="width:100%; resize:vertical;"></textarea>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="margin-top:16px; text-align:right;">
+                                        <button class="us-btn us-btn--primary" onclick="saveProfile()">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                            Speichern
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Connected Accounts -->
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Verknüpfte Konten</h3>
+                                            <p class="us-card__subtitle">Login-Methoden und Verknüpfungen</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-account">
+                                        <div class="us-account__icon">
+                                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                                        </div>
+                                        <div class="us-account__info">
+                                            <div class="us-account__name">Google</div>
+                                            <div class="us-account__status us-account__status--connected" id="googleStatus">Verbunden</div>
+                                        </div>
+                                        <button class="us-btn" disabled>Verbunden</button>
+                                    </div>
+                                    
+                                    <div class="us-account">
+                                        <div class="us-account__icon">
+                                            <svg viewBox="0 0 24 24" fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                                        </div>
+                                        <div class="us-account__info">
+                                            <div class="us-account__name">Discord</div>
+                                            <div class="us-account__status">Nicht verbunden</div>
+                                        </div>
+                                        <button class="us-btn" onclick="showToast('Discord-Integration kommt bald!')">Verbinden</button>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                            <!-- ========== SECURITY ========== -->
+                            <section class="us-section" id="section-security">
+                                <h2 class="us-section__title">Sicherheit</h2>
+                                <p class="us-section__desc">Kontosicherheit und Anmeldung</p>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Konto-Informationen</h3>
+                                            <p class="us-card__subtitle">Details zu deinem Konto</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">E-Mail Adresse</div>
+                                            <div class="us-row__hint" id="securityEmail">—</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <span style="color: #22c55e; font-size: 13px;">✓ Verifiziert</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Benutzer-ID</div>
+                                            <div class="us-row__hint" id="securityUid" style="font-family: monospace; font-size: 11px;">—</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <button class="us-btn" onclick="copyUserId()">Kopieren</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Konto erstellt</div>
+                                            <div class="us-row__hint" id="securityCreated">—</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Letzte Anmeldung</div>
+                                            <div class="us-row__hint" id="securityLastLogin">—</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Passwort & Login</h3>
+                                            <p class="us-card__subtitle">Anmeldung verwalten</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Passwort ändern</div>
+                                            <div class="us-row__hint">Wird über Google verwaltet</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <a href="https://myaccount.google.com/security" target="_blank" class="us-btn">Google-Konto öffnen</a>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Aktive Sessions</div>
+                                            <div class="us-row__hint">Geräte, auf denen du angemeldet bist</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <button class="us-btn" onclick="showToast('Session-Verwaltung kommt bald!')">Verwalten</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                            <!-- ========== APPEARANCE ========== -->
+                            <section class="us-section" id="section-appearance">
+                                <h2 class="us-section__title">Darstellung</h2>
+                                <p class="us-section__desc">Passe das Aussehen von RIFT an</p>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Theme</h3>
+                                            <p class="us-card__subtitle">Farbschema der Oberfläche</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Design</div>
+                                            <div class="us-row__hint">Hell oder Dunkel</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <select class="us-select" id="themeSelect">
+                                                <option value="dark">Dunkel</option>
+                                                <option value="light" disabled>Hell (Bald verfügbar)</option>
+                                                <option value="system" disabled>System (Bald)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Akzentfarbe</div>
+                                            <div class="us-row__hint">Primärfarbe für Buttons</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-colors" id="accentColors">
+                                                <div class="us-color active" style="background:#ff4655" data-color="#ff4655"></div>
+                                                <div class="us-color" style="background:#f97316" data-color="#f97316"></div>
+                                                <div class="us-color" style="background:#22c55e" data-color="#22c55e"></div>
+                                                <div class="us-color" style="background:#3b82f6" data-color="#3b82f6"></div>
+                                                <div class="us-color" style="background:#8b5cf6" data-color="#8b5cf6"></div>
+                                                <div class="us-color" style="background:#ec4899" data-color="#ec4899"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Sprache & Format</h3>
+                                            <p class="us-card__subtitle">Lokalisierung</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Sprache</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <select class="us-select" id="languageSelect">
+                                                <option value="de">Deutsch</option>
+                                                <option value="en">English</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Datumsformat</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <select class="us-select" id="dateFormatSelect">
+                                                <option value="DD.MM.YYYY">25.01.2026</option>
+                                                <option value="MM/DD/YYYY">01/25/2026</option>
+                                                <option value="YYYY-MM-DD">2026-01-25</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Animationen</h3>
+                                            <p class="us-card__subtitle">Bewegungen und Effekte</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Animationen aktivieren</div>
+                                            <div class="us-row__hint">Übergänge und visuelle Effekte</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="animationsToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Kompakter Modus</div>
+                                            <div class="us-row__hint">Weniger Abstände, mehr Inhalt</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle" id="compactToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                            <!-- ========== NOTIFICATIONS ========== -->
+                            <section class="us-section" id="section-notifications">
+                                <h2 class="us-section__title">Benachrichtigungen</h2>
+                                <p class="us-section__desc">Wann und wie du informiert wirst</p>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Push-Benachrichtigungen</h3>
+                                            <p class="us-card__subtitle">Benachrichtigungen auf deinem Gerät</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Session-Erinnerungen</div>
+                                            <div class="us-row__hint">Vor geplanten Sessions erinnern</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="sessionRemindersToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Erinnerungszeit</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <select class="us-select" id="reminderTimeSelect">
+                                                <option value="15">15 Min. vorher</option>
+                                                <option value="30">30 Min. vorher</option>
+                                                <option value="60" selected>1 Std. vorher</option>
+                                                <option value="1440">1 Tag vorher</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Chat-Nachrichten</div>
+                                            <div class="us-row__hint">Neue Nachrichten im Gruppen-Chat</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="chatNotificationsToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">GM-Broadcasts</div>
+                                            <div class="us-row__hint">Wichtige Nachrichten vom Spielleiter</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="broadcastNotificationsToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Würfelanforderungen</div>
+                                            <div class="us-row__hint">Wenn der GM einen Wurf verlangt</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="diceRequestToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">In-App</h3>
+                                            <p class="us-card__subtitle">Toasts und Pop-ups</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Toast-Benachrichtigungen</div>
+                                            <div class="us-row__hint">Kleine Pop-up Nachrichten</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="toastToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Spieler-Aktivitäten</div>
+                                            <div class="us-row__hint">Beitritt/Verlassen anzeigen</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="playerActivityToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                            <!-- ========== AUDIO ========== -->
+                            <section class="us-section" id="section-audio">
+                                <h2 class="us-section__title">Audio</h2>
+                                <p class="us-section__desc">Lautstärke und Sound-Einstellungen</p>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Lautstärke</h3>
+                                            <p class="us-card__subtitle">Individuelle Lautstärkeregler</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Master-Lautstärke</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-slider-row">
+                                                <input type="range" class="us-slider" id="masterVolume" min="0" max="100" value="80">
+                                                <span class="us-slider-value" id="masterVolumeValue">80%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Würfel-Sounds</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-slider-row">
+                                                <input type="range" class="us-slider" id="diceVolume" min="0" max="100" value="100">
+                                                <span class="us-slider-value" id="diceVolumeValue">100%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Benachrichtigungen</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-slider-row">
+                                                <input type="range" class="us-slider" id="notificationVolume" min="0" max="100" value="70">
+                                                <span class="us-slider-value" id="notificationVolumeValue">70%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Broadcasts</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-slider-row">
+                                                <input type="range" class="us-slider" id="broadcastVolume" min="0" max="100" value="100">
+                                                <span class="us-slider-value" id="broadcastVolumeValue">100%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Optionen</h3>
+                                            <p class="us-card__subtitle">Sound-Einstellungen</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Alle Sounds stummschalten</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle" id="muteAllToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">3D Würfel-Audio</div>
+                                            <div class="us-row__hint">Räumliche Sounds beim Würfeln</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="spatialAudioToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                            <!-- ========== GAME ========== -->
+                            <section class="us-section" id="section-game">
+                                <h2 class="us-section__title">Spieleinstellungen</h2>
+                                <p class="us-section__desc">Würfel, Charaktere und mehr</p>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Würfel</h3>
+                                            <p class="us-card__subtitle">3D-Würfel Einstellungen</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Würfel-Theme</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <select class="us-select" id="diceThemeSelect">
+                                                <option value="classic">Klassisch (Rot)</option>
+                                                <option value="obsidian">Obsidian</option>
+                                                <option value="crystal">Kristall</option>
+                                                <option value="gold">Gold</option>
+                                                <option value="ice">Eis</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">3D-Würfel aktivieren</div>
+                                            <div class="us-row__hint">Animierte Würfel anzeigen</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="dice3dToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Ergebnisse teilen</div>
+                                            <div class="us-row__hint">Würfe automatisch an Gruppe senden</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="shareDiceToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Charakterbogen</h3>
+                                            <p class="us-card__subtitle">Standard-Einstellungen</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Bevorzugtes Regelwerk</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <select class="us-select" id="defaultRulebookSelect">
+                                                <option value="dnd5e">D&D 5e (2024)</option>
+                                                <option value="worldsapart">Worlds Apart</option>
+                                                <option value="htbah">How To Be A Hero</option>
+                                                <option value="cyberpunkred">Cyberpunk Red</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Auto-Save</div>
+                                            <div class="us-row__hint">Änderungen automatisch speichern</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <div class="us-toggle active" id="autoSaveToggle" onclick="toggleSwitch(this)">
+                                                <div class="us-toggle__knob"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                            <!-- ========== SHORTCUTS ========== -->
+                            <section class="us-section" id="section-shortcuts">
+                                <h2 class="us-section__title">Tastenkürzel</h2>
+                                <p class="us-section__desc">Schnellzugriffe in RIFT</p>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M6 16h.01M10 16h8"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Globale Kürzel</h3>
+                                            <p class="us-card__subtitle">Überall in RIFT verfügbar</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Suche öffnen</span><div class="us-shortcut__keys"><span class="us-key">Ctrl</span><span class="us-key">K</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Würfelmenü</span><div class="us-shortcut__keys"><span class="us-key">D</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Schnellwurf W20</span><div class="us-shortcut__keys"><span class="us-key">Shift</span><span class="us-key">D</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Chat öffnen</span><div class="us-shortcut__keys"><span class="us-key">C</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Einstellungen</span><div class="us-shortcut__keys"><span class="us-key">Ctrl</span><span class="us-key">,</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Vollbild</span><div class="us-shortcut__keys"><span class="us-key">F11</span></div></div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Charakterbogen</h3>
+                                            <p class="us-card__subtitle">Im Charakter-Editor</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Speichern</span><div class="us-shortcut__keys"><span class="us-key">Ctrl</span><span class="us-key">S</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Würfeln</span><div class="us-shortcut__keys"><span class="us-key">Enter</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Kurze Rast</span><div class="us-shortcut__keys"><span class="us-key">Ctrl</span><span class="us-key">R</span></div></div>
+                                    <div class="us-shortcut"><span class="us-shortcut__label">Lange Rast</span><div class="us-shortcut__keys"><span class="us-key">Ctrl</span><span class="us-key">Shift</span><span class="us-key">R</span></div></div>
+                                </div>
+                            </section>
+                            
+                            <!-- ========== DATA ========== -->
+                            <section class="us-section" id="section-data">
+                                <h2 class="us-section__title">Daten & Speicher</h2>
+                                <p class="us-section__desc">Verwalte deine Daten</p>
+                                
+                                <!-- Stats -->
+                                <div class="us-stats">
+                                    <div class="us-stat">
+                                        <div class="us-stat__value" id="statCharacters">0</div>
+                                        <div class="us-stat__label">Charaktere</div>
+                                    </div>
+                                    <div class="us-stat">
+                                        <div class="us-stat__value" id="statSessions">0</div>
+                                        <div class="us-stat__label">Sessions</div>
+                                    </div>
+                                    <div class="us-stat">
+                                        <div class="us-stat__value" id="statDiceRolls">0</div>
+                                        <div class="us-stat__label">Würfe</div>
+                                    </div>
+                                    <div class="us-stat">
+                                        <div class="us-stat__value" id="statPlaytime">0h</div>
+                                        <div class="us-stat__label">Spielzeit</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Export & Import</h3>
+                                            <p class="us-card__subtitle">Daten sichern und wiederherstellen</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Charaktere exportieren</div>
+                                            <div class="us-row__hint">Als JSON-Datei herunterladen</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <button class="us-btn" onclick="exportCharacters()">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                                Export
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Alle Daten exportieren</div>
+                                            <div class="us-row__hint">Kompletter Backup</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <button class="us-btn" onclick="exportAllData()">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                                Export
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="us-card">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Speicher</h3>
+                                            <p class="us-card__subtitle">Lokaler Browser-Speicher</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Speicherverbrauch</div>
+                                            <div class="us-row__hint" id="storageUsage">Berechne...</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <button class="us-btn" onclick="clearCache()">Cache leeren</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Danger Zone -->
+                                <div class="us-card us-card--danger">
+                                    <div class="us-card__header">
+                                        <div class="us-card__icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="us-card__title">Gefahrenzone</h3>
+                                            <p class="us-card__subtitle">Irreversible Aktionen</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Alle lokalen Daten löschen</div>
+                                            <div class="us-row__hint">Entfernt alle Daten aus diesem Browser</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <button class="us-btn us-btn--danger" onclick="deleteAllData()">Löschen</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="us-row">
+                                        <div class="us-row__info">
+                                            <div class="us-row__label">Konto löschen</div>
+                                            <div class="us-row__hint">RIFT-Konto permanent löschen</div>
+                                        </div>
+                                        <div class="us-row__control">
+                                            <button class="us-btn us-btn--danger" onclick="deleteAccount()">Konto löschen</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Toast -->
+    <div class="us-toast" id="toast"></div>
+    
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/room-service.js"></script>
+    <script src="assets/js/user-service.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script src="assets/js/app.js"></script>
+    
+    <script>
+        // ========== NAVIGATION ==========
+        document.querySelectorAll('.us-nav__link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = link.dataset.section;
+                
+                // Update nav
+                document.querySelectorAll('.us-nav__link').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+                
+                // Update sections
+                document.querySelectorAll('.us-section').forEach(s => s.classList.remove('active'));
+                document.getElementById('section-' + section).classList.add('active');
+                
+                // Update URL hash
+                history.replaceState(null, '', '#' + section);
+            });
+        });
+        
+        // Handle hash on load
+        if (window.location.hash) {
+            const section = window.location.hash.slice(1);
+            const link = document.querySelector(`[data-section="${section}"]`);
+            if (link) link.click();
+        }
+        
+        // ========== TOGGLE SWITCH ==========
+        function toggleSwitch(el) {
+            el.classList.toggle('active');
+            saveSettings();
+        }
+        
+        // ========== COLOR PICKER ==========
+        document.querySelectorAll('.us-colors').forEach(picker => {
+            picker.querySelectorAll('.us-color').forEach(color => {
+                color.addEventListener('click', () => {
+                    picker.querySelectorAll('.us-color').forEach(c => c.classList.remove('active'));
+                    color.classList.add('active');
+                    
+                    // Update profile avatar if profile colors
+                    if (picker.id === 'profileColors') {
+                        document.getElementById('avatarPlaceholder').style.backgroundColor = color.dataset.color;
+                    }
+                    
+                    // Update accent color
+                    if (picker.id === 'accentColors') {
+                        document.documentElement.style.setProperty('--accent', color.dataset.color);
+                        localStorage.setItem('rift_accent_color', color.dataset.color);
+                    }
+                });
+            });
+        });
+        
+        // ========== VOLUME SLIDERS ==========
+        document.querySelectorAll('.us-slider').forEach(slider => {
+            slider.addEventListener('input', () => {
+                const val = document.getElementById(slider.id + 'Value');
+                if (val) val.textContent = slider.value + '%';
+            });
+        });
+        
+        // ========== LOAD USER DATA ==========
+        async function loadUserData() {
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            
+            // Profile
+            const name = userData.displayName || userData.name || 'Unbekannt';
+            document.getElementById('profileName').textContent = name;
+            document.getElementById('displayNameInput').value = name;
+            document.getElementById('profileEmail').textContent = userData.email || '—';
+            
+            // Avatar
+            const placeholder = document.getElementById('avatarPlaceholder');
+            const img = document.getElementById('avatarImg');
+            placeholder.textContent = name.charAt(0).toUpperCase();
+            placeholder.style.backgroundColor = userData.color || '#8b5cf6';
+            
+            if (userData.avatar) {
+                img.src = userData.avatar;
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
+            }
+            
+            // Set active color
+            if (userData.color) {
+                const colorEl = document.querySelector(`#profileColors [data-color="${userData.color}"]`);
+                if (colorEl) {
+                    document.querySelectorAll('#profileColors .us-color').forEach(c => c.classList.remove('active'));
+                    colorEl.classList.add('active');
+                }
+            }
+            
+            // Security section
+            document.getElementById('securityEmail').textContent = userData.email || '—';
+            
+            // Try to get more info from Firebase
+            if (firebase.auth().currentUser) {
+                const user = firebase.auth().currentUser;
+                document.getElementById('securityUid').textContent = user.uid;
+                if (user.metadata) {
+                    if (user.metadata.creationTime) {
+                        document.getElementById('securityCreated').textContent = new Date(user.metadata.creationTime).toLocaleDateString('de-DE');
+                    }
+                    if (user.metadata.lastSignInTime) {
+                        document.getElementById('securityLastLogin').textContent = new Date(user.metadata.lastSignInTime).toLocaleString('de-DE');
+                    }
+                }
+            }
+            
+            // Stats
+            loadStats();
+            
+            // Storage
+            calculateStorage();
+        }
+        
+        function loadStats() {
+            const characters = JSON.parse(localStorage.getItem('rift_characters') || '{}');
+            document.getElementById('statCharacters').textContent = Object.keys(characters).length;
+            
+            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+            document.getElementById('statSessions').textContent = sessions.length;
+            
+            const diceStats = JSON.parse(localStorage.getItem('rift_dice_stats') || '{}');
+            document.getElementById('statDiceRolls').textContent = diceStats.totalRolls || 0;
+            
+            const playtime = parseInt(localStorage.getItem('rift_playtime') || '0');
+            document.getElementById('statPlaytime').textContent = Math.floor(playtime / 60) + 'h';
+        }
+        
+        function calculateStorage() {
+            let total = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    total += localStorage[key].length * 2;
+                }
+            }
+            const kb = (total / 1024).toFixed(1);
+            document.getElementById('storageUsage').textContent = `${kb} KB verwendet`;
+        }
+        
+        // ========== SAVE PROFILE ==========
+        async function saveProfile() {
+            const name = document.getElementById('displayNameInput').value.trim();
+            const colorEl = document.querySelector('#profileColors .us-color.active');
+            const color = colorEl ? colorEl.dataset.color : '#8b5cf6';
+            const bio = document.getElementById('bioInput')?.value || '';
+            
+            if (!name) {
+                showToast('Bitte gib einen Namen ein', 'error');
+                return;
+            }
+            
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            userData.displayName = name;
+            userData.name = name;
+            userData.color = color;
+            userData.bio = bio;
+            localStorage.setItem('rift_user', JSON.stringify(userData));
+            
+            // Update UI
+            document.getElementById('profileName').textContent = name;
+            document.getElementById('avatarPlaceholder').textContent = name.charAt(0).toUpperCase();
+            document.getElementById('avatarPlaceholder').style.backgroundColor = color;
+            
+            // Update Firebase room member if in a room
+            const roomCode = localStorage.getItem('rift_current_room');
+            if (roomCode && window.RIFT?.rooms && firebase.auth().currentUser) {
+                try {
+                    await RIFT.rooms.updateMember(roomCode, firebase.auth().currentUser.uid, { displayName: name, color });
+                } catch (e) {
+                    console.warn('[Settings] Failed to update Firebase:', e);
+                }
+            }
+            
+            showToast('Profil gespeichert!', 'success');
+        }
+        
+        // ========== AVATAR ==========
+        function handleAvatarUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('Bild zu groß (max 2MB)', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.getElementById('avatarImg');
+                const placeholder = document.getElementById('avatarPlaceholder');
+                
+                img.src = e.target.result;
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
+                
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                userData.avatar = e.target.result;
+                localStorage.setItem('rift_user', JSON.stringify(userData));
+                
+                showToast('Profilbild aktualisiert!', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // ========== EXPORT ==========
+        function exportCharacters() {
+            const data = localStorage.getItem('rift_characters') || '{}';
+            download(data, 'rift_characters.json');
+            showToast('Charaktere exportiert!', 'success');
+        }
+        
+        function exportAllData() {
+            const data = {
+                user: JSON.parse(localStorage.getItem('rift_user') || '{}'),
+                characters: JSON.parse(localStorage.getItem('rift_characters') || '{}'),
+                sessions: JSON.parse(localStorage.getItem('rift_sessions') || '[]'),
+                settings: JSON.parse(localStorage.getItem('rift_settings') || '{}'),
+                exportedAt: new Date().toISOString()
+            };
+            download(JSON.stringify(data, null, 2), 'rift_backup.json');
+            showToast('Daten exportiert!', 'success');
+        }
+        
+        function download(data, filename) {
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // ========== DANGER ZONE ==========
+        function clearCache() {
+            // Keep essential data
+            const keep = ['rift_user', 'rift_characters', 'rift_current_room', 'rift_settings'];
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!keep.includes(key) && key.startsWith('rift_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+            calculateStorage();
+            showToast('Cache geleert!', 'success');
+        }
+        
+        function deleteAllData() {
+            if (!confirm('Wirklich ALLE lokalen Daten löschen?')) return;
+            if (!confirm('Sicher? Dies kann nicht rückgängig gemacht werden!')) return;
+            
+            localStorage.clear();
+            showToast('Daten gelöscht', 'success');
+            setTimeout(() => window.location.href = 'index.html', 1500);
+        }
+        
+        function deleteAccount() {
+            alert('Kontolöschung ist derzeit nur über Support möglich.\n\nKontaktiere: support@rift.app');
+        }
+        
+        function copyUserId() {
+            const uid = document.getElementById('securityUid').textContent;
+            navigator.clipboard.writeText(uid);
+            showToast('User-ID kopiert!', 'success');
+        }
+        
+        // ========== SETTINGS ==========
+        function saveSettings() {
+            const settings = {
+                animations: document.getElementById('animationsToggle')?.classList.contains('active'),
+                compact: document.getElementById('compactToggle')?.classList.contains('active'),
+                sessionReminders: document.getElementById('sessionRemindersToggle')?.classList.contains('active'),
+                chatNotifications: document.getElementById('chatNotificationsToggle')?.classList.contains('active'),
+                muteAll: document.getElementById('muteAllToggle')?.classList.contains('active'),
+                dice3d: document.getElementById('dice3dToggle')?.classList.contains('active'),
+                shareDice: document.getElementById('shareDiceToggle')?.classList.contains('active'),
+            };
+            localStorage.setItem('rift_settings', JSON.stringify(settings));
+        }
+        
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('rift_settings') || '{}');
+            Object.entries(settings).forEach(([key, value]) => {
+                const toggle = document.getElementById(key + 'Toggle');
+                if (toggle) toggle.classList.toggle('active', value);
+            });
+        }
+        
+        // ========== TOAST ==========
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'us-toast';
+            if (type === 'success') toast.classList.add('us-toast--success');
+            if (type === 'error') toast.classList.add('us-toast--error');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // ========== INIT ==========
+        loadUserData();
+        loadSettings();
+    </script>
+</body>
+</html>
