@@ -605,7 +605,7 @@ const DICE = (function() {
         
         // RIFT: Automatisch Label-Farbe basierend auf Hintergrund-Helligkeit wählen
         var brightness = getColorBrightness(gradient ? gradient.colors[0] : color);
-        vars.label_color = brightness > 180 ? vars.label_color_dark : '#ffffff';
+        vars.label_color = brightness > 160 ? vars.label_color_dark : '#ffffff';
         
         // Cache löschen damit neue Materialien erstellt werden
         threeD_dice.d4_material = null;
