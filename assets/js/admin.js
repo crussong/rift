@@ -57,44 +57,55 @@ class AdminSystem {
     
     checkAuthState() {
         console.log('[Admin] checkAuthState called');
-        // Wait for Firebase
+        
+        // Wait for Firebase to be FULLY initialized (not just defined)
         const waitForFirebase = () => {
-            console.log('[Admin] Waiting for Firebase...', typeof firebase);
-            if (typeof firebase !== 'undefined' && firebase.auth) {
-                console.log('[Admin] Firebase ready, setting up auth listener');
+            console.log('[Admin] Checking Firebase status...');
+            
+            // Check if Firebase is fully ready
+            if (typeof firebase !== 'undefined' && firebase.auth && firebase.apps && firebase.apps.length > 0) {
+                console.log('[Admin] Firebase fully initialized, checking auth');
                 
-                // Check current user immediately
-                const currentUser = firebase.auth().currentUser;
-                console.log('[Admin] Current user on init:', currentUser ? currentUser.email : 'null');
-                
-                if (currentUser && this.isAdminUser(currentUser)) {
-                    this.isAdmin = true;
-                    this.adminUser = currentUser;
-                    console.log('[Admin] ✓ Immediately authenticated as admin:', currentUser.email);
-                    this.updateUI();
-                }
-                
-                // Also listen for future changes
-                firebase.auth().onAuthStateChanged((user) => {
-                    console.log('[Admin] Auth state changed, user:', user ? user.email : 'null');
-                    if (user && this.isAdminUser(user)) {
+                try {
+                    // Check current user immediately
+                    const currentUser = firebase.auth().currentUser;
+                    console.log('[Admin] Current user on init:', currentUser ? currentUser.email : 'null');
+                    
+                    if (currentUser && this.isAdminUser(currentUser)) {
                         this.isAdmin = true;
-                        this.adminUser = user;
-                        console.log('[Admin] ✓ Authenticated as admin:', user.email);
-                    } else {
-                        this.isAdmin = false;
-                        this.adminUser = null;
-                        if (user) {
-                            console.log('[Admin] ✗ User logged in but not admin:', user.email);
-                        }
+                        this.adminUser = currentUser;
+                        console.log('[Admin] ✓ Immediately authenticated as admin:', currentUser.email);
+                        this.updateUI();
                     }
-                    this.updateUI();
-                });
+                    
+                    // Also listen for future changes
+                    firebase.auth().onAuthStateChanged((user) => {
+                        console.log('[Admin] Auth state changed, user:', user ? user.email : 'null');
+                        if (user && this.isAdminUser(user)) {
+                            this.isAdmin = true;
+                            this.adminUser = user;
+                            console.log('[Admin] ✓ Authenticated as admin:', user.email);
+                        } else {
+                            this.isAdmin = false;
+                            this.adminUser = null;
+                            if (user) {
+                                console.log('[Admin] ✗ User logged in but not admin:', user.email);
+                            }
+                        }
+                        this.updateUI();
+                    });
+                } catch (e) {
+                    console.warn('[Admin] Firebase auth error, retrying...', e.message);
+                    setTimeout(waitForFirebase, 500);
+                }
             } else {
-                setTimeout(waitForFirebase, 100);
+                console.log('[Admin] Firebase not ready yet, waiting...');
+                setTimeout(waitForFirebase, 200);
             }
         };
-        waitForFirebase();
+        
+        // Start checking after a small delay
+        setTimeout(waitForFirebase, 500);
     }
     
     isAdminUser(user) {
