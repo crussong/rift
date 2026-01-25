@@ -666,24 +666,16 @@ const DICE = (function() {
         return true;
     }
     
-    // RIFT: Texture overlay system - ENHANCED VISIBILITY
+    // RIFT: Texture overlay system - BALANCED VISIBILITY
     function applyTexture(context, width, height, texture, colors) {
         context.save();
         
         switch(texture) {
             case 'stripes':
                 context.globalCompositeOperation = 'overlay';
-                context.strokeStyle = 'rgba(255,255,255,0.4)';
-                context.lineWidth = width / 12;
-                for (var i = -height; i < width + height; i += width / 6) {
-                    context.beginPath();
-                    context.moveTo(i, 0);
-                    context.lineTo(i + height, height);
-                    context.stroke();
-                }
-                // Dark stripes too
-                context.strokeStyle = 'rgba(0,0,0,0.2)';
-                for (var i = -height + width/12; i < width + height; i += width / 6) {
+                context.strokeStyle = 'rgba(255,255,255,0.25)';
+                context.lineWidth = width / 15;
+                for (var i = -height; i < width + height; i += width / 8) {
                     context.beginPath();
                     context.moveTo(i, 0);
                     context.lineTo(i + height, height);
@@ -693,19 +685,14 @@ const DICE = (function() {
                 
             case 'dots':
                 context.globalCompositeOperation = 'overlay';
-                var dotSize = width / 18;
-                var spacing = width / 8;
+                var dotSize = width / 25;
+                var spacing = width / 10;
                 for (var x = spacing/2; x < width; x += spacing) {
                     for (var y = spacing/2; y < height; y += spacing) {
-                        // White dot
-                        context.fillStyle = 'rgba(255,255,255,0.5)';
+                        context.fillStyle = 'rgba(255,255,255,0.3)';
                         context.beginPath();
                         context.arc(x, y, dotSize, 0, Math.PI * 2);
                         context.fill();
-                        // Dark outline
-                        context.strokeStyle = 'rgba(0,0,0,0.3)';
-                        context.lineWidth = 2;
-                        context.stroke();
                     }
                 }
                 break;
@@ -714,7 +701,7 @@ const DICE = (function() {
                 var imageData = context.getImageData(0, 0, width, height);
                 var data = imageData.data;
                 for (var i = 0; i < data.length; i += 4) {
-                    var noise = (Math.random() - 0.5) * 60;
+                    var noise = (Math.random() - 0.5) * 45;
                     data[i] = Math.min(255, Math.max(0, data[i] + noise));
                     data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
                     data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
@@ -723,20 +710,19 @@ const DICE = (function() {
                 break;
                 
             case 'marble':
-                // Multiple veins with varying thickness
-                for (var v = 0; v < 15; v++) {
+                for (var v = 0; v < 12; v++) {
                     context.globalCompositeOperation = 'overlay';
-                    context.strokeStyle = v % 2 === 0 ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.2)';
-                    context.lineWidth = 1 + Math.random() * 4;
+                    context.strokeStyle = v % 2 === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+                    context.lineWidth = 1 + Math.random() * 3;
                     context.beginPath();
                     var startX = Math.random() * width;
                     var startY = Math.random() * height;
                     context.moveTo(startX, startY);
-                    for (var j = 0; j < 8; j++) {
-                        var cpX = startX + (Math.random() - 0.5) * width * 0.6;
-                        var cpY = startY + (Math.random() - 0.5) * height * 0.6;
-                        var endX = startX + (Math.random() - 0.5) * width * 0.8;
-                        var endY = startY + (Math.random() - 0.5) * height * 0.8;
+                    for (var j = 0; j < 6; j++) {
+                        var cpX = startX + (Math.random() - 0.5) * width * 0.5;
+                        var cpY = startY + (Math.random() - 0.5) * height * 0.5;
+                        var endX = startX + (Math.random() - 0.5) * width * 0.7;
+                        var endY = startY + (Math.random() - 0.5) * height * 0.7;
                         context.quadraticCurveTo(cpX, cpY, endX, endY);
                         startX = endX; startY = endY;
                     }
@@ -746,14 +732,13 @@ const DICE = (function() {
                 
             case 'sparkle':
                 context.globalCompositeOperation = 'screen';
-                for (var i = 0; i < 60; i++) {
+                for (var i = 0; i < 45; i++) {
                     var x = Math.random() * width;
                     var y = Math.random() * height;
-                    var size = Math.random() * 6 + 2;
-                    var alpha = Math.random() * 0.9 + 0.3;
+                    var size = Math.random() * 4 + 1.5;
+                    var alpha = Math.random() * 0.7 + 0.2;
                     context.fillStyle = 'rgba(255,255,255,' + alpha + ')';
                     context.beginPath();
-                    // 4-point star
                     context.moveTo(x, y - size);
                     context.lineTo(x + size * 0.25, y - size * 0.25);
                     context.lineTo(x + size, y);
@@ -765,24 +750,17 @@ const DICE = (function() {
                     context.closePath();
                     context.fill();
                 }
-                // Add some circular highlights
-                for (var i = 0; i < 20; i++) {
-                    context.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.6 + 0.2) + ')';
-                    context.beginPath();
-                    context.arc(Math.random() * width, Math.random() * height, Math.random() * 3 + 1, 0, Math.PI * 2);
-                    context.fill();
-                }
                 break;
                 
             case 'checker':
                 context.globalCompositeOperation = 'overlay';
-                var checkSize = width / 6;
+                var checkSize = width / 7;
                 for (var x = 0; x < width; x += checkSize) {
                     for (var y = 0; y < height; y += checkSize) {
                         if ((Math.floor(x/checkSize) + Math.floor(y/checkSize)) % 2 === 0) {
-                            context.fillStyle = 'rgba(0,0,0,0.35)';
+                            context.fillStyle = 'rgba(0,0,0,0.2)';
                         } else {
-                            context.fillStyle = 'rgba(255,255,255,0.2)';
+                            context.fillStyle = 'rgba(255,255,255,0.1)';
                         }
                         context.fillRect(x, y, checkSize, checkSize);
                     }
@@ -791,12 +769,12 @@ const DICE = (function() {
                 
             case 'waves':
                 context.globalCompositeOperation = 'overlay';
-                context.lineWidth = 4;
-                for (var i = 0; i < height * 1.5; i += width / 10) {
-                    context.strokeStyle = i % 2 === 0 ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.2)';
+                context.strokeStyle = 'rgba(255,255,255,0.2)';
+                context.lineWidth = 3;
+                for (var i = 0; i < height * 1.5; i += width / 12) {
                     context.beginPath();
-                    for (var x = 0; x < width; x += 3) {
-                        var y = i + Math.sin(x * 0.04) * (width / 12);
+                    for (var x = 0; x < width; x += 4) {
+                        var y = i + Math.sin(x * 0.035) * (width / 15);
                         if (x === 0) context.moveTo(x, y);
                         else context.lineTo(x, y);
                     }
@@ -806,16 +784,16 @@ const DICE = (function() {
                 
             case 'camo':
                 context.globalCompositeOperation = 'overlay';
-                var camoColors = ['rgba(0,0,0,0.4)', 'rgba(255,255,255,0.25)', 'rgba(0,0,0,0.25)', 'rgba(255,255,255,0.15)'];
-                for (var i = 0; i < 20; i++) {
+                var camoColors = ['rgba(0,0,0,0.25)', 'rgba(255,255,255,0.15)', 'rgba(0,0,0,0.15)'];
+                for (var i = 0; i < 15; i++) {
                     context.fillStyle = camoColors[i % camoColors.length];
                     context.beginPath();
                     var cx = Math.random() * width;
                     var cy = Math.random() * height;
                     context.moveTo(cx, cy);
-                    for (var j = 0; j < 7; j++) {
-                        var angle = (j / 7) * Math.PI * 2;
-                        var radius = width * 0.12 + Math.random() * width * 0.2;
+                    for (var j = 0; j < 6; j++) {
+                        var angle = (j / 6) * Math.PI * 2;
+                        var radius = width * 0.1 + Math.random() * width * 0.15;
                         context.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
                     }
                     context.closePath();
@@ -825,90 +803,49 @@ const DICE = (function() {
                 
             case 'wood':
                 context.globalCompositeOperation = 'overlay';
-                // Wood grain lines
-                for (var i = 0; i < width; i += 4 + Math.random() * 6) {
-                    context.strokeStyle = 'rgba(0,0,0,' + (0.15 + Math.random() * 0.2) + ')';
-                    context.lineWidth = 1 + Math.random() * 2;
+                for (var i = 0; i < width; i += 4 + Math.random() * 5) {
+                    context.strokeStyle = 'rgba(0,0,0,' + (0.1 + Math.random() * 0.15) + ')';
+                    context.lineWidth = 1 + Math.random() * 1.5;
                     context.beginPath();
                     context.moveTo(i, 0);
                     var x = i;
                     for (var y = 0; y < height; y += 8) {
-                        x += (Math.random() - 0.5) * 6;
+                        x += (Math.random() - 0.5) * 4;
                         context.lineTo(x, y);
                     }
                     context.stroke();
-                }
-                // Add some knots
-                for (var k = 0; k < 2; k++) {
-                    var kx = Math.random() * width;
-                    var ky = Math.random() * height;
-                    context.strokeStyle = 'rgba(0,0,0,0.3)';
-                    context.lineWidth = 2;
-                    for (var r = 5; r < 20; r += 5) {
-                        context.beginPath();
-                        context.ellipse(kx, ky, r, r * 0.6, 0, 0, Math.PI * 2);
-                        context.stroke();
-                    }
                 }
                 break;
                 
             case 'starfield':
                 context.globalCompositeOperation = 'screen';
-                // Many stars
-                for (var i = 0; i < 80; i++) {
+                for (var i = 0; i < 60; i++) {
                     var x = Math.random() * width;
                     var y = Math.random() * height;
-                    var size = Math.random() * 3 + 1;
-                    var alpha = Math.random() * 0.95 + 0.3;
+                    var size = Math.random() * 2.5 + 0.5;
+                    var alpha = Math.random() * 0.8 + 0.2;
                     context.fillStyle = 'rgba(255,255,255,' + alpha + ')';
                     context.beginPath();
                     context.arc(x, y, size, 0, Math.PI * 2);
                     context.fill();
                 }
-                // Some bright stars with glow
-                for (var i = 0; i < 5; i++) {
-                    var x = Math.random() * width;
-                    var y = Math.random() * height;
-                    context.fillStyle = 'rgba(255,255,255,0.9)';
-                    context.beginPath();
-                    context.arc(x, y, 4, 0, Math.PI * 2);
-                    context.fill();
-                    // Cross sparkle
-                    context.strokeStyle = 'rgba(255,255,255,0.6)';
-                    context.lineWidth = 1;
-                    context.beginPath();
-                    context.moveTo(x - 8, y); context.lineTo(x + 8, y);
-                    context.moveTo(x, y - 8); context.lineTo(x, y + 8);
-                    context.stroke();
-                }
                 break;
                 
             case 'lightning':
                 context.globalCompositeOperation = 'screen';
-                context.strokeStyle = 'rgba(255,255,255,0.9)';
-                context.lineWidth = 3;
+                context.strokeStyle = 'rgba(255,255,255,0.7)';
+                context.lineWidth = 2;
                 context.shadowColor = '#ffffff';
-                context.shadowBlur = 15;
-                for (var bolt = 0; bolt < 3; bolt++) {
+                context.shadowBlur = 8;
+                for (var bolt = 0; bolt < 2; bolt++) {
                     context.beginPath();
-                    var x = width * 0.2 + Math.random() * width * 0.6;
+                    var x = width * 0.25 + Math.random() * width * 0.5;
                     var y = 0;
                     context.moveTo(x, y);
                     while (y < height) {
-                        x += (Math.random() - 0.5) * 50;
-                        y += 8 + Math.random() * 15;
+                        x += (Math.random() - 0.5) * 40;
+                        y += 10 + Math.random() * 18;
                         context.lineTo(x, y);
-                        // Branch
-                        if (Math.random() > 0.7) {
-                            var bx = x, by = y;
-                            context.moveTo(bx, by);
-                            for (var b = 0; b < 3; b++) {
-                                bx += (Math.random() - 0.5) * 30;
-                                by += 5 + Math.random() * 10;
-                                context.lineTo(bx, by);
-                            }
-                            context.moveTo(x, y);
-                        }
                     }
                     context.stroke();
                 }
@@ -917,14 +854,14 @@ const DICE = (function() {
                 
             case 'hexagon':
                 context.globalCompositeOperation = 'overlay';
-                var hexSize = width / 8;
+                context.strokeStyle = 'rgba(255,255,255,0.25)';
+                context.lineWidth = 1.5;
+                var hexSize = width / 9;
                 var hexHeight = hexSize * Math.sqrt(3);
                 for (var row = -1; row < height / hexHeight + 1; row++) {
                     for (var col = -1; col < width / (hexSize * 1.5) + 1; col++) {
                         var cx = col * hexSize * 1.5;
                         var cy = row * hexHeight + (col % 2) * hexHeight / 2;
-                        // Fill alternating
-                        context.fillStyle = (row + col) % 2 === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
                         context.beginPath();
                         for (var i = 0; i < 6; i++) {
                             var angle = (i / 6) * Math.PI * 2 - Math.PI / 6;
@@ -934,10 +871,6 @@ const DICE = (function() {
                             else context.lineTo(hx, hy);
                         }
                         context.closePath();
-                        context.fill();
-                        // Stroke
-                        context.strokeStyle = 'rgba(255,255,255,0.4)';
-                        context.lineWidth = 2;
                         context.stroke();
                     }
                 }
@@ -945,22 +878,16 @@ const DICE = (function() {
                 
             case 'scales':
                 context.globalCompositeOperation = 'overlay';
-                var scaleSize = width / 8;
+                var scaleSize = width / 10;
                 for (var row = 0; row < height / scaleSize + 2; row++) {
                     for (var col = -1; col < width / scaleSize + 2; col++) {
                         var cx = col * scaleSize + (row % 2) * scaleSize / 2;
-                        var cy = row * scaleSize * 0.6;
-                        // Scale fill with gradient effect
-                        var grd = context.createRadialGradient(cx, cy - scaleSize * 0.3, 0, cx, cy, scaleSize * 0.7);
-                        grd.addColorStop(0, 'rgba(255,255,255,0.4)');
-                        grd.addColorStop(0.5, 'rgba(255,255,255,0.15)');
-                        grd.addColorStop(1, 'rgba(0,0,0,0.2)');
-                        context.fillStyle = grd;
+                        var cy = row * scaleSize * 0.65;
+                        context.fillStyle = 'rgba(255,255,255,0.12)';
                         context.beginPath();
                         context.arc(cx, cy, scaleSize * 0.55, 0, Math.PI);
                         context.fill();
-                        // Outline
-                        context.strokeStyle = 'rgba(0,0,0,0.3)';
+                        context.strokeStyle = 'rgba(0,0,0,0.15)';
                         context.lineWidth = 1;
                         context.stroke();
                     }
