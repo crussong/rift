@@ -1212,6 +1212,25 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
                             </div>
+                            
+                            <!-- Mobile Action Bar -->
+                            <div class="dice-mobile-action-bar">
+                                <button class="dice-mobile-reset" onclick="DiceRoller.clearDice()" title="Reset">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                        <path d="M3 3v5h5"/>
+                                    </svg>
+                                </button>
+                                <button class="dice-roll-btn" id="mobileRollBtn" onclick="DiceRoller.roll()" disabled>
+                                    Würfeln!
+                                </button>
+                                <button class="dice-mobile-settings" onclick="DiceMobile.openSettings()" title="Einstellungen">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="3"/>
+                                        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- History -->
@@ -1235,6 +1254,53 @@
                             </div>
                         </div>
                         
+                    </div>
+                    
+                    <!-- Mobile Settings Drawer -->
+                    <div class="dice-drawer-overlay" id="diceDrawerOverlay" onclick="DiceMobile.closeSettings()"></div>
+                    <div class="dice-settings-drawer" id="diceSettingsDrawer">
+                        <div class="dice-settings-drawer__handle"></div>
+                        <div class="dice-settings-drawer__header">
+                            <span class="dice-settings-drawer__title">Einstellungen</span>
+                            <button class="dice-settings-drawer__close" onclick="DiceMobile.closeSettings()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Sound Toggle -->
+                        <div class="dice-settings-drawer__section">
+                            <div class="dice-settings-toggle">
+                                <span class="dice-settings-toggle__label">Sound</span>
+                                <button class="dice-settings-toggle__switch active" id="mobileSoundToggle" onclick="DiceMobile.toggleSound()"></button>
+                            </div>
+                        </div>
+                        
+                        <!-- Theme Selection -->
+                        <div class="dice-settings-drawer__section">
+                            <span class="dice-settings-drawer__label">Würfelfarbe</span>
+                            <div class="dice-theme-grid" id="mobileThemeGrid">
+                                <!-- Wird dynamisch befüllt -->
+                            </div>
+                        </div>
+                        
+                        <!-- Stats -->
+                        <div class="dice-settings-drawer__section">
+                            <span class="dice-settings-drawer__label">Statistiken</span>
+                            <div class="dice-stats-mini">
+                                <div class="dice-stats-mini__item">
+                                    <span class="dice-stats-mini__value" id="mobileStatTotal">0</span>
+                                    <span class="dice-stats-mini__label">Würfe</span>
+                                </div>
+                                <div class="dice-stats-mini__item">
+                                    <span class="dice-stats-mini__value" id="mobileStatCrits">0</span>
+                                    <span class="dice-stats-mini__label">Krits</span>
+                                </div>
+                                <div class="dice-stats-mini__item">
+                                    <span class="dice-stats-mini__value" id="mobileStatFumbles">0</span>
+                                    <span class="dice-stats-mini__label">Patzer</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                 </div>
@@ -3136,12 +3202,14 @@
                 const arena = document.getElementById('diceArena');
                 const result = document.getElementById('diceResult');
                 const btn = document.getElementById('rollBtn');
+                const mobileBtn = document.getElementById('mobileRollBtn');
                 
                 // UI Feedback
                 arena.classList.remove('empty');
                 arena.classList.add('throwing');
                 result.classList.remove('visible', 'critical', 'fumble', 'secret');
                 btn.classList.add('rolling');
+                if (mobileBtn) mobileBtn.classList.add('rolling');
                 
                 setTimeout(() => arena.classList.remove('throwing'), 300);
                 
@@ -3186,6 +3254,7 @@
                         // Ensure minimum animation time before showing result
                         setTimeout(() => {
                             btn.classList.remove('rolling');
+                            if (mobileBtn) mobileBtn.classList.remove('rolling');
                             
                             let rolls = notation.result;
                             let total = notation.resultTotal;
@@ -3219,6 +3288,7 @@
                             console.warn('[DiceRoller] Callback timeout - using fallback');
                             resultHandled = true;
                             btn.classList.remove('rolling');
+                            if (mobileBtn) mobileBtn.classList.remove('rolling');
                             const results = this.simulateRoll(notationStr);
                             this.handleResult(results.rolls, results.total, { resultString: results.breakdown }, special, null);
                         }
@@ -3228,6 +3298,7 @@
                     // Fallback without 3D
                     setTimeout(() => {
                         btn.classList.remove('rolling');
+                        if (mobileBtn) mobileBtn.classList.remove('rolling');
                         const results = this.simulateRoll(notationStr);
                         this.handleResult(results.rolls, results.total, { resultString: results.breakdown }, special, null);
                     }, MIN_ANIMATION_TIME);
@@ -3995,11 +4066,14 @@
                     }
                 });
                 
-                // Update roll button
+                // Update roll buttons (desktop + mobile)
                 const btn = document.getElementById('rollBtn');
+                const mobileBtn = document.getElementById('mobileRollBtn');
                 const hasInput = document.getElementById('notationInput').value.trim().length > 0;
                 const hasDice = Object.values(this.currentDice).some(c => c > 0);
-                btn.disabled = !hasInput && !hasDice;
+                const isDisabled = !hasInput && !hasDice;
+                btn.disabled = isDisabled;
+                if (mobileBtn) mobileBtn.disabled = isDisabled;
             },
             
             // Partikel-System
@@ -4640,6 +4714,142 @@
                 setTimeout(() => DicePreview.init(), 200);
             });
         }
+    </script>
+    
+    <!-- Mobile Dice Controls -->
+    <script>
+        const DiceMobile = {
+            drawer: null,
+            overlay: null,
+            soundToggle: null,
+            
+            init() {
+                this.drawer = document.getElementById('diceSettingsDrawer');
+                this.overlay = document.getElementById('diceDrawerOverlay');
+                this.soundToggle = document.getElementById('mobileSoundToggle');
+                
+                // Sync sound state
+                if (this.soundToggle && typeof DiceRoller !== 'undefined') {
+                    this.soundToggle.classList.toggle('active', DiceRoller.soundEnabled !== false);
+                }
+                
+                // Populate themes
+                this.populateThemes();
+                
+                // Hide desktop-only elements
+                this.setupMobileLayout();
+            },
+            
+            setupMobileLayout() {
+                // Mobile action bar positioning fix
+                const actionBar = document.querySelector('.dice-mobile-action-bar');
+                const rollZone = document.querySelector('.dice-roll-zone');
+                
+                if (actionBar && rollZone && window.innerWidth <= 768) {
+                    // Move action bar next to roll button
+                    const rollBtn = rollZone.querySelector('.dice-roll-btn');
+                    if (rollBtn) {
+                        rollBtn.parentNode.insertBefore(actionBar, rollBtn);
+                        actionBar.style.display = 'flex';
+                        actionBar.style.order = '10';
+                    }
+                }
+            },
+            
+            openSettings() {
+                if (this.drawer && this.overlay) {
+                    this.drawer.classList.add('open');
+                    this.overlay.classList.add('open');
+                    document.body.style.overflow = 'hidden';
+                    
+                    // Update stats
+                    this.updateStats();
+                }
+            },
+            
+            closeSettings() {
+                if (this.drawer && this.overlay) {
+                    this.drawer.classList.remove('open');
+                    this.overlay.classList.remove('open');
+                    document.body.style.overflow = '';
+                }
+            },
+            
+            toggleSound() {
+                if (typeof DiceRoller !== 'undefined' && DiceRoller.toggleSound) {
+                    DiceRoller.toggleSound();
+                }
+                
+                if (this.soundToggle) {
+                    this.soundToggle.classList.toggle('active');
+                }
+            },
+            
+            populateThemes() {
+                const grid = document.getElementById('mobileThemeGrid');
+                if (!grid) return;
+                
+                // Basic themes
+                const themes = [
+                    { id: 'classic', name: 'Klassisch' },
+                    { id: 'blood', name: 'Blut' },
+                    { id: 'ice', name: 'Eis' },
+                    { id: 'nature', name: 'Natur' },
+                    { id: 'royal', name: 'Royal' },
+                    { id: 'gold', name: 'Gold' },
+                    { id: 'dragon', name: 'Drache' },
+                    { id: 'shadow', name: 'Schatten' }
+                ];
+                
+                grid.innerHTML = themes.map(t => `
+                    <button class="dice-theme-card${t.id === 'classic' ? ' active' : ''}" data-theme="${t.id}" onclick="DiceMobile.setTheme('${t.id}')">
+                        <div class="dice-theme-card__preview dice-theme-card__preview--${t.id}"></div>
+                        <span>${t.name}</span>
+                    </button>
+                `).join('');
+            },
+            
+            setTheme(themeId) {
+                // Update selection
+                document.querySelectorAll('#mobileThemeGrid .dice-theme-card').forEach(card => {
+                    card.classList.toggle('active', card.dataset.theme === themeId);
+                });
+                
+                // Also update desktop grid
+                document.querySelectorAll('.dice-theme-grid .dice-theme-card').forEach(card => {
+                    card.classList.toggle('active', card.dataset.theme === themeId);
+                });
+                
+                // Apply theme
+                if (typeof DiceRoller !== 'undefined' && DiceRoller.setTheme) {
+                    DiceRoller.setTheme(themeId);
+                }
+            },
+            
+            updateStats() {
+                const totalEl = document.getElementById('mobileStatTotal');
+                const critsEl = document.getElementById('mobileStatCrits');
+                const fumblesEl = document.getElementById('mobileStatFumbles');
+                
+                if (typeof DiceRoller !== 'undefined' && DiceRoller.stats) {
+                    if (totalEl) totalEl.textContent = DiceRoller.stats.total || 0;
+                    if (critsEl) critsEl.textContent = DiceRoller.stats.crits || 0;
+                    if (fumblesEl) fumblesEl.textContent = DiceRoller.stats.fumbles || 0;
+                }
+            }
+        };
+        
+        // Init after DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => DiceMobile.init(), 300);
+        });
+        
+        // Re-init on resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 768) {
+                DiceMobile.setupMobileLayout();
+            }
+        });
     </script>
     <script src="assets/js/broadcast.js"></script>
 </body>
