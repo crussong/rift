@@ -19,10 +19,9 @@ class AdminSystem {
         // Admin emails (alternative check)
         this.ADMIN_EMAILS = [
             'mike@rift.app',
-            'admin@rift.app'
-            'crussong@proton.me'
+            'admin@rift.app',
+            'crussong@proton.me',
             'mike1lusson@gmail.com'
-            // Add your admin email here
         ];
         
         this.init();
