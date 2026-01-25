@@ -1564,16 +1564,31 @@ function saveSettings() {
 /**
  * Start Adventure - navigate to next session or sessions page
  */
-function startAdventure() {
-    // Check for upcoming sessions
-    const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+async function startAdventure() {
+    const currentRoomCode = localStorage.getItem('rift_current_room');
     const now = new Date();
+    let sessions = [];
+    
+    // Try Firebase first if we have a room
+    if (currentRoomCode && typeof RIFT !== 'undefined' && RIFT.rooms) {
+        try {
+            sessions = await RIFT.rooms.getSessions(currentRoomCode);
+            console.log('[Layout] startAdventure: Got', sessions.length, 'sessions from Firebase for room:', currentRoomCode);
+        } catch (e) {
+            console.warn('[Layout] startAdventure: Firebase failed, using localStorage:', e);
+            sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+        }
+    } else {
+        // Fallback to localStorage (but this might have old room data)
+        sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+    }
     
     // Find next upcoming session
     const upcomingSessions = sessions
         .filter(s => {
+            if (!s.date || !s.time) return false;
             const sessionDate = new Date(s.date + 'T' + s.time);
-            return sessionDate > now;
+            return sessionDate > now && s.status !== 'ended';
         })
         .sort((a, b) => {
             const dateA = new Date(a.date + 'T' + a.time);
