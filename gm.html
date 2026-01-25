@@ -1185,20 +1185,14 @@
     </style>
 
 
-    <!-- Auth Guard: Hide content until authenticated -->
+    <!-- Auth Guard CSS -->
     <style>
         body:not(.auth-ready) .app,
         body:not(.auth-ready) .sheet-container,
-        body:not(.auth-ready) main {
-            opacity: 0;
-            pointer-events: none;
-        }
+        body:not(.auth-ready) main { opacity: 0; pointer-events: none; }
         body.auth-ready .app,
         body.auth-ready .sheet-container,
-        body.auth-ready main {
-            opacity: 1;
-            transition: opacity 0.2s ease;
-        }
+        body.auth-ready main { opacity: 1; transition: opacity 0.2s ease; }
     </style>
 </head>
 <body>
@@ -2160,38 +2154,30 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
     
     <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
-    <!-- Auth Guard - MUST be after firebase-config.js -->
+    <!-- Auth Guard -->
     <script>
         (function() {
-            console.log('[AuthGuard] Initializing...');
-            
-            function waitForFirebase() {
+            function checkAuth() {
                 if (typeof firebase === 'undefined' || !firebase.auth) {
-                    setTimeout(waitForFirebase, 50);
+                    setTimeout(checkAuth, 50);
                     return;
                 }
-                
                 try {
-                    var auth = firebase.auth();
-                    auth.onAuthStateChanged(function(user) {
-                        console.log('[AuthGuard] Auth state:', user ? 'signed in' : 'signed out');
+                    firebase.auth().onAuthStateChanged(function(user) {
                         if (!user) {
-                            console.log('[AuthGuard] Redirecting to login...');
-                            window.location.replace('/login');
+                            window.location.replace('login.html');
                         } else {
                             document.body.classList.add('auth-ready');
                         }
                     });
                 } catch (e) {
-                    setTimeout(waitForFirebase, 100);
+                    setTimeout(checkAuth, 100);
                 }
             }
-            
-            waitForFirebase();
+            checkAuth();
         })();
     </script>
 
@@ -2353,7 +2339,7 @@
                 if (!isGM) {
                     this.toast('Nur für Spielleiter!', 'error');
                     setTimeout(() => {
-                        window.location.href = '/hub';
+                        window.location.href = 'index.html';
                     }, 1500);
                     return;
                 }
@@ -4999,7 +4985,7 @@
                     await this.ref().collection('members').doc(target).update({ role: 'gm' });
                     await this.ref().collection('members').doc(uid).update({ role: 'player' });
                     this.toast('GM-Rolle übertragen!', 'success');
-                    setTimeout(() => window.location.href = '/hub', 1500);
+                    setTimeout(() => window.location.href = 'index.html', 1500);
                 } catch (e) {
                     this.toast('Fehler', 'error');
                 }
@@ -5823,7 +5809,7 @@
                 
                 if (roomCodeDisplay) roomCodeDisplay.textContent = this.roomCode.replace(/(.{3})(.{3})/, '$1-$2');
                 if (roomCodeInput) roomCodeInput.value = this.roomCode;
-                if (inviteLinkInput) inviteLinkInput.value = `${window.location.origin}/login?room=${this.roomCode}`;
+                if (inviteLinkInput) inviteLinkInput.value = `${window.location.origin}/login.html?room=${this.roomCode}`;
                 
                 // Load room settings
                 this.loadRoomSettings();
@@ -5861,7 +5847,7 @@
             },
             
             copyInviteLink() {
-                const link = `${window.location.origin}/join/${this.roomCode}`;
+                const link = `${window.location.origin}/join.html?room=${this.roomCode}`;
                 navigator.clipboard.writeText(link);
                 this.toast('Einladungslink kopiert!', 'success');
             },
@@ -5880,7 +5866,7 @@
                 try {
                     await this.ref().collection('members').doc(uid).delete();
                     localStorage.removeItem('rift_current_room');
-                    window.location.href = '/sessions';
+                    window.location.href = 'sessions.html';
                 } catch (e) {
                     this.toast('Fehler', 'error');
                 }
@@ -5909,7 +5895,7 @@
                     await this.ref().delete();
                     localStorage.removeItem('rift_current_room');
                     this.toast('Raum gelöscht!', 'success');
-                    setTimeout(() => window.location.href = '/sessions', 1500);
+                    setTimeout(() => window.location.href = 'sessions.html', 1500);
                 } catch (e) {
                     console.error('[BC] Delete error:', e);
                     this.toast('Fehler beim Löschen', 'error');
