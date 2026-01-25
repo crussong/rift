@@ -3504,16 +3504,24 @@
         // Auth Guard - redirect to login if not authenticated
         (function() {
             function waitForAuth() {
+                // Wait for Firebase SDK
                 if (typeof firebase === 'undefined' || !firebase.auth) {
                     return setTimeout(waitForAuth, 50);
                 }
-                firebase.auth().onAuthStateChanged(function(user) {
-                    if (!user) {
-                        window.location.href = 'login.html';
-                    } else {
-                        document.body.classList.add('auth-ready');
-                    }
-                });
+                // Wait for Firebase app initialization
+                try {
+                    var auth = firebase.auth();
+                    auth.onAuthStateChanged(function(user) {
+                        if (!user) {
+                            window.location.href = 'login.html';
+                        } else {
+                            document.body.classList.add('auth-ready');
+                        }
+                    });
+                } catch(e) {
+                    // Firebase not initialized yet, retry
+                    setTimeout(waitForAuth, 50);
+                }
             }
             waitForAuth();
         })();
