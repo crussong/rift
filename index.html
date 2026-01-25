@@ -624,7 +624,7 @@
                 
                 // Wait for Firebase and RIFT.rooms
                 if (typeof RIFT === 'undefined' || !RIFT.rooms) {
-                    setTimeout(subscribeToParty, 500);
+                    setTimeout(subscribeToParty, 100);
                     return;
                 }
                 
@@ -640,8 +640,8 @@
                 });
             }
             
-            // Start subscription after a delay to ensure Firebase is ready
-            setTimeout(subscribeToParty, 1000);
+            // Start subscription quickly
+            setTimeout(subscribeToParty, 200);
             
             // Cleanup on page unload
             window.addEventListener('beforeunload', () => {
@@ -752,6 +752,13 @@
             const skeleton = document.getElementById('newsLoadingSkeleton');
             const addBtn = document.getElementById('addNewsBtn');
             
+            // INSTANT: If static cards exist (returning user), hide skeleton immediately
+            const staticCards = track?.querySelectorAll('.news-carousel__card--static');
+            if (staticCards?.length > 0 && skeleton) {
+                skeleton.remove();
+                console.log('[Hub] News skeleton removed instantly (static cards exist)');
+            }
+            
             // Wait for Firebase
             const waitForFirebase = () => new Promise(resolve => {
                 const check = () => {
@@ -805,11 +812,11 @@
             
             // Load news from Firestore
             async function loadNews() {
-                // Set timeout to remove skeleton after 5 seconds no matter what
+                // Set timeout to remove skeleton after 1 second no matter what
                 const skeletonTimeout = setTimeout(() => {
                     if (skeleton) skeleton.remove();
                     console.warn('[Hub] News loading timeout - skeleton removed');
-                }, 5000);
+                }, 1000);
                 
                 try {
                     const db = firebase.firestore();
@@ -1246,14 +1253,26 @@
         let sessionsUnsubscribe = null;
         let heroSkeletonRemoved = false;
         
-        // Failsafe: Remove hero skeleton after 3 seconds no matter what
+        // INSTANT LOAD: If we have cached data, skip skeleton immediately
+        (function instantLoad() {
+            const cachedChars = localStorage.getItem('rift_characters');
+            const cachedSessions = localStorage.getItem('rift_sessions');
+            if (cachedChars || cachedSessions) {
+                const heroLoading = document.getElementById('heroLoading');
+                if (heroLoading) heroLoading.style.display = 'none';
+                heroSkeletonRemoved = true;
+                console.log('[Hub] Instant load from cache');
+            }
+        })();
+        
+        // Failsafe: Remove hero skeleton after 800ms no matter what
         setTimeout(() => {
             if (!heroSkeletonRemoved) {
                 const heroLoading = document.getElementById('heroLoading');
                 if (heroLoading) heroLoading.style.display = 'none';
                 console.log('[Hub] Hero skeleton removed by timeout');
             }
-        }, 3000);
+        }, 800);
         
         // Initialize Firebase Sessions for Hub
         function initFirebaseSessions() {
@@ -1289,8 +1308,8 @@
             });
         }
         
-        // Start quickly
-        setTimeout(initFirebaseSessions, 100);
+        // Start immediately
+        initFirebaseSessions();
         
         // Cleanup
         window.addEventListener('beforeunload', () => {
