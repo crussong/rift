@@ -1205,13 +1205,40 @@
                                     vector: { x: dx, y: -dy },
                                     boost: Math.max(boost, 200)
                                 };
-                                
-                                console.log('[DiceRoller] Drag & Drop - rolling:', diceType, 'vector:', throwVector);
                             }
                         }
                         
-                        // ALWAYS roll just the dragged die (ignore current selection)
-                        this.quickRollWithVector(diceType, throwVector);
+                        // Check if the DROPPED dice is part of current selection
+                        const droppedIsSelected = (this.currentDice[diceType] || 0) > 0;
+                        const hasSelection = Object.values(this.currentDice).some(c => c > 0);
+                        
+                        console.log('[DiceRoller] Drop check:', {
+                            diceType,
+                            droppedIsSelected,
+                            hasSelection,
+                            currentDice: {...this.currentDice}
+                        });
+                        
+                        if (hasSelection && droppedIsSelected) {
+                            // Dropped die is in selection → roll ALL selected dice
+                            const totalDice = Object.values(this.currentDice).reduce((a, b) => a + b, 0);
+                            console.log('[DiceRoller] Drag & Drop - rolling all selected dice:', this.currentDice);
+                            
+                            if (totalDice > 1 && window.RIFT?.ui?.Toast) {
+                                const parts = Object.entries(this.currentDice)
+                                    .filter(([_, count]) => count > 0)
+                                    .map(([type, count]) => `${count}${type.toUpperCase()}`)
+                                    .join(' + ');
+                                RIFT.ui.Toast.info(`Werfe ${parts}`);
+                            }
+                            
+                            this.pendingThrowVector = throwVector;
+                            this.roll();
+                        } else {
+                            // Dropped die is NOT in selection → roll only the dropped die
+                            console.log('[DiceRoller] Drag & Drop - rolling single:', diceType);
+                            this.quickRollWithVector(diceType, throwVector);
+                        }
                     }
                     
                     // Reset tracking
