@@ -35,6 +35,20 @@ class AdminSystem {
         this.checkAuthState();
         this.createLoginModal();
         this.bindEvents();
+        
+        // Re-check admin status after a delay (in case Firebase Auth is slow)
+        setTimeout(() => {
+            if (!this.isAdmin && typeof firebase !== 'undefined' && firebase.auth) {
+                const user = firebase.auth().currentUser;
+                console.log('[Admin] Delayed check - current user:', user ? user.email : 'null');
+                if (user && this.isAdminUser(user)) {
+                    this.isAdmin = true;
+                    this.adminUser = user;
+                    console.log('[Admin] ✓ Delayed auth as admin:', user.email);
+                    this.updateUI();
+                }
+            }
+        }, 2000);
     }
     
     // ========================================
@@ -48,6 +62,19 @@ class AdminSystem {
             console.log('[Admin] Waiting for Firebase...', typeof firebase);
             if (typeof firebase !== 'undefined' && firebase.auth) {
                 console.log('[Admin] Firebase ready, setting up auth listener');
+                
+                // Check current user immediately
+                const currentUser = firebase.auth().currentUser;
+                console.log('[Admin] Current user on init:', currentUser ? currentUser.email : 'null');
+                
+                if (currentUser && this.isAdminUser(currentUser)) {
+                    this.isAdmin = true;
+                    this.adminUser = currentUser;
+                    console.log('[Admin] ✓ Immediately authenticated as admin:', currentUser.email);
+                    this.updateUI();
+                }
+                
+                // Also listen for future changes
                 firebase.auth().onAuthStateChanged((user) => {
                     console.log('[Admin] Auth state changed, user:', user ? user.email : 'null');
                     if (user && this.isAdminUser(user)) {
