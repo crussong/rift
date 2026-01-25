@@ -3746,6 +3746,7 @@
         flex-direction: column;
         flex-shrink: 0;
         gap: 6px;
+        padding-bottom: env(safe-area-inset-bottom, 8px);
     }
     
     /* === WÜRFEL ORBIT === */
@@ -3755,10 +3756,20 @@
         background: #1b1b1b;
     }
     
-    /* Alle Action Buttons und Wrappers weg */
+    /* Action Buttons im Orbit verstecken */
     .dice-orbit > .dice-orbit__action,
-    .dice-orbit > .dice-settings-wrapper {
+    .dice-orbit__stats,
+    .dice-orbit__hotkeys,
+    .dice-orbit__settings {
         display: none !important;
+    }
+    
+    /* Settings Wrapper bleibt sichtbar damit Popup funktioniert */
+    .dice-orbit > .dice-settings-wrapper {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: visible;
     }
     
     /* Würfel Grid */
@@ -3776,7 +3787,7 @@
     /* Würfel Buttons - Statische Icons */
     .dice-btn {
         width: 100% !important;
-        height: 52px !important;
+        height: 56px !important;
         border-radius: 10px;
         position: relative;
     }
@@ -3786,15 +3797,15 @@
         display: none !important;
     }
     
-    /* Statische SVG Icons via CSS */
+    /* Statische SVG Icons via CSS - GROSS und ZENTRIERT */
     .dice-btn::before {
         content: '';
         position: absolute;
-        top: 6px;
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
-        width: 24px;
-        height: 24px;
+        transform: translate(-50%, -50%);
+        width: 36px;
+        height: 36px;
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
@@ -3810,26 +3821,17 @@
     .dice-btn[data-dice="d20"]::before { background-image: url('../icons/dice/d20.svg'); }
     .dice-btn[data-dice="d100"]::before { background-image: url('../icons/dice/d100.svg'); }
     
-    .dice-btn__glass {
-        position: absolute;
-        bottom: 4px;
-        left: 0;
-        right: 0;
-        top: auto;
-        height: auto;
-        background: transparent;
-        backdrop-filter: none;
-    }
-    
+    /* Label verstecken - nur Icon */
+    .dice-btn__glass,
     .dice-btn__label {
-        font-size: 11px;
-        font-weight: 700;
+        display: none !important;
     }
     
     .dice-btn__badge {
-        top: 3px;
-        right: 5px;
-        font-size: 9px;
+        top: 4px;
+        right: 6px;
+        font-size: 10px;
+        padding: 2px 6px;
     }
     
     /* === ROLL ZONE === */
@@ -3857,75 +3859,54 @@
         flex-shrink: 0;
     }
     
-    /* === MODIFIER ZEILE: [Vorteil] [Modifier] [Nachteil] === */
+    /* === MODIFIER ZEILE: [↑] [-20][-10][-5][+0][+5][+10][+20] [↓] === */
     
-    /* Vorteil/Nachteil Container auflösen */
+    /* Vorteil links - Order 2 */
     .dice-action-group {
         order: 2;
         display: contents !important;
     }
     
-    /* Vorteil Button - links */
     .dice-action-btn--adv {
         order: 2;
         min-width: 40px;
         height: 38px;
-        border-radius: 8px;
+        border-radius: 8px 0 0 8px;
         display: flex !important;
         align-items: center;
         justify-content: center;
-        background: rgba(74, 222, 128, 0.15);
-        border: 1px solid rgba(74, 222, 128, 0.3);
+        background: rgba(74, 222, 128, 0.2);
         color: #4ade80;
+        border: none;
         flex-shrink: 0;
     }
     
-    /* Nachteil Button - rechts */
-    .dice-action-btn--dis {
-        order: 4;
-        min-width: 40px;
-        height: 38px;
-        border-radius: 8px;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        background: rgba(248, 113, 113, 0.15);
-        border: 1px solid rgba(248, 113, 113, 0.3);
-        color: #f87171;
-        flex-shrink: 0;
-    }
-    
-    .dice-action-btn svg {
-        width: 20px;
-        height: 20px;
-    }
-    
-    /* Modifier Leiste - Mitte */
+    /* Modifier Leiste - Mitte, Order 3 */
     .dice-modifier {
         order: 3;
         display: flex !important;
         flex: 1;
-        min-width: 0;
         justify-content: center;
         align-items: center;
         gap: 3px;
-        padding: 4px 6px;
+        padding: 4px 8px;
         background: rgba(0,0,0,0.3);
-        border-radius: 8px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        border-radius: 0;
+        height: 38px;
     }
     
-    .dice-modifier::-webkit-scrollbar {
-        display: none;
+    /* -1 und +1 verstecken */
+    .dice-modifier__btn--sm {
+        display: none !important;
     }
     
+    /* Alle anderen Modifier Buttons */
     .dice-modifier__btn {
         display: flex !important;
-        min-width: 28px;
+        min-width: 30px;
         height: 30px;
         padding: 0 4px;
-        font-size: 10px;
+        font-size: 11px;
         border-radius: 6px;
         align-items: center;
         justify-content: center;
@@ -3938,7 +3919,7 @@
     }
     
     .dice-modifier__display {
-        min-width: 36px;
+        min-width: 38px;
         height: 30px;
         line-height: 30px;
         font-size: 14px;
@@ -3951,12 +3932,32 @@
         display: none !important;
     }
     
-    /* === SETTINGS BUTTON - Order 5, ganz unten === */
+    /* Nachteil rechts - Order 4 */
+    .dice-action-btn--dis {
+        order: 4;
+        min-width: 40px;
+        height: 38px;
+        border-radius: 0 8px 8px 0;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(248, 113, 113, 0.2);
+        color: #f87171;
+        border: none;
+        flex-shrink: 0;
+    }
+    
+    .dice-action-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    /* === EINSTELLUNGEN BUTTON - mit Platz für FABs rechts === */
     .dice-mobile-settings {
         order: 5;
         display: flex !important;
-        width: 100%;
-        height: 44px;
+        width: calc(100% - 116px); /* Platz für 2 FABs (48+48+8+8+4) */
+        height: 48px;
         align-items: center;
         justify-content: center;
         gap: 10px;
@@ -3976,15 +3977,23 @@
     
     /* === SETTINGS POPUP === */
     .dice-settings-popup {
+        display: none;
         position: fixed !important;
         bottom: 0 !important;
         left: 0 !important;
         right: 0 !important;
         top: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        height: auto !important;
         max-height: 75vh;
         border-radius: 20px 20px 0 0;
         padding-bottom: env(safe-area-inset-bottom, 16px);
         z-index: 1001;
+    }
+    
+    .dice-settings-popup.open {
+        display: block !important;
     }
     
     .dice-settings-popup__header {
@@ -4021,14 +4030,28 @@
         inset: 0;
         background: rgba(0,0,0,0.6);
         z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s;
+        display: none;
     }
     
     .dice-settings-overlay.open {
-        opacity: 1;
-        visibility: visible;
+        display: block;
+    }
+    
+    /* === FABs horizontal neben Settings === */
+    .rift-fab-container {
+        position: fixed !important;
+        bottom: 16px !important;
+        right: 16px !important;
+        left: auto !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        z-index: 901 !important;
+    }
+    
+    .rift-fab {
+        width: 48px !important;
+        height: 48px !important;
+        border-radius: 12px !important;
     }
     
     /* Result & Feed */
@@ -4050,28 +4073,29 @@
 /* Kleine Screens */
 @media (max-width: 380px) {
     .dice-btn {
-        height: 46px !important;
+        height: 50px !important;
     }
     
     .dice-btn::before {
-        width: 20px;
-        height: 20px;
+        width: 32px;
+        height: 32px;
     }
     
-    .dice-btn__label {
-        font-size: 10px;
+    .dice-modifier {
+        padding: 3px 4px;
+        height: 34px;
     }
     
     .dice-modifier__btn {
-        min-width: 24px;
-        height: 28px;
-        font-size: 9px;
+        min-width: 26px;
+        height: 26px;
+        font-size: 10px;
         padding: 0 3px;
     }
     
     .dice-action-btn--adv,
     .dice-action-btn--dis {
-        min-width: 34px;
+        min-width: 36px;
         height: 34px;
     }
     
@@ -4082,8 +4106,8 @@
     
     .dice-modifier__display {
         min-width: 32px;
-        height: 28px;
-        line-height: 28px;
+        height: 26px;
+        line-height: 26px;
         font-size: 12px;
     }
     
@@ -4093,7 +4117,14 @@
     }
     
     .dice-mobile-settings {
-        height: 40px;
+        width: calc(100% - 108px); /* Etwas weniger Platz auf kleinen Screens */
+        height: 42px;
         font-size: 13px;
     }
+    
+    .rift-fab {
+        width: 42px !important;
+        height: 42px !important;
+    }
+}
 }
