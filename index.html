@@ -273,6 +273,9 @@
                 <div class="news-carousel-header">
                     <h2 class="section-title section-title--news">Neuigkeiten</h2>
                     <div class="news-carousel-nav">
+                        <button class="news-carousel-nav__btn news-carousel-nav__btn--add" id="addNewsBtn" data-admin-only title="Neue News erstellen" style="display: none;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </button>
                         <button class="news-carousel-nav__btn" data-dir="prev" aria-label="Vorherige">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
                         </button>
@@ -283,46 +286,21 @@
                 </div>
                 
                 <div class="news-carousel" id="newsCarousel">
-                    <div class="news-carousel__track">
-                        <!-- News Card 1 -->
-                        <a href="news1.html" class="news-carousel__card" id="newsCard1">
-                            <div class="news-carousel__image">
-                                <img id="newsCard1Image" src="assets/img/news/news_placeholder.svg" alt="">
-                                <div class="news-carousel__badge">Neu</div>
-                            </div>
-                            <div class="news-carousel__content">
-                                <span class="news-carousel__date" id="newsCard1Date">11. Januar 2026</span>
-                                <h3 class="news-carousel__title" id="newsCard1Title">RIFT ist released, yay!</h3>
-                                <p class="news-carousel__desc" id="newsCard1Desc">Willkommen bei RIFT – deinem digitalen Begleiter für Pen & Paper Abenteuer.</p>
-                            </div>
-                            <button class="news-card__edit" data-news="1" data-admin-only title="Artikel bearbeiten">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                </svg>
-                            </button>
-                        </a>
+                    <div class="news-carousel__track" id="newsCarouselTrack">
+                        <!-- Dynamic news cards will be loaded here -->
                         
-                        <!-- News Card 2 -->
-                        <a href="news2.html" class="news-carousel__card" id="newsCard2">
-                            <div class="news-carousel__image">
-                                <img id="newsCard2Image" src="assets/img/news/news_placeholder.svg" alt="">
-                            </div>
+                        <!-- Loading Skeleton -->
+                        <div class="news-carousel__card news-carousel__card--skeleton" id="newsLoadingSkeleton">
+                            <div class="news-carousel__image skeleton"></div>
                             <div class="news-carousel__content">
-                                <span class="news-carousel__date" id="newsCard2Date">8. Januar 2026</span>
-                                <h3 class="news-carousel__title" id="newsCard2Title">Update 1.1 kommt!</h3>
-                                <p class="news-carousel__desc" id="newsCard2Desc">Neue Features, Bugfixes und mehr – das nächste Update steht vor der Tür.</p>
+                                <span class="news-carousel__date skeleton" style="width: 80px; height: 14px;"></span>
+                                <h3 class="news-carousel__title skeleton" style="width: 150px; height: 20px;"></h3>
+                                <p class="news-carousel__desc skeleton" style="width: 100%; height: 40px;"></p>
                             </div>
-                            <button class="news-card__edit" data-news="2" data-admin-only title="Artikel bearbeiten">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                </svg>
-                            </button>
-                        </a>
+                        </div>
                         
-                        <!-- News Card 3 - Changelog -->
-                        <a href="roadmap.html" class="news-carousel__card news-carousel__card--muted">
+                        <!-- News Card - Changelog (static) -->
+                        <a href="roadmap.html" class="news-carousel__card news-carousel__card--muted news-carousel__card--static">
                             <div class="news-carousel__image news-carousel__image--icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -338,8 +316,8 @@
                             </div>
                         </a>
                         
-                        <!-- News Card 4 - Feedback -->
-                        <a href="mailto:feedback@rift.app" class="news-carousel__card news-carousel__card--muted">
+                        <!-- News Card - Feedback (static) -->
+                        <a href="mailto:feedback@rift.app" class="news-carousel__card news-carousel__card--muted news-carousel__card--static">
                             <div class="news-carousel__image news-carousel__image--icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -781,124 +759,381 @@
             });
         })();
         
-        // Load News Cards from localStorage
-        // Load News Data from Firestore (global) with localStorage fallback
+        // ========================================
+        // DYNAMIC NEWS SYSTEM
+        // ========================================
         (async function() {
-            const loadNewsCard = async (slot, cardNum) => {
-                const titleEl = document.getElementById(`newsCard${cardNum}Title`);
-                const descEl = document.getElementById(`newsCard${cardNum}Desc`);
-                const dateEl = document.getElementById(`newsCard${cardNum}Date`);
-                const imageEl = document.getElementById(`newsCard${cardNum}Image`);
-                
-                let meta = null;
-                
-                // Try Firestore first
-                try {
-                    if (typeof firebase !== 'undefined' && firebase.firestore) {
-                        const db = firebase.firestore();
-                        const doc = await db.collection('news').doc(slot).get();
-                        if (doc.exists) {
-                            meta = doc.data();
-                            console.log('[Hub] Loaded news from Firestore:', slot);
-                        }
+            const track = document.getElementById('newsCarouselTrack');
+            const skeleton = document.getElementById('newsLoadingSkeleton');
+            const addBtn = document.getElementById('addNewsBtn');
+            
+            // Wait for Firebase
+            const waitForFirebase = () => new Promise(resolve => {
+                const check = () => {
+                    if (typeof firebase !== 'undefined' && firebase.firestore && firebase.apps?.length > 0) {
+                        resolve();
+                    } else {
+                        setTimeout(check, 100);
                     }
+                };
+                check();
+            });
+            
+            await waitForFirebase();
+            
+            // Check if admin
+            const isAdmin = () => window.RIFT?.admin?.isAdmin() || window.RIFTAdmin?.isAdmin || false;
+            
+            // Create news card HTML
+            function createNewsCard(news, isNewest = false) {
+                const card = document.createElement('a');
+                card.href = `news.html?id=${news.id}`;
+                card.className = 'news-carousel__card';
+                card.innerHTML = `
+                    <div class="news-carousel__image">
+                        <img src="${news.image || 'assets/img/news/news_placeholder.svg'}" alt="">
+                        ${isNewest ? '<div class="news-carousel__badge">Neu</div>' : ''}
+                    </div>
+                    <div class="news-carousel__content">
+                        <span class="news-carousel__date">${news.date || ''}</span>
+                        <h3 class="news-carousel__title">${news.title || 'Ohne Titel'}</h3>
+                        <p class="news-carousel__desc">${news.description || ''}</p>
+                    </div>
+                    <button class="news-card__edit" data-news-id="${news.id}" title="Artikel bearbeiten">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                `;
+                
+                // Edit button click (stop propagation)
+                const editBtn = card.querySelector('.news-card__edit');
+                editBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.location.href = `news.html?id=${news.id}&edit=true`;
+                });
+                
+                return card;
+            }
+            
+            // Load news from Firestore
+            async function loadNews() {
+                try {
+                    const db = firebase.firestore();
+                    const snapshot = await db.collection('news')
+                        .orderBy('createdAt', 'desc')
+                        .limit(10)
+                        .get();
+                    
+                    console.log('[Hub] Loaded', snapshot.size, 'news articles');
+                    
+                    // Remove skeleton
+                    if (skeleton) skeleton.remove();
+                    
+                    // Get static cards (Changelog, Feedback)
+                    const staticCards = track.querySelectorAll('.news-carousel__card--static');
+                    
+                    // Insert news cards before static cards
+                    const firstStatic = staticCards[0];
+                    
+                    snapshot.docs.forEach((doc, index) => {
+                        const news = { id: doc.id, ...doc.data() };
+                        const card = createNewsCard(news, index === 0);
+                        track.insertBefore(card, firstStatic);
+                    });
+                    
+                    // If no news, show placeholder
+                    if (snapshot.empty) {
+                        const emptyCard = document.createElement('div');
+                        emptyCard.className = 'news-carousel__card news-carousel__card--empty';
+                        emptyCard.innerHTML = `
+                            <div class="news-carousel__image news-carousel__image--icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m2 13a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2z"/>
+                                </svg>
+                            </div>
+                            <div class="news-carousel__content">
+                                <span class="news-carousel__date">Noch keine News</span>
+                                <h3 class="news-carousel__title">Bald gibt's Neuigkeiten!</h3>
+                                <p class="news-carousel__desc">Hier werden zukünftige Updates angekündigt.</p>
+                            </div>
+                        `;
+                        track.insertBefore(emptyCard, firstStatic);
+                    }
+                    
+                    // Re-initialize carousel dots
+                    initCarouselDots();
+                    
                 } catch (e) {
-                    console.warn('[Hub] Firestore news load failed:', e);
+                    console.error('[Hub] News load error:', e);
+                    if (skeleton) skeleton.remove();
                 }
+            }
+            
+            // Initialize carousel dots after news loaded
+            function initCarouselDots() {
+                const dotsContainer = document.getElementById('carouselDots');
+                const cards = track.querySelectorAll('.news-carousel__card:not(.news-carousel__card--skeleton)');
                 
-                // Fallback to localStorage
-                if (!meta) {
-                    try {
-                        meta = JSON.parse(localStorage.getItem(`rift_news_meta_${slot}`) || 'null');
-                    } catch {}
-                }
+                if (!dotsContainer || cards.length === 0) return;
                 
-                // Apply data
-                if (meta) {
-                    if (titleEl && meta.title) titleEl.textContent = meta.title;
-                    if (descEl && meta.description) descEl.textContent = meta.description;
-                    if (dateEl && meta.date) dateEl.textContent = meta.date;
-                    if (imageEl && meta.image) imageEl.src = meta.image;
-                }
-            };
-            
-            // Wait for Firebase to be ready
-            const waitAndLoad = () => {
-                if (typeof firebase !== 'undefined' && firebase.firestore) {
-                    loadNewsCard('news_1', 1);
-                    loadNewsCard('news_2', 2);
-                } else {
-                    setTimeout(waitAndLoad, 200);
-                }
-            };
-            
-            // Start after a brief delay
-            setTimeout(waitAndLoad, 500);
-        })();
-        
-        // Carousel Navigation
-        (function() {
-            const carousel = document.getElementById('newsCarousel');
-            const track = carousel?.querySelector('.news-carousel__track');
-            const dotsContainer = document.getElementById('carouselDots');
-            const cards = track?.querySelectorAll('.news-carousel__card');
-            const prevBtn = document.querySelector('.news-carousel-nav__btn[data-dir="prev"]');
-            const nextBtn = document.querySelector('.news-carousel-nav__btn[data-dir="next"]');
-            
-            if (track && cards && cards.length > 0 && dotsContainer) {
-                // Create dots
                 dotsContainer.innerHTML = '';
                 cards.forEach((_, i) => {
                     const dot = document.createElement('button');
                     dot.className = 'news-carousel__dot' + (i === 0 ? ' active' : '');
-                    dot.setAttribute('aria-label', `News ${i + 1}`);
-                    dot.addEventListener('click', () => scrollToCard(i));
+                    dot.addEventListener('click', () => {
+                        const card = cards[i];
+                        if (card) {
+                            const scrollPos = card.offsetLeft - 16;
+                            track.scrollTo({ left: scrollPos, behavior: 'smooth' });
+                        }
+                    });
                     dotsContainer.appendChild(dot);
                 });
                 
-                const dots = dotsContainer.querySelectorAll('.news-carousel__dot');
-                
-                function scrollToCard(index) {
-                    const card = cards[index];
-                    if (card) {
-                        const scrollPos = card.offsetLeft - parseInt(getComputedStyle(track).paddingLeft || 0);
-                        track.scrollTo({ left: scrollPos, behavior: 'smooth' });
-                    }
-                }
-                
-                function updateDots() {
+                // Update dots on scroll
+                track.addEventListener('scroll', () => {
                     const scrollLeft = track.scrollLeft;
                     let activeIndex = 0;
                     let minDistance = Infinity;
                     
                     cards.forEach((card, i) => {
-                        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
-                        const viewCenter = scrollLeft + track.offsetWidth / 2;
-                        const distance = Math.abs(cardCenter - viewCenter);
+                        const distance = Math.abs(card.offsetLeft - scrollLeft - 16);
                         if (distance < minDistance) {
                             minDistance = distance;
                             activeIndex = i;
                         }
                     });
                     
-                    dots.forEach((dot, i) => dot.classList.toggle('active', i === activeIndex));
+                    dotsContainer.querySelectorAll('.news-carousel__dot').forEach((dot, i) => {
+                        dot.classList.toggle('active', i === activeIndex);
+                    });
+                });
+            }
+            
+            // Create new news modal
+            function createNewNewsModal() {
+                const modalHTML = `
+                    <div class="modal-overlay" id="newNewsModal">
+                        <div class="modal md-editor-modal">
+                            <div class="modal__header">
+                                <h2 class="modal__title">Neue News erstellen</h2>
+                                <button class="modal__close" id="closeNewNewsModal">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"/>
+                                        <line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="modal__body" style="padding: 0;">
+                                <div class="md-editor-meta">
+                                    <div class="md-editor-meta__row">
+                                        <div class="md-editor-meta__field">
+                                            <label>Titel *</label>
+                                            <input type="text" id="newNewsTitleInput" placeholder="Titel der News">
+                                        </div>
+                                    </div>
+                                    <div class="md-editor-meta__row">
+                                        <div class="md-editor-meta__field">
+                                            <label>Kurzbeschreibung</label>
+                                            <input type="text" id="newNewsDescInput" placeholder="Kurze Beschreibung für die Vorschau">
+                                        </div>
+                                    </div>
+                                    <div class="md-editor-meta__row">
+                                        <div class="md-editor-meta__field">
+                                            <label>Bild-URL (Imgur empfohlen)</label>
+                                            <input type="text" id="newNewsImageInput" placeholder="https://i.imgur.com/...">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="md-editor">
+                                    <div class="md-editor-toolbar">
+                                        <div class="md-editor-toolbar__group">
+                                            <button type="button" data-action="bold" title="Fett"><strong>B</strong></button>
+                                            <button type="button" data-action="italic" title="Kursiv"><em>I</em></button>
+                                            <button type="button" data-action="heading" title="Überschrift">H</button>
+                                        </div>
+                                        <div class="md-editor-toolbar__group">
+                                            <button type="button" data-action="link" title="Link">🔗</button>
+                                            <button type="button" data-action="list" title="Liste">•</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="md-editor-pane md-editor-pane--edit">
+                                        <textarea id="newNewsContentInput" placeholder="Artikel-Inhalt in Markdown..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="modal__footer">
+                                <button class="btn btn--secondary" id="cancelNewNews">Abbrechen</button>
+                                <button class="btn btn--primary" id="createNewsBtn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
+                                        <line x1="12" y1="5" x2="12" y2="19"/>
+                                        <line x1="5" y1="12" x2="19" y2="12"/>
+                                    </svg>
+                                    Erstellen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+                
+                // Bind events
+                document.getElementById('closeNewNewsModal').addEventListener('click', closeNewNewsModal);
+                document.getElementById('cancelNewNews').addEventListener('click', closeNewNewsModal);
+                document.getElementById('newNewsModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'newNewsModal') closeNewNewsModal();
+                });
+                document.getElementById('createNewsBtn').addEventListener('click', createNews);
+                
+                // Toolbar actions
+                document.querySelectorAll('#newNewsModal [data-action]').forEach(btn => {
+                    btn.addEventListener('click', () => handleToolbarAction(btn.dataset.action));
+                });
+            }
+            
+            function openNewNewsModal() {
+                document.getElementById('newNewsModal')?.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                document.getElementById('newNewsTitleInput')?.focus();
+            }
+            
+            function closeNewNewsModal() {
+                document.getElementById('newNewsModal')?.classList.remove('active');
+                document.body.style.overflow = '';
+                // Clear inputs
+                document.getElementById('newNewsTitleInput').value = '';
+                document.getElementById('newNewsDescInput').value = '';
+                document.getElementById('newNewsImageInput').value = '';
+                document.getElementById('newNewsContentInput').value = '';
+            }
+            
+            async function createNews() {
+                const title = document.getElementById('newNewsTitleInput').value.trim();
+                const description = document.getElementById('newNewsDescInput').value.trim();
+                const image = document.getElementById('newNewsImageInput').value.trim();
+                const content = document.getElementById('newNewsContentInput').value;
+                
+                if (!title) {
+                    alert('Bitte gib einen Titel ein.');
+                    return;
                 }
                 
-                track.addEventListener('scroll', updateDots);
+                const btn = document.getElementById('createNewsBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<div class="spinner"></div> Erstellen...';
                 
-                prevBtn?.addEventListener('click', () => {
-                    const cardWidth = cards[0].offsetWidth + 20; // 20px gap
-                    track.scrollBy({ left: -cardWidth, behavior: 'smooth' });
-                });
-                
-                nextBtn?.addEventListener('click', () => {
-                    const cardWidth = cards[0].offsetWidth + 20; // 20px gap
-                    track.scrollBy({ left: cardWidth, behavior: 'smooth' });
-                });
-                
-                // Initial update
-                updateDots();
+                try {
+                    const db = firebase.firestore();
+                    const newsId = 'news_' + Date.now();
+                    const date = new Date().toLocaleDateString('de-DE', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                    
+                    await db.collection('news').doc(newsId).set({
+                        title,
+                        description,
+                        image,
+                        content,
+                        date,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    console.log('[Hub] Created news:', newsId);
+                    
+                    closeNewNewsModal();
+                    
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.success('News erstellt!');
+                    }
+                    
+                    // Reload page to show new news
+                    window.location.reload();
+                    
+                } catch (e) {
+                    console.error('[Hub] Create news error:', e);
+                    alert('Fehler beim Erstellen: ' + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg> Erstellen`;
+                }
             }
+            
+            function handleToolbarAction(action) {
+                const textarea = document.getElementById('newNewsContentInput');
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const text = textarea.value;
+                const selected = text.substring(start, end);
+                
+                let insert = '';
+                switch (action) {
+                    case 'bold': insert = `**${selected || 'text'}**`; break;
+                    case 'italic': insert = `*${selected || 'text'}*`; break;
+                    case 'heading': insert = `## ${selected || 'Überschrift'}`; break;
+                    case 'link': insert = `[${selected || 'Link'}](url)`; break;
+                    case 'list': insert = `\n- ${selected || 'Punkt'}`; break;
+                }
+                
+                textarea.value = text.substring(0, start) + insert + text.substring(end);
+                textarea.focus();
+            }
+            
+            // Show add button for admin
+            function updateAdminUI() {
+                if (addBtn && isAdmin()) {
+                    addBtn.style.display = '';
+                }
+            }
+            
+            // Initialize
+            await loadNews();
+            createNewNewsModal();
+            
+            // Add button click
+            addBtn?.addEventListener('click', () => {
+                if (isAdmin()) openNewNewsModal();
+            });
+            
+            // Check admin status after delay
+            setTimeout(updateAdminUI, 500);
+            setTimeout(updateAdminUI, 2000);
+        })();
+        
+        // Carousel prev/next buttons
+        (function() {
+            const track = document.getElementById('newsCarouselTrack');
+            const prevBtn = document.querySelector('.news-carousel-nav__btn[data-dir="prev"]');
+            const nextBtn = document.querySelector('.news-carousel-nav__btn[data-dir="next"]');
+            
+            prevBtn?.addEventListener('click', () => {
+                const cards = track?.querySelectorAll('.news-carousel__card');
+                if (cards?.length > 0) {
+                    const cardWidth = cards[0].offsetWidth + 20;
+                    track.scrollBy({ left: -cardWidth, behavior: 'smooth' });
+                }
+            });
+            
+            nextBtn?.addEventListener('click', () => {
+                const cards = track?.querySelectorAll('.news-carousel__card');
+                if (cards?.length > 0) {
+                    const cardWidth = cards[0].offsetWidth + 20;
+                    track.scrollBy({ left: cardWidth, behavior: 'smooth' });
+                }
+            });
         })();
         
         // Random Character Image for Continue Cards
