@@ -25,7 +25,7 @@ const PageTransitions = {
      */
     init() {
         // Don't init on login page
-        if (window.location.pathname.includes('login.html')) return;
+        if (window.location.pathname.includes('login.html') || window.location.pathname === '/login') return;
         
         // Track currently loaded CSS
         document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {

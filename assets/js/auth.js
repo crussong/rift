@@ -1023,7 +1023,7 @@ class LoginController {
             
             // Redirect to dashboard (small delay for toast)
             setTimeout(() => {
-                window.location.href = 'index.html';
+                window.location.href = '/hub";
             }, 300);
             
         } catch (error) {

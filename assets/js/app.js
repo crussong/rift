@@ -95,9 +95,10 @@ const App = {
                 } else {
                     // Not logged in - check if should redirect
                     const currentPage = window.location.pathname.split('/').pop();
-                    if (currentPage !== 'login.html' && currentPage !== 'about.html' && currentPage !== '') {
+                    const publicPages = ['login', 'login.html', 'about', 'about.html', 'news', 'roadmap', ''];
+                    if (!publicPages.includes(currentPage)) {
                         console.log('[App] Not authenticated, redirecting to login');
-                        window.location.href = 'login.html';
+                        window.location.href = '/login';
                     }
                 }
             });
@@ -430,12 +431,19 @@ const App = {
     
     // Set active nav link based on current page
     setActiveLink() {
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        const pathname = window.location.pathname;
+        const currentPage = pathname.split('/').pop().replace('.html', '') || 
+                           (pathname === '/' ? 'hub' : pathname.slice(1));
         const links = document.querySelectorAll('.sidebar__link');
         
         links.forEach(link => {
             const href = link.getAttribute('href');
-            if (href === currentPage || (currentPage === 'index.html' && href === 'index.html')) {
+            // Check if href matches current page (handle both clean URLs and old .html)
+            if (href === pathname || 
+                href === `/${currentPage}` || 
+                href === currentPage ||
+                (pathname === '/' && href === '/hub') ||
+                (currentPage === 'index' && href === '/hub')) {
                 link.classList.add('active');
             }
         });
@@ -454,8 +462,9 @@ const App = {
         
         // Not logged in - redirect to login (only if not already on login page)
         const currentPage = window.location.pathname.split('/').pop();
-        if (currentPage !== 'login.html' && currentPage !== 'about.html') {
-            window.location.href = 'login.html';
+        const publicPages = ['login', 'login.html', 'about', 'about.html', 'news', 'roadmap', ''];
+        if (!publicPages.includes(currentPage)) {
+            window.location.href = '/login';
             return false;
         }
         
@@ -486,7 +495,7 @@ const App = {
         
         this.user = null;
         this.roomCode = null;
-        window.location.href = 'login.html';
+        window.location.href = '/login";
     }
 };
 
