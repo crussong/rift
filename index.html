@@ -821,13 +821,19 @@
             
             // Load news from Firestore
             async function loadNews() {
+                // Set timeout to remove skeleton after 5 seconds no matter what
+                const skeletonTimeout = setTimeout(() => {
+                    if (skeleton) skeleton.remove();
+                    console.warn('[Hub] News loading timeout - skeleton removed');
+                }, 5000);
+                
                 try {
                     const db = firebase.firestore();
-                    const snapshot = await db.collection('news')
-                        .orderBy('createdAt', 'desc')
-                        .limit(10)
-                        .get();
                     
+                    // Simple query without orderBy (avoids index requirement)
+                    const snapshot = await db.collection('news').get();
+                    
+                    clearTimeout(skeletonTimeout);
                     console.log('[Hub] Loaded', snapshot.size, 'news articles');
                     
                     // Remove skeleton
@@ -839,7 +845,14 @@
                     // Insert news cards before static cards
                     const firstStatic = staticCards[0];
                     
-                    snapshot.docs.forEach((doc, index) => {
+                    // Sort by createdAt client-side (descending - newest first)
+                    const sortedDocs = snapshot.docs.sort((a, b) => {
+                        const aTime = a.data().createdAt?.toMillis?.() || 0;
+                        const bTime = b.data().createdAt?.toMillis?.() || 0;
+                        return bTime - aTime;
+                    });
+                    
+                    sortedDocs.forEach((doc, index) => {
                         const news = { id: doc.id, ...doc.data() };
                         const card = createNewsCard(news, index === 0);
                         track.insertBefore(card, firstStatic);
@@ -868,6 +881,7 @@
                     initCarouselDots();
                     
                 } catch (e) {
+                    clearTimeout(skeletonTimeout);
                     console.error('[Hub] News load error:', e);
                     if (skeleton) skeleton.remove();
                 }
@@ -1246,6 +1260,16 @@
         
         let firebaseSessions = [];
         let sessionsUnsubscribe = null;
+        let heroSkeletonRemoved = false;
+        
+        // Failsafe: Remove hero skeleton after 3 seconds no matter what
+        setTimeout(() => {
+            if (!heroSkeletonRemoved) {
+                const heroLoading = document.getElementById('heroLoading');
+                if (heroLoading) heroLoading.style.display = 'none';
+                console.log('[Hub] Hero skeleton removed by timeout');
+            }
+        }, 3000);
         
         // Initialize Firebase Sessions for Hub
         function initFirebaseSessions() {
@@ -1256,8 +1280,17 @@
                 return;
             }
             
-            // Wait for RIFT.rooms
+            // Wait for RIFT.rooms (max 20 attempts = 2 seconds)
             if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+                if (!window._riftRoomsRetries) window._riftRoomsRetries = 0;
+                window._riftRoomsRetries++;
+                
+                if (window._riftRoomsRetries > 20) {
+                    console.warn('[Hub] RIFT.rooms not available after 2s, proceeding without');
+                    loadDashboardData();
+                    return;
+                }
+                
                 setTimeout(initFirebaseSessions, 100);
                 return;
             }
@@ -1284,6 +1317,7 @@
             // Hide loading skeleton
             const heroLoading = document.getElementById('heroLoading');
             if (heroLoading) heroLoading.style.display = 'none';
+            heroSkeletonRemoved = true;
             
             // Use Firebase sessions (already filtered by room)
             const sessions = firebaseSessions;
