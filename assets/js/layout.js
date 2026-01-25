@@ -610,7 +610,6 @@ function subscribeToPartyMembers() {
 function updatePartyUI(members) {
     const currentUserId = firebase.auth()?.currentUser?.uid;
     const onlineMembers = members.filter(m => m.online === true);
-    const otherMembers = members.filter(m => m.id !== currentUserId);
     
     // Update count in topbar
     updatePartyCount(onlineMembers.length, members.length);
@@ -623,7 +622,7 @@ function updatePartyUI(members) {
     
     if (!listEl) return;
     
-    if (otherMembers.length === 0) {
+    if (members.length === 0) {
         listEl.style.display = 'none';
         if (emptyEl) emptyEl.style.display = 'block';
         if (footerEl) footerEl.style.display = 'none';
@@ -643,22 +642,24 @@ function updatePartyUI(members) {
         footerEl.style.display = 'flex';
     }
     
-    // Render member list
-    listEl.innerHTML = otherMembers.map(member => {
+    // Render all members (including self)
+    listEl.innerHTML = members.map(member => {
+        const isYou = member.id === currentUserId;
         const name = member.displayName || member.name || 'Unbekannt';
+        const displayName = isYou ? `${name} (Du)` : name;
         const color = member.color || '#8B5CF6';
         const initial = name.charAt(0).toUpperCase();
         const isOnline = member.online === true;
         const isGM = member.role === 'gm';
         
         return `
-            <div class="topbar__party-member ${isOnline ? 'topbar__party-member--online' : ''}">
+            <div class="topbar__party-member ${isOnline ? 'topbar__party-member--online' : ''} ${isYou ? 'topbar__party-member--you' : ''}">
                 <div class="topbar__party-member-avatar" style="background: ${color};">
                     ${initial}
                     <span class="topbar__party-member-status"></span>
                 </div>
                 <div class="topbar__party-member-info">
-                    <span class="topbar__party-member-name">${name}</span>
+                    <span class="topbar__party-member-name">${displayName}</span>
                     ${isGM ? '<span class="topbar__party-member-role">Spielleiter</span>' : ''}
                 </div>
             </div>
@@ -1634,16 +1635,14 @@ function updatePartyDropdown(members) {
     
     if (!listEl) return;
     
-    // Filter out current user (show others)
     const currentUserId = firebase?.auth()?.currentUser?.uid;
-    const otherMembers = members.filter(m => m.id !== currentUserId);
     const onlineCount = members.filter(m => m.online === true).length;
     const gm = members.find(m => m.role === 'gm');
     
     // Update count
     updatePartyCount(onlineCount, members.length);
     
-    if (otherMembers.length === 0) {
+    if (members.length === 0) {
         listEl.style.display = 'none';
         if (emptyEl) emptyEl.style.display = 'block';
         if (footerEl) footerEl.style.display = 'none';
@@ -1662,9 +1661,11 @@ function updatePartyDropdown(members) {
         `;
     }
     
-    // Render members
-    listEl.innerHTML = otherMembers.map(member => {
+    // Render all members (including self)
+    listEl.innerHTML = members.map(member => {
+        const isYou = member.id === currentUserId;
         const name = member.displayName || member.name || 'Unbekannt';
+        const displayName = isYou ? `${name} (Du)` : name;
         const color = member.color || '#8B5CF6';
         const initial = name.charAt(0).toUpperCase();
         const isOnline = member.online === true;
@@ -1672,12 +1673,12 @@ function updatePartyDropdown(members) {
         const statusClass = isOnline ? 'online' : 'offline';
         
         return `
-            <div class="topbar__party-member">
+            <div class="topbar__party-member ${isYou ? 'topbar__party-member--you' : ''}">
                 <div class="topbar__party-member-avatar topbar__party-member-avatar--${statusClass}" style="background: ${color};">
                     ${initial}
                 </div>
                 <div class="topbar__party-member-info">
-                    <span class="topbar__party-member-name">${name}</span>
+                    <span class="topbar__party-member-name">${displayName}</span>
                     <span class="topbar__party-member-char">${roleLabel}</span>
                 </div>
                 <span class="topbar__party-member-status topbar__party-member-status--${statusClass}">
