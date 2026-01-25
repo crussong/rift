@@ -495,7 +495,7 @@ const App = {
         
         this.user = null;
         this.roomCode = null;
-        window.location.href = '/login";
+        window.location.href = '/login';
     }
 };
 

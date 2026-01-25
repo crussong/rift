@@ -528,7 +528,7 @@
         },
         
         openDiceRoller() {
-            window.location.href = 'dice.html';
+            window.location.href = '/dice';
         },
         
         // Handout - full screen image display
@@ -2506,7 +2506,7 @@
                 // Clear room data and redirect
                 setTimeout(() => {
                     localStorage.removeItem('rift_current_room');
-                    window.location.href = 'login.html';
+                    window.location.href = '/login';
                 }, 3000);
             }
         },
@@ -2536,7 +2536,7 @@
                 // Clear room data and redirect
                 setTimeout(() => {
                     localStorage.removeItem('rift_current_room');
-                    window.location.href = 'login.html';
+                    window.location.href = '/login';
                 }, 4000);
             }
         },

@@ -863,7 +863,7 @@ async function handleLogout() {
     }
     
     // Redirect to login with logout flag (prevents auto-login redirect)
-    window.location.href = '/login?logout=true";
+    window.location.href = '/login?logout=true';
 }
 
 /**
