@@ -37,6 +37,8 @@ const DICE = (function() {
             shading: THREE.FlatShading,
         },
         label_color: '#ffffff',
+        // RIFT: Dynamic label color based on background brightness
+        label_color_dark: '#1a1a1a',
         dice_color: '#2a2a2a', // RIFT: Dunkelgrau als Basis
         // RIFT: Gradient Support
         dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
@@ -562,30 +564,31 @@ const DICE = (function() {
 
     threeD_dice.create_d9 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
-        if (!this.dice_material) this.dice_material = new THREE.MeshFaceMaterial(
+        if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
                 create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
-        return new THREE.Mesh(this.d10_geometry, this.dice_material);
+        return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
     threeD_dice.create_d10 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
-        if (!this.dice_material) this.dice_material = new THREE.MeshFaceMaterial(
+        if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
                 create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
-        return new THREE.Mesh(this.d10_geometry, this.dice_material);
+        return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
     threeD_dice.create_d12 = function() {
         if (!this.d12_geometry) this.d12_geometry = create_d12_geometry(vars.scale * 0.9);
-        if (!this.dice_material) this.dice_material = new THREE.MeshFaceMaterial(
+        if (!this.d12_material) this.d12_material = new THREE.MeshFaceMaterial(
                 create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
-        return new THREE.Mesh(this.d12_geometry, this.dice_material);
+        return new THREE.Mesh(this.d12_geometry, this.d12_material);
     }
 
     threeD_dice.create_d20 = function() {
         if (!this.d20_geometry) this.d20_geometry = create_d20_geometry(vars.scale);
-        if (!this.dice_material) this.dice_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.2));
-        return new THREE.Mesh(this.d20_geometry, this.dice_material);
+        // RIFT: Reduced margin from 1.2 to 1.0 for more uniform look
+        if (!this.d20_material) this.d20_material = new THREE.MeshFaceMaterial(
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
+        return new THREE.Mesh(this.d20_geometry, this.d20_material);
     }
 
     threeD_dice.create_d100 = function() {
@@ -599,6 +602,11 @@ const DICE = (function() {
     that.setDiceColor = function(color, gradient) {
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
+        
+        // RIFT: Automatisch Label-Farbe basierend auf Hintergrund-Helligkeit wählen
+        var brightness = getColorBrightness(gradient ? gradient.colors[0] : color);
+        vars.label_color = brightness > 180 ? vars.label_color_dark : '#ffffff';
+        
         // Cache löschen damit neue Materialien erstellt werden
         threeD_dice.d4_material = null;
         threeD_dice.dice_material = null;
@@ -610,6 +618,20 @@ const DICE = (function() {
         threeD_dice.d20_material = null;
     };
     
+    // RIFT: Berechne Helligkeit einer Farbe (0-255)
+    function getColorBrightness(hexColor) {
+        if (!hexColor) return 0;
+        var hex = hexColor.replace('#', '');
+        if (hex.length === 3) {
+            hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+        }
+        var r = parseInt(hex.substr(0, 2), 16);
+        var g = parseInt(hex.substr(2, 2), 16);
+        var b = parseInt(hex.substr(4, 2), 16);
+        // Perceived brightness formula
+        return (r * 299 + g * 587 + b * 114) / 1000;
+    }
+    
     // RIFT: Gradient-Helper Funktion
     function fillWithGradient(context, width, height, gradient) {
         if (!gradient || !gradient.colors || gradient.colors.length < 2) {
@@ -618,14 +640,15 @@ const DICE = (function() {
         
         var grd;
         if (gradient.type === 'radial') {
-            // Radial gradient from center
+            // Radial gradient from center - light source effect
             var cx = width / 2;
             var cy = height / 2;
-            var radius = Math.max(width, height) / 2;
-            grd = context.createRadialGradient(cx * 0.7, cy * 0.7, 0, cx, cy, radius);
+            var radius = Math.max(width, height) * 0.7;
+            grd = context.createRadialGradient(cx * 0.6, cy * 0.6, 0, cx, cy, radius);
         } else {
-            // Linear gradient (diagonal)
-            grd = context.createLinearGradient(0, 0, width, height);
+            // Linear gradient - more subtle, from top-left to center-ish
+            // Less extreme diagonal for more uniform look across faces
+            grd = context.createLinearGradient(0, 0, width * 0.7, height * 0.7);
         }
         
         var stops = gradient.stops || gradient.colors.map((_, i, arr) => i / (arr.length - 1));
