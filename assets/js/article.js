@@ -53,12 +53,12 @@ class ArticleManager {
         }
     }
     
-    loadArticle() {
+    async loadArticle() {
         // Load article content
         const articleData = localStorage.getItem(this.STORAGE_KEY);
         
-        // Load meta data (new format)
-        const metaData = this.loadMetaData();
+        // Load meta data (new format) - from Firestore or localStorage
+        const metaData = await this.loadMetaData();
         
         // Parse article content
         let article = null;
@@ -686,7 +686,22 @@ class ArticleManager {
         setTimeout(() => textarea?.focus(), 100);
     }
     
-    loadMetaData() {
+    async loadMetaData() {
+        // Try Firestore first (global news)
+        try {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                const db = firebase.firestore();
+                const doc = await db.collection('news').doc(this.newsSlot).get();
+                if (doc.exists) {
+                    console.log('[Article] Loaded meta from Firestore:', this.newsSlot);
+                    return doc.data();
+                }
+            }
+        } catch (e) {
+            console.warn('[Article] Firestore load failed:', e);
+        }
+        
+        // Fallback to localStorage
         const key = `rift_news_meta_${this.newsSlot}`;
         try {
             return JSON.parse(localStorage.getItem(key)) || {};
@@ -695,12 +710,26 @@ class ArticleManager {
         }
     }
     
-    saveMetaData(data) {
-        const key = `rift_news_meta_${this.newsSlot}`;
-        localStorage.setItem(key, JSON.stringify({
+    async saveMetaData(data) {
+        const metaData = {
             ...data,
             updatedAt: new Date().toISOString()
-        }));
+        };
+        
+        // Try Firestore first (only works for admin)
+        try {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                const db = firebase.firestore();
+                await db.collection('news').doc(this.newsSlot).set(metaData);
+                console.log('[Article] Saved meta to Firestore:', this.newsSlot);
+            }
+        } catch (e) {
+            console.warn('[Article] Firestore save failed (might not be admin):', e);
+        }
+        
+        // Also save to localStorage as backup
+        const key = `rift_news_meta_${this.newsSlot}`;
+        localStorage.setItem(key, JSON.stringify(metaData));
     }
     
     async tryCloseEditor() {
