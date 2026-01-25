@@ -782,34 +782,59 @@
         })();
         
         // Load News Cards from localStorage
-        (function() {
-            // Card 1
-            const meta1 = JSON.parse(localStorage.getItem('rift_news_meta_news_1') || 'null');
-            if (meta1) {
-                const titleEl = document.getElementById('newsCard1Title');
-                const descEl = document.getElementById('newsCard1Desc');
-                const dateEl = document.getElementById('newsCard1Date');
-                const imageEl = document.getElementById('newsCard1Image');
+        // Load News Data from Firestore (global) with localStorage fallback
+        (async function() {
+            const loadNewsCard = async (slot, cardNum) => {
+                const titleEl = document.getElementById(`newsCard${cardNum}Title`);
+                const descEl = document.getElementById(`newsCard${cardNum}Desc`);
+                const dateEl = document.getElementById(`newsCard${cardNum}Date`);
+                const imageEl = document.getElementById(`newsCard${cardNum}Image`);
                 
-                if (titleEl && meta1.title) titleEl.textContent = meta1.title;
-                if (descEl && meta1.description) descEl.textContent = meta1.description;
-                if (dateEl && meta1.date) dateEl.textContent = meta1.date;
-                if (imageEl && meta1.image) imageEl.src = meta1.image;
-            }
+                let meta = null;
+                
+                // Try Firestore first
+                try {
+                    if (typeof firebase !== 'undefined' && firebase.firestore) {
+                        const db = firebase.firestore();
+                        const doc = await db.collection('news').doc(slot).get();
+                        if (doc.exists) {
+                            meta = doc.data();
+                            console.log('[Hub] Loaded news from Firestore:', slot);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Hub] Firestore news load failed:', e);
+                }
+                
+                // Fallback to localStorage
+                if (!meta) {
+                    try {
+                        meta = JSON.parse(localStorage.getItem(`rift_news_meta_${slot}`) || 'null');
+                    } catch {}
+                }
+                
+                // Apply data
+                if (meta) {
+                    if (titleEl && meta.title) titleEl.textContent = meta.title;
+                    if (descEl && meta.description) descEl.textContent = meta.description;
+                    if (dateEl && meta.date) dateEl.textContent = meta.date;
+                    if (imageEl && meta.image) imageEl.src = meta.image;
+                }
+            };
             
-            // Card 2
-            const meta2 = JSON.parse(localStorage.getItem('rift_news_meta_news_2') || 'null');
-            if (meta2) {
-                const titleEl = document.getElementById('newsCard2Title');
-                const descEl = document.getElementById('newsCard2Desc');
-                const dateEl = document.getElementById('newsCard2Date');
-                const imageEl = document.getElementById('newsCard2Image');
-                
-                if (titleEl && meta2.title) titleEl.textContent = meta2.title;
-                if (descEl && meta2.description) descEl.textContent = meta2.description;
-                if (dateEl && meta2.date) dateEl.textContent = meta2.date;
-                if (imageEl && meta2.image) imageEl.src = meta2.image;
-            }
+            // Wait for Firebase to be ready
+            const waitAndLoad = () => {
+                if (typeof firebase !== 'undefined' && firebase.firestore) {
+                    loadNewsCard('news_1', 1);
+                    loadNewsCard('news_2', 2);
+                } else {
+                    setTimeout(waitAndLoad, 200);
+                }
+            };
+            
+            // Start after a brief delay
+            setTimeout(waitAndLoad, 500);
+        })();
             
             // Carousel Navigation
             const carousel = document.getElementById('newsCarousel');
