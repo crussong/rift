@@ -43,13 +43,28 @@ class ArticleManager {
     }
     
     isAdmin() {
-        return window.RIFT?.admin?.isAdmin() || false;
+        const adminStatus = window.RIFT?.admin?.isAdmin() || window.RIFTAdmin?.isAdmin || false;
+        console.log('[Article] isAdmin check:', adminStatus, 'RIFT.admin:', window.RIFT?.admin, 'RIFTAdmin:', window.RIFTAdmin?.isAdmin);
+        return adminStatus;
     }
     
     updateAdminButton() {
         const btn = document.getElementById('editArticleBtn');
+        const isAdmin = this.isAdmin();
+        console.log('[Article] updateAdminButton - isAdmin:', isAdmin, 'btn:', btn);
         if (btn) {
-            btn.style.display = this.isAdmin() ? '' : 'none';
+            btn.style.display = isAdmin ? '' : 'none';
+        }
+        
+        // Re-check after delay in case admin state wasn't ready
+        if (!isAdmin) {
+            setTimeout(() => {
+                const retryAdmin = this.isAdmin();
+                console.log('[Article] updateAdminButton retry - isAdmin:', retryAdmin);
+                if (retryAdmin && btn) {
+                    btn.style.display = '';
+                }
+            }, 2000);
         }
     }
     
@@ -639,8 +654,12 @@ class ArticleManager {
         }
     }
     
-    openEditor() {
-        if (!this.isAdmin()) return;
+    async openEditor() {
+        console.log('[Article] openEditor called, isAdmin:', this.isAdmin());
+        if (!this.isAdmin()) {
+            console.log('[Article] Not admin, aborting editor open');
+            return;
+        }
         
         const modal = document.getElementById('articleEditorModal');
         const textarea = document.getElementById('articleEditorTextarea');
@@ -650,8 +669,8 @@ class ArticleManager {
         document.querySelector('#articleEditorModal .md-editor-pane--preview').style.display = 'none';
         document.querySelector('#articleEditorModal [data-action="preview"]')?.classList.remove('active');
         
-        // Load meta fields
-        const metaData = this.loadMetaData();
+        // Load meta fields (async!)
+        const metaData = await this.loadMetaData();
         const titleInput = document.getElementById('articleMetaTitle');
         const descInput = document.getElementById('articleMetaDesc');
         const imageInput = document.getElementById('articleMetaImage');

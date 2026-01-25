@@ -513,17 +513,12 @@ class AdminSystem {
         document.body.classList.toggle('admin-mode', this.isAdmin);
         document.body.classList.toggle('is-admin', this.isAdmin);
         
-        // Show/hide edit buttons
+        // Show/hide edit buttons (non-news ones)
         document.querySelectorAll('.admin-edit-btn, .article-edit-trigger, [data-admin-edit]').forEach(btn => {
             btn.style.display = this.isAdmin ? '' : 'none';
         });
         
-        // Force show news edit buttons
-        if (this.isAdmin) {
-            document.querySelectorAll('.news-card__edit').forEach(btn => {
-                btn.style.display = 'flex';
-            });
-        }
+        // News edit buttons are controlled by CSS hover via .admin-mode class
     }
     
     showToast(message) {
@@ -552,3 +547,11 @@ const RIFTAdmin = new AdminSystem();
 
 // Export for global access
 window.RIFTAdmin = RIFTAdmin;
+
+// Alias for backward compatibility
+window.RIFT = window.RIFT || {};
+window.RIFT.admin = {
+    isAdmin: () => RIFTAdmin.isAdmin,
+    checkAdmin: () => RIFTAdmin.checkAdmin(),
+    getAdminUser: () => RIFTAdmin.getAdminUser()
+};
