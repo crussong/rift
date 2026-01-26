@@ -1436,35 +1436,91 @@
         
         .hero-carousel__nav {
             position: absolute;
-            bottom: 60px;
+            bottom: 48px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 8px;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
             z-index: 20;
         }
         
+        .hero-carousel__nav-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-radius: 100px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
         .hero-carousel__nav-btn {
-            padding: 12px 24px;
+            position: relative;
+            padding: 10px 20px;
             background: transparent;
             border: none;
-            border-bottom: 2px solid transparent;
-            font-size: 13px;
-            font-weight: 500;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .hero-carousel__nav-btn::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0;
+            transition: all 0.3s;
         }
         
         .hero-carousel__nav-btn:hover {
             color: var(--text);
+            background: rgba(255, 255, 255, 0.1);
         }
         
         .hero-carousel__nav-btn.active {
-            color: var(--text);
-            border-bottom-color: var(--accent);
+            color: #fff;
+            background: var(--nav-color, var(--accent));
+        }
+        
+        .hero-carousel__nav-btn.active::before {
+            opacity: 1;
+            background: #fff;
+        }
+        
+        /* Regelwerk Farben */
+        .hero-carousel__nav-btn[data-color="accent"] { --nav-color: var(--accent); }
+        .hero-carousel__nav-btn[data-color="blue"] { --nav-color: #3b82f6; }
+        .hero-carousel__nav-btn[data-color="amber"] { --nav-color: #f59e0b; }
+        .hero-carousel__nav-btn[data-color="red"] { --nav-color: #ef4444; }
+        .hero-carousel__nav-btn[data-color="purple"] { --nav-color: #8b5cf6; }
+        
+        /* Progress Bar */
+        .hero-carousel__progress {
+            width: 300px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .hero-carousel__progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width 0.1s linear, background 0.3s;
         }
         
         .hero-carousel__arrow {
@@ -1904,15 +1960,30 @@
             }
             
             .hero-carousel__nav {
-                bottom: 40px;
+                bottom: 32px;
+                gap: 12px;
+            }
+            
+            .hero-carousel__nav-tabs {
                 flex-wrap: wrap;
                 justify-content: center;
-                gap: 4px;
+                gap: 6px;
+                padding: 6px;
+                max-width: 90vw;
             }
             
             .hero-carousel__nav-btn {
-                padding: 8px 12px;
-                font-size: 11px;
+                padding: 8px 14px;
+                font-size: 10px;
+            }
+            
+            .hero-carousel__nav-btn::before {
+                width: 6px;
+                height: 6px;
+            }
+            
+            .hero-carousel__progress {
+                width: 200px;
             }
             
             .hero-carousel__arrow {
@@ -2251,10 +2322,15 @@
             </div>
             
             <div class="hero-carousel__nav">
-                <button class="hero-carousel__nav-btn active" data-slide="0">Session</button>
-                <button class="hero-carousel__nav-btn" data-slide="1">D&D 5e</button>
-                <button class="hero-carousel__nav-btn" data-slide="2">HTBAH</button>
-                <button class="hero-carousel__nav-btn" data-slide="3">Cyberpunk</button>
+                <div class="hero-carousel__nav-tabs">
+                    <button class="hero-carousel__nav-btn active" data-slide="0" data-color="accent">Session</button>
+                    <button class="hero-carousel__nav-btn" data-slide="1" data-color="blue">D&D 5e</button>
+                    <button class="hero-carousel__nav-btn" data-slide="2" data-color="amber">HTBAH</button>
+                    <button class="hero-carousel__nav-btn" data-slide="3" data-color="red">Cyberpunk</button>
+                </div>
+                <div class="hero-carousel__progress">
+                    <div class="hero-carousel__progress-bar"></div>
+                </div>
             </div>
             
             <button class="hero-carousel__arrow hero-carousel__arrow--prev">
@@ -2695,15 +2771,28 @@
     </nav>
     
     <script>
-        // Hero Carousel
+        // Hero Carousel with Progress Bar
         const slides = document.querySelectorAll('.hero-carousel__slide');
         const bgImages = document.querySelectorAll('.hero-carousel__bg-image');
         const navBtns = document.querySelectorAll('.hero-carousel__nav-btn');
         const prevBtn = document.querySelector('.hero-carousel__arrow--prev');
         const nextBtn = document.querySelector('.hero-carousel__arrow--next');
+        const progressBar = document.querySelector('.hero-carousel__progress-bar');
         
         let currentSlide = 0;
         let autoplayInterval;
+        let progressInterval;
+        const slideDuration = 6000; // 6 seconds
+        const progressStep = 50; // Update every 50ms
+        
+        // Color mapping for progress bar
+        const slideColors = {
+            'accent': '#FF4655',
+            'blue': '#3b82f6',
+            'amber': '#f59e0b',
+            'red': '#ef4444',
+            'purple': '#8b5cf6'
+        };
         
         function showSlide(index) {
             if (index < 0) index = slides.length - 1;
@@ -2714,36 +2803,69 @@
             slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
             bgImages.forEach((bg, i) => bg.classList.toggle('active', i === index));
             navBtns.forEach((btn, i) => btn.classList.toggle('active', i === index));
+            
+            // Update progress bar color
+            const activeBtn = navBtns[index];
+            const colorKey = activeBtn.dataset.color || 'accent';
+            progressBar.style.background = slideColors[colorKey] || slideColors.accent;
+        }
+        
+        function resetProgress() {
+            progressBar.style.width = '0%';
+        }
+        
+        function startProgress() {
+            let progress = 0;
+            resetProgress();
+            
+            progressInterval = setInterval(() => {
+                progress += (progressStep / slideDuration) * 100;
+                progressBar.style.width = Math.min(progress, 100) + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                }
+            }, progressStep);
         }
         
         function startAutoplay() {
-            autoplayInterval = setInterval(() => showSlide(currentSlide + 1), 6000);
+            startProgress();
+            autoplayInterval = setInterval(() => {
+                showSlide(currentSlide + 1);
+                startProgress();
+            }, slideDuration);
         }
         
         function stopAutoplay() {
             clearInterval(autoplayInterval);
+            clearInterval(progressInterval);
+        }
+        
+        function restartAutoplay() {
+            stopAutoplay();
+            resetProgress();
+            startAutoplay();
         }
         
         navBtns.forEach((btn, i) => {
             btn.addEventListener('click', () => {
-                stopAutoplay();
                 showSlide(i);
-                startAutoplay();
+                restartAutoplay();
             });
         });
         
         prevBtn.addEventListener('click', () => {
-            stopAutoplay();
             showSlide(currentSlide - 1);
-            startAutoplay();
+            restartAutoplay();
         });
         
         nextBtn.addEventListener('click', () => {
-            stopAutoplay();
             showSlide(currentSlide + 1);
-            startAutoplay();
+            restartAutoplay();
         });
         
+        // Initialize
+        showSlide(0);
         startAutoplay();
         
         // News Tabs
