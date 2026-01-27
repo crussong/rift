@@ -1436,6 +1436,14 @@
         // ========================================
         // INITIALIZATION
         // ========================================
+        
+        // Admin UIDs (same as in Firestore rules)
+        const ADMIN_UIDS = ['geBL1R192jUiPrFK1oJ5u2Z25hM2'];
+        
+        function isAdmin(uid) {
+            return ADMIN_UIDS.includes(uid);
+        }
+        
         async function initAdmin() {
             // Wait for Firebase
             const waitForFirebase = () => new Promise(resolve => {
@@ -1461,39 +1469,20 @@
                 
                 currentUser = user;
                 
-                // Check if admin
-                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-                const isAdmin = userData.isAdmin || userData.isGM;
-                
-                // For now, also check Firestore for admin flag
-                try {
-                    const userDoc = await db.collection('users').doc(user.uid).get();
-                    if (userDoc.exists) {
-                        const data = userDoc.data();
-                        if (data.isAdmin || data.role === 'admin') {
-                            document.body.classList.add('admin-ready');
-                            
-                            // Load all data
-                            AdminNews.load();
-                            AdminSlides.load();
-                            AdminQuotes.load();
-                            loadDashboardStats();
-                            return;
-                        }
-                    }
-                } catch (e) {
-                    console.error('Error checking admin status:', e);
-                }
-                
-                // Fallback: Check localStorage
-                if (isAdmin) {
+                // Check if admin by UID
+                if (isAdmin(user.uid)) {
                     document.body.classList.add('admin-ready');
+                    
+                    // Load all data
                     AdminNews.load();
                     AdminSlides.load();
                     AdminQuotes.load();
                     loadDashboardStats();
+                    return;
                 }
-                // If not admin, access denied screen stays visible
+                
+                // Not admin - access denied screen stays visible
+                console.log('[Admin] Access denied for UID:', user.uid);
             });
         }
         

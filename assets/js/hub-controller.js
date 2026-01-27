@@ -15,6 +15,9 @@ const HubController = {
     roomCode: null,
     db: null,
     
+    // Admin UIDs (same as in Firestore rules)
+    ADMIN_UIDS: ['geBL1R192jUiPrFK1oJ5u2Z25hM2'],
+    
     // Data
     sessions: [],
     characters: [],
@@ -24,6 +27,11 @@ const HubController = {
     slides: [],
     activeSession: null,
     activeCharacter: null,
+    
+    // Check if user is admin
+    isAdmin(uid) {
+        return this.ADMIN_UIDS.includes(uid);
+    },
     
     // ========================================
     // INITIALIZATION
@@ -165,16 +173,17 @@ const HubController = {
             dropdownEmail.textContent = this.userData.email || '';
         }
         
-        // Show/hide admin link
+        // Show/hide admin link based on UID
         const adminLinks = document.querySelectorAll('[href="admin.html"]');
+        const isAdmin = this.isAdmin(this.userData?.uid);
         adminLinks.forEach(link => {
-            link.style.display = this.userData.isAdmin || this.userData.isGM ? '' : 'none';
+            link.style.display = isAdmin ? '' : 'none';
         });
         
-        // Show/hide GM Center
+        // Show/hide GM Center based on role (GM or Admin)
         const gmLink = document.querySelector('.meganav__item--gm');
         if (gmLink) {
-            gmLink.style.display = this.userData.isGM ? '' : 'none';
+            gmLink.style.display = (this.userData.isGM || isAdmin) ? '' : 'none';
         }
     },
     
