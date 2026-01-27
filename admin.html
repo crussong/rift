@@ -947,7 +947,8 @@
         // ADMIN CONTROLLER
         // ========================================
         
-        // db is already declared in firebase-config.js
+        // Local db reference (firebase-config.js may not be loaded)
+        let adminDb = null;
         let currentUser;
         
         // Toast Helper
@@ -988,7 +989,7 @@
             
             async load() {
                 try {
-                    const snapshot = await db.collection('hub_news').orderBy('createdAt', 'desc').get();
+                    const snapshot = await adminDb.collection('hub_news').orderBy('createdAt', 'desc').get();
                     this.items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     this.render();
                     document.getElementById('stat-news').textContent = this.items.length;
@@ -1100,11 +1101,11 @@
                 
                 try {
                     if (id) {
-                        await db.collection('hub_news').doc(id).update(data);
+                        await adminDb.collection('hub_news').doc(id).update(data);
                         showToast('Artikel aktualisiert', 'success');
                     } else {
                         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                        await db.collection('hub_news').add(data);
+                        await adminDb.collection('hub_news').add(data);
                         showToast('Artikel erstellt', 'success');
                     }
                     
@@ -1120,7 +1121,7 @@
                 if (!confirm('Artikel wirklich löschen?')) return;
                 
                 try {
-                    await db.collection('hub_news').doc(id).delete();
+                    await adminDb.collection('hub_news').doc(id).delete();
                     showToast('Artikel gelöscht', 'success');
                     this.load();
                 } catch (e) {
@@ -1138,7 +1139,7 @@
             
             async load() {
                 try {
-                    const snapshot = await db.collection('hub_slides').orderBy('order', 'asc').get();
+                    const snapshot = await adminDb.collection('hub_slides').orderBy('order', 'asc').get();
                     this.items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     this.render();
                 } catch (e) {
@@ -1257,11 +1258,11 @@
                 
                 try {
                     if (id) {
-                        await db.collection('hub_slides').doc(id).update(data);
+                        await adminDb.collection('hub_slides').doc(id).update(data);
                         showToast('Slide aktualisiert', 'success');
                     } else {
                         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                        await db.collection('hub_slides').add(data);
+                        await adminDb.collection('hub_slides').add(data);
                         showToast('Slide erstellt', 'success');
                     }
                     
@@ -1277,7 +1278,7 @@
                 if (!confirm('Slide wirklich löschen?')) return;
                 
                 try {
-                    await db.collection('hub_slides').doc(id).delete();
+                    await adminDb.collection('hub_slides').doc(id).delete();
                     showToast('Slide gelöscht', 'success');
                     this.load();
                 } catch (e) {
@@ -1295,7 +1296,7 @@
             
             async load() {
                 try {
-                    const snapshot = await db.collection('hub_quotes').orderBy('createdAt', 'desc').get();
+                    const snapshot = await adminDb.collection('hub_quotes').orderBy('createdAt', 'desc').get();
                     this.items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     this.render();
                 } catch (e) {
@@ -1384,11 +1385,11 @@
                 
                 try {
                     if (id) {
-                        await db.collection('hub_quotes').doc(id).update(data);
+                        await adminDb.collection('hub_quotes').doc(id).update(data);
                         showToast('Zitat aktualisiert', 'success');
                     } else {
                         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                        await db.collection('hub_quotes').add(data);
+                        await adminDb.collection('hub_quotes').add(data);
                         showToast('Zitat erstellt', 'success');
                     }
                     
@@ -1404,7 +1405,7 @@
                 if (!confirm('Zitat wirklich löschen?')) return;
                 
                 try {
-                    await db.collection('hub_quotes').doc(id).delete();
+                    await adminDb.collection('hub_quotes').doc(id).delete();
                     showToast('Zitat gelöscht', 'success');
                     this.load();
                 } catch (e) {
@@ -1445,10 +1446,10 @@
         }
         
         async function initAdmin() {
-            // Wait for Firebase
-            const waitForFirebase = () => new Promise(resolve => {
+            // Wait for Firebase SDK to load
+            const waitForFirebaseSDK = () => new Promise(resolve => {
                 const check = () => {
-                    if (firebase?.auth && firebase?.firestore) {
+                    if (typeof firebase !== 'undefined' && firebase.initializeApp) {
                         resolve();
                     } else {
                         setTimeout(check, 100);
@@ -1457,8 +1458,22 @@
                 check();
             });
             
-            await waitForFirebase();
-            db = firebase.firestore();
+            await waitForFirebaseSDK();
+            
+            // Initialize Firebase if not already done
+            if (!firebase.apps.length) {
+                firebase.initializeApp({
+                    apiKey: "AIzaSyCcoId9a62tLIqIRFaFt_ADMTedTUzf3f8",
+                    authDomain: "rift-app-de805.firebaseapp.com",
+                    projectId: "rift-app-de805",
+                    storageBucket: "rift-app-de805.firebasestorage.app",
+                    messagingSenderId: "974596929896",
+                    appId: "1:974596929896:web:a6542045dae21899d07edd"
+                });
+            }
+            
+            // Now get db
+            adminDb = firebase.firestore();
             
             // Check auth
             firebase.auth().onAuthStateChanged(async (user) => {
