@@ -40,6 +40,9 @@ const HubController = {
     async init() {
         console.log('[Hub] Initializing...');
         
+        // Initialize carousel immediately (static content)
+        this.initCarousel();
+        
         try {
             // Wait for Firebase
             await this.waitForFirebase();
@@ -48,8 +51,12 @@ const HubController = {
             // Load user data first
             this.loadUserData();
             
+            // Update user UI immediately
+            this.updateUserUI();
+            this.updateRoomUI();
+            
             // Load all data in parallel
-            await Promise.all([
+            await Promise.allSettled([
                 this.loadSessions(),
                 this.loadCharacters(),
                 this.loadNews(),
@@ -58,9 +65,7 @@ const HubController = {
                 this.loadPartyMembers()
             ]);
             
-            // Update all UI
-            this.updateUserUI();
-            this.updateRoomUI();
+            // Update UI with loaded data
             this.updateHeroCarousel();
             this.updateQuickAccess();
             this.updateNewsSection();
@@ -76,7 +81,9 @@ const HubController = {
             
         } catch (error) {
             console.error('[Hub] Init error:', error);
+            // Still show the page even if Firebase fails
             document.body.classList.add('auth-ready');
+            this.setupEventListeners();
         }
     },
     
@@ -84,13 +91,27 @@ const HubController = {
         return new Promise((resolve, reject) => {
             let attempts = 0;
             const check = () => {
-                if (firebase?.auth && firebase?.firestore) {
-                    resolve();
-                } else if (attempts > 50) {
-                    reject(new Error('Firebase timeout'));
-                } else {
-                    attempts++;
-                    setTimeout(check, 100);
+                try {
+                    // Check if Firebase is loaded AND initialized
+                    if (typeof firebase !== 'undefined' && 
+                        firebase.apps && 
+                        firebase.apps.length > 0 &&
+                        firebase.auth &&
+                        firebase.firestore) {
+                        resolve();
+                    } else if (attempts > 50) {
+                        reject(new Error('Firebase timeout'));
+                    } else {
+                        attempts++;
+                        setTimeout(check, 100);
+                    }
+                } catch (e) {
+                    if (attempts > 50) {
+                        reject(e);
+                    } else {
+                        attempts++;
+                        setTimeout(check, 100);
+                    }
                 }
             };
             check();
