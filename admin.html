@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon_rift_r.svg">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIFT – Admin</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --bg: #0d0d0d;
+            --bg-card: #161616;
+            --bg-elevated: #1e1e1e;
+            --bg-input: #242424;
+            --text: #e0e0e0;
+            --text-muted: #888;
+            --accent: #FF4655;
+            --accent-hover: #ff5a67;
+            --purple: #8b5cf6;
+            --green: #22c55e;
+            --yellow: #f59e0b;
+            --cyan: #06b6d4;
+            --border: rgba(255,255,255,0.08);
+            --radius: 12px;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        /* Layout */
+        .admin {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .admin__sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .admin__logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        
+        .admin__logo img {
+            height: 32px;
+        }
+        
+        .admin__logo span {
+            font-weight: 600;
+            font-size: 18px;
+        }
+        
+        .admin__logo small {
+            background: var(--purple);
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+        
+        .admin__nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .admin__nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .admin__nav-item:hover {
+            background: var(--bg-elevated);
+            color: var(--text);
+        }
+        
+        .admin__nav-item.active {
+            background: var(--accent);
+            color: #fff;
+        }
+        
+        .admin__nav-item svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .admin__nav-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 0;
+        }
+        
+        .admin__main {
+            flex: 1;
+            margin-left: 260px;
+            padding: 32px;
+        }
+        
+        /* Header */
+        .admin__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+        
+        .admin__title {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .admin__actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-decoration: none;
+        }
+        
+        .btn--primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        
+        .btn--primary:hover {
+            background: var(--accent-hover);
+        }
+        
+        .btn--secondary {
+            background: var(--bg-elevated);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .btn--secondary:hover {
+            border-color: var(--accent);
+        }
+        
+        .btn--small {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        
+        .btn--danger {
+            background: #dc2626;
+            color: #fff;
+        }
+        
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .card__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .card__title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+        
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th, .table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .table th {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            background: var(--bg-elevated);
+        }
+        
+        .table tr:hover td {
+            background: var(--bg-elevated);
+        }
+        
+        .table__actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .table__badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .table__badge--active {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--green);
+        }
+        
+        .table__badge--draft {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--yellow);
+        }
+        
+        .table__badge--inactive {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+        }
+        
+        /* Image Preview */
+        .image-preview {
+            width: 60px;
+            height: 40px;
+            border-radius: 6px;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--bg-elevated);
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-elevated);
+            padding: 4px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+        }
+        
+        .tab:hover {
+            color: var(--text);
+        }
+        
+        .tab.active {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+        
+        /* Sections */
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal__content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .modal__title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .modal__close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        
+        .modal__close:hover {
+            background: var(--bg-elevated);
+            color: var(--text);
+        }
+        
+        .modal__body {
+            padding: 24px;
+        }
+        
+        .modal__footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+        }
+        
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+        
+        .stat-card__label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .stat-card__value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        .stat-card__change {
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        
+        .stat-card__change--up {
+            color: var(--green);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+        
+        .empty-state__text {
+            margin-bottom: 20px;
+        }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast--success {
+            border-color: var(--green);
+        }
+        
+        .toast--error {
+            border-color: #dc2626;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* Auth Guard */
+        .auth-required {
+            display: none;
+        }
+        
+        body.admin-ready .auth-required {
+            display: flex;
+        }
+        
+        body:not(.admin-ready) .admin {
+            display: none;
+        }
+        
+        .access-denied {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .access-denied h1 {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        
+        .access-denied p {
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+        
+        body.admin-ready .access-denied {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Access Denied (shown if not admin) -->
+    <div class="access-denied">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:64px;height:64px;color:var(--accent);margin-bottom:24px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h1>Zugriff verweigert</h1>
+        <p>Du benötigst Admin-Rechte um diese Seite zu sehen.</p>
+        <a href="index.html" class="btn btn--primary">Zurück zum Hub</a>
+    </div>
+    
+    <!-- Admin Panel -->
+    <div class="admin auth-required">
+        <!-- Sidebar -->
+        <aside class="admin__sidebar">
+            <a href="index.html" class="admin__logo">
+                <img src="assets/img/logo_rift.png" alt="RIFT">
+                <span>RIFT</span>
+                <small>Admin</small>
+            </a>
+            
+            <nav class="admin__nav">
+                <a class="admin__nav-item active" data-section="dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                    Dashboard
+                </a>
+                <a class="admin__nav-item" data-section="news">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m2 13a2 2 0 0 1-2-2V7m2 13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8Z"/></svg>
+                    News
+                </a>
+                <a class="admin__nav-item" data-section="slides">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m15 12-5 3V9l5 3Z"/></svg>
+                    Hero Slides
+                </a>
+                <a class="admin__nav-item" data-section="quotes">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21ZM15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1Z"/></svg>
+                    Zitate
+                </a>
+                
+                <div class="admin__nav-divider"></div>
+                
+                <a class="admin__nav-item" href="index.html">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+                    Zurück zum Hub
+                </a>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="admin__main">
+            
+            <!-- Dashboard Section -->
+            <section class="section active" id="section-dashboard">
+                <div class="admin__header">
+                    <h1 class="admin__title">Dashboard</h1>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card__label">Aktive User (heute)</div>
+                        <div class="stat-card__value" id="stat-users">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">Sessions</div>
+                        <div class="stat-card__value" id="stat-sessions">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">Charaktere</div>
+                        <div class="stat-card__value" id="stat-characters">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">News-Artikel</div>
+                        <div class="stat-card__value" id="stat-news">-</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">Letzte Aktivitäten</h2>
+                    </div>
+                    <div id="recent-activity">
+                        <p style="color: var(--text-muted);">Lädt...</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- News Section -->
+            <section class="section" id="section-news">
+                <div class="admin__header">
+                    <h1 class="admin__title">News verwalten</h1>
+                    <div class="admin__actions">
+                        <button class="btn btn--primary" onclick="AdminNews.openModal()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Neuer Artikel
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="table-wrapper">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px">Bild</th>
+                                    <th>Titel</th>
+                                    <th>Kategorie</th>
+                                    <th>Status</th>
+                                    <th>Datum</th>
+                                    <th style="width:120px">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="news-table-body">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;color:var(--text-muted);">Lädt...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Slides Section -->
+            <section class="section" id="section-slides">
+                <div class="admin__header">
+                    <h1 class="admin__title">Hero Slides</h1>
+                    <div class="admin__actions">
+                        <button class="btn btn--primary" onclick="AdminSlides.openModal()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Neuer Slide
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <p style="color: var(--text-muted); margin-bottom: 20px;">
+                        Slide 1 zeigt automatisch die aktive Session des Users. Slides 2-4 sind statische Promo-Slides.
+                    </p>
+                    <div class="table-wrapper">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th style="width:80px">Bild</th>
+                                    <th>Titel</th>
+                                    <th>Overline</th>
+                                    <th>Aktiv</th>
+                                    <th>Position</th>
+                                    <th style="width:120px">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="slides-table-body">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;color:var(--text-muted);">Lädt...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Quotes Section -->
+            <section class="section" id="section-quotes">
+                <div class="admin__header">
+                    <h1 class="admin__title">Zitate des Tages</h1>
+                    <div class="admin__actions">
+                        <button class="btn btn--primary" onclick="AdminQuotes.openModal()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Neues Zitat
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="table-wrapper">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Zitat</th>
+                                    <th>Autor</th>
+                                    <th>Quelle</th>
+                                    <th style="width:120px">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotes-table-body">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;color:var(--text-muted);">Lädt...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
+        </main>
+    </div>
+    
+    <!-- News Modal -->
+    <div class="modal" id="news-modal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2 class="modal__title" id="news-modal-title">Neuer Artikel</h2>
+                <button class="modal__close" onclick="AdminNews.closeModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal__body">
+                <input type="hidden" id="news-id">
+                <div class="form-group">
+                    <label class="form-label">Titel *</label>
+                    <input type="text" class="form-input" id="news-title" placeholder="Artikel-Titel">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Kategorie</label>
+                        <select class="form-select" id="news-category">
+                            <option value="news">News</option>
+                            <option value="update">Update</option>
+                            <option value="regelwerk">Regelwerk</option>
+                            <option value="community">Community</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="news-status">
+                            <option value="draft">Entwurf</option>
+                            <option value="published">Veröffentlicht</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Kurzbeschreibung</label>
+                    <textarea class="form-textarea" id="news-excerpt" placeholder="Kurze Beschreibung für die Vorschau" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bild-URL</label>
+                    <input type="text" class="form-input" id="news-image" placeholder="https://...">
+                    <p class="form-hint">Empfohlene Größe: 800x450px</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Link (optional)</label>
+                    <input type="text" class="form-input" id="news-link" placeholder="URL oder Seite">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Featured?</label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="news-featured">
+                        Als Hauptartikel anzeigen
+                    </label>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="AdminNews.closeModal()">Abbrechen</button>
+                <button class="btn btn--primary" onclick="AdminNews.save()">Speichern</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Slides Modal -->
+    <div class="modal" id="slides-modal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2 class="modal__title" id="slides-modal-title">Neuer Slide</h2>
+                <button class="modal__close" onclick="AdminSlides.closeModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal__body">
+                <input type="hidden" id="slide-id">
+                <div class="form-group">
+                    <label class="form-label">Overline (klein)</label>
+                    <input type="text" class="form-input" id="slide-overline" placeholder="z.B. Worlds Apart, D&D 5e">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Badge</label>
+                    <input type="text" class="form-input" id="slide-badge" placeholder="z.B. Neu, Regelwerk, Update">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Titel *</label>
+                    <input type="text" class="form-input" id="slide-title" placeholder="Großer Titel">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Beschreibung</label>
+                    <textarea class="form-textarea" id="slide-desc" placeholder="Kurze Beschreibung" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hintergrundbild-URL *</label>
+                    <input type="text" class="form-input" id="slide-image" placeholder="https://...">
+                    <p class="form-hint">Empfohlene Größe: 1920x1080px</p>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Button-Text</label>
+                        <input type="text" class="form-input" id="slide-btn-text" placeholder="z.B. Mehr erfahren">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Button-Link</label>
+                        <input type="text" class="form-input" id="slide-btn-link" placeholder="URL">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Tab-Name</label>
+                        <input type="text" class="form-input" id="slide-tab" placeholder="z.B. D&D 5e">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tab-Farbe</label>
+                        <select class="form-select" id="slide-color">
+                            <option value="accent">Rot (accent)</option>
+                            <option value="blue">Blau</option>
+                            <option value="amber">Gelb/Amber</option>
+                            <option value="purple">Lila</option>
+                            <option value="cyan">Cyan</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Position</label>
+                        <input type="number" class="form-input" id="slide-order" placeholder="1, 2, 3..." min="1" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Aktiv?</label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 8px;">
+                            <input type="checkbox" id="slide-active" checked>
+                            Slide anzeigen
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="AdminSlides.closeModal()">Abbrechen</button>
+                <button class="btn btn--primary" onclick="AdminSlides.save()">Speichern</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quotes Modal -->
+    <div class="modal" id="quotes-modal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2 class="modal__title" id="quotes-modal-title">Neues Zitat</h2>
+                <button class="modal__close" onclick="AdminQuotes.closeModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal__body">
+                <input type="hidden" id="quote-id">
+                <div class="form-group">
+                    <label class="form-label">Zitat *</label>
+                    <textarea class="form-textarea" id="quote-text" placeholder="Das Zitat..." rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Autor *</label>
+                        <input type="text" class="form-input" id="quote-author" placeholder="z.B. Gandalf der Graue">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Quelle</label>
+                        <input type="text" class="form-input" id="quote-source" placeholder="z.B. Der Herr der Ringe">
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="AdminQuotes.closeModal()">Abbrechen</button>
+                <button class="btn btn--primary" onclick="AdminQuotes.save()">Speichern</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- RIFT Core -->
+    <script src="assets/js/firebase-config.js"></script>
+    
+    <script>
+        // ========================================
+        // ADMIN CONTROLLER
+        // ========================================
+        
+        let db;
+        let currentUser;
+        
+        // Toast Helper
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast--${type}`;
+            toast.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;">
+                    ${type === 'success' 
+                        ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'
+                        : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}
+                </svg>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+        
+        // Navigation
+        document.querySelectorAll('.admin__nav-item[data-section]').forEach(item => {
+            item.addEventListener('click', () => {
+                const section = item.dataset.section;
+                
+                document.querySelectorAll('.admin__nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.getElementById(`section-${section}`).classList.add('active');
+            });
+        });
+        
+        // ========================================
+        // NEWS MANAGEMENT
+        // ========================================
+        const AdminNews = {
+            items: [],
+            
+            async load() {
+                try {
+                    const snapshot = await db.collection('hub_news').orderBy('createdAt', 'desc').get();
+                    this.items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    this.render();
+                    document.getElementById('stat-news').textContent = this.items.length;
+                } catch (e) {
+                    console.error('Error loading news:', e);
+                    showToast('Fehler beim Laden der News', 'error');
+                }
+            },
+            
+            render() {
+                const tbody = document.getElementById('news-table-body');
+                
+                if (this.items.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m2 13a2 2 0 0 1-2-2V7m2 13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8Z"/></svg>
+                                    <p class="empty-state__text">Noch keine News vorhanden</p>
+                                    <button class="btn btn--primary btn--small" onclick="AdminNews.openModal()">Ersten Artikel erstellen</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = this.items.map(item => `
+                    <tr>
+                        <td><div class="image-preview" style="background-image: url('${item.image || ''}')"></div></td>
+                        <td>
+                            <strong>${item.title}</strong>
+                            ${item.featured ? '<span style="color: var(--yellow); margin-left: 8px;">★ Featured</span>' : ''}
+                        </td>
+                        <td>${item.category || 'news'}</td>
+                        <td>
+                            <span class="table__badge table__badge--${item.status === 'published' ? 'active' : 'draft'}">
+                                ${item.status === 'published' ? 'Veröffentlicht' : 'Entwurf'}
+                            </span>
+                        </td>
+                        <td>${item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString('de-DE') : '-'}</td>
+                        <td>
+                            <div class="table__actions">
+                                <button class="btn btn--secondary btn--small" onclick="AdminNews.edit('${item.id}')">Bearbeiten</button>
+                                <button class="btn btn--danger btn--small" onclick="AdminNews.delete('${item.id}')">Löschen</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+            
+            openModal(id = null) {
+                const modal = document.getElementById('news-modal');
+                const title = document.getElementById('news-modal-title');
+                
+                if (id) {
+                    const item = this.items.find(i => i.id === id);
+                    if (!item) return;
+                    
+                    title.textContent = 'Artikel bearbeiten';
+                    document.getElementById('news-id').value = id;
+                    document.getElementById('news-title').value = item.title || '';
+                    document.getElementById('news-category').value = item.category || 'news';
+                    document.getElementById('news-status').value = item.status || 'draft';
+                    document.getElementById('news-excerpt').value = item.excerpt || '';
+                    document.getElementById('news-image').value = item.image || '';
+                    document.getElementById('news-link').value = item.link || '';
+                    document.getElementById('news-featured').checked = item.featured || false;
+                } else {
+                    title.textContent = 'Neuer Artikel';
+                    document.getElementById('news-id').value = '';
+                    document.getElementById('news-title').value = '';
+                    document.getElementById('news-category').value = 'news';
+                    document.getElementById('news-status').value = 'draft';
+                    document.getElementById('news-excerpt').value = '';
+                    document.getElementById('news-image').value = '';
+                    document.getElementById('news-link').value = '';
+                    document.getElementById('news-featured').checked = false;
+                }
+                
+                modal.classList.add('active');
+            },
+            
+            closeModal() {
+                document.getElementById('news-modal').classList.remove('active');
+            },
+            
+            edit(id) {
+                this.openModal(id);
+            },
+            
+            async save() {
+                const id = document.getElementById('news-id').value;
+                const data = {
+                    title: document.getElementById('news-title').value.trim(),
+                    category: document.getElementById('news-category').value,
+                    status: document.getElementById('news-status').value,
+                    excerpt: document.getElementById('news-excerpt').value.trim(),
+                    image: document.getElementById('news-image').value.trim(),
+                    link: document.getElementById('news-link').value.trim(),
+                    featured: document.getElementById('news-featured').checked,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                if (!data.title) {
+                    showToast('Bitte Titel eingeben', 'error');
+                    return;
+                }
+                
+                try {
+                    if (id) {
+                        await db.collection('hub_news').doc(id).update(data);
+                        showToast('Artikel aktualisiert', 'success');
+                    } else {
+                        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                        await db.collection('hub_news').add(data);
+                        showToast('Artikel erstellt', 'success');
+                    }
+                    
+                    this.closeModal();
+                    this.load();
+                } catch (e) {
+                    console.error('Error saving news:', e);
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            },
+            
+            async delete(id) {
+                if (!confirm('Artikel wirklich löschen?')) return;
+                
+                try {
+                    await db.collection('hub_news').doc(id).delete();
+                    showToast('Artikel gelöscht', 'success');
+                    this.load();
+                } catch (e) {
+                    console.error('Error deleting news:', e);
+                    showToast('Fehler beim Löschen', 'error');
+                }
+            }
+        };
+        
+        // ========================================
+        // SLIDES MANAGEMENT
+        // ========================================
+        const AdminSlides = {
+            items: [],
+            
+            async load() {
+                try {
+                    const snapshot = await db.collection('hub_slides').orderBy('order', 'asc').get();
+                    this.items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    this.render();
+                } catch (e) {
+                    console.error('Error loading slides:', e);
+                }
+            },
+            
+            render() {
+                const tbody = document.getElementById('slides-table-body');
+                
+                if (this.items.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m15 12-5 3V9l5 3Z"/></svg>
+                                    <p class="empty-state__text">Noch keine Slides vorhanden</p>
+                                    <button class="btn btn--primary btn--small" onclick="AdminSlides.openModal()">Ersten Slide erstellen</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = this.items.map(item => `
+                    <tr>
+                        <td><div class="image-preview" style="background-image: url('${item.image || ''}')"></div></td>
+                        <td><strong>${item.title || '-'}</strong></td>
+                        <td>${item.overline || '-'}</td>
+                        <td>
+                            <span class="table__badge table__badge--${item.active ? 'active' : 'inactive'}">
+                                ${item.active ? 'Aktiv' : 'Inaktiv'}
+                            </span>
+                        </td>
+                        <td>${item.order || '-'}</td>
+                        <td>
+                            <div class="table__actions">
+                                <button class="btn btn--secondary btn--small" onclick="AdminSlides.edit('${item.id}')">Bearbeiten</button>
+                                <button class="btn btn--danger btn--small" onclick="AdminSlides.delete('${item.id}')">Löschen</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+            
+            openModal(id = null) {
+                const modal = document.getElementById('slides-modal');
+                const title = document.getElementById('slides-modal-title');
+                
+                if (id) {
+                    const item = this.items.find(i => i.id === id);
+                    if (!item) return;
+                    
+                    title.textContent = 'Slide bearbeiten';
+                    document.getElementById('slide-id').value = id;
+                    document.getElementById('slide-overline').value = item.overline || '';
+                    document.getElementById('slide-badge').value = item.badge || '';
+                    document.getElementById('slide-title').value = item.title || '';
+                    document.getElementById('slide-desc').value = item.desc || '';
+                    document.getElementById('slide-image').value = item.image || '';
+                    document.getElementById('slide-btn-text').value = item.btnText || '';
+                    document.getElementById('slide-btn-link').value = item.btnLink || '';
+                    document.getElementById('slide-tab').value = item.tabName || '';
+                    document.getElementById('slide-color').value = item.color || 'accent';
+                    document.getElementById('slide-order').value = item.order || 1;
+                    document.getElementById('slide-active').checked = item.active !== false;
+                } else {
+                    title.textContent = 'Neuer Slide';
+                    document.getElementById('slide-id').value = '';
+                    document.getElementById('slide-overline').value = '';
+                    document.getElementById('slide-badge').value = '';
+                    document.getElementById('slide-title').value = '';
+                    document.getElementById('slide-desc').value = '';
+                    document.getElementById('slide-image').value = '';
+                    document.getElementById('slide-btn-text').value = '';
+                    document.getElementById('slide-btn-link').value = '';
+                    document.getElementById('slide-tab').value = '';
+                    document.getElementById('slide-color').value = 'accent';
+                    document.getElementById('slide-order').value = this.items.length + 1;
+                    document.getElementById('slide-active').checked = true;
+                }
+                
+                modal.classList.add('active');
+            },
+            
+            closeModal() {
+                document.getElementById('slides-modal').classList.remove('active');
+            },
+            
+            edit(id) {
+                this.openModal(id);
+            },
+            
+            async save() {
+                const id = document.getElementById('slide-id').value;
+                const data = {
+                    overline: document.getElementById('slide-overline').value.trim(),
+                    badge: document.getElementById('slide-badge').value.trim(),
+                    title: document.getElementById('slide-title').value.trim(),
+                    desc: document.getElementById('slide-desc').value.trim(),
+                    image: document.getElementById('slide-image').value.trim(),
+                    btnText: document.getElementById('slide-btn-text').value.trim(),
+                    btnLink: document.getElementById('slide-btn-link').value.trim(),
+                    tabName: document.getElementById('slide-tab').value.trim(),
+                    color: document.getElementById('slide-color').value,
+                    order: parseInt(document.getElementById('slide-order').value) || 1,
+                    active: document.getElementById('slide-active').checked,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                if (!data.title || !data.image) {
+                    showToast('Bitte Titel und Bild eingeben', 'error');
+                    return;
+                }
+                
+                try {
+                    if (id) {
+                        await db.collection('hub_slides').doc(id).update(data);
+                        showToast('Slide aktualisiert', 'success');
+                    } else {
+                        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                        await db.collection('hub_slides').add(data);
+                        showToast('Slide erstellt', 'success');
+                    }
+                    
+                    this.closeModal();
+                    this.load();
+                } catch (e) {
+                    console.error('Error saving slide:', e);
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            },
+            
+            async delete(id) {
+                if (!confirm('Slide wirklich löschen?')) return;
+                
+                try {
+                    await db.collection('hub_slides').doc(id).delete();
+                    showToast('Slide gelöscht', 'success');
+                    this.load();
+                } catch (e) {
+                    console.error('Error deleting slide:', e);
+                    showToast('Fehler beim Löschen', 'error');
+                }
+            }
+        };
+        
+        // ========================================
+        // QUOTES MANAGEMENT
+        // ========================================
+        const AdminQuotes = {
+            items: [],
+            
+            async load() {
+                try {
+                    const snapshot = await db.collection('hub_quotes').orderBy('createdAt', 'desc').get();
+                    this.items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    this.render();
+                } catch (e) {
+                    console.error('Error loading quotes:', e);
+                }
+            },
+            
+            render() {
+                const tbody = document.getElementById('quotes-table-body');
+                
+                if (this.items.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4">
+                                <div class="empty-state">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21ZM15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1Z"/></svg>
+                                    <p class="empty-state__text">Noch keine Zitate vorhanden</p>
+                                    <button class="btn btn--primary btn--small" onclick="AdminQuotes.openModal()">Erstes Zitat erstellen</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = this.items.map(item => `
+                    <tr>
+                        <td style="max-width: 400px;">"${item.text?.substring(0, 100)}${item.text?.length > 100 ? '...' : ''}"</td>
+                        <td>${item.author || '-'}</td>
+                        <td>${item.source || '-'}</td>
+                        <td>
+                            <div class="table__actions">
+                                <button class="btn btn--secondary btn--small" onclick="AdminQuotes.edit('${item.id}')">Bearbeiten</button>
+                                <button class="btn btn--danger btn--small" onclick="AdminQuotes.delete('${item.id}')">Löschen</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+            
+            openModal(id = null) {
+                const modal = document.getElementById('quotes-modal');
+                const title = document.getElementById('quotes-modal-title');
+                
+                if (id) {
+                    const item = this.items.find(i => i.id === id);
+                    if (!item) return;
+                    
+                    title.textContent = 'Zitat bearbeiten';
+                    document.getElementById('quote-id').value = id;
+                    document.getElementById('quote-text').value = item.text || '';
+                    document.getElementById('quote-author').value = item.author || '';
+                    document.getElementById('quote-source').value = item.source || '';
+                } else {
+                    title.textContent = 'Neues Zitat';
+                    document.getElementById('quote-id').value = '';
+                    document.getElementById('quote-text').value = '';
+                    document.getElementById('quote-author').value = '';
+                    document.getElementById('quote-source').value = '';
+                }
+                
+                modal.classList.add('active');
+            },
+            
+            closeModal() {
+                document.getElementById('quotes-modal').classList.remove('active');
+            },
+            
+            edit(id) {
+                this.openModal(id);
+            },
+            
+            async save() {
+                const id = document.getElementById('quote-id').value;
+                const data = {
+                    text: document.getElementById('quote-text').value.trim(),
+                    author: document.getElementById('quote-author').value.trim(),
+                    source: document.getElementById('quote-source').value.trim(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                if (!data.text || !data.author) {
+                    showToast('Bitte Zitat und Autor eingeben', 'error');
+                    return;
+                }
+                
+                try {
+                    if (id) {
+                        await db.collection('hub_quotes').doc(id).update(data);
+                        showToast('Zitat aktualisiert', 'success');
+                    } else {
+                        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                        await db.collection('hub_quotes').add(data);
+                        showToast('Zitat erstellt', 'success');
+                    }
+                    
+                    this.closeModal();
+                    this.load();
+                } catch (e) {
+                    console.error('Error saving quote:', e);
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            },
+            
+            async delete(id) {
+                if (!confirm('Zitat wirklich löschen?')) return;
+                
+                try {
+                    await db.collection('hub_quotes').doc(id).delete();
+                    showToast('Zitat gelöscht', 'success');
+                    this.load();
+                } catch (e) {
+                    console.error('Error deleting quote:', e);
+                    showToast('Fehler beim Löschen', 'error');
+                }
+            }
+        };
+        
+        // ========================================
+        // DASHBOARD STATS
+        // ========================================
+        async function loadDashboardStats() {
+            try {
+                // These would come from actual collections
+                // For now just showing structure
+                document.getElementById('stat-users').textContent = '-';
+                document.getElementById('stat-sessions').textContent = '-';
+                document.getElementById('stat-characters').textContent = '-';
+                
+                document.getElementById('recent-activity').innerHTML = `
+                    <p style="color: var(--text-muted);">Aktivitäts-Tracking wird in einer späteren Version hinzugefügt.</p>
+                `;
+            } catch (e) {
+                console.error('Error loading stats:', e);
+            }
+        }
+        
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        async function initAdmin() {
+            // Wait for Firebase
+            const waitForFirebase = () => new Promise(resolve => {
+                const check = () => {
+                    if (firebase?.auth && firebase?.firestore) {
+                        resolve();
+                    } else {
+                        setTimeout(check, 100);
+                    }
+                };
+                check();
+            });
+            
+            await waitForFirebase();
+            db = firebase.firestore();
+            
+            // Check auth
+            firebase.auth().onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                currentUser = user;
+                
+                // Check if admin
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                const isAdmin = userData.isAdmin || userData.isGM;
+                
+                // For now, also check Firestore for admin flag
+                try {
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    if (userDoc.exists) {
+                        const data = userDoc.data();
+                        if (data.isAdmin || data.role === 'admin') {
+                            document.body.classList.add('admin-ready');
+                            
+                            // Load all data
+                            AdminNews.load();
+                            AdminSlides.load();
+                            AdminQuotes.load();
+                            loadDashboardStats();
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error checking admin status:', e);
+                }
+                
+                // Fallback: Check localStorage
+                if (isAdmin) {
+                    document.body.classList.add('admin-ready');
+                    AdminNews.load();
+                    AdminSlides.load();
+                    AdminQuotes.load();
+                    loadDashboardStats();
+                }
+                // If not admin, access denied screen stays visible
+            });
+        }
+        
+        // Start
+        initAdmin();
+        
+        // Close modals on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                AdminNews.closeModal();
+                AdminSlides.closeModal();
+                AdminQuotes.closeModal();
+            }
+        });
+        
+        // Close modals on backdrop click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
