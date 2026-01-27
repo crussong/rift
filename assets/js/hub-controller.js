@@ -16,7 +16,7 @@ const HubController = {
     db: null,
     
     // Admin UIDs (same as in Firestore rules)
-    ADMIN_UIDS: ['geBL1R192jUiPrFK1oJ5u2Z25hM2'],
+    ADMIN_UIDS: ['geBL1RI92jUiPrFK1oJ5u2Z25hM2'],
     
     // Data
     sessions: [],
