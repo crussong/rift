@@ -234,12 +234,18 @@ const HubController = {
     async loadCharacters() {
         try {
             if (typeof CharacterStorage !== 'undefined') {
-                this.characters = await CharacterStorage.getAll();
+                const result = await CharacterStorage.getAll();
+                this.characters = Array.isArray(result) ? result : [];
             } else {
                 const stored = localStorage.getItem('rift_characters');
-                if (stored) this.characters = JSON.parse(stored);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    this.characters = Array.isArray(parsed) ? parsed : [];
+                }
             }
-        } catch (e) {}
+        } catch (e) {
+            this.characters = [];
+        }
     },
     
     async loadSessionsFromFirestore() {
@@ -252,7 +258,9 @@ const HubController = {
                 this.sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 localStorage.setItem('rift_sessions', JSON.stringify(this.sessions));
             }
-        } catch (e) {}
+        } catch (e) {
+            this.sessions = Array.isArray(this.sessions) ? this.sessions : [];
+        }
     },
     
     async loadPartyMembers() {
@@ -516,6 +524,11 @@ const HubController = {
     // ========================================
     
     updateWidgets() {
+        // Ensure arrays
+        if (!Array.isArray(this.sessions)) this.sessions = [];
+        if (!Array.isArray(this.characters)) this.characters = [];
+        if (!Array.isArray(this.partyMembers)) this.partyMembers = [];
+        
         // Sessions
         const sw = document.querySelector('#widget-sessions .widget__list');
         if (sw) {
