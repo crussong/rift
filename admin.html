@@ -601,6 +601,10 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21ZM15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1Z"/></svg>
                     Zitate
                 </a>
+                <a class="admin__nav-item" data-section="pricing">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Pricing
+                </a>
                 
                 <div class="admin__nav-divider"></div>
                 
@@ -751,6 +755,65 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Pricing Section -->
+            <section class="section" id="section-pricing">
+                <div class="admin__header">
+                    <h1 class="admin__title">Pricing</h1>
+                    <div class="admin__actions">
+                        <button class="btn btn--primary" onclick="AdminPricing.save()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Speichern
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">RIFT Plus</h2>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Monatspreis (€)</label>
+                            <input type="text" class="form-input" id="pricing-plus-price" placeholder="2,99" value="2,99">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Jahrespreis (€) <small style="color:#888">(optional)</small></label>
+                            <input type="text" class="form-input" id="pricing-plus-yearly" placeholder="29,99">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top:16px;">
+                        <label class="form-label">Features (ein Feature pro Zeile)</label>
+                        <textarea class="form-textarea" id="pricing-plus-features" rows="8" placeholder="Alles aus Free
+Unbegrenzte Sessions
+Cloud-Sync & Backup
+Custom Themes
+Priority Support
+Exklusive Features">Alles aus Free
+Unbegrenzte Sessions
+Cloud-Sync & Backup
+Custom Themes
+Priority Support
+Exklusive Features</textarea>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top:24px;">
+                    <div class="card__header">
+                        <h2 class="card__title">RIFT Free</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Features (ein Feature pro Zeile)</label>
+                        <textarea class="form-textarea" id="pricing-free-features" rows="6" placeholder="Unbegrenzte Charaktere
+3D Würfelsystem
+Basis-Regelwerke
+1 aktive Session">Unbegrenzte Charaktere
+3D Würfelsystem
+Basis-Regelwerke
+1 aktive Session</textarea>
                     </div>
                 </div>
             </section>
@@ -1416,6 +1479,44 @@
         };
         
         // ========================================
+        // PRICING MANAGEMENT
+        // ========================================
+        const AdminPricing = {
+            async load() {
+                try {
+                    const doc = await adminDb.collection('hub_settings').doc('pricing').get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        document.getElementById('pricing-plus-price').value = data.plusPrice || '2,99';
+                        document.getElementById('pricing-plus-yearly').value = data.plusYearly || '';
+                        document.getElementById('pricing-plus-features').value = (data.plusFeatures || []).join('\n');
+                        document.getElementById('pricing-free-features').value = (data.freeFeatures || []).join('\n');
+                    }
+                } catch (e) {
+                    console.error('Error loading pricing:', e);
+                }
+            },
+            
+            async save() {
+                try {
+                    const data = {
+                        plusPrice: document.getElementById('pricing-plus-price').value.trim(),
+                        plusYearly: document.getElementById('pricing-plus-yearly').value.trim(),
+                        plusFeatures: document.getElementById('pricing-plus-features').value.split('\n').filter(f => f.trim()),
+                        freeFeatures: document.getElementById('pricing-free-features').value.split('\n').filter(f => f.trim()),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    
+                    await adminDb.collection('hub_settings').doc('pricing').set(data, { merge: true });
+                    showToast('Pricing gespeichert', 'success');
+                } catch (e) {
+                    console.error('Error saving pricing:', e);
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            }
+        };
+        
+        // ========================================
         // DASHBOARD STATS
         // ========================================
         async function loadDashboardStats() {
@@ -1492,6 +1593,7 @@
                     AdminNews.load();
                     AdminSlides.load();
                     AdminQuotes.load();
+                    AdminPricing.load();
                     loadDashboardStats();
                     return;
                 }

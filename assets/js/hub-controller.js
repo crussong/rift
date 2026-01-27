@@ -34,6 +34,7 @@ const HubController = {
     news: [],
     quotes: [],
     slides: [],
+    pricing: null,
     
     // ========================================
     // INITIALIZATION
@@ -133,7 +134,8 @@ const HubController = {
             this.loadQuotes(),
             this.loadSlides(),
             this.loadPartyMembers(),
-            this.loadSessionsFromFirestore()
+            this.loadSessionsFromFirestore(),
+            this.loadPricing()
         ]);
         
         // Update UI
@@ -142,6 +144,8 @@ const HubController = {
         this.updateNewsSection();
         this.updateDailyQuote();
         this.updateWidgets();
+        this.updatePricing();
+        this.initFeatureShowcase();
         
         console.log('[Hub] Data loaded');
     },
@@ -283,6 +287,16 @@ const HubController = {
             const snap = await this.db.collection('hub_slides')
                 .where('active', '==', true).orderBy('order', 'asc').get();
             this.slides = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {}
+    },
+    
+    async loadPricing() {
+        if (!this.db) return;
+        try {
+            const doc = await this.db.collection('hub_settings').doc('pricing').get();
+            if (doc.exists) {
+                this.pricing = doc.data();
+            }
         } catch (e) {}
     },
     
@@ -552,6 +566,64 @@ const HubController = {
                 `).join('')}</div>`;
             }
         }
+    },
+    
+    // ========================================
+    // PRICING
+    // ========================================
+    
+    updatePricing() {
+        if (!this.pricing) return;
+        
+        // Plus tier
+        const priceEl = document.getElementById('plus-price');
+        const featuresEl = document.getElementById('plus-features');
+        
+        if (priceEl && this.pricing.plusPrice) {
+            priceEl.textContent = this.pricing.plusPrice + '€';
+        }
+        
+        if (featuresEl && this.pricing.plusFeatures && this.pricing.plusFeatures.length) {
+            featuresEl.innerHTML = this.pricing.plusFeatures.map(f => `
+                <li><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>${f}</li>
+            `).join('');
+        }
+        
+        // Free tier
+        const freeFeatures = document.querySelector('.rift-plus__tier--free .rift-plus__tier-features');
+        if (freeFeatures && this.pricing.freeFeatures && this.pricing.freeFeatures.length) {
+            freeFeatures.innerHTML = this.pricing.freeFeatures.map(f => `
+                <li><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>${f}</li>
+            `).join('');
+        }
+    },
+    
+    // ========================================
+    // FEATURE SHOWCASE
+    // ========================================
+    
+    initFeatureShowcase() {
+        const tabs = document.querySelectorAll('.feature-showcase__tab');
+        const panels = document.querySelectorAll('.feature-showcase__panel');
+        const infos = document.querySelectorAll('.feature-showcase__info');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.tab;
+                
+                // Update tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update panels
+                panels.forEach(p => p.classList.remove('active'));
+                document.querySelector(`[data-panel="${target}"]`)?.classList.add('active');
+                
+                // Update info
+                infos.forEach(i => i.classList.remove('active'));
+                document.querySelector(`[data-info="${target}"]`)?.classList.add('active');
+            });
+        });
     },
     
     // ========================================
