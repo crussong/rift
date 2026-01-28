@@ -83,7 +83,9 @@ async function createOrUpdateProfile(user, additionalData = {}) {
             // Prioritize localStorage avatar over Firestore photoURL
             avatar: localStored?.avatar || updates.avatar || existingData.avatar || existingData.photoURL || null,
             photoURL: localStored?.avatar || updates.photoURL || existingData.avatar || existingData.photoURL || null,
-            isGM: localStored?.isGM !== undefined ? localStored.isGM : (existingData.isGM || false)
+            isGM: localStored?.isGM !== undefined ? localStored.isGM : (existingData.isGM || false),
+            // Cross-device room sync
+            lastRoom: existingData.lastRoom || null
         };
     }
 }
@@ -149,7 +151,10 @@ async function addRoomToUser(oderId, roomCode, role = 'player') {
             code: roomCode,
             role: role,
             joinedAt: new Date().toISOString()
-        })
+        }),
+        // Also save as lastRoom for cross-device sync
+        lastRoom: roomCode,
+        lastRoomJoinedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 }
 
@@ -233,6 +238,13 @@ function initAuthListener(callback) {
                 
                 // Also update localStorage with latest data
                 saveUserToStorage(currentUser);
+                
+                // Cross-device room sync: If no local room but Firestore has lastRoom, restore it
+                const localRoom = localStorage.getItem(STORAGE_KEYS.ROOM);
+                if (!localRoom && profile.lastRoom) {
+                    console.log('[UserService] Restoring lastRoom from Firestore:', profile.lastRoom);
+                    saveCurrentRoom(profile.lastRoom);
+                }
                 
             } catch (error) {
                 console.warn('[UserService] Could not load profile from Firestore, using localStorage:', error.message);
