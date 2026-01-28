@@ -126,6 +126,7 @@ async function createRoom({ name, ruleset, gm }) {
         name: gm.name || gm.displayName,
         displayName: gm.displayName || gm.name,
         color: gm.color || '#8B5CF6',
+        avatar: gm.avatar || gm.photoURL || null,
         joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
         role: 'gm',
         online: true,
@@ -162,10 +163,15 @@ async function joinRoom(code, user) {
     const memberDoc = await memberRef.get();
     
     if (memberDoc.exists) {
-        // Already a member, just update online status
+        // Already a member, just update online status and sync profile data
         await memberRef.update({
             online: true,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+            // Sync profile data in case it changed
+            name: user.name || user.displayName || memberDoc.data().name,
+            displayName: user.displayName || user.name || memberDoc.data().displayName,
+            color: user.color || memberDoc.data().color || '#8B5CF6',
+            avatar: user.avatar || user.photoURL || memberDoc.data().avatar || null
         });
     } else {
         // Add as new member
@@ -174,6 +180,7 @@ async function joinRoom(code, user) {
             name: user.name || user.displayName,
             displayName: user.displayName || user.name,
             color: user.color || '#8B5CF6',
+            avatar: user.avatar || user.photoURL || null,
             joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
             role: 'player',
             online: true,

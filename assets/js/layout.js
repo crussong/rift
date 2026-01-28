@@ -652,18 +652,24 @@ function updatePartyUI(members) {
         const displayName = isYou ? `${name} (Du)` : name;
         const color = member.color || '#8B5CF6';
         const initial = name.charAt(0).toUpperCase();
+        const avatar = member.avatar || member.photoURL || null;
         const isOnline = member.online === true;
         const isGM = member.role === 'gm';
+        const role = isGM ? 'Spielleiter' : 'Spieler';
+        
+        const avatarContent = avatar 
+            ? `<img src="${avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+            : initial;
         
         return `
             <div class="topbar__party-member ${isOnline ? 'topbar__party-member--online' : ''} ${isYou ? 'topbar__party-member--you' : ''}">
                 <div class="topbar__party-member-avatar" style="background: ${color};">
-                    ${initial}
+                    ${avatarContent}
                     <span class="topbar__party-member-status"></span>
                 </div>
                 <div class="topbar__party-member-info">
                     <span class="topbar__party-member-name">${displayName}</span>
-                    ${isGM ? '<span class="topbar__party-member-role">Spielleiter</span>' : ''}
+                    <span class="topbar__party-member-role${isGM ? ' topbar__party-member-role--gm' : ''}">${role}</span>
                 </div>
             </div>
         `;
