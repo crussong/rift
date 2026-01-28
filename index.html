@@ -551,6 +551,8 @@
                 
                 console.log('[Hub] Party members:', members);
                 console.log('[Hub] Current user:', currentUserData);
+                console.log('[Hub] Firebase UID:', currentUserId);
+                console.log('[Hub] CurrentUserData UID:', currentUserData.uid);
                 
                 if (members.length === 0) {
                     partyList.style.display = 'none';
@@ -561,13 +563,17 @@
                 partyEmpty.style.display = 'none';
                 partyList.style.display = 'flex';
                 
-                partyList.innerHTML = members.map(member => {
-                    const isYou = member.id === currentUserId;
+                const html = members.map(member => {
+                    // Check isYou mit beiden möglichen UIDs
+                    const isYou = member.id === currentUserId || member.id === currentUserData.uid;
+                    
+                    console.log('[Hub] Member:', member.id, 'isYou:', isYou);
                     
                     // Name: zuerst aus member, dann aus currentUser für sich selbst
                     let name = member.displayName || member.name;
                     if (!name && isYou) {
                         name = currentUserData.displayName || currentUserData.name;
+                        console.log('[Hub] Using currentUser name:', name);
                     }
                     name = name || 'Unbekannt';
                     
@@ -575,11 +581,10 @@
                     const color = (isYou ? currentUserData.color : member.color) || '#8B5CF6';
                     const initial = name.charAt(0).toUpperCase();
                     
-                    // Avatar: für sich selbst aus currentUser
-                    let avatar = member.avatar || member.photoURL;
-                    if (isYou && !avatar) {
-                        avatar = currentUserData.avatar || currentUserData.photoURL;
-                    }
+                    // Avatar: member hat avatar, also nutzen
+                    const avatar = member.avatar || member.photoURL || (isYou ? (currentUserData.avatar || currentUserData.photoURL) : null);
+                    
+                    console.log('[Hub] Name:', name, 'Avatar URL:', avatar);
                     
                     const isOnline = member.online === true;
                     const isGM = member.role === 'gm';
@@ -600,6 +605,9 @@
                         </div>
                     `;
                 }).join('');
+                
+                console.log('[Hub] Generated HTML:', html);
+                partyList.innerHTML = html;
             }
             
             function subscribeToParty() {
