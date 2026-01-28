@@ -355,6 +355,8 @@ function subscribeToRoom(code, callback) {
             } else {
                 callback(null);
             }
+        }, err => {
+            console.error('[RoomService] subscribeToRoom error:', err);
         });
 }
 
@@ -371,6 +373,8 @@ function subscribeToMembers(code, callback) {
         .onSnapshot(snapshot => {
             const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             callback(members);
+        }, err => {
+            console.error('[RoomService] subscribeToMembers error:', err);
         });
 }
 
@@ -381,11 +385,16 @@ async function leaveRoom(code, oderId) {
     const db = RIFT.firebase.getFirestore();
     if (!db) throw new Error('Firebase nicht initialisiert');
     
-    const normalizedCode = normalizeRoomCode(code);
-    await db.collection('rooms').doc(normalizedCode)
-        .collection('members').doc(oderId).delete();
-    
-    console.log('[RoomService] Left room:', normalizedCode);
+    try {
+        const normalizedCode = normalizeRoomCode(code);
+        await db.collection('rooms').doc(normalizedCode)
+            .collection('members').doc(oderId).delete();
+        
+        console.log('[RoomService] Left room:', normalizedCode);
+    } catch (e) {
+        console.error('[RoomService] leaveRoom failed:', e);
+        throw e;
+    }
 }
 
 /**
@@ -395,13 +404,17 @@ async function updateMemberStatus(code, oderId, online) {
     const db = RIFT.firebase.getFirestore();
     if (!db) return;
     
-    const normalizedCode = normalizeRoomCode(code);
-    await db.collection('rooms').doc(normalizedCode)
-        .collection('members').doc(oderId)
-        .update({
-            online,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        });
+    try {
+        const normalizedCode = normalizeRoomCode(code);
+        await db.collection('rooms').doc(normalizedCode)
+            .collection('members').doc(oderId)
+            .update({
+                online,
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+            });
+    } catch (e) {
+        console.error('[RoomService] updateMemberStatus failed:', e);
+    }
 }
 
 // ========================================
@@ -415,25 +428,30 @@ async function addCharacterToRoom(code, character, ownerId) {
     const db = RIFT.firebase.getFirestore();
     if (!db) throw new Error('Firebase nicht initialisiert');
     
-    const normalizedCode = normalizeRoomCode(code);
-    const charId = `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const charData = {
-        id: charId,
-        ownerId,
-        templateId: character.templateId || null,
-        name: character.name,
-        ruleset: character.ruleset,
-        data: character.data || character,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    await db.collection('rooms').doc(normalizedCode)
-        .collection('characters').doc(charId).set(charData);
-    
-    console.log('[RoomService] Added character to room:', charId);
-    return { id: charId, ...charData };
+    try {
+        const normalizedCode = normalizeRoomCode(code);
+        const charId = `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const charData = {
+            id: charId,
+            ownerId,
+            templateId: character.templateId || null,
+            name: character.name,
+            ruleset: character.ruleset,
+            data: character.data || character,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        await db.collection('rooms').doc(normalizedCode)
+            .collection('characters').doc(charId).set(charData);
+        
+        console.log('[RoomService] Added character to room:', charId);
+        return { id: charId, ...charData };
+    } catch (e) {
+        console.error('[RoomService] addCharacterToRoom failed:', e);
+        throw e;
+    }
 }
 
 /**
@@ -473,15 +491,20 @@ async function updateRoomCharacter(code, charId, updates) {
     const db = RIFT.firebase.getFirestore();
     if (!db) throw new Error('Firebase nicht initialisiert');
     
-    const normalizedCode = normalizeRoomCode(code);
-    await db.collection('rooms').doc(normalizedCode)
-        .collection('characters').doc(charId)
-        .update({
-            ...updates,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    
-    console.log('[RoomService] Updated character:', charId);
+    try {
+        const normalizedCode = normalizeRoomCode(code);
+        await db.collection('rooms').doc(normalizedCode)
+            .collection('characters').doc(charId)
+            .update({
+                ...updates,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        console.log('[RoomService] Updated character:', charId);
+    } catch (e) {
+        console.error('[RoomService] updateRoomCharacter failed:', e);
+        throw e;
+    }
 }
 
 /**
@@ -491,12 +514,17 @@ async function assignCharacterToMember(code, oderId, charId) {
     const db = RIFT.firebase.getFirestore();
     if (!db) throw new Error('Firebase nicht initialisiert');
     
-    const normalizedCode = normalizeRoomCode(code);
-    await db.collection('rooms').doc(normalizedCode)
-        .collection('members').doc(oderId)
-        .update({ assignedCharacterId: charId });
-    
-    console.log('[RoomService] Assigned character', charId, 'to member', oderId);
+    try {
+        const normalizedCode = normalizeRoomCode(code);
+        await db.collection('rooms').doc(normalizedCode)
+            .collection('members').doc(oderId)
+            .update({ assignedCharacterId: charId });
+        
+        console.log('[RoomService] Assigned character', charId, 'to member', oderId);
+    } catch (e) {
+        console.error('[RoomService] assignCharacterToMember failed:', e);
+        throw e;
+    }
 }
 
 /**
@@ -512,6 +540,8 @@ function subscribeToCharacters(code, callback) {
         .onSnapshot(snapshot => {
             const characters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             callback(characters);
+        }, err => {
+            console.error('[RoomService] subscribeToCharacters error:', err);
         });
 }
 
