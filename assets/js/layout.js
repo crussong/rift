@@ -612,6 +612,7 @@ function subscribeToPartyMembers() {
  */
 function updatePartyUI(members) {
     const currentUserId = firebase.auth()?.currentUser?.uid;
+    const currentUserData = window.currentUser || JSON.parse(localStorage.getItem('rift_user') || '{}');
     const onlineMembers = members.filter(m => m.online === true);
     
     // Update count in topbar
@@ -652,7 +653,10 @@ function updatePartyUI(members) {
         const displayName = isYou ? `${name} (Du)` : name;
         const color = member.color || '#8B5CF6';
         const initial = name.charAt(0).toUpperCase();
-        const avatar = member.avatar || member.photoURL || null;
+        // For own user, prioritize localStorage/currentUser avatar
+        const avatar = isYou 
+            ? (currentUserData.avatar || currentUserData.photoURL || member.avatar || member.photoURL || null)
+            : (member.avatar || member.photoURL || null);
         const isOnline = member.online === true;
         const isGM = member.role === 'gm';
         const role = isGM ? 'Spielleiter' : 'Spieler';
