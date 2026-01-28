@@ -546,13 +546,12 @@
             function renderPartyMembers(members) {
                 if (!partyList || !partyEmpty) return;
                 
-                // Filter out current user for display (show others)
                 const currentUserId = firebase.auth()?.currentUser?.uid;
-                const otherMembers = members.filter(m => m.id !== currentUserId);
+                const currentUserData = window.currentUser || JSON.parse(localStorage.getItem('rift_user') || '{}');
                 
-                console.log('[Hub] Party members:', members.length, 'Others:', otherMembers.length);
+                console.log('[Hub] Party members:', members.length);
                 
-                if (otherMembers.length === 0) {
+                if (members.length === 0) {
                     partyList.style.display = 'none';
                     partyEmpty.style.display = 'flex';
                     return;
@@ -561,11 +560,16 @@
                 partyEmpty.style.display = 'none';
                 partyList.style.display = 'flex';
                 
-                partyList.innerHTML = otherMembers.map(member => {
+                partyList.innerHTML = members.map(member => {
+                    const isYou = member.id === currentUserId;
                     const name = member.displayName || member.name || 'Unbekannt';
+                    const displayName = isYou ? `${name} (Du)` : name;
                     const color = member.color || '#8B5CF6';
                     const initial = name.charAt(0).toUpperCase();
-                    const avatar = member.avatar || member.photoURL || null;
+                    // For own user, prioritize localStorage/currentUser avatar
+                    const avatar = isYou 
+                        ? (currentUserData.avatar || currentUserData.photoURL || member.avatar || member.photoURL || null)
+                        : (member.avatar || member.photoURL || null);
                     const isOnline = member.online === true;
                     const isGM = member.role === 'gm';
                     const role = isGM ? 'Spielleiter' : 'Spieler';
@@ -575,13 +579,13 @@
                         : initial;
                     
                     return `
-                        <div class="party-member">
+                        <div class="party-member${isYou ? ' party-member--you' : ''}">
                             <div class="party-member__avatar" style="background: ${color};">
                                 ${avatarContent}
                                 <span class="party-member__status party-member__status--${isOnline ? 'online' : 'offline'}"></span>
                             </div>
                             <div class="party-member__info">
-                                <span class="party-member__name">${name}</span>
+                                <span class="party-member__name">${displayName}</span>
                                 <span class="party-member__role${isGM ? ' party-member__role--gm' : ''}">${role}</span>
                             </div>
                         </div>
