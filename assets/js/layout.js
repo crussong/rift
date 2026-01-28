@@ -639,9 +639,10 @@ function updatePartyUI(members) {
     // Find GM
     const gm = members.find(m => m.role === 'gm');
     if (gm && gmNameEl && footerEl) {
+        const gmName = gm.displayName || gm.name || (gm.id === currentUserId ? (currentUserData.displayName || currentUserData.name) : null) || 'Unbekannt';
         gmNameEl.innerHTML = `
             <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-            GM: ${gm.displayName || gm.name || 'Unbekannt'}
+            GM: ${gmName}
         `;
         footerEl.style.display = 'flex';
     }
@@ -649,11 +650,17 @@ function updatePartyUI(members) {
     // Render all members (including self)
     listEl.innerHTML = members.map(member => {
         const isYou = member.id === currentUserId;
-        const name = member.displayName || member.name || 'Unbekannt';
+        // Robuster Name-Lookup
+        let name = member.displayName || member.name || null;
+        if (isYou && !name) {
+            name = currentUserData.displayName || currentUserData.name || 'Du';
+        }
+        if (!name) name = 'Unbekannt';
+        
         const displayName = isYou ? `${name} (Du)` : name;
-        const color = member.color || '#8B5CF6';
+        const color = isYou ? (currentUserData.color || member.color || '#8B5CF6') : (member.color || '#8B5CF6');
         const initial = name.charAt(0).toUpperCase();
-        // For own user, prioritize localStorage/currentUser avatar
+        // Avatar: für sich selbst aus currentUser
         const avatar = isYou 
             ? (currentUserData.avatar || currentUserData.photoURL || member.avatar || member.photoURL || null)
             : (member.avatar || member.photoURL || null);
@@ -667,9 +674,8 @@ function updatePartyUI(members) {
         
         return `
             <div class="topbar__party-member ${isOnline ? 'topbar__party-member--online' : ''} ${isYou ? 'topbar__party-member--you' : ''}">
-                <div class="topbar__party-member-avatar" style="background: ${color};">
+                <div class="topbar__party-member-avatar ${isOnline ? 'topbar__party-member-avatar--online' : 'topbar__party-member-avatar--offline'}" style="background: ${color};">
                     ${avatarContent}
-                    <span class="topbar__party-member-status"></span>
                 </div>
                 <div class="topbar__party-member-info">
                     <span class="topbar__party-member-name">${displayName}</span>
