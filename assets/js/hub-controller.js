@@ -268,6 +268,11 @@ const HubController = {
         try {
             const snap = await this.db.collection('rooms').doc(this.roomCode).collection('members').get();
             this.partyMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            
+            // Update HeaderController
+            if (typeof HeaderController !== 'undefined' && this.partyMembers.length > 0) {
+                HeaderController.renderParty(this.partyMembers);
+            }
         } catch (e) {}
     },
     
