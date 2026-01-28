@@ -549,11 +549,6 @@
                 const currentUserId = firebase.auth()?.currentUser?.uid;
                 const currentUserData = window.currentUser || JSON.parse(localStorage.getItem('rift_user') || '{}');
                 
-                console.log('[Hub] Party members:', members);
-                console.log('[Hub] Current user:', currentUserData);
-                console.log('[Hub] Firebase UID:', currentUserId);
-                console.log('[Hub] CurrentUserData UID:', currentUserData.uid);
-                
                 if (members.length === 0) {
                     partyList.style.display = 'none';
                     partyEmpty.style.display = 'flex';
@@ -563,51 +558,35 @@
                 partyEmpty.style.display = 'none';
                 partyList.style.display = 'flex';
                 
-                const html = members.map(member => {
-                    // Check isYou mit beiden möglichen UIDs
+                partyList.innerHTML = members.map(member => {
                     const isYou = member.id === currentUserId || member.id === currentUserData.uid;
                     
-                    console.log('[Hub] Member:', member.id, 'isYou:', isYou);
-                    
-                    // Name: zuerst aus member, dann aus currentUser für sich selbst
                     let name = member.displayName || member.name;
-                    if (!name && isYou) {
-                        name = currentUserData.displayName || currentUserData.name;
-                        console.log('[Hub] Using currentUser name:', name);
-                    }
+                    if (!name && isYou) name = currentUserData.displayName || currentUserData.name;
                     name = name || 'Unbekannt';
                     
                     const displayName = isYou ? name + ' (Du)' : name;
                     const color = (isYou ? currentUserData.color : member.color) || '#8B5CF6';
                     const initial = name.charAt(0).toUpperCase();
-                    
-                    // Avatar: member hat avatar, also nutzen
                     const avatar = member.avatar || member.photoURL || (isYou ? (currentUserData.avatar || currentUserData.photoURL) : null);
-                    
-                    console.log('[Hub] Name:', name, 'Avatar URL:', avatar);
-                    
                     const isOnline = member.online === true;
-                    const isGM = member.role === 'gm';
-                    const role = isGM ? 'Spielleiter' : 'Spieler';
+                    const role = member.role === 'gm' ? 'Spielleiter' : 'Spieler';
                     
                     return `
-                        <div class="party-member">
-                            <div class="party-member__avatar-wrapper">
-                                <div class="party-member__avatar" style="background: ${color};">
-                                    ${avatar ? `<img src="${avatar}" alt="">` : initial}
+                        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+                            <div style="position:relative;flex-shrink:0;">
+                                <div style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:white;overflow:hidden;background:${color};">
+                                    ${avatar ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;">` : initial}
                                 </div>
-                                <span class="party-member__status party-member__status--${isOnline ? 'online' : 'offline'}"></span>
+                                <span style="position:absolute;bottom:-2px;right:-2px;width:12px;height:12px;border-radius:50%;border:2px solid #1a1a1a;background:${isOnline ? '#22c55e' : '#6b7280'};"></span>
                             </div>
-                            <div class="party-member__info">
-                                <span class="party-member__name">${displayName}</span>
-                                <span class="party-member__role">${role}</span>
+                            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
+                                <span style="font-size:14px;font-weight:600;color:white;">${displayName}</span>
+                                <span style="font-size:12px;color:rgba(255,255,255,0.5);">${role}</span>
                             </div>
                         </div>
                     `;
                 }).join('');
-                
-                console.log('[Hub] Generated HTML:', html);
-                partyList.innerHTML = html;
             }
             
             function subscribeToParty() {
