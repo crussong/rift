@@ -1231,6 +1231,8 @@
         }, 800);
         
         // Initialize Firebase Sessions for Hub
+        let initRetries = 0; // Local counter, resets on each page load
+        
         function initFirebaseSessions() {
             if (!currentRoomCode) {
                 console.log('[Hub] No room code - using localStorage for sessions');
@@ -1241,11 +1243,11 @@
             
             // Wait for RIFT.rooms (max 20 attempts = 2 seconds)
             if (typeof RIFT === 'undefined' || !RIFT.rooms) {
-                if (!window._riftRoomsRetries) window._riftRoomsRetries = 0;
-                window._riftRoomsRetries++;
+                initRetries++;
                 
-                if (window._riftRoomsRetries > 20) {
-                    console.warn('[Hub] RIFT.rooms not available after 2s, proceeding without');
+                if (initRetries > 20) {
+                    console.warn('[Hub] RIFT.rooms not available after 2s, loading with empty sessions');
+                    window._firebaseSessions = firebaseSessions = [];
                     loadDashboardData();
                     return;
                 }
@@ -1257,11 +1259,22 @@
             console.log('[Hub] Subscribing to Firebase sessions for room:', currentRoomCode);
             
             // Subscribe to realtime session updates
+            let hasReceivedData = false;
             window._sessionsUnsubscribe = sessionsUnsubscribe = RIFT.rooms.subscribeToSessions(currentRoomCode, (sessions) => {
                 console.log('[Hub] Firebase sessions update:', sessions.length);
+                hasReceivedData = true;
                 window._firebaseSessions = firebaseSessions = sessions;
                 loadDashboardData();
             });
+            
+            // Fallback: If no data received after 1 second, load anyway with empty/cached sessions
+            setTimeout(() => {
+                if (!hasReceivedData) {
+                    console.warn('[Hub] No Firebase sessions received after 1s, loading with cache');
+                    window._firebaseSessions = firebaseSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+                    loadDashboardData();
+                }
+            }, 1000);
         }
         
         // Start quickly
@@ -1870,6 +1883,30 @@
                 </a>
             `;
         }
+        
+        // Reload dashboard when coming back via browser Back button (bfcache)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                console.log('[Hub] Page restored from bfcache, reloading dashboard');
+                loadDashboardData();
+            }
+        });
+        
+        // Reload dashboard when tab becomes visible again
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible' && window._heroSkeletonRemoved) {
+                console.log('[Hub] Tab became visible, refreshing dashboard');
+                loadDashboardData();
+            }
+        });
+        
+        // Final safety net: ensure dashboard loads within 3 seconds no matter what
+        setTimeout(() => {
+            if (!window._heroSkeletonRemoved) {
+                console.warn('[Hub] Safety net triggered - forcing dashboard load');
+                loadDashboardData();
+            }
+        }, 3000);
         
         // Dashboard wird von initFirebaseSessions geladen
         // (nicht direkt aufrufen - verhindert Flash des falschen Contents)
