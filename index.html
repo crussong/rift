@@ -549,7 +549,8 @@
                 const currentUserId = firebase.auth()?.currentUser?.uid;
                 const currentUserData = window.currentUser || JSON.parse(localStorage.getItem('rift_user') || '{}');
                 
-                console.log('[Hub] Party members:', members.length);
+                console.log('[Hub] Party members:', members.length, members);
+                console.log('[Hub] Current user data:', currentUserData);
                 
                 if (members.length === 0) {
                     partyList.style.display = 'none';
@@ -562,11 +563,17 @@
                 
                 partyList.innerHTML = members.map(member => {
                     const isYou = member.id === currentUserId;
-                    const name = member.displayName || member.name || 'Unbekannt';
+                    // Robuster Name-Lookup: Member data, dann currentUser für sich selbst
+                    let name = member.displayName || member.name || null;
+                    if (isYou && !name) {
+                        name = currentUserData.displayName || currentUserData.name || 'Du';
+                    }
+                    if (!name) name = 'Unbekannt';
+                    
                     const displayName = isYou ? `${name} (Du)` : name;
-                    const color = member.color || '#8B5CF6';
+                    const color = isYou ? (currentUserData.color || member.color || '#8B5CF6') : (member.color || '#8B5CF6');
                     const initial = name.charAt(0).toUpperCase();
-                    // For own user, prioritize localStorage/currentUser avatar
+                    // Avatar: für sich selbst aus currentUser, sonst aus member
                     const avatar = isYou 
                         ? (currentUserData.avatar || currentUserData.photoURL || member.avatar || member.photoURL || null)
                         : (member.avatar || member.photoURL || null);
@@ -574,16 +581,12 @@
                     const isGM = member.role === 'gm';
                     const role = isGM ? 'Spielleiter' : 'Spieler';
                     
-                    const avatarContent = avatar 
-                        ? `<img src="${avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
-                        : initial;
-                    
                     return `
                         <div class="party-member${isYou ? ' party-member--you' : ''}">
                             <div class="party-member__avatar" style="background: ${color};">
-                                ${avatarContent}
-                                <span class="party-member__status party-member__status--${isOnline ? 'online' : 'offline'}"></span>
+                                ${avatar ? `<img src="${avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : initial}
                             </div>
+                            <span class="party-member__status party-member__status--${isOnline ? 'online' : 'offline'}"></span>
                             <div class="party-member__info">
                                 <span class="party-member__name">${displayName}</span>
                                 <span class="party-member__role${isGM ? ' party-member__role--gm' : ''}">${role}</span>
