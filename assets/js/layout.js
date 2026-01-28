@@ -615,13 +615,8 @@ function updatePartyUI(members) {
     const currentUserData = window.currentUser || JSON.parse(localStorage.getItem('rift_user') || '{}');
     const onlineMembers = members.filter(m => m.online === true);
     
-    console.log('[Layout] Party members:', members);
-    console.log('[Layout] Current user:', currentUserData);
-    
-    // Update count in topbar
     updatePartyCount(onlineMembers.length, members.length);
     
-    // Update sidebar dropdown list
     const listEl = document.getElementById('partyMembersList');
     const emptyEl = document.getElementById('partyEmptyState');
     const footerEl = document.getElementById('partyFooter');
@@ -639,57 +634,37 @@ function updatePartyUI(members) {
     if (emptyEl) emptyEl.style.display = 'none';
     listEl.style.display = 'block';
     
-    // Find GM
     const gm = members.find(m => m.role === 'gm');
     if (gm && gmNameEl && footerEl) {
         let gmName = gm.displayName || gm.name;
-        if (!gmName && gm.id === currentUserId) {
-            gmName = currentUserData.displayName || currentUserData.name;
-        }
+        if (!gmName && gm.id === currentUserId) gmName = currentUserData.displayName || currentUserData.name;
         gmName = gmName || 'Unbekannt';
-        
-        gmNameEl.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-            GM: ${gmName}
-        `;
+        gmNameEl.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg> GM: ${gmName}`;
         footerEl.style.display = 'flex';
     }
     
-    // Render all members
     listEl.innerHTML = members.map(member => {
-        const isYou = member.id === currentUserId;
+        const isYou = member.id === currentUserId || member.id === currentUserData.uid;
         
-        // Name
         let name = member.displayName || member.name;
-        if (!name && isYou) {
-            name = currentUserData.displayName || currentUserData.name;
-        }
+        if (!name && isYou) name = currentUserData.displayName || currentUserData.name;
         name = name || 'Unbekannt';
         
         const displayName = isYou ? name + ' (Du)' : name;
         const color = (isYou ? currentUserData.color : member.color) || '#8B5CF6';
         const initial = name.charAt(0).toUpperCase();
-        
-        // Avatar
-        let avatar = member.avatar || member.photoURL;
-        if (isYou && !avatar) {
-            avatar = currentUserData.avatar || currentUserData.photoURL;
-        }
-        
+        const avatar = member.avatar || member.photoURL || (isYou ? (currentUserData.avatar || currentUserData.photoURL) : null);
         const isOnline = member.online === true;
-        const isGM = member.role === 'gm';
-        const role = isGM ? 'Spielleiter' : 'Spieler';
-        
-        const avatarClass = isOnline ? 'topbar__party-member-avatar--online' : 'topbar__party-member-avatar--offline';
+        const role = member.role === 'gm' ? 'Spielleiter' : 'Spieler';
         
         return `
-            <div class="topbar__party-member ${isOnline ? 'topbar__party-member--online' : ''}">
-                <div class="topbar__party-member-avatar ${avatarClass}" style="background: ${color};">
-                    ${avatar ? `<img src="${avatar}" alt="" style="width:100%;height:100%;object-fit:cover;">` : initial}
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;${isOnline ? '' : 'opacity:0.6;'}">
+                <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:white;overflow:hidden;background:${color};border:2px solid ${isOnline ? '#22c55e' : 'transparent'};">
+                    ${avatar ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;">` : initial}
                 </div>
-                <div class="topbar__party-member-info">
-                    <span class="topbar__party-member-name">${displayName}</span>
-                    <span class="topbar__party-member-role">${role}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:500;color:white;">${displayName}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5);">${role}</div>
                 </div>
             </div>
         `;
