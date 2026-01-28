@@ -1640,6 +1640,7 @@ function updatePartyDropdown(members) {
     if (!listEl) return;
     
     const currentUserId = firebase?.auth()?.currentUser?.uid;
+    const currentUserData = window.currentUser || JSON.parse(localStorage.getItem('rift_user') || '{}');
     const onlineCount = members.filter(m => m.online === true).length;
     const gm = members.find(m => m.role === 'gm');
     
@@ -1659,35 +1660,35 @@ function updatePartyDropdown(members) {
     
     // Update GM name
     if (gmNameEl && gm) {
-        gmNameEl.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-            GM: ${gm.displayName || gm.name || 'Unbekannt'}
-        `;
+        let gmName = gm.displayName || gm.name;
+        if (!gmName && gm.id === currentUserId) gmName = currentUserData.displayName || currentUserData.name;
+        gmNameEl.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg> GM: ${gmName || 'Unbekannt'}`;
     }
     
     // Render all members (including self)
     listEl.innerHTML = members.map(member => {
-        const isYou = member.id === currentUserId;
-        const name = member.displayName || member.name || 'Unbekannt';
-        const displayName = isYou ? `${name} (Du)` : name;
-        const color = member.color || '#8B5CF6';
+        const isYou = member.id === currentUserId || member.id === currentUserData.uid;
+        
+        let name = member.displayName || member.name;
+        if (!name && isYou) name = currentUserData.displayName || currentUserData.name;
+        name = name || 'Unbekannt';
+        
+        const displayName = isYou ? name + ' (Du)' : name;
+        const color = (isYou ? currentUserData.color : member.color) || '#8B5CF6';
         const initial = name.charAt(0).toUpperCase();
+        const avatar = member.avatar || member.photoURL || (isYou ? (currentUserData.avatar || currentUserData.photoURL) : null);
         const isOnline = member.online === true;
-        const roleLabel = member.role === 'gm' ? 'Spielleiter' : 'Spieler';
-        const statusClass = isOnline ? 'online' : 'offline';
+        const role = member.role === 'gm' ? 'Spielleiter' : 'Spieler';
         
         return `
-            <div class="topbar__party-member ${isYou ? 'topbar__party-member--you' : ''}">
-                <div class="topbar__party-member-avatar topbar__party-member-avatar--${statusClass}" style="background: ${color};">
-                    ${initial}
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;${isOnline ? '' : 'opacity:0.6;'}">
+                <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:white;overflow:hidden;background:${color};border:2px solid ${isOnline ? '#22c55e' : 'transparent'};">
+                    ${avatar ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;">` : initial}
                 </div>
-                <div class="topbar__party-member-info">
-                    <span class="topbar__party-member-name">${displayName}</span>
-                    <span class="topbar__party-member-char">${roleLabel}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:500;color:white;">${displayName}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5);">${role}</div>
                 </div>
-                <span class="topbar__party-member-status topbar__party-member-status--${statusClass}">
-                    ${isOnline ? '●' : '○'}
-                </span>
             </div>
         `;
     }).join('');
