@@ -636,11 +636,19 @@ function setupPresence(code, oderId) {
     
     const normalizedCode = normalizeRoomCode(code);
     const presenceRef = rtdb.ref(`presence/${normalizedCode}/${oderId}`);
+    const playerRef = rtdb.ref(`rooms/${normalizedCode}/players/${oderId}`);
     const connectedRef = rtdb.ref('.info/connected');
     
     const unsubscribe = connectedRef.on('value', (snapshot) => {
         if (snapshot.val() === true) {
-            // User is online
+            // Ensure player entry exists in RTDB (for security rules)
+            playerRef.update({
+                oderId: oderId,
+                online: true,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            // User is online - set presence
             presenceRef.set({
                 online: true,
                 lastSeen: firebase.database.ServerValue.TIMESTAMP
@@ -648,6 +656,11 @@ function setupPresence(code, oderId) {
             
             // When disconnected, update status
             presenceRef.onDisconnect().set({
+                online: false,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            playerRef.onDisconnect().update({
                 online: false,
                 lastSeen: firebase.database.ServerValue.TIMESTAMP
             });
@@ -661,6 +674,10 @@ function setupPresence(code, oderId) {
     return () => {
         connectedRef.off('value', unsubscribe);
         presenceRef.set({
+            online: false,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        });
+        playerRef.update({
             online: false,
             lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
