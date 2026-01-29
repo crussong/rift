@@ -506,45 +506,12 @@ function initLayout() {
     // Skip layout in GM popup mode (when viewing character sheet in iframe)
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('gm') === 'true') {
-        console.log('[Layout] GM popup mode detected - skipping sidebar/topbar/footer');
+        console.log('[Layout] GM popup mode detected - skipping layout');
         return;
     }
     
-    // Get the app container
-    const app = document.querySelector('.app');
-    if (!app) return;
-    
-    // Get the main element and preserve its classes
-    const mainEl = app.querySelector('.main');
-    const mainClasses = mainEl ? mainEl.className : 'main';
-    
-    // Get the main content (what's already in the page)
-    const mainContent = app.querySelector('.main__content');
-    const pageContent = mainContent ? mainContent.innerHTML : '';
-    
-    // Build the full layout
-    app.innerHTML = `
-        ${createSidebar()}
-        <main class="${mainClasses}">
-            <div class="main__content">
-                ${createTopbar()}
-                ${pageContent}
-            </div>
-            ${createFooter()}
-        </main>
-    `;
-    
-    // Reinitialize sidebar functionality
-    initSidebarEvents();
-    
-    // Initialize room dropdown
-    initRoomDropdown();
-    
-    // Initialize party dropdown
-    initPartyDropdown();
-    
-    // Initialize user dropdown
-    initUserDropdown();
+    // Use new layout system
+    initNewLayout();
     
     // Initialize clock
     updateClock();
@@ -2183,7 +2150,304 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => TopbarSessionStatus.init(), 200);
 });
 
+/**
+ * ========================================
+ * NEW LAYOUT SYSTEM - Bottom Dock + Top Nav
+ * ========================================
+ */
+
+/**
+ * Create Top Navigation (2 rows)
+ */
+function createTopnav() {
+    const userData = getUserData();
+    const roomCode = getRoomCode();
+    const currentPage = getCurrentPage();
+    
+    return `
+        <nav class="topnav">
+            <!-- Row 1: Logo, Search, Party, User -->
+            <div class="topnav__row1">
+                <a href="index.html" class="topnav__logo">
+                    <svg width="80" height="32" viewBox="0 0 192 77" fill="currentColor">
+                        <path d="M0 0 C1.00752823 -0.00990463 2.01505646 -0.01980927 3.05311584 -0.03001404 C4.1579834 -0.02551239 5.26285095 -0.02101074 6.40119934 -0.01637268 C8.14820885 -0.02666756 8.14820885 -0.02666756 9.93051147 -0.03717041 C13.79822346 -0.05553408 17.66553297 -0.05158328 21.53327942 -0.0459137 C23.54514793 -0.04838946 25.55700649 -0.05273701 27.56887132 -0.05726677 C33.90820728 -0.07133163 40.24740864 -0.06974149 46.58674622 -0.05836487 C53.09010556 -0.04695035 59.59304929 -0.06084121 66.09635371 -0.08776134 C71.70089343 -0.11007839 77.30530432 -0.11651809 82.90988523 -0.11068493 C86.24722317 -0.10734359 89.58408725 -0.11128914 92.92142296 -0.12693596 C116.68797377 -0.22256312 139.21583216 1.66961518 157.11531067 19.38768005 C163.21307689 26.36493179 168.00724196 33.64623681 171.11531067 42.38768005 C171.70312317 44.03703552 171.70312317 44.03703552 172.30281067 45.7197113 C178.1837873 65.22086644 177.55153775 89.13920346 168.30281067 107.51268005 C165.5786786 112.05290017 162.36653084 116.17735142 158.11531067 119.38768005 C157.45531067 119.38768005 156.79531067 119.38768005 156.11531067 119.38768005 L156.11531067 119.38768005 L168.11531067 175.38768005 C168.11531067 178.38768005 168.11531067 181.38768005 168.11531067 184.38768005 C158.76879315 184.38768005 149.42227563 184.38768005 139.79231262 184.38768005 L139.79231262 184.38768005 L126.11531067 119.38768005 L113.11531067 119.38768005 L113.11531067 184.38768005 L80.11531067 184.38768005 L80.11531067 119.38768005 L68.11531067 119.38768005 L54.11531067 184.38768005 L21.11531067 184.38768005 L35.11531067 119.38768005 C21.35764659 118.55419162 21.35764659 118.55419162 13.11531067 125.38768005 L13.11531067 184.38768005 L-19.88468933 184.38768005 L-19.88468933 0.38768005 C-13.54635933 0.38768005 -6.87135933 0.38768005 0 0 Z M113.11531067 33.38768005 L113.11531067 87.38768005 C124.81866195 87.38768005 136.52201323 87.38768005 148.11531067 87.38768005 C149.67136485 79.98611593 149.67136485 79.98611593 148.11531067 71.38768005 C143.89988567 68.73841255 143.89988567 68.73841255 139.11531067 68.38768005 L139.11531067 52.38768005 C143.22780817 51.92518255 143.22780817 51.92518255 148.11531067 52.38768005 C149.24946395 45.41296062 149.24946395 45.41296062 148.11531067 38.38768005 C136.41195939 37.39436917 124.91531067 33.38768005 113.11531067 33.38768005 Z" transform="translate(19.884689331054688,0)"/>
+                    </svg>
+                </a>
+                
+                <div class="topnav__search">
+                    <svg class="topnav__search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input type="text" class="topnav__search-input" placeholder="Suchen...">
+                </div>
+                
+                <div class="topnav__spacer"></div>
+                
+                <div class="topnav__party" id="topnavParty">
+                    <div class="topnav__party-avatars" id="topnavPartyAvatars">
+                        <!-- Filled by JS -->
+                    </div>
+                    <span class="topnav__party-label">Party</span>
+                    <span class="topnav__party-count" id="topnavPartyCount">0 Online</span>
+                </div>
+                
+                ${roomCode ? `
+                <div class="topnav__rtc" id="topnavRtc">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                    <span>RTC</span>
+                    <span id="topnavRtcCode">${roomCode}</span>
+                </div>
+                ` : ''}
+                
+                <div class="topnav__icons">
+                    <button class="topnav__icon-btn" title="Benachrichtigungen">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        <span class="badge"></span>
+                    </button>
+                    <button class="topnav__icon-btn" onclick="openSettings()" title="Einstellungen">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <button class="topnav__user" id="topnavUser">
+                    <div class="topnav__user-avatar" style="background: ${userData.color}">
+                        ${userData.avatar 
+                            ? `<img src="${userData.avatar}" alt="">` 
+                            : userData.initial
+                        }
+                    </div>
+                    <span class="topnav__user-name">${userData.name}</span>
+                </button>
+            </div>
+            
+            <!-- Row 2: Menu + Social -->
+            <div class="topnav__row2">
+                <div class="topnav__menu">
+                    <a href="index.html" class="topnav__menu-item ${currentPage === 'index' ? 'active' : ''}">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M2.5192 7.82274C2 8.77128 2 9.91549 2 12.2039V13.725C2 17.6258 2 19.5763 3.17157 20.7881C4.34315 22 6.22876 22 10 22H14C17.7712 22 19.6569 22 20.8284 20.7881C22 19.5763 22 17.6258 22 13.725V12.2039C22 9.91549 22 8.77128 21.4808 7.82274C20.9616 6.87421 20.0131 6.28551 18.116 5.10812L16.116 3.86687C14.1106 2.62229 13.1079 2 12 2C10.8921 2 9.88939 2.62229 7.88403 3.86687L5.88403 5.10813C3.98695 6.28551 3.0384 6.87421 2.5192 7.82274ZM9 17.25C8.58579 17.25 8.25 17.5858 8.25 18C8.25 18.4142 8.58579 18.75 9 18.75H15C15.4142 18.75 15.75 18.4142 15.75 18C15.75 17.5858 15.4142 17.25 15 17.25H9Z"/>
+                        </svg>
+                        Hub
+                    </a>
+                    <button class="topnav__menu-item">
+                        Abenteuer
+                        <svg class="topnav__menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <button class="topnav__menu-item">
+                        Charaktere
+                        <svg class="topnav__menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <button class="topnav__menu-item">
+                        Regelwerke
+                        <svg class="topnav__menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <button class="topnav__menu-item">
+                        Tools
+                        <svg class="topnav__menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="topnav__social">
+                    <a href="https://discord.gg/rift" target="_blank" class="topnav__social-link" title="Discord">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/>
+                        </svg>
+                    </a>
+                    <a href="https://twitter.com/rift" target="_blank" class="topnav__social-link" title="X/Twitter">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </a>
+                    <a href="https://github.com/rift" target="_blank" class="topnav__social-link" title="GitHub">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                    </a>
+                    <a href="mailto:contact@rift.app" class="topnav__social-link" title="Email">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </nav>
+    `;
+}
+
+/**
+ * Create Bottom Dock
+ */
+function createBottomDock() {
+    const currentPage = getCurrentPage();
+    const userData = getUserData();
+    
+    return `
+        <div class="dock" id="bottomDock">
+            <a href="index.html" class="dock__item ${currentPage === 'index' ? 'active' : ''}" data-tooltip="Hub">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M2.5192 7.82274C2 8.77128 2 9.91549 2 12.2039V13.725C2 17.6258 2 19.5763 3.17157 20.7881C4.34315 22 6.22876 22 10 22H14C17.7712 22 19.6569 22 20.8284 20.7881C22 19.5763 22 17.6258 22 13.725V12.2039C22 9.91549 22 8.77128 21.4808 7.82274C20.9616 6.87421 20.0131 6.28551 18.116 5.10812L16.116 3.86687C14.1106 2.62229 13.1079 2 12 2C10.8921 2 9.88939 2.62229 7.88403 3.86687L5.88403 5.10813C3.98695 6.28551 3.0384 6.87421 2.5192 7.82274ZM9 17.25C8.58579 17.25 8.25 17.5858 8.25 18C8.25 18.4142 8.58579 18.75 9 18.75H15C15.4142 18.75 15.75 18.4142 15.75 18C15.75 17.5858 15.4142 17.25 15 17.25H9Z"/>
+                </svg>
+            </a>
+            <a href="sessions.html" class="dock__item ${currentPage === 'sessions' ? 'active' : ''}" data-tooltip="Sessions">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M21.8382 11.1263L21.609 13.5616C21.2313 17.5742 21.0425 19.5805 19.8599 20.7902C18.6773 22 16.9048 22 13.3599 22H10.6401C7.09517 22 5.32271 22 4.14009 20.7902C2.95748 19.5805 2.76865 17.5742 2.391 13.5616L2.16181 11.1263C1.9818 9.2137 1.8918 8.25739 2.21899 7.86207C2.39598 7.64823 2.63666 7.5172 2.89399 7.4946C3.36968 7.45282 3.96708 8.1329 5.16187 9.49307C5.77977 10.1965 6.08872 10.5482 6.43337 10.6027C6.62434 10.6328 6.81892 10.6018 6.99526 10.5131C7.31351 10.3529 7.5257 9.91812 7.95007 9.04852L10.1869 4.46486C10.9888 2.82162 11.3898 2 12 2C12.6102 2 13.0112 2.82162 13.8131 4.46485L16.0499 9.04851C16.4743 9.91812 16.6865 10.3529 17.0047 10.5131C17.1811 10.6018 17.3757 10.6328 17.5666 10.6027C17.9113 10.5482 18.2202 10.1965 18.8381 9.49307C20.0329 8.1329 20.6303 7.45282 21.106 7.4946C21.3633 7.5172 21.604 7.64823 21.781 7.86207C22.1082 8.25739 22.0182 9.2137 21.8382 11.1263Z"/>
+                </svg>
+            </a>
+            <a href="sheet.html" class="dock__item ${currentPage === 'sheet' || currentPage.startsWith('sheet-') ? 'active' : ''}" data-tooltip="Charakter">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                </svg>
+            </a>
+            
+            <div class="dock__divider"></div>
+            
+            <a href="dice.html" class="dock__item ${currentPage === 'dice' ? 'active' : ''}" data-tooltip="Würfel">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/>
+                </svg>
+            </a>
+            <a href="map.html" class="dock__item ${currentPage === 'map' ? 'active' : ''}" data-tooltip="Karte">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M1.25 10.087C1.25 5.2814 5.3533 1.25 10.246 1.25C15.1387 1.25 19.242 5.2814 19.242 10.087C19.242 12.5447 18.3128 14.778 16.7743 16.5186L20.5386 20.2175C20.8346 20.5096 20.8377 20.9845 20.5455 21.2805C20.2534 21.5765 19.7785 21.5796 19.4825 21.2875L15.6851 17.5562C14.1654 18.7273 12.2825 19.424 10.246 19.424C5.3533 19.424 1.25 15.3926 1.25 10.587V10.087ZM10.246 17.924C14.3183 17.924 17.742 14.5418 17.742 10.087C17.742 6.0322 14.3183 2.75 10.246 2.75C6.1737 2.75 2.75 6.0322 2.75 10.087V10.587C2.75 14.5418 6.1737 17.924 10.246 17.924Z"/>
+                </svg>
+            </a>
+            <a href="notes.html" class="dock__item ${currentPage === 'notes' ? 'active' : ''}" data-tooltip="Notizen">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M4.17157 3.17157C3 4.34315 3 6.22876 3 10V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V10C21 6.22876 21 4.34315 19.8284 3.17157C18.6569 2 16.7712 2 13 2H11C7.22876 2 5.34315 2 4.17157 3.17157ZM7.25 8C7.25 7.58579 7.58579 7.25 8 7.25H16C16.4142 7.25 16.75 7.58579 16.75 8C16.75 8.41421 16.4142 8.75 16 8.75H8C7.58579 8.75 7.25 8.41421 7.25 8ZM7.25 12C7.25 11.5858 7.58579 11.25 8 11.25H16C16.4142 11.25 16.75 11.5858 16.75 12C16.75 12.4142 16.4142 12.75 16 12.75H8C7.58579 12.75 7.25 12.4142 7.25 12ZM8 15.25C7.58579 15.25 7.25 15.5858 7.25 16C7.25 16.4142 7.58579 16.75 8 16.75H13C13.4142 16.75 13.75 16.4142 13.75 16C13.75 15.5858 13.4142 15.25 13 15.25H8Z"/>
+                </svg>
+            </a>
+            <a href="widgets.html" class="dock__item ${currentPage === 'widgets' ? 'active' : ''}" data-tooltip="Widgets">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M3 6C3 4.34315 4.34315 3 6 3H8C9.65685 3 11 4.34315 11 6V8C11 9.65685 9.65685 11 8 11H6C4.34315 11 3 9.65685 3 8V6ZM13 6C13 4.34315 14.3431 3 16 3H18C19.6569 3 21 4.34315 21 6V8C21 9.65685 19.6569 11 18 11H16C14.3431 11 13 9.65685 13 8V6ZM6 13C4.34315 13 3 14.3431 3 16V18C3 19.6569 4.34315 21 6 21H8C9.65685 21 11 19.6569 11 18V16C11 14.3431 9.65685 13 8 13H6ZM13 16C13 14.3431 14.3431 13 16 13H18C19.6569 13 21 14.3431 21 16V18C21 19.6569 19.6569 21 18 21H16C14.3431 21 13 19.6569 13 18V16Z"/>
+                </svg>
+            </a>
+            <a href="whiteboard.html" class="dock__item ${currentPage === 'whiteboard' ? 'active' : ''}" data-tooltip="Whiteboard">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.5 1.15c-.53 0-1.04.19-1.43.58l-1.41 1.41 4.24 4.24 1.41-1.41c.78-.78.78-2.05 0-2.83l-1.41-1.41c-.38-.38-.89-.58-1.4-.58zM14.06 4.19L3.03 15.22 2 22l6.78-1.03 11.03-11.03-5.75-5.75z"/>
+                </svg>
+            </a>
+            <a href="chat.html" class="dock__item ${currentPage === 'chat' ? 'active' : ''}" data-tooltip="Chat">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2.5 21.5l4.5-.838A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zM8 11a1 1 0 100 2 1 1 0 000-2zm4 0a1 1 0 100 2 1 1 0 000-2zm4 0a1 1 0 100 2 1 1 0 000-2z"/>
+                </svg>
+            </a>
+            
+            ${(userData.isGM || userData.isCogm) ? `
+            <div class="dock__divider"></div>
+            <a href="gm.html" class="dock__item dock__item--gm ${currentPage === 'gm' ? 'active' : ''}" data-tooltip="GM Optionen">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                </svg>
+            </a>
+            ` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Initialize New Layout (Dock + Topnav)
+ */
+function initNewLayout() {
+    const app = document.querySelector('.app');
+    if (!app) return;
+    
+    // Add new layout class
+    app.classList.add('app--new-layout');
+    
+    // Get the main element and preserve its classes
+    const mainEl = app.querySelector('.main');
+    const mainClasses = mainEl ? mainEl.className : 'main';
+    
+    // Get the main content
+    const mainContent = app.querySelector('.main__content');
+    const pageContent = mainContent ? mainContent.innerHTML : '';
+    
+    // Build the new layout
+    app.innerHTML = `
+        ${createTopnav()}
+        <main class="${mainClasses}">
+            <div class="main__content">
+                ${pageContent}
+            </div>
+            ${createFooter()}
+        </main>
+        ${createBottomDock()}
+    `;
+    
+    // Initialize user dropdown (simplified for new layout)
+    initTopnavDropdowns();
+    
+    // Initialize party display
+    initTopnavParty();
+}
+
+/**
+ * Initialize Topnav Dropdowns
+ */
+function initTopnavDropdowns() {
+    const userBtn = document.getElementById('topnavUser');
+    if (userBtn) {
+        userBtn.addEventListener('click', () => {
+            // Open settings or user menu
+            if (typeof openSettings === 'function') {
+                openSettings();
+            }
+        });
+    }
+}
+
+/**
+ * Initialize Topnav Party Display
+ */
+function initTopnavParty() {
+    const avatarsContainer = document.getElementById('topnavPartyAvatars');
+    const countEl = document.getElementById('topnavPartyCount');
+    
+    if (!avatarsContainer || !countEl) return;
+    
+    // Get party from storage
+    const stored = localStorage.getItem('rift_party_members');
+    if (stored) {
+        try {
+            const members = JSON.parse(stored);
+            const online = members.filter(m => m.isOnline);
+            
+            countEl.textContent = `${online.length} Online`;
+            
+            // Show first 3 avatars
+            avatarsContainer.innerHTML = online.slice(0, 3).map(member => `
+                <div class="topnav__party-avatar" style="background: ${member.color || '#FF4655'}">
+                    ${member.avatar 
+                        ? `<img src="${member.avatar}" alt="${member.name}">` 
+                        : (member.name || 'U').charAt(0).toUpperCase()
+                    }
+                </div>
+            `).join('');
+        } catch (e) {
+            console.error('[Layout] Failed to parse party members:', e);
+        }
+    }
+}
+
 // Export for use in pages
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { createSidebar, createTopbar, createFooter, initLayout };
+    module.exports = { createSidebar, createTopbar, createFooter, initLayout, createBottomDock, createTopnav, initNewLayout };
 }
