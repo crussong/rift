@@ -330,42 +330,42 @@ class SessionCountdown {
 
 const RPG_QUOTES = [
     {
-        text: "„Ein wahrer Held ist nicht der, der keine Angst kennt, sondern der, der trotz seiner Angst handelt."",
+        text: "Ein wahrer Held ist nicht der, der keine Angst kennt, sondern der, der trotz seiner Angst handelt.",
         author: "Gandalf der Graue",
         source: "Der Herr der Ringe"
     },
     {
-        text: "„Es sind nicht unsere Fähigkeiten, die zeigen, wer wir wirklich sind, sondern unsere Entscheidungen."",
+        text: "Es sind nicht unsere Fähigkeiten, die zeigen, wer wir wirklich sind, sondern unsere Entscheidungen.",
         author: "Albus Dumbledore",
         source: "Harry Potter"
     },
     {
-        text: "„Die Würfel sind gefallen – aber das Schicksal wird von denen geschrieben, die sie werfen."",
+        text: "Die Würfel sind gefallen – aber das Schicksal wird von denen geschrieben, die sie werfen.",
         author: "Unbekannter Spielleiter",
         source: "Pen & Paper Weisheit"
     },
     {
-        text: "„Jeder Dungeon beginnt mit einem einzigen Schritt durch die Tür."",
+        text: "Jeder Dungeon beginnt mit einem einzigen Schritt durch die Tür.",
         author: "Alte Abenteurerweisheit",
         source: "D&D Folklore"
     },
     {
-        text: "„Die gefährlichsten Waffen eines Abenteurers sind nicht Schwert und Zauber, sondern Neugier und Freundschaft."",
+        text: "Die gefährlichsten Waffen eines Abenteurers sind nicht Schwert und Zauber, sondern Neugier und Freundschaft.",
         author: "Elminster",
         source: "Forgotten Realms"
     },
     {
-        text: "„Manchmal ist der mutigste Wurf, überhaupt zu würfeln."",
+        text: "Manchmal ist der mutigste Wurf, überhaupt zu würfeln.",
         author: "Erfahrener Spieler",
         source: "Session 0 Philosophie"
     },
     {
-        text: "„In einer Welt voller Monster braucht es mehr als Stärke – es braucht Herz."",
+        text: "In einer Welt voller Monster braucht es mehr als Stärke – es braucht Herz.",
         author: "Geralt von Riva",
         source: "The Witcher"
     },
     {
-        text: "„Die beste Geschichte ist die, die wir gemeinsam erzählen."",
+        text: "Die beste Geschichte ist die, die wir gemeinsam erzählen.",
         author: "Matt Mercer",
         source: "Critical Role"
     }
