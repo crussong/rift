@@ -744,40 +744,49 @@
             const isAdmin = () => window.RIFT?.admin?.isAdmin() || window.RIFTAdmin?.isAdmin || false;
             
             // Create news card HTML
-            function createNewsCard(news, isNewest = false) {
+            function createNewsCard(news, isNewest = false, isFeatured = false) {
+                // Format date
+                const date = news.publishedAt?.toDate?.() || news.createdAt?.toDate?.() || new Date();
+                const dateStr = date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+                
+                // Category config
+                const categoryConfig = {
+                    update: { label: 'Update', class: 'update' },
+                    news: { label: 'News', class: 'news' },
+                    guide: { label: 'Guide', class: 'guide' }
+                };
+                const cat = categoryConfig[news.category] || categoryConfig.news;
+                
                 const card = document.createElement('a');
                 card.href = `news.html?id=${news.id}`;
-                card.className = 'news-carousel__card';
+                card.className = 'news-carousel__card' + (isFeatured ? ' news-carousel__card--featured' : '');
                 card.innerHTML = `
                     <div class="news-carousel__image">
-                        <img src="${news.image || 'assets/img/news/news_placeholder.svg'}" alt="">
+                        ${news.imageUrl ? `<img src="${news.imageUrl}" alt="${news.title || ''}">` : `
+                            <div class="news-carousel__image-placeholder">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    <polyline points="21 15 16 10 5 21"/>
+                                </svg>
+                            </div>
+                        `}
                         ${isNewest ? '<div class="news-carousel__badge">Neu</div>' : ''}
                     </div>
                     <div class="news-carousel__content">
-                        <span class="news-carousel__date">${news.date || ''}</span>
+                        <div class="news-carousel__meta">
+                            <span class="news-carousel__category news-carousel__category--${cat.class}">${cat.label}</span>
+                            <span class="news-carousel__date">${dateStr}</span>
+                        </div>
                         <h3 class="news-carousel__title">${news.title || 'Ohne Titel'}</h3>
-                        <p class="news-carousel__desc">${news.description || ''}</p>
+                        <p class="news-carousel__desc">${news.excerpt || ''}</p>
                     </div>
-                    <button class="news-card__edit" data-news-id="${news.id}" title="Artikel bearbeiten">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                    </button>
                 `;
-                
-                // Edit button click (stop propagation)
-                const editBtn = card.querySelector('.news-card__edit');
-                editBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.location.href = `news.html?id=${news.id}&edit=true`;
-                });
                 
                 return card;
             }
             
-            // Load news from Firestore
+            // Load news from Firestore (hub_news collection)
             async function loadNews() {
                 // Set timeout to remove skeleton after 5 seconds no matter what
                 const skeletonTimeout = setTimeout(() => {
@@ -788,8 +797,10 @@
                 try {
                     const db = firebase.firestore();
                     
-                    // Simple query without orderBy (avoids index requirement)
-                    const snapshot = await db.collection('news').get();
+                    // Load published news from hub_news collection
+                    const snapshot = await db.collection('hub_news')
+                        .where('published', '==', true)
+                        .get();
                     
                     clearTimeout(skeletonTimeout);
                     console.log('[Hub] Loaded', snapshot.size, 'news articles');
@@ -803,16 +814,22 @@
                     // Insert news cards before static cards
                     const firstStatic = staticCards[0];
                     
-                    // Sort by createdAt client-side (descending - newest first)
+                    // Sort by publishedAt/createdAt client-side (descending - newest first)
                     const sortedDocs = snapshot.docs.sort((a, b) => {
-                        const aTime = a.data().createdAt?.toMillis?.() || 0;
-                        const bTime = b.data().createdAt?.toMillis?.() || 0;
+                        const aTime = a.data().publishedAt?.toMillis?.() || a.data().createdAt?.toMillis?.() || 0;
+                        const bTime = b.data().publishedAt?.toMillis?.() || b.data().createdAt?.toMillis?.() || 0;
                         return bTime - aTime;
                     });
                     
+                    // Find featured article (first one marked as featured, or first article)
+                    const featuredDoc = sortedDocs.find(doc => doc.data().featured) || sortedDocs[0];
+                    const featuredId = featuredDoc?.id;
+                    
                     sortedDocs.forEach((doc, index) => {
                         const news = { id: doc.id, ...doc.data() };
-                        const card = createNewsCard(news, index === 0);
+                        const isNewest = index === 0;
+                        const isFeatured = doc.id === featuredId;
+                        const card = createNewsCard(news, isNewest, isFeatured);
                         track.insertBefore(card, firstStatic);
                     });
                     

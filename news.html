@@ -1,586 +1,576 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <link rel="icon" type="image/svg+xml" href="/assets/icons/icon_rift_r.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon_rift_r.svg">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="view-transition" content="same-origin">
-    <title>News – RIFT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIFT – News</title>
     
-    <!-- Fonts -->
-    <link rel="stylesheet" href="assets/css/core.css">
-    <link rel="stylesheet" href="assets/css/sidebar.css">
-    <link rel="stylesheet" href="assets/css/topbar.css">
-    <link rel="stylesheet" href="assets/css/footer.css">
-    <link rel="stylesheet" href="assets/css/settings.css">
-    <link rel="stylesheet" href="assets/css/article.css">
-    <link rel="stylesheet" href="assets/css/hub.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
-</head>
-<body>
-    <div class="app">
-        <main class="main">
-            <div class="main__content">
-                
-                <!-- Article Content -->
-                <article class="article" id="articleContainer">
-                    <header class="article__header">
-                        <a href="index.html" class="article__back">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 12H5M12 19l-7-7 7-7"/>
-                            </svg>
-                            Zurück
-                        </a>
-                        <div class="article__meta">
-                            <span class="article__date" id="articleDate">Laden...</span>
-                            <span class="article__author" id="articleAuthor"></span>
-                        </div>
-                    </header>
-                    
-                    <div class="article__hero" id="articleHero">
-                        <!-- Hero image loads here -->
-                    </div>
-                    
-                    <h1 class="article__title" id="articleTitle">Laden...</h1>
-                    
-                    <div class="article__content" id="articleContent">
-                        <!-- Markdown content renders here -->
-                    </div>
-                    
-                    <!-- Loading State -->
-                    <div class="article__loading" id="articleLoading">
-                        <div class="spinner"></div>
-                        <p>Artikel wird geladen...</p>
-                    </div>
-                    
-                    <!-- Error State -->
-                    <div class="article__error" id="articleError" style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5;">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                        <p>Artikel nicht gefunden</p>
-                        <a href="index.html" class="btn btn--primary" style="margin-top: 16px;">Zurück zum Hub</a>
-                    </div>
-                    
-                    <button class="article__edit-btn" id="editArticleBtn" data-admin-only style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                        Artikel bearbeiten
-                    </button>
-                    
-                    <button class="article__delete-btn" id="deleteArticleBtn" data-admin-only style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                        Löschen
-                    </button>
-                </article>
-                
-            </div>
-        </main>
-    </div>
-    
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    
-    <!-- RIFT Services -->
-    <script src="assets/js/firebase-config.js"></script>
-    <script src="assets/js/room-service.js"></script>
-    <script src="assets/js/user-service.js"></script>
-    
-    <script src="assets/js/auth.js"></script>
-    <script src="assets/js/layout.js"></script>
-    <script src="assets/js/settings.js"></script>
-    <script src="assets/js/admin.js"></script>
-    <script src="assets/js/transitions.js"></script>
-    <script src="assets/js/app.js"></script>
-    
-    <script>
-        initLayout();
-        
-        // Dynamic News Manager
-        class DynamicNewsManager {
-            constructor() {
-                this.newsId = new URLSearchParams(window.location.search).get('id');
-                this.newsData = null;
-                this.AUTOSAVE_KEY = `rift_news_draft_${this.newsId}`;
-                
-                this.init();
-            }
-            
-            async init() {
-                // Wait for Firebase
-                await this.waitForFirebase();
-                
-                if (!this.newsId) {
-                    this.showError();
-                    return;
-                }
-                
-                await this.loadNews();
-                this.bindEvents();
-                this.createEditorModal();
-                this.updateAdminButtons();
-                
-                // Auto-open editor if ?edit=true
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('edit') === 'true') {
-                    setTimeout(() => {
-                        if (this.isAdmin()) {
-                            this.openEditor();
-                            // Clean up URL
-                            window.history.replaceState({}, '', `news.html?id=${this.newsId}`);
-                        }
-                    }, 500);
-                }
-            }
-            
-            waitForFirebase() {
-                return new Promise(resolve => {
-                    const check = () => {
-                        if (typeof firebase !== 'undefined' && firebase.firestore && firebase.apps?.length > 0) {
-                            resolve();
-                        } else {
-                            setTimeout(check, 100);
-                        }
-                    };
-                    check();
-                });
-            }
-            
-            isAdmin() {
-                return window.RIFT?.admin?.isAdmin() || window.RIFTAdmin?.isAdmin || false;
-            }
-            
-            async loadNews() {
-                try {
-                    const db = firebase.firestore();
-                    const doc = await db.collection('news').doc(this.newsId).get();
-                    
-                    if (!doc.exists) {
-                        this.showError();
-                        return;
-                    }
-                    
-                    this.newsData = { id: doc.id, ...doc.data() };
-                    this.renderNews();
-                    
-                } catch (e) {
-                    console.error('[News] Load error:', e);
-                    this.showError();
-                }
-            }
-            
-            renderNews() {
-                const data = this.newsData;
-                
-                // Hide loading
-                document.getElementById('articleLoading').style.display = 'none';
-                
-                // Title
-                document.getElementById('articleTitle').textContent = data.title || 'Ohne Titel';
-                document.title = `${data.title || 'News'} – RIFT`;
-                
-                // Date
-                document.getElementById('articleDate').textContent = data.date || this.formatDate(data.createdAt?.toDate?.() || new Date());
-                
-                // Author
-                document.getElementById('articleAuthor').textContent = 'von RIFT-Team';
-                
-                // Hero Image
-                const heroEl = document.getElementById('articleHero');
-                if (data.image) {
-                    heroEl.innerHTML = `<img src="${data.image}" alt="${data.title}">`;
-                    heroEl.classList.add('has-image');
-                }
-                
-                // Content
-                const contentEl = document.getElementById('articleContent');
-                if (data.content) {
-                    contentEl.innerHTML = this.renderMarkdown(data.content);
-                } else {
-                    contentEl.innerHTML = '<p class="article__empty">Dieser Artikel hat noch keinen Inhalt.</p>';
-                }
-            }
-            
-            formatDate(date) {
-                return date.toLocaleDateString('de-DE', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                });
-            }
-            
-            renderMarkdown(text) {
-                if (typeof marked !== 'undefined') {
-                    marked.setOptions({
-                        breaks: true,
-                        gfm: true
-                    });
-                    return marked.parse(text);
-                }
-                return `<p>${text.replace(/\n/g, '<br>')}</p>`;
-            }
-            
-            showError() {
-                document.getElementById('articleLoading').style.display = 'none';
-                document.getElementById('articleError').style.display = 'flex';
-                document.getElementById('articleTitle').style.display = 'none';
-            }
-            
-            bindEvents() {
-                document.getElementById('editArticleBtn')?.addEventListener('click', () => {
-                    this.openEditor();
-                });
-                
-                document.getElementById('deleteArticleBtn')?.addEventListener('click', () => {
-                    this.deleteNews();
-                });
-            }
-            
-            updateAdminButtons() {
-                const editBtn = document.getElementById('editArticleBtn');
-                const deleteBtn = document.getElementById('deleteArticleBtn');
-                
-                const check = () => {
-                    const isAdmin = this.isAdmin();
-                    if (editBtn) editBtn.style.display = isAdmin ? '' : 'none';
-                    if (deleteBtn) deleteBtn.style.display = isAdmin ? '' : 'none';
-                };
-                
-                check();
-                setTimeout(check, 2000);
-            }
-            
-            createEditorModal() {
-                const modalHTML = `
-                    <div class="modal-overlay" id="newsEditorModal">
-                        <div class="modal md-editor-modal">
-                            <div class="modal__header">
-                                <h2 class="modal__title">News bearbeiten</h2>
-                                <button class="modal__close" id="closeNewsEditor">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <line x1="18" y1="6" x2="6" y2="18"/>
-                                        <line x1="6" y1="6" x2="18" y2="18"/>
-                                    </svg>
-                                </button>
-                            </div>
-                            
-                            <div class="modal__body" style="padding: 0;">
-                                <!-- Meta Fields -->
-                                <div class="md-editor-meta">
-                                    <div class="md-editor-meta__row">
-                                        <div class="md-editor-meta__field">
-                                            <label>Titel</label>
-                                            <input type="text" id="newsMetaTitle" placeholder="Titel des Artikels">
-                                        </div>
-                                    </div>
-                                    <div class="md-editor-meta__row">
-                                        <div class="md-editor-meta__field">
-                                            <label>Kurzbeschreibung</label>
-                                            <input type="text" id="newsMetaDesc" placeholder="Kurze Beschreibung für die Vorschau">
-                                        </div>
-                                    </div>
-                                    <div class="md-editor-meta__row">
-                                        <div class="md-editor-meta__field">
-                                            <label>Bild-URL</label>
-                                            <input type="text" id="newsMetaImage" placeholder="https://i.imgur.com/...">
-                                        </div>
-                                    </div>
-                                    <div class="md-editor-meta__row">
-                                        <div class="md-editor-meta__field">
-                                            <label>Datum (optional)</label>
-                                            <input type="text" id="newsMetaDate" placeholder="z.B. 25. Januar 2026">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Content Editor -->
-                                <div class="md-editor">
-                                    <div class="md-editor-toolbar">
-                                        <div class="md-editor-toolbar__group">
-                                            <button type="button" data-action="bold" title="Fett (Ctrl+B)"><strong>B</strong></button>
-                                            <button type="button" data-action="italic" title="Kursiv (Ctrl+I)"><em>I</em></button>
-                                            <button type="button" data-action="heading" title="Überschrift">H</button>
-                                        </div>
-                                        <div class="md-editor-toolbar__group">
-                                            <button type="button" data-action="link" title="Link">🔗</button>
-                                            <button type="button" data-action="image" title="Bild">🖼️</button>
-                                            <button type="button" data-action="list" title="Liste">•</button>
-                                        </div>
-                                        <div class="md-editor-toolbar__group md-editor-toolbar__group--right">
-                                            <button type="button" data-action="preview" title="Vorschau">👁️ Vorschau</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="md-editor-pane md-editor-pane--edit">
-                                        <textarea id="newsEditorTextarea" placeholder="Artikel-Inhalt in Markdown..."></textarea>
-                                    </div>
-                                    
-                                    <div class="md-editor-pane md-editor-pane--preview" style="display: none;">
-                                        <div id="newsEditorPreview" class="md-preview"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="modal__footer">
-                                <button class="btn btn--secondary" id="cancelNewsEditor">Abbrechen</button>
-                                <button class="btn btn--primary" id="saveNewsBtn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
-                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                                        <polyline points="17 21 17 13 7 13 7 21"/>
-                                        <polyline points="7 3 7 8 15 8"/>
-                                    </svg>
-                                    Speichern
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.insertAdjacentHTML('beforeend', modalHTML);
-                this.bindEditorEvents();
-            }
-            
-            bindEditorEvents() {
-                document.getElementById('closeNewsEditor')?.addEventListener('click', () => this.closeEditor());
-                document.getElementById('cancelNewsEditor')?.addEventListener('click', () => this.closeEditor());
-                document.getElementById('saveNewsBtn')?.addEventListener('click', () => this.saveNews());
-                
-                // Click outside to close
-                document.getElementById('newsEditorModal')?.addEventListener('click', (e) => {
-                    if (e.target.id === 'newsEditorModal') this.closeEditor();
-                });
-                
-                // Toolbar actions
-                document.querySelectorAll('#newsEditorModal [data-action]').forEach(btn => {
-                    btn.addEventListener('click', () => this.handleToolbarAction(btn.dataset.action));
-                });
-                
-                // Preview toggle
-                document.querySelector('#newsEditorModal [data-action="preview"]')?.addEventListener('click', () => {
-                    this.togglePreview();
-                });
-            }
-            
-            openEditor() {
-                if (!this.isAdmin()) return;
-                
-                const modal = document.getElementById('newsEditorModal');
-                const data = this.newsData || {};
-                
-                document.getElementById('newsMetaTitle').value = data.title || '';
-                document.getElementById('newsMetaDesc').value = data.description || '';
-                document.getElementById('newsMetaImage').value = data.image || '';
-                document.getElementById('newsMetaDate').value = data.date || '';
-                document.getElementById('newsEditorTextarea').value = data.content || '';
-                
-                modal?.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-            
-            closeEditor() {
-                document.getElementById('newsEditorModal')?.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-            
-            async saveNews() {
-                const title = document.getElementById('newsMetaTitle').value.trim();
-                const description = document.getElementById('newsMetaDesc').value.trim();
-                const image = document.getElementById('newsMetaImage').value.trim();
-                const date = document.getElementById('newsMetaDate').value.trim() || this.formatDate(new Date());
-                const content = document.getElementById('newsEditorTextarea').value;
-                
-                if (!title) {
-                    alert('Bitte gib einen Titel ein.');
-                    return;
-                }
-                
-                const saveBtn = document.getElementById('saveNewsBtn');
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = '<div class="spinner"></div> Speichern...';
-                
-                try {
-                    const db = firebase.firestore();
-                    await db.collection('news').doc(this.newsId).set({
-                        title,
-                        description,
-                        image,
-                        date,
-                        content,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                    
-                    // Reload the page to show updated content
-                    this.closeEditor();
-                    this.newsData = { ...this.newsData, title, description, image, date, content };
-                    this.renderNews();
-                    
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.success('News gespeichert!');
-                    }
-                    
-                } catch (e) {
-                    console.error('[News] Save error:', e);
-                    alert('Fehler beim Speichern: ' + e.message);
-                } finally {
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17 21 17 13 7 13 7 21"/>
-                        <polyline points="7 3 7 8 15 8"/>
-                    </svg> Speichern`;
-                }
-            }
-            
-            async deleteNews() {
-                if (!this.isAdmin()) return;
-                
-                const confirmed = confirm('Willst du diese News wirklich löschen? Das kann nicht rückgängig gemacht werden.');
-                if (!confirmed) return;
-                
-                try {
-                    const db = firebase.firestore();
-                    await db.collection('news').doc(this.newsId).delete();
-                    
-                    if (window.RIFT?.ui?.Toast) {
-                        RIFT.ui.Toast.success('News gelöscht!');
-                    }
-                    
-                    // Redirect to hub
-                    window.location.href = 'index.html';
-                    
-                } catch (e) {
-                    console.error('[News] Delete error:', e);
-                    alert('Fehler beim Löschen: ' + e.message);
-                }
-            }
-            
-            handleToolbarAction(action) {
-                const textarea = document.getElementById('newsEditorTextarea');
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                const text = textarea.value;
-                const selected = text.substring(start, end);
-                
-                let insert = '';
-                let cursorOffset = 0;
-                
-                switch (action) {
-                    case 'bold':
-                        insert = `**${selected || 'text'}**`;
-                        cursorOffset = selected ? 0 : -2;
-                        break;
-                    case 'italic':
-                        insert = `*${selected || 'text'}*`;
-                        cursorOffset = selected ? 0 : -1;
-                        break;
-                    case 'heading':
-                        insert = `## ${selected || 'Überschrift'}`;
-                        break;
-                    case 'link':
-                        insert = `[${selected || 'Link-Text'}](url)`;
-                        cursorOffset = selected ? -1 : -5;
-                        break;
-                    case 'image':
-                        insert = `![${selected || 'Beschreibung'}](url)`;
-                        cursorOffset = selected ? -1 : -5;
-                        break;
-                    case 'list':
-                        insert = `\n- ${selected || 'Listenpunkt'}`;
-                        break;
-                }
-                
-                textarea.value = text.substring(0, start) + insert + text.substring(end);
-                textarea.focus();
-                textarea.setSelectionRange(start + insert.length + cursorOffset, start + insert.length + cursorOffset);
-            }
-            
-            togglePreview() {
-                const editPane = document.querySelector('#newsEditorModal .md-editor-pane--edit');
-                const previewPane = document.querySelector('#newsEditorModal .md-editor-pane--preview');
-                const previewContent = document.getElementById('newsEditorPreview');
-                const previewBtn = document.querySelector('#newsEditorModal [data-action="preview"]');
-                
-                const isPreview = previewPane.style.display !== 'none';
-                
-                if (isPreview) {
-                    editPane.style.display = '';
-                    previewPane.style.display = 'none';
-                    previewBtn.classList.remove('active');
-                } else {
-                    const content = document.getElementById('newsEditorTextarea').value;
-                    previewContent.innerHTML = this.renderMarkdown(content);
-                    editPane.style.display = 'none';
-                    previewPane.style.display = '';
-                    previewBtn.classList.add('active');
-                }
-            }
-        }
-        
-        // Initialize
-        window.newsManager = new DynamicNewsManager();
-    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        .article__loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --bg: #0a0a0a;
+            --bg-card: #141414;
+            --bg-elevated: #1a1a1a;
+            --text: #e5e5e5;
+            --text-muted: #737373;
+            --accent: #8B5CF6;
+            --accent-hover: #A78BFA;
+            --border: rgba(255,255,255,0.08);
+            --radius: 12px;
         }
         
-        .article__error {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-            text-align: center;
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
         }
         
-        .article__delete-btn {
+        /* Header */
+        .header {
             position: fixed;
-            bottom: 100px;
-            right: 24px;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 12px 20px;
-            background: var(--bg-card);
-            border: 1px solid rgba(255, 70, 85, 0.3);
-            border-radius: 12px;
-            color: var(--accent);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            padding: 0 32px;
             z-index: 100;
         }
         
-        .article__delete-btn:hover {
-            background: rgba(255, 70, 85, 0.1);
+        .header__back {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .header__back:hover {
+            color: var(--accent);
+        }
+        
+        .header__back svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .header__logo {
+            height: 24px;
+            margin-left: 20px;
+            padding-left: 20px;
+            border-left: 1px solid var(--border);
+        }
+        
+        /* Article Layout */
+        .article {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 96px 24px 80px;
+        }
+        
+        /* Article Hero */
+        .article__hero {
+            position: relative;
+            aspect-ratio: 16/9;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 32px;
+            background: var(--bg-elevated);
+        }
+        
+        .article__hero img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .article__hero--empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .article__hero--empty svg {
+            width: 64px;
+            height: 64px;
+            color: var(--text-muted);
+            opacity: 0.3;
+        }
+        
+        /* Article Meta */
+        .article__meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .article__category {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        
+        .article__category--update {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ADE80;
+        }
+        
+        .article__category--news {
+            background: rgba(239, 68, 68, 0.15);
+            color: #F87171;
+        }
+        
+        .article__category--guide {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60A5FA;
+        }
+        
+        .article__category::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        .article__date {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        /* Article Title */
+        .article__title {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 16px;
+        }
+        
+        .article__excerpt {
+            font-size: 18px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 40px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        /* Article Content */
+        .article__content {
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        
+        .article__content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 40px 0 16px;
+        }
+        
+        .article__content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 32px 0 12px;
+        }
+        
+        .article__content p {
+            margin-bottom: 20px;
+        }
+        
+        .article__content a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        .article__content a:hover {
+            text-decoration: underline;
+        }
+        
+        .article__content ul,
+        .article__content ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+        }
+        
+        .article__content li {
+            margin-bottom: 8px;
+        }
+        
+        .article__content blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 20px;
+            margin: 24px 0;
+            font-style: italic;
+            color: var(--text-muted);
+        }
+        
+        .article__content code {
+            background: var(--bg-elevated);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .article__content pre {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 24px 0;
+        }
+        
+        .article__content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .article__content img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 24px 0;
+        }
+        
+        /* Footer CTA */
+        .article__footer {
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+        
+        .article__footer p {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+        
+        .article__footer .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--accent);
+            color: white;
+            border-radius: 8px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+        
+        .article__footer .btn:hover {
+            background: var(--accent-hover);
+        }
+        
+        /* Loading State */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            gap: 16px;
+            color: var(--text-muted);
+        }
+        
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Not Found */
+        .not-found {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+            gap: 16px;
+        }
+        
+        .not-found svg {
+            width: 64px;
+            height: 64px;
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+        
+        .not-found h1 {
+            font-size: 24px;
+        }
+        
+        .not-found p {
+            color: var(--text-muted);
+        }
+        
+        .not-found .btn {
+            margin-top: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--bg-elevated);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .not-found .btn:hover {
             border-color: var(--accent);
         }
         
-        .article__delete-btn svg {
-            width: 18px;
-            height: 18px;
+        /* Responsive */
+        @media (max-width: 640px) {
+            .header {
+                padding: 0 16px;
+            }
+            
+            .article {
+                padding: 80px 16px 60px;
+            }
+            
+            .article__title {
+                font-size: 28px;
+            }
+            
+            .article__excerpt {
+                font-size: 16px;
+            }
         }
     </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <a href="index.html" class="header__back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+            Zurück zum Hub
+        </a>
+        <img src="assets/icons/icon_rift_r.svg" alt="RIFT" class="header__logo">
+    </header>
+    
+    <!-- Loading State -->
+    <div class="article" id="loadingState">
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <span>Artikel wird geladen...</span>
+        </div>
+    </div>
+    
+    <!-- Article Content (hidden by default) -->
+    <article class="article" id="articleContent" style="display: none;">
+        <div class="article__hero" id="articleHero">
+            <img src="" alt="" id="articleImage">
+        </div>
+        
+        <div class="article__meta">
+            <span class="article__category" id="articleCategory">Update</span>
+            <span class="article__date" id="articleDate"></span>
+        </div>
+        
+        <h1 class="article__title" id="articleTitle"></h1>
+        <p class="article__excerpt" id="articleExcerpt"></p>
+        
+        <div class="article__content" id="articleBody"></div>
+        
+        <div class="article__footer">
+            <p>Fragen oder Feedback? Schreib uns auf Discord!</p>
+            <a href="https://discord.gg/rift" class="btn" target="_blank" rel="noopener">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+                Discord beitreten
+            </a>
+        </div>
+    </article>
+    
+    <!-- Not Found State -->
+    <div class="article" id="notFoundState" style="display: none;">
+        <div class="not-found">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+            <h1>Artikel nicht gefunden</h1>
+            <p>Dieser Artikel existiert nicht oder wurde gelöscht.</p>
+            <a href="index.html" class="btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+                Zurück zum Hub
+            </a>
+        </div>
+    </div>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcoId9a62tLIqIRFaFt_ADMTedTUzf3f8",
+            authDomain: "rift-app-de805.firebaseapp.com",
+            projectId: "rift-app-de805",
+            storageBucket: "rift-app-de805.firebasestorage.app",
+            messagingSenderId: "974596929896",
+            appId: "1:974596929896:web:a6542045dae21899d07edd"
+        };
+        
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        
+        // Simple Markdown Parser
+        function parseMarkdown(text) {
+            if (!text) return '';
+            
+            return text
+                // Headers
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gim, '<h2>$1</h2>')
+                // Bold & Italic
+                .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                // Links
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                // Blockquotes
+                .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+                // Lists
+                .replace(/^\* (.*$)/gim, '<li>$1</li>')
+                .replace(/^- (.*$)/gim, '<li>$1</li>')
+                .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+                // Paragraphs (double newlines)
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+        }
+        
+        // Load Article
+        async function loadArticle() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const articleId = urlParams.get('id');
+            
+            if (!articleId) {
+                showNotFound();
+                return;
+            }
+            
+            try {
+                const doc = await db.collection('hub_news').doc(articleId).get();
+                
+                if (!doc.exists || !doc.data().published) {
+                    showNotFound();
+                    return;
+                }
+                
+                const article = { id: doc.id, ...doc.data() };
+                renderArticle(article);
+            } catch (error) {
+                console.error('[News] Error loading article:', error);
+                showNotFound();
+            }
+        }
+        
+        function renderArticle(article) {
+            // Update page title
+            document.title = `${article.title} – RIFT News`;
+            
+            // Hero image
+            const heroEl = document.getElementById('articleHero');
+            const imageEl = document.getElementById('articleImage');
+            
+            if (article.imageUrl) {
+                imageEl.src = article.imageUrl;
+                imageEl.alt = article.title;
+            } else {
+                heroEl.classList.add('article__hero--empty');
+                heroEl.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                `;
+            }
+            
+            // Category
+            const categoryEl = document.getElementById('articleCategory');
+            const categoryLabels = { update: 'Update', news: 'News', guide: 'Guide' };
+            categoryEl.textContent = categoryLabels[article.category] || 'News';
+            categoryEl.className = `article__category article__category--${article.category || 'news'}`;
+            
+            // Date
+            const date = article.publishedAt?.toDate?.() || article.createdAt?.toDate?.() || new Date();
+            document.getElementById('articleDate').textContent = date.toLocaleDateString('de-DE', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            
+            // Title & Excerpt
+            document.getElementById('articleTitle').textContent = article.title;
+            document.getElementById('articleExcerpt').textContent = article.excerpt || '';
+            
+            // Content
+            const content = article.content || '';
+            document.getElementById('articleBody').innerHTML = `<p>${parseMarkdown(content)}</p>`;
+            
+            // Show article, hide loading
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('articleContent').style.display = 'block';
+        }
+        
+        function showNotFound() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('notFoundState').style.display = 'block';
+        }
+        
+        // Start
+        loadArticle();
+    </script>
 </body>
 </html>
