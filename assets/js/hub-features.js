@@ -4,7 +4,7 @@
  */
 
 // ============================================
-// 1. HERO CAROUSEL (Admin-editable via JSON)
+// 1. HERO CAROUSEL (Firebase-based)
 // ============================================
 
 class HeroCarousel {
@@ -22,17 +22,17 @@ class HeroCarousel {
         this.currentIndex = 0;
         this.autoPlayInterval = null;
         this.autoPlayDelay = 6000;
-        this.config = null;
+        this.slidesData = [];
         
         this.init();
     }
     
     async init() {
-        // Load config from JSON
-        await this.loadConfig();
+        // Load from Firebase
+        await this.loadFromFirebase();
         
-        // Build slides from config
-        if (this.config && this.config.slides) {
+        // Build slides
+        if (this.slidesData.length > 0) {
             this.buildSlides();
         }
         
@@ -40,6 +40,11 @@ class HeroCarousel {
         this.slides = this.container.querySelectorAll('.hero-carousel__slide');
         this.tabs = this.container.querySelectorAll('.hero-carousel__tab');
         this.dots = this.container.querySelectorAll('.hero-carousel__dot');
+        
+        if (this.slides.length === 0) {
+            this.container.style.display = 'none';
+            return;
+        }
         
         // Navigation buttons
         if (this.prevBtn) {
@@ -76,33 +81,41 @@ class HeroCarousel {
         this.startAutoPlay();
     }
     
-    async loadConfig() {
+    async loadFromFirebase() {
         try {
-            const response = await fetch('admin/carousel-config.json');
-            if (response.ok) {
-                this.config = await response.json();
-                if (this.config.settings?.autoplayInterval) {
-                    this.autoPlayDelay = this.config.settings.autoplayInterval;
-                }
+            // Check if Firebase is available
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                console.warn('[Carousel] Firebase not available');
+                return;
             }
+            
+            const db = firebase.firestore();
+            const snapshot = await db.collection('hub_carousel')
+                .where('active', '==', true)
+                .orderBy('order', 'asc')
+                .get();
+            
+            this.slidesData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            console.log('[Carousel] Loaded', this.slidesData.length, 'slides from Firebase');
         } catch (error) {
-            console.warn('[Carousel] Could not load config, using defaults:', error);
-            // Fallback: Use static slides if they exist
-            this.config = null;
+            console.warn('[Carousel] Could not load from Firebase:', error);
+            this.slidesData = [];
         }
     }
     
     buildSlides() {
-        if (!this.slidesContainer || !this.config?.slides) return;
+        if (!this.slidesContainer) return;
         
         // Clear existing
         this.slidesContainer.innerHTML = '';
         if (this.tabsContainer) this.tabsContainer.innerHTML = '';
         if (this.dotsContainer) this.dotsContainer.innerHTML = '';
         
-        const activeSlides = this.config.slides.filter(s => s.active !== false);
-        
-        activeSlides.forEach((slide, index) => {
+        this.slidesData.forEach((slide, index) => {
             // Build slide HTML
             const slideEl = document.createElement('div');
             slideEl.className = `hero-carousel__slide${index === 0 ? ' active' : ''}`;
@@ -113,17 +126,17 @@ class HeroCarousel {
                 `<svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>` : '';
             
             slideEl.innerHTML = `
-                <div class="hero-carousel__bg" style="background: ${slide.background};"></div>
+                <div class="hero-carousel__bg" style="background: ${slide.background || '#0d0d0d'};"></div>
                 <div class="hero-carousel__overlay"></div>
                 <div class="hero-carousel__content">
                     <span class="hero-carousel__badge ${badgeClass}">
                         ${liveIndicator}
-                        ${slide.badge}
+                        ${slide.badge || ''}
                     </span>
-                    <h2 class="hero-carousel__title">${slide.title}</h2>
-                    <p class="hero-carousel__desc">${slide.description}</p>
-                    <a href="${slide.ctaLink}" class="hero-carousel__cta">
-                        ${slide.ctaText}
+                    <h2 class="hero-carousel__title">${slide.title || ''}</h2>
+                    <p class="hero-carousel__desc">${slide.description || ''}</p>
+                    <a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">
+                        ${slide.ctaText || 'Mehr erfahren'}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </a>
                 </div>
@@ -132,13 +145,13 @@ class HeroCarousel {
             this.slidesContainer.appendChild(slideEl);
             
             // Build tab
-            if (this.tabsContainer && this.config.settings?.showTabs !== false) {
+            if (this.tabsContainer) {
                 const tabEl = document.createElement('button');
                 tabEl.className = `hero-carousel__tab${index === 0 ? ' active' : ''}`;
                 tabEl.dataset.slide = index;
                 tabEl.innerHTML = index === 0 && slide.showLiveIndicator ? 
-                    `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg> ${slide.tabLabel}` :
-                    slide.tabLabel;
+                    `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg> ${slide.tabLabel || ''}` :
+                    slide.tabLabel || '';
                 this.tabsContainer.appendChild(tabEl);
             }
             
