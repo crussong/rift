@@ -217,42 +217,42 @@ class SessionCountdown {
 
 const RPG_QUOTES = [
     {
-        text: "Es sind nicht unsere Fähigkeiten, die zeigen, wer wir wirklich sind, sondern unsere Entscheidungen.",
+        text: "„Ein wahrer Held ist nicht der, der keine Angst kennt, sondern der, der trotz seiner Angst handelt."",
+        author: "Gandalf der Graue",
+        source: "Der Herr der Ringe"
+    },
+    {
+        text: "„Es sind nicht unsere Fähigkeiten, die zeigen, wer wir wirklich sind, sondern unsere Entscheidungen."",
         author: "Albus Dumbledore",
         source: "Harry Potter"
     },
     {
-        text: "Die Würfel sind gefallen – aber das Schicksal wird von denen geschrieben, die sie werfen.",
+        text: "„Die Würfel sind gefallen – aber das Schicksal wird von denen geschrieben, die sie werfen."",
         author: "Unbekannter Spielleiter",
         source: "Pen & Paper Weisheit"
     },
     {
-        text: "Ein wahrer Held ist nicht derjenige, der keine Angst hat, sondern derjenige, der trotz seiner Angst handelt.",
-        author: "Gandalf",
-        source: "Der Herr der Ringe"
-    },
-    {
-        text: "Jeder Dungeon beginnt mit einem einzigen Schritt durch die Tür.",
+        text: "„Jeder Dungeon beginnt mit einem einzigen Schritt durch die Tür."",
         author: "Alte Abenteurerweisheit",
         source: "D&D Folklore"
     },
     {
-        text: "Die gefährlichsten Waffen eines Abenteurers sind nicht Schwert und Zauber, sondern Neugier und Freundschaft.",
+        text: "„Die gefährlichsten Waffen eines Abenteurers sind nicht Schwert und Zauber, sondern Neugier und Freundschaft."",
         author: "Elminster",
         source: "Forgotten Realms"
     },
     {
-        text: "Manchmal ist der mutigste Wurf, überhaupt zu würfeln.",
+        text: "„Manchmal ist der mutigste Wurf, überhaupt zu würfeln."",
         author: "Erfahrener Spieler",
         source: "Session 0 Philosophie"
     },
     {
-        text: "In einer Welt voller Monster braucht es mehr als Stärke – es braucht Herz.",
+        text: "„In einer Welt voller Monster braucht es mehr als Stärke – es braucht Herz."",
         author: "Geralt von Riva",
         source: "The Witcher"
     },
     {
-        text: "Die beste Geschichte ist die, die wir gemeinsam erzählen.",
+        text: "„Die beste Geschichte ist die, die wir gemeinsam erzählen."",
         author: "Matt Mercer",
         source: "Critical Role"
     }
@@ -261,12 +261,10 @@ const RPG_QUOTES = [
 class QuoteOfDay {
     constructor(container) {
         this.container = container;
-        this.textEl = container.querySelector('.quote-of-day__text');
-        this.nameEl = container.querySelector('.quote-of-day__name');
-        this.sourceEl = container.querySelector('.quote-of-day__source');
-        this.avatarEl = container.querySelector('.quote-of-day__avatar');
-        this.refreshBtn = container.querySelector('[data-action="refresh"]');
-        this.shareBtn = container.querySelector('[data-action="share"]');
+        this.textEl = container.querySelector('#quoteText') || container.querySelector('.quote-of-day__text');
+        this.authorEl = container.querySelector('#quoteAuthor') || container.querySelector('.quote-of-day__name');
+        this.sourceEl = container.querySelector('#quoteSource') || container.querySelector('.quote-of-day__source');
+        this.refreshBtn = container.querySelector('#quoteRefresh') || container.querySelector('.quote-of-day__btn');
         
         this.init();
     }
@@ -276,10 +274,6 @@ class QuoteOfDay {
         
         if (this.refreshBtn) {
             this.refreshBtn.addEventListener('click', () => this.loadRandomQuote());
-        }
-        
-        if (this.shareBtn) {
-            this.shareBtn.addEventListener('click', () => this.shareQuote());
         }
     }
     
@@ -295,36 +289,20 @@ class QuoteOfDay {
         this.displayQuote(RPG_QUOTES[randomIndex]);
         
         // Add animation
-        this.container.style.opacity = '0';
-        setTimeout(() => {
-            this.container.style.opacity = '1';
-        }, 150);
+        if (this.textEl) {
+            this.textEl.style.opacity = '0';
+            this.textEl.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                this.textEl.style.opacity = '1';
+                this.textEl.style.transform = 'translateY(0)';
+            }, 150);
+        }
     }
     
     displayQuote(quote) {
-        if (this.textEl) this.textEl.textContent = `„${quote.text}"`;
-        if (this.nameEl) this.nameEl.textContent = quote.author;
+        if (this.textEl) this.textEl.textContent = quote.text;
+        if (this.authorEl) this.authorEl.textContent = quote.author;
         if (this.sourceEl) this.sourceEl.textContent = quote.source;
-        if (this.avatarEl) {
-            this.avatarEl.textContent = quote.author.charAt(0).toUpperCase();
-        }
-    }
-    
-    shareQuote() {
-        const quote = RPG_QUOTES[this.getDayOfYear() % RPG_QUOTES.length];
-        const text = `„${quote.text}" — ${quote.author} (${quote.source})`;
-        
-        if (navigator.share) {
-            navigator.share({
-                title: 'RIFT - Zitat des Tages',
-                text: text,
-                url: window.location.href
-            });
-        } else {
-            navigator.clipboard.writeText(text).then(() => {
-                this.showToast('Zitat kopiert!');
-            });
-        }
     }
     
     getDayOfYear() {
@@ -333,20 +311,6 @@ class QuoteOfDay {
         const diff = now - start;
         const oneDay = 1000 * 60 * 60 * 24;
         return Math.floor(diff / oneDay);
-    }
-    
-    showToast(message) {
-        // Simple toast notification
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.classList.add('show'), 10);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 2000);
     }
 }
 
@@ -543,18 +507,18 @@ const SAMPLE_ACTIVITIES = [
 
 function initHubFeatures() {
     // Hero Carousel
-    const carouselEl = document.querySelector('.hero-carousel');
+    const carouselEl = document.querySelector('#heroCarousel') || document.querySelector('.hero-carousel');
     if (carouselEl) {
         window.heroCarousel = new HeroCarousel(carouselEl);
     }
     
     // Quote of the Day
-    const quoteEl = document.querySelector('.quote-of-day');
+    const quoteEl = document.querySelector('#quoteOfDay') || document.querySelector('.quote-of-day');
     if (quoteEl) {
         window.quoteOfDay = new QuoteOfDay(quoteEl);
     }
     
-    // Session Countdown
+    // Session Countdown (if present)
     const countdownEl = document.querySelector('.session-countdown');
     if (countdownEl) {
         // Example: Next session in 2 days at 20:00
@@ -565,17 +529,19 @@ function initHubFeatures() {
         window.sessionCountdown = new SessionCountdown(countdownEl, nextSession);
     }
     
-    // Activity Feed
+    // Activity Feed (if present)
     const activityEl = document.querySelector('.activity-feed');
     if (activityEl) {
         window.activityFeed = new ActivityFeed(activityEl);
         
-        // Load sample data
-        SAMPLE_ACTIVITIES.forEach((activity, index) => {
-            setTimeout(() => {
-                window.activityFeed.addActivity(activity);
-            }, index * 500);
-        });
+        // Load sample data if available
+        if (typeof SAMPLE_ACTIVITIES !== 'undefined') {
+            SAMPLE_ACTIVITIES.forEach((activity, index) => {
+                setTimeout(() => {
+                    window.activityFeed.addActivity(activity);
+                }, index * 500);
+            });
+        }
     }
 }
 
