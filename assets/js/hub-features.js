@@ -4,26 +4,43 @@
  */
 
 // ============================================
-// 1. HERO CAROUSEL
+// 1. HERO CAROUSEL (Admin-editable via JSON)
 // ============================================
 
 class HeroCarousel {
     constructor(container) {
         this.container = container;
-        this.slides = container.querySelectorAll('.hero-carousel__slide');
-        this.tabs = container.querySelectorAll('.hero-carousel__tab');
-        this.dots = container.querySelectorAll('.hero-carousel__dot');
+        this.slidesContainer = container.querySelector('#carouselSlides') || container.querySelector('.hero-carousel__slides');
+        this.tabsContainer = container.querySelector('#carouselTabs') || container.querySelector('.hero-carousel__tabs');
+        this.dotsContainer = container.querySelector('#carouselDots') || container.querySelector('.hero-carousel__dots');
         this.prevBtn = container.querySelector('.hero-carousel__nav--prev');
         this.nextBtn = container.querySelector('.hero-carousel__nav--next');
         
+        this.slides = [];
+        this.tabs = [];
+        this.dots = [];
         this.currentIndex = 0;
         this.autoPlayInterval = null;
-        this.autoPlayDelay = 6000; // 6 seconds per slide
+        this.autoPlayDelay = 6000;
+        this.config = null;
         
         this.init();
     }
     
-    init() {
+    async init() {
+        // Load config from JSON
+        await this.loadConfig();
+        
+        // Build slides from config
+        if (this.config && this.config.slides) {
+            this.buildSlides();
+        }
+        
+        // Re-query elements after building
+        this.slides = this.container.querySelectorAll('.hero-carousel__slide');
+        this.tabs = this.container.querySelectorAll('.hero-carousel__tab');
+        this.dots = this.container.querySelectorAll('.hero-carousel__dot');
+        
         // Navigation buttons
         if (this.prevBtn) {
             this.prevBtn.addEventListener('click', () => this.prev());
@@ -59,6 +76,82 @@ class HeroCarousel {
         this.startAutoPlay();
     }
     
+    async loadConfig() {
+        try {
+            const response = await fetch('admin/carousel-config.json');
+            if (response.ok) {
+                this.config = await response.json();
+                if (this.config.settings?.autoplayInterval) {
+                    this.autoPlayDelay = this.config.settings.autoplayInterval;
+                }
+            }
+        } catch (error) {
+            console.warn('[Carousel] Could not load config, using defaults:', error);
+            // Fallback: Use static slides if they exist
+            this.config = null;
+        }
+    }
+    
+    buildSlides() {
+        if (!this.slidesContainer || !this.config?.slides) return;
+        
+        // Clear existing
+        this.slidesContainer.innerHTML = '';
+        if (this.tabsContainer) this.tabsContainer.innerHTML = '';
+        if (this.dotsContainer) this.dotsContainer.innerHTML = '';
+        
+        const activeSlides = this.config.slides.filter(s => s.active !== false);
+        
+        activeSlides.forEach((slide, index) => {
+            // Build slide HTML
+            const slideEl = document.createElement('div');
+            slideEl.className = `hero-carousel__slide${index === 0 ? ' active' : ''}`;
+            slideEl.dataset.slide = slide.id;
+            
+            const badgeClass = slide.badgeType ? `hero-carousel__badge--${slide.badgeType}` : '';
+            const liveIndicator = slide.showLiveIndicator ? 
+                `<svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>` : '';
+            
+            slideEl.innerHTML = `
+                <div class="hero-carousel__bg" style="background: ${slide.background};"></div>
+                <div class="hero-carousel__overlay"></div>
+                <div class="hero-carousel__content">
+                    <span class="hero-carousel__badge ${badgeClass}">
+                        ${liveIndicator}
+                        ${slide.badge}
+                    </span>
+                    <h2 class="hero-carousel__title">${slide.title}</h2>
+                    <p class="hero-carousel__desc">${slide.description}</p>
+                    <a href="${slide.ctaLink}" class="hero-carousel__cta">
+                        ${slide.ctaText}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+            `;
+            
+            this.slidesContainer.appendChild(slideEl);
+            
+            // Build tab
+            if (this.tabsContainer && this.config.settings?.showTabs !== false) {
+                const tabEl = document.createElement('button');
+                tabEl.className = `hero-carousel__tab${index === 0 ? ' active' : ''}`;
+                tabEl.dataset.slide = index;
+                tabEl.innerHTML = index === 0 && slide.showLiveIndicator ? 
+                    `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg> ${slide.tabLabel}` :
+                    slide.tabLabel;
+                this.tabsContainer.appendChild(tabEl);
+            }
+            
+            // Build dot
+            if (this.dotsContainer) {
+                const dotEl = document.createElement('button');
+                dotEl.className = `hero-carousel__dot${index === 0 ? ' active' : ''}`;
+                dotEl.dataset.slide = index;
+                this.dotsContainer.appendChild(dotEl);
+            }
+        });
+    }
+    
     goTo(index) {
         // Update slides
         this.slides.forEach((slide, i) => {
@@ -82,11 +175,13 @@ class HeroCarousel {
     }
     
     next() {
+        if (this.slides.length === 0) return;
         const nextIndex = (this.currentIndex + 1) % this.slides.length;
         this.goTo(nextIndex);
     }
     
     prev() {
+        if (this.slides.length === 0) return;
         const prevIndex = (this.currentIndex - 1 + this.slides.length) % this.slides.length;
         this.goTo(prevIndex);
     }
