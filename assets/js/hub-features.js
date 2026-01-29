@@ -85,24 +85,29 @@ class HeroCarousel {
         try {
             // Check if Firebase is available
             if (typeof firebase === 'undefined' || !firebase.firestore) {
-                console.warn('[Carousel] Firebase not available');
+                console.warn('[Carousel] Firebase not available yet');
                 return;
             }
             
+            console.log('[Carousel] Loading slides from Firebase...');
             const db = firebase.firestore();
-            const snapshot = await db.collection('hub_slides')
-                .where('active', '==', true)
-                .orderBy('order', 'asc')
-                .get();
+            const snapshot = await db.collection('hub_slides').get();
             
-            this.slidesData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            console.log('[Carousel] Raw docs:', snapshot.docs.length);
             
-            console.log('[Carousel] Loaded', this.slidesData.length, 'slides from Firebase');
+            // Filter and sort in code (no compound index needed)
+            this.slidesData = snapshot.docs
+                .map(doc => {
+                    const data = doc.data();
+                    console.log('[Carousel] Slide:', doc.id, data.title, 'active:', data.active);
+                    return { id: doc.id, ...data };
+                })
+                .filter(slide => slide.active !== false)
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            console.log('[Carousel] Active slides:', this.slidesData.length);
         } catch (error) {
-            console.warn('[Carousel] Could not load from Firebase:', error);
+            console.error('[Carousel] Error loading from Firebase:', error);
             this.slidesData = [];
         }
     }
@@ -614,13 +619,7 @@ const SAMPLE_ACTIVITIES = [
 // ============================================
 
 function initHubFeatures() {
-    // Hero Carousel
-    const carouselEl = document.querySelector('#heroCarousel') || document.querySelector('.hero-carousel');
-    if (carouselEl) {
-        window.heroCarousel = new HeroCarousel(carouselEl);
-    }
-    
-    // Quote of the Day
+    // Quote of the Day (doesn't need Firebase)
     const quoteEl = document.querySelector('#quoteOfDay') || document.querySelector('.quote-of-day');
     if (quoteEl) {
         window.quoteOfDay = new QuoteOfDay(quoteEl);
@@ -629,11 +628,9 @@ function initHubFeatures() {
     // Session Countdown (if present)
     const countdownEl = document.querySelector('.session-countdown');
     if (countdownEl) {
-        // Example: Next session in 2 days at 20:00
         const nextSession = new Date();
         nextSession.setDate(nextSession.getDate() + 2);
         nextSession.setHours(20, 0, 0, 0);
-        
         window.sessionCountdown = new SessionCountdown(countdownEl, nextSession);
     }
     
@@ -641,8 +638,6 @@ function initHubFeatures() {
     const activityEl = document.querySelector('.activity-feed');
     if (activityEl) {
         window.activityFeed = new ActivityFeed(activityEl);
-        
-        // Load sample data if available
         if (typeof SAMPLE_ACTIVITIES !== 'undefined') {
             SAMPLE_ACTIVITIES.forEach((activity, index) => {
                 setTimeout(() => {
@@ -650,6 +645,37 @@ function initHubFeatures() {
                 }, index * 500);
             });
         }
+    }
+    
+    // Hero Carousel - wait for Firebase
+    initCarouselWhenReady();
+}
+
+// Initialize carousel when Firebase is ready
+function initCarouselWhenReady() {
+    const carouselEl = document.querySelector('#heroCarousel') || document.querySelector('.hero-carousel');
+    if (!carouselEl) return;
+    
+    // If Firebase is available and auth is ready, init immediately
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        // Wait for auth state to be determined
+        const unsubscribe = firebase.auth().onAuthStateChanged(() => {
+            unsubscribe();
+            window.heroCarousel = new HeroCarousel(carouselEl);
+        });
+        
+        // Timeout fallback - init anyway after 2 seconds
+        setTimeout(() => {
+            if (!window.heroCarousel) {
+                console.log('[Carousel] Timeout - initializing anyway');
+                window.heroCarousel = new HeroCarousel(carouselEl);
+            }
+        }, 2000);
+    } else {
+        // No Firebase - init with delay to allow scripts to load
+        setTimeout(() => {
+            window.heroCarousel = new HeroCarousel(carouselEl);
+        }, 500);
     }
 }
 
