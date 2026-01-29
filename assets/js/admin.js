@@ -14,7 +14,7 @@ class AdminSystem {
         // Admin UIDs - add your Firebase UID here after first login
         // Find your UID in Firebase Console > Authentication > Users
         this.ADMIN_UIDS = [
-            'geBL1R192jUiPrFK1oJ5u2Z25hM2'  // Mike's UID from console
+            'geBL1RI92jUiPrFK1oJ5u2Z25hM2'  // Mike's UID from console
         ];
         
         // Admin emails (alternative check)
