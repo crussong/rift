@@ -90,7 +90,7 @@ class HeroCarousel {
             }
             
             const db = firebase.firestore();
-            const snapshot = await db.collection('hub_carousel')
+            const snapshot = await db.collection('hub_slides')
                 .where('active', '==', true)
                 .orderBy('order', 'asc')
                 .get();
