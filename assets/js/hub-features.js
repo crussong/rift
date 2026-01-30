@@ -125,13 +125,48 @@ class HeroCarousel {
             const slideEl = document.createElement('div');
             slideEl.className = `hero-carousel__slide${index === 0 ? ' active' : ''}`;
             slideEl.dataset.slide = slide.id;
+            slideEl.dataset.autoplay = slide.autoplay || 6;
             
             const badgeClass = slide.badgeType ? `hero-carousel__badge--${slide.badgeType}` : '';
             const liveIndicator = slide.showLiveIndicator ? 
                 `<svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>` : '';
             
+            // Background - CSS, Image or Video
+            let bgHtml = '';
+            if (slide.videoUrl) {
+                const videoSrc = this.parseVideoUrl(slide.videoUrl);
+                if (videoSrc.type === 'youtube') {
+                    bgHtml = `<iframe class="hero-carousel__video" src="${videoSrc.url}" frameborder="0" allow="autoplay; muted" allowfullscreen></iframe>`;
+                } else {
+                    bgHtml = `<video class="hero-carousel__video" autoplay muted loop playsinline><source src="${videoSrc.url}" type="video/mp4"></video>`;
+                }
+            } else if (slide.bgImageUrl) {
+                bgHtml = `<div class="hero-carousel__bg" style="background: url('${slide.bgImageUrl}') center/cover;"></div>`;
+            } else {
+                bgHtml = `<div class="hero-carousel__bg" style="background: ${slide.background || '#0d0d0d'};"></div>`;
+            }
+            
+            // Countdown
+            let countdownHtml = '';
+            if (slide.countdownDate) {
+                const targetDate = new Date(slide.countdownDate).getTime();
+                if (targetDate > Date.now()) {
+                    countdownHtml = `
+                        <div class="hero-carousel__countdown" data-target="${targetDate}">
+                            <span class="hero-carousel__countdown-label">${slide.countdownLabel || 'Startet in'}</span>
+                            <div class="hero-carousel__countdown-timer">
+                                <div class="hero-carousel__countdown-unit"><span class="days">0</span><small>Tage</small></div>
+                                <div class="hero-carousel__countdown-unit"><span class="hours">0</span><small>Std</small></div>
+                                <div class="hero-carousel__countdown-unit"><span class="minutes">0</span><small>Min</small></div>
+                                <div class="hero-carousel__countdown-unit"><span class="seconds">0</span><small>Sek</small></div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
             slideEl.innerHTML = `
-                <div class="hero-carousel__bg" style="background: ${slide.background || '#0d0d0d'};"></div>
+                ${bgHtml}
                 <div class="hero-carousel__overlay"></div>
                 <div class="hero-carousel__content">
                     <span class="hero-carousel__badge ${badgeClass}">
@@ -140,6 +175,7 @@ class HeroCarousel {
                     </span>
                     <h2 class="hero-carousel__title">${slide.title || ''}</h2>
                     <p class="hero-carousel__desc">${slide.description || ''}</p>
+                    ${countdownHtml}
                     <a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">
                         ${slide.ctaText || 'Mehr erfahren'}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -168,6 +204,58 @@ class HeroCarousel {
                 this.dotsContainer.appendChild(dotEl);
             }
         });
+        
+        // Start countdown timers
+        this.startCountdowns();
+    }
+    
+    parseVideoUrl(url) {
+        // YouTube
+        const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+        if (ytMatch) {
+            return {
+                type: 'youtube',
+                url: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0`
+            };
+        }
+        // Direct video URL
+        return { type: 'video', url: url };
+    }
+    
+    startCountdowns() {
+        const countdowns = this.container.querySelectorAll('.hero-carousel__countdown');
+        if (countdowns.length === 0) return;
+        
+        const updateCountdowns = () => {
+            countdowns.forEach(el => {
+                const target = parseInt(el.dataset.target);
+                const now = Date.now();
+                const diff = target - now;
+                
+                if (diff <= 0) {
+                    el.innerHTML = '<span class="hero-carousel__countdown-label">Jetzt live!</span>';
+                    return;
+                }
+                
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                const daysEl = el.querySelector('.days');
+                const hoursEl = el.querySelector('.hours');
+                const minutesEl = el.querySelector('.minutes');
+                const secondsEl = el.querySelector('.seconds');
+                
+                if (daysEl) daysEl.textContent = days;
+                if (hoursEl) hoursEl.textContent = hours;
+                if (minutesEl) minutesEl.textContent = minutes;
+                if (secondsEl) secondsEl.textContent = seconds;
+            });
+        };
+        
+        updateCountdowns();
+        setInterval(updateCountdowns, 1000);
     }
     
     goTo(index) {
@@ -206,12 +294,21 @@ class HeroCarousel {
     
     startAutoPlay() {
         if (this.autoPlayInterval) return;
-        this.autoPlayInterval = setInterval(() => this.next(), this.autoPlayDelay);
+        
+        // Get current slide's autoplay time
+        const currentSlide = this.slides[this.currentIndex];
+        const delay = currentSlide ? (parseInt(currentSlide.dataset.autoplay) || 6) * 1000 : this.autoPlayDelay;
+        
+        this.autoPlayInterval = setTimeout(() => {
+            this.next();
+            this.autoPlayInterval = null;
+            this.startAutoPlay();
+        }, delay);
     }
     
     stopAutoPlay() {
         if (this.autoPlayInterval) {
-            clearInterval(this.autoPlayInterval);
+            clearTimeout(this.autoPlayInterval);
             this.autoPlayInterval = null;
         }
     }
