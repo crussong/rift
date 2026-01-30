@@ -712,6 +712,154 @@ const SAMPLE_ACTIVITIES = [
 ];
 
 // ============================================
+// 5. FEATURE SHOWCASE (Firebase-based)
+// ============================================
+
+class FeatureShowcase {
+    constructor(container) {
+        this.container = container;
+        this.contentContainer = container.querySelector('#featureContent') || container.querySelector('.feature-content');
+        this.featuresData = [];
+        this.currentIndex = 0;
+        
+        this.init();
+    }
+    
+    async init() {
+        // Load from Firebase
+        await this.loadFromFirebase();
+        
+        // Build features
+        if (this.featuresData.length > 0) {
+            this.buildFeatures();
+            this.bindEvents();
+        }
+    }
+    
+    async loadFromFirebase() {
+        try {
+            // Check if Firebase is available
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                console.warn('[FeatureShowcase] Firebase not available');
+                return;
+            }
+            
+            console.log('[FeatureShowcase] Loading features from Firebase...');
+            const db = firebase.firestore();
+            const snapshot = await db.collection('hub_features').get();
+            
+            // Filter and sort
+            this.featuresData = snapshot.docs
+                .map(doc => {
+                    const data = doc.data();
+                    return { id: doc.id, ...data };
+                })
+                .filter(feature => feature.active !== false)
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            console.log('[FeatureShowcase] Loaded', this.featuresData.length, 'features');
+        } catch (error) {
+            console.error('[FeatureShowcase] Error loading from Firebase:', error);
+            this.featuresData = [];
+        }
+    }
+    
+    buildFeatures() {
+        if (!this.contentContainer) return;
+        
+        // Clear existing
+        this.contentContainer.innerHTML = '';
+        
+        this.featuresData.forEach((feature, index) => {
+            const panel = document.createElement('div');
+            panel.className = `feature-panel${index === 0 ? ' active' : ''}`;
+            panel.dataset.panel = feature.id;
+            
+            // Build highlights HTML
+            const highlightsHtml = (feature.highlights || [])
+                .map(h => `<li>${h}</li>`)
+                .join('');
+            
+            // Build tabs HTML (same in each panel for now)
+            const tabsHtml = this.featuresData
+                .map((f, i) => `<button class="feature-tab${i === index ? ' active' : ''}" data-feature="${f.id}">${f.tabLabel || f.id}</button>`)
+                .join('');
+            
+            // Image or placeholder
+            let imageHtml = '';
+            if (feature.imageUrl) {
+                imageHtml = `<img src="${feature.imageUrl}" alt="${feature.title}" class="feature-panel__img">`;
+            } else {
+                imageHtml = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                `;
+            }
+            
+            panel.innerHTML = `
+                <div class="feature-panel__inner">
+                    <div class="feature-panel__image ${feature.imageUrl ? '' : 'feature-panel__image--placeholder'}">
+                        ${imageHtml}
+                    </div>
+                    <div class="feature-panel__text">
+                        <nav class="feature-tabs">
+                            ${tabsHtml}
+                        </nav>
+                        <h3 class="feature-panel__title">${feature.title || ''}</h3>
+                        <p class="feature-panel__desc">${feature.description || ''}</p>
+                        <ul class="feature-panel__list">
+                            ${highlightsHtml}
+                        </ul>
+                        <a href="${feature.ctaLink || '#'}" class="feature-panel__cta">
+                            ${feature.ctaText || 'Mehr erfahren'}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            this.contentContainer.appendChild(panel);
+        });
+    }
+    
+    bindEvents() {
+        // Tab clicks
+        this.container.addEventListener('click', (e) => {
+            const tab = e.target.closest('.feature-tab');
+            if (!tab) return;
+            
+            const featureId = tab.dataset.feature;
+            this.goTo(featureId);
+        });
+    }
+    
+    goTo(featureId) {
+        // Find index
+        const index = this.featuresData.findIndex(f => f.id === featureId);
+        if (index === -1) return;
+        
+        this.currentIndex = index;
+        
+        // Update panels
+        const panels = this.container.querySelectorAll('.feature-panel');
+        panels.forEach((panel, i) => {
+            panel.classList.toggle('active', i === index);
+        });
+        
+        // Update all tabs in all panels
+        const tabs = this.container.querySelectorAll('.feature-tab');
+        tabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.feature === featureId);
+        });
+    }
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -744,8 +892,9 @@ function initHubFeatures() {
         }
     }
     
-    // Hero Carousel - wait for Firebase
+    // Hero Carousel & Feature Showcase - wait for Firebase
     initCarouselWhenReady();
+    initFeatureShowcaseWhenReady();
 }
 
 // Initialize carousel when Firebase is ready
@@ -776,6 +925,32 @@ function initCarouselWhenReady() {
     }
 }
 
+// Initialize Feature Showcase when Firebase is ready
+function initFeatureShowcaseWhenReady() {
+    const showcaseEl = document.querySelector('#featureShowcase') || document.querySelector('.feature-showcase');
+    if (!showcaseEl) return;
+    
+    // If Firebase is available and auth is ready, init immediately
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        const unsubscribe = firebase.auth().onAuthStateChanged(() => {
+            unsubscribe();
+            window.featureShowcase = new FeatureShowcase(showcaseEl);
+        });
+        
+        // Timeout fallback
+        setTimeout(() => {
+            if (!window.featureShowcase) {
+                console.log('[FeatureShowcase] Timeout - initializing anyway');
+                window.featureShowcase = new FeatureShowcase(showcaseEl);
+            }
+        }, 2000);
+    } else {
+        setTimeout(() => {
+            window.featureShowcase = new FeatureShowcase(showcaseEl);
+        }, 500);
+    }
+}
+
 // Auto-init when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initHubFeatures);
@@ -788,3 +963,4 @@ window.HeroCarousel = HeroCarousel;
 window.SessionCountdown = SessionCountdown;
 window.QuoteOfDay = QuoteOfDay;
 window.ActivityFeed = ActivityFeed;
+window.FeatureShowcase = FeatureShowcase;
