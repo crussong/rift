@@ -772,23 +772,64 @@ class FeatureShowcase {
         
         this.featuresData.forEach((feature, index) => {
             const panel = document.createElement('div');
-            panel.className = `feature-panel${index === 0 ? ' active' : ''}`;
+            panel.className = `feature-panel${index === 0 ? ' active' : ''}${feature.highlight ? ' feature-panel--highlight' : ''}`;
             panel.dataset.panel = feature.id;
+            
+            // Layout class
+            if (feature.layout === 'image-right') {
+                panel.classList.add('feature-panel--reverse');
+            }
             
             // Build highlights HTML
             const highlightsHtml = (feature.highlights || [])
                 .map(h => `<li>${h}</li>`)
                 .join('');
             
-            // Build tabs HTML (same in each panel for now)
+            // Build tabs HTML with optional badges
             const tabsHtml = this.featuresData
-                .map((f, i) => `<button class="feature-tab${i === index ? ' active' : ''}" data-feature="${f.id}">${f.tabLabel || f.id}</button>`)
+                .map((f, i) => {
+                    let badgeHtml = '';
+                    if (f.badgeText) {
+                        const badgeColors = {
+                            'red': '#EF4444',
+                            'green': '#22C55E',
+                            'purple': '#8B5CF6',
+                            'orange': '#F59E0B',
+                            'blue': '#3B82F6'
+                        };
+                        const bgColor = badgeColors[f.badgeColor] || '#6B7280';
+                        badgeHtml = `<span class="feature-tab__badge" style="background: ${bgColor}">${f.badgeText}</span>`;
+                    }
+                    return `<button class="feature-tab${i === index ? ' active' : ''}" data-feature="${f.id}">${f.tabLabel || f.id}${badgeHtml}</button>`;
+                })
                 .join('');
             
-            // Image or placeholder
+            // Image, Icon or placeholder
             let imageHtml = '';
             if (feature.imageUrl) {
                 imageHtml = `<img src="${feature.imageUrl}" alt="${feature.title}" class="feature-panel__img">`;
+            } else if (feature.icon) {
+                const icons = {
+                    'user': '👤',
+                    'dice': '🎲',
+                    'map': '🗺️',
+                    'chat': '💬',
+                    'book': '📖',
+                    'sword': '⚔️',
+                    'magic': '✨',
+                    'shield': '🛡️',
+                    'scroll': '📜',
+                    'crown': '👑'
+                };
+                const iconBgStyles = {
+                    'gradient-red': 'linear-gradient(135deg, #FF4655 0%, #8B5CF6 100%)',
+                    'gradient-purple': 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
+                    'gradient-blue': 'linear-gradient(135deg, #3B82F6 0%, #22C55E 100%)',
+                    'gradient-green': 'linear-gradient(135deg, #22C55E 0%, #F59E0B 100%)',
+                    'solid-dark': 'rgba(255,255,255,0.05)'
+                };
+                const bgStyle = feature.iconBg ? iconBgStyles[feature.iconBg] || '' : '';
+                imageHtml = `<div class="feature-panel__icon" style="${bgStyle ? 'background: ' + bgStyle : ''}">${icons[feature.icon] || '📦'}</div>`;
             } else {
                 imageHtml = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -799,21 +840,38 @@ class FeatureShowcase {
                 `;
             }
             
+            // Accent color for CTA button
+            const accentStyle = feature.accentColor ? `style="background: ${feature.accentColor}"` : '';
+            
+            // Badge for title
+            let titleBadge = '';
+            if (feature.badgeText) {
+                const badgeColors = {
+                    'red': '#EF4444',
+                    'green': '#22C55E',
+                    'purple': '#8B5CF6',
+                    'orange': '#F59E0B',
+                    'blue': '#3B82F6'
+                };
+                const bgColor = badgeColors[feature.badgeColor] || '#6B7280';
+                titleBadge = `<span class="feature-panel__badge" style="background: ${bgColor}">${feature.badgeText}</span>`;
+            }
+            
             panel.innerHTML = `
                 <div class="feature-panel__inner">
-                    <div class="feature-panel__image ${feature.imageUrl ? '' : 'feature-panel__image--placeholder'}">
+                    <div class="feature-panel__image ${feature.imageUrl ? '' : (feature.icon ? 'feature-panel__image--icon' : 'feature-panel__image--placeholder')}">
                         ${imageHtml}
                     </div>
                     <div class="feature-panel__text">
                         <nav class="feature-tabs">
                             ${tabsHtml}
                         </nav>
-                        <h3 class="feature-panel__title">${feature.title || ''}</h3>
+                        <h3 class="feature-panel__title">${feature.title || ''}${titleBadge}</h3>
                         <p class="feature-panel__desc">${feature.description || ''}</p>
                         <ul class="feature-panel__list">
                             ${highlightsHtml}
                         </ul>
-                        <a href="${feature.ctaLink || '#'}" class="feature-panel__cta">
+                        <a href="${feature.ctaLink || '#'}" class="feature-panel__cta" ${accentStyle}>
                             ${feature.ctaText || 'Mehr erfahren'}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
