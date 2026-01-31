@@ -45,7 +45,7 @@
             
             <!-- Search -->
             <div class="topnav__search" id="searchContainer">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.031 16.6168L22.3137 20.8995L20.8995 22.3137L16.6168 18.031C15.0769 19.263 13.124 20 11 20C6.032 20 2 15.968 2 11C2 6.032 6.032 2 11 2C15.968 2 20 6.032 20 11C20 13.124 19.263 15.0769 18.031 16.6168ZM16.0247 15.8748C17.2475 14.6146 18 12.8956 18 11C18 7.1325 14.8675 4 11 4C7.1325 4 4 7.1325 4 11C4 14.8675 7.1325 18 11 18C12.8956 18 14.6146 17.2475 15.8748 16.0247L16.0247 15.8748Z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 <input type="text" placeholder="Suchen..." id="searchInput">
                 <div class="topnav__search-dropdown" id="search-dropdown"></div>
             </div>
@@ -2611,14 +2611,20 @@
     
     <!-- TopNav & MegaNav Interactivity -->
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    (function() {
+        'use strict';
+        
         // ═══════════════════════════════════════════
-        // DROPDOWN TOGGLES
+        // DROPDOWN TOGGLES - TopNav
         // ═══════════════════════════════════════════
-        document.querySelectorAll('.topnav__dropdown-trigger').forEach(trigger => {
-            trigger.addEventListener('click', (e) => {
+        const triggers = document.querySelectorAll('.topnav__dropdown-trigger');
+        console.log('[TopNav] Found', triggers.length, 'dropdown triggers');
+        
+        triggers.forEach(trigger => {
+            trigger.style.cursor = 'pointer';
+            trigger.addEventListener('click', function(e) {
                 e.stopPropagation();
-                const wasOpen = trigger.classList.contains('open');
+                const wasOpen = this.classList.contains('open');
                 
                 // Alle anderen schließen
                 document.querySelectorAll('.topnav__dropdown-trigger.open').forEach(t => {
@@ -2627,13 +2633,14 @@
                 
                 // Diesen togglen
                 if (!wasOpen) {
-                    trigger.classList.add('open');
+                    this.classList.add('open');
+                    console.log('[TopNav] Opened dropdown');
                 }
             });
         });
         
         // Click außerhalb schließt Dropdowns
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', function(e) {
             if (!e.target.closest('.topnav__dropdown-trigger')) {
                 document.querySelectorAll('.topnav__dropdown-trigger.open').forEach(t => {
                     t.classList.remove('open');
@@ -2649,183 +2656,193 @@
         // ═══════════════════════════════════════════
         // MEGA NAV DROPDOWNS
         // ═══════════════════════════════════════════
-        document.querySelectorAll('.meganav__item:not(.meganav__item--link)').forEach(item => {
-            item.addEventListener('click', (e) => {
-                if (e.target.closest('a')) return; // Link-Clicks durchlassen
+        const megaItems = document.querySelectorAll('.meganav__item:not(.meganav__item--link)');
+        console.log('[TopNav] Found', megaItems.length, 'mega nav items');
+        
+        megaItems.forEach(item => {
+            item.style.cursor = 'pointer';
+            
+            item.addEventListener('click', function(e) {
+                if (e.target.closest('a')) return;
                 
                 e.stopPropagation();
-                const wasOpen = item.classList.contains('open');
+                const wasOpen = this.classList.contains('open');
                 
-                // Alle anderen schließen
                 document.querySelectorAll('.meganav__item.open').forEach(i => {
                     i.classList.remove('open');
                 });
                 
-                // Diesen togglen
                 if (!wasOpen) {
-                    item.classList.add('open');
+                    this.classList.add('open');
+                    console.log('[TopNav] Opened mega dropdown');
                 }
             });
             
-            // Hover-Verhalten für Desktop
-            item.addEventListener('mouseenter', () => {
+            // Hover für Desktop
+            item.addEventListener('mouseenter', function() {
                 if (window.innerWidth > 768) {
                     document.querySelectorAll('.meganav__item.open').forEach(i => {
                         i.classList.remove('open');
                     });
-                    item.classList.add('open');
+                    this.classList.add('open');
                 }
             });
         });
         
         // MegaNav schließen wenn Maus verlässt
-        document.querySelector('.meganav')?.addEventListener('mouseleave', () => {
-            if (window.innerWidth > 768) {
-                document.querySelectorAll('.meganav__item.open').forEach(i => {
-                    i.classList.remove('open');
-                });
-            }
-        });
-        
-        // ═══════════════════════════════════════════
-        // USER DATA RENDERING
-        // ═══════════════════════════════════════════
-        const renderUserData = (user) => {
-            if (!user) return;
-            
-            const displayName = user.displayName || user.email?.split('@')[0] || 'Spieler';
-            const initial = displayName.charAt(0).toUpperCase();
-            const color = user.color || '#8b5cf6';
-            
-            // TopNav User
-            const userAvatar = document.getElementById('userAvatar');
-            const userName = document.getElementById('userName');
-            if (userAvatar) {
-                userAvatar.style.background = color;
-                userAvatar.textContent = initial;
-            }
-            if (userName) userName.textContent = displayName;
-            
-            // Dropdown User
-            const userAvatarLarge = document.getElementById('userAvatarLarge');
-            const userNameLarge = document.getElementById('userNameLarge');
-            const userEmail = document.getElementById('userEmail');
-            if (userAvatarLarge) {
-                userAvatarLarge.style.background = color;
-                userAvatarLarge.textContent = initial;
-            }
-            if (userNameLarge) userNameLarge.textContent = displayName;
-            if (userEmail) userEmail.textContent = user.email || '';
-            
-            // Logout Button
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.onclick = async (e) => {
-                    e.preventDefault();
-                    if (typeof firebase !== 'undefined' && firebase.auth) {
-                        await firebase.auth().signOut();
-                        location.href = 'login.html';
-                    }
-                };
-            }
-        };
-        
-        // ═══════════════════════════════════════════
-        // ROOM CODE RENDERING
-        // ═══════════════════════════════════════════
-        const renderRoomCode = (code) => {
-            if (!code) {
-                document.getElementById('roomTrigger')?.style.setProperty('display', 'none');
-                return;
-            }
-            
-            document.getElementById('roomTrigger')?.style.removeProperty('display');
-            
-            // Format: ABC-DEF
-            const formatted = code.length === 6 
-                ? `${code.substring(0, 3)}-${code.substring(3)}`.toUpperCase()
-                : code.toUpperCase();
-            
-            const codeDisplay = document.getElementById('roomCodeDisplay');
-            const codeLarge = document.getElementById('roomCodeLarge');
-            if (codeDisplay) codeDisplay.textContent = formatted;
-            if (codeLarge) codeLarge.textContent = formatted;
-        };
-        
-        // ═══════════════════════════════════════════
-        // FIREBASE AUTH LISTENER
-        // ═══════════════════════════════════════════
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().onAuthStateChanged(async (user) => {
-                if (user) {
-                    // Hole zusätzliche User-Daten aus Firestore
-                    try {
-                        const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
-                        const userData = userDoc.exists ? userDoc.data() : {};
-                        renderUserData({
-                            ...user,
-                            displayName: userData.displayName || user.displayName,
-                            color: userData.color
-                        });
-                    } catch (e) {
-                        renderUserData(user);
-                    }
-                } else {
-                    // Nicht eingeloggt
-                    document.getElementById('userName')?.textContent = 'Anmelden';
-                    document.getElementById('userNameLarge')?.textContent = 'Gast';
-                    document.getElementById('userEmail')?.textContent = 'Nicht angemeldet';
+        const meganav = document.querySelector('.meganav');
+        if (meganav) {
+            meganav.addEventListener('mouseleave', function() {
+                if (window.innerWidth > 768) {
+                    document.querySelectorAll('.meganav__item.open').forEach(i => {
+                        i.classList.remove('open');
+                    });
                 }
             });
         }
         
         // ═══════════════════════════════════════════
-        // ROOM CODE LADEN
+        // SEARCH FUNCTIONALITY
         // ═══════════════════════════════════════════
-        const roomCode = localStorage.getItem('rift_current_room');
-        renderRoomCode(roomCode);
+        const searchInput = document.getElementById('searchInput');
+        const searchDropdown = document.getElementById('search-dropdown');
         
-        // Room Code Funktionen für HeaderController
-        if (typeof HeaderController !== 'undefined') {
-            HeaderController.copyRoomCode = function() {
-                const code = localStorage.getItem('rift_current_room') || '';
-                this.copyText(code);
-            };
+        if (searchInput && searchDropdown) {
+            const searchData = [
+                { cat: 'Seiten', name: 'Hub', url: 'index.html', icon: '🏠' },
+                { cat: 'Seiten', name: 'Würfel', url: 'dice.html', icon: '🎲' },
+                { cat: 'Seiten', name: 'Whiteboard', url: 'whiteboard.html', icon: '🎨' },
+                { cat: 'Seiten', name: 'Karten', url: 'maps.html', icon: '🗺️' },
+                { cat: 'Seiten', name: 'Chat', url: 'chat.html', icon: '💬' },
+                { cat: 'Seiten', name: 'Sessions', url: 'sessions.html', icon: '📅' },
+                { cat: 'Seiten', name: 'Einstellungen', url: 'user-settings.html', icon: '⚙️' },
+                { cat: 'Regelwerke', name: 'Worlds Apart', url: 'sheet-worldsapart.html', icon: '📗' },
+                { cat: 'Regelwerke', name: 'D&D 5e (2024)', url: 'sheet-dnd5e.html', icon: '📕' },
+                { cat: 'Regelwerke', name: 'Cyberpunk Red', url: 'sheet-cyberpunk.html', icon: '📘' },
+                { cat: 'Regelwerke', name: 'How To Be A Hero', url: 'sheet-htbah.html', icon: '📙' },
+            ];
             
-            HeaderController.shareRoomLink = function() {
-                const code = localStorage.getItem('rift_current_room') || '';
-                const link = `${location.origin}/join.html?code=${code}`;
-                if (navigator.share) {
-                    navigator.share({ title: 'RIFT Session', url: link });
-                } else {
-                    this.copyText(link);
+            function doSearch(query) {
+                if (!query) {
+                    searchDropdown.classList.remove('active');
+                    return;
                 }
-            };
+                
+                const q = query.toLowerCase();
+                const results = searchData.filter(item => 
+                    item.name.toLowerCase().includes(q) || 
+                    item.cat.toLowerCase().includes(q)
+                );
+                
+                if (results.length === 0) {
+                    searchDropdown.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.5);">Keine Ergebnisse</div>';
+                } else {
+                    const groups = {};
+                    results.forEach(r => {
+                        if (!groups[r.cat]) groups[r.cat] = [];
+                        groups[r.cat].push(r);
+                    });
+                    
+                    let html = '';
+                    for (const [cat, items] of Object.entries(groups)) {
+                        html += '<div style="padding:8px 0;' + (html ? 'border-top:1px solid rgba(255,255,255,0.1);' : '') + '">';
+                        html += '<div style="padding:6px 16px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.4);">' + cat + '</div>';
+                        items.forEach(item => {
+                            html += '<a href="' + item.url + '" style="display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;color:#fff;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,70,85,0.1)\'" onmouseout="this.style.background=\'transparent\'">';
+                            html += '<span style="font-size:18px;">' + item.icon + '</span>';
+                            html += '<span style="font-weight:500;">' + item.name + '</span>';
+                            html += '</a>';
+                        });
+                        html += '</div>';
+                    }
+                    searchDropdown.innerHTML = html;
+                }
+                
+                searchDropdown.classList.add('active');
+            }
             
-            HeaderController.showQRCode = function() {
-                const code = localStorage.getItem('rift_current_room') || '';
-                const formatted = code.length === 6 
-                    ? `${code.substring(0, 3)}-${code.substring(3)}`.toUpperCase()
-                    : code.toUpperCase();
-                const link = `${location.origin}/join.html?code=${code}`;
-                this.showModal('QR-Code', `
-                    <div style="text-align:center;">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}&bgcolor=1a1a1a&color=ffffff" style="border-radius:12px;margin-bottom:20px;">
-                        <p>Session-Code: <strong style="font-family:monospace;font-size:22px;letter-spacing:3px;">${formatted}</strong></p>
-                    </div>
-                `);
-            };
+            searchInput.addEventListener('input', function() {
+                doSearch(this.value);
+            });
             
-            HeaderController.leaveSession = async function() {
-                if (!confirm('Session wirklich verlassen?')) return;
-                localStorage.removeItem('rift_current_room');
-                this.showToast('Session verlassen', 'info');
-                setTimeout(() => location.reload(), 1000);
-            };
+            searchInput.addEventListener('focus', function() {
+                if (this.value) doSearch(this.value);
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.topnav__search')) {
+                    searchDropdown.classList.remove('active');
+                }
+            });
         }
         
-        console.log('[TopNav] Initialized');
-    });
+        // ═══════════════════════════════════════════
+        // USER DATA & ROOM CODE
+        // ═══════════════════════════════════════════
+        
+        // Room Code aus localStorage
+        const roomCode = localStorage.getItem('rift_current_room');
+        const roomTrigger = document.getElementById('roomTrigger');
+        const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+        const roomCodeLarge = document.getElementById('roomCodeLarge');
+        
+        if (roomCode) {
+            const formatted = roomCode.length === 6 
+                ? (roomCode.substring(0, 3) + '-' + roomCode.substring(3)).toUpperCase()
+                : roomCode.toUpperCase();
+            if (roomCodeDisplay) roomCodeDisplay.textContent = formatted;
+            if (roomCodeLarge) roomCodeLarge.textContent = formatted;
+        } else if (roomTrigger) {
+            roomTrigger.style.display = 'none';
+        }
+        
+        // Firebase Auth Listener
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            firebase.auth().onAuthStateChanged(function(user) {
+                const userAvatar = document.getElementById('userAvatar');
+                const userName = document.getElementById('userName');
+                const userAvatarLarge = document.getElementById('userAvatarLarge');
+                const userNameLarge = document.getElementById('userNameLarge');
+                const userEmail = document.getElementById('userEmail');
+                
+                if (user) {
+                    const displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Spieler');
+                    const initial = displayName.charAt(0).toUpperCase();
+                    
+                    if (userAvatar) {
+                        userAvatar.style.background = '#8b5cf6';
+                        userAvatar.textContent = initial;
+                    }
+                    if (userName) userName.textContent = displayName;
+                    if (userAvatarLarge) {
+                        userAvatarLarge.style.background = '#8b5cf6';
+                        userAvatarLarge.textContent = initial;
+                    }
+                    if (userNameLarge) userNameLarge.textContent = displayName;
+                    if (userEmail) userEmail.textContent = user.email || '';
+                } else {
+                    if (userName) userName.textContent = 'Anmelden';
+                    if (userNameLarge) userNameLarge.textContent = 'Gast';
+                    if (userEmail) userEmail.textContent = 'Nicht angemeldet';
+                }
+            });
+        }
+        
+        // Logout Button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (typeof firebase !== 'undefined' && firebase.auth) {
+                    firebase.auth().signOut().then(function() {
+                        window.location.href = 'login.html';
+                    });
+                }
+            });
+        }
+        
+        console.log('[TopNav] Initialized successfully');
+    })();
     </script>
 </body>
 </html>
