@@ -549,6 +549,16 @@ function initLayout() {
         return;
     }
     
+    // Skip if page already has TopNav (e.g. index.html with custom nav)
+    if (document.querySelector('header.topnav') || document.querySelector('nav.meganav')) {
+        console.log('[Layout] Custom TopNav detected - skipping layout generation');
+        // Still initialize party and clock
+        updateClock();
+        setInterval(updateClock, 1000);
+        updatePartyFromStorage();
+        return;
+    }
+    
     // Use new layout system
     initNewLayout();
     
