@@ -2765,27 +2765,33 @@
         roomTrigger.style.display = 'none';
     }
     
-    // Firebase Auth
-    if (typeof firebase !== 'undefined' && firebase.auth) {
-        firebase.auth().onAuthStateChanged(function(user) {
-            var userAvatar = document.getElementById('userAvatar');
-            var userName = document.getElementById('userName');
-            var userAvatarLarge = document.getElementById('userAvatarLarge');
-            var userNameLarge = document.getElementById('userNameLarge');
-            var userEmail = document.getElementById('userEmail');
-            
-            if (user) {
-                var displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Spieler');
-                var initial = displayName.charAt(0).toUpperCase();
+    // Firebase Auth - warte bis Firebase bereit ist
+    function initFirebaseAuth() {
+        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+            firebase.auth().onAuthStateChanged(function(user) {
+                var userAvatar = document.getElementById('userAvatar');
+                var userName = document.getElementById('userName');
+                var userAvatarLarge = document.getElementById('userAvatarLarge');
+                var userNameLarge = document.getElementById('userNameLarge');
+                var userEmail = document.getElementById('userEmail');
                 
-                if (userAvatar) { userAvatar.style.background = '#8b5cf6'; userAvatar.textContent = initial; }
-                if (userName) userName.textContent = displayName;
-                if (userAvatarLarge) { userAvatarLarge.style.background = '#8b5cf6'; userAvatarLarge.textContent = initial; }
-                if (userNameLarge) userNameLarge.textContent = displayName;
-                if (userEmail) userEmail.textContent = user.email || '';
-            }
-        });
+                if (user) {
+                    var displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Spieler');
+                    var initial = displayName.charAt(0).toUpperCase();
+                    
+                    if (userAvatar) { userAvatar.style.background = '#8b5cf6'; userAvatar.textContent = initial; }
+                    if (userName) userName.textContent = displayName;
+                    if (userAvatarLarge) { userAvatarLarge.style.background = '#8b5cf6'; userAvatarLarge.textContent = initial; }
+                    if (userNameLarge) userNameLarge.textContent = displayName;
+                    if (userEmail) userEmail.textContent = user.email || '';
+                }
+            });
+        } else {
+            // Firebase noch nicht bereit, erneut versuchen
+            setTimeout(initFirebaseAuth, 100);
+        }
     }
+    initFirebaseAuth();
     
     // Logout
     var logoutBtn = document.getElementById('logoutBtn');
