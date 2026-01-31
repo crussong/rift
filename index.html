@@ -2611,238 +2611,196 @@
     
     <!-- TopNav & MegaNav Interactivity -->
     <script>
-    (function() {
-        'use strict';
+    console.log('=== [TopNav] Script loaded ===');
+    
+    // Event Delegation für alle Dropdowns
+    document.addEventListener('click', function(e) {
         
-        // ═══════════════════════════════════════════
-        // DROPDOWN TOGGLES - TopNav
-        // ═══════════════════════════════════════════
-        const triggers = document.querySelectorAll('.topnav__dropdown-trigger');
-        console.log('[TopNav] Found', triggers.length, 'dropdown triggers');
-        
-        triggers.forEach(trigger => {
-            trigger.style.cursor = 'pointer';
-            trigger.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const wasOpen = this.classList.contains('open');
-                
-                // Alle anderen schließen
-                document.querySelectorAll('.topnav__dropdown-trigger.open').forEach(t => {
-                    t.classList.remove('open');
-                });
-                
-                // Diesen togglen
-                if (!wasOpen) {
-                    this.classList.add('open');
-                    console.log('[TopNav] Opened dropdown');
-                }
-            });
-        });
-        
-        // Click außerhalb schließt Dropdowns
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.topnav__dropdown-trigger')) {
-                document.querySelectorAll('.topnav__dropdown-trigger.open').forEach(t => {
-                    t.classList.remove('open');
-                });
-            }
-            if (!e.target.closest('.meganav__item')) {
-                document.querySelectorAll('.meganav__item.open').forEach(t => {
-                    t.classList.remove('open');
-                });
-            }
-        });
-        
-        // ═══════════════════════════════════════════
-        // MEGA NAV DROPDOWNS
-        // ═══════════════════════════════════════════
-        const megaItems = document.querySelectorAll('.meganav__item:not(.meganav__item--link)');
-        console.log('[TopNav] Found', megaItems.length, 'mega nav items');
-        
-        megaItems.forEach(item => {
-            item.style.cursor = 'pointer';
+        // TopNav Dropdown Trigger geklickt?
+        const trigger = e.target.closest('.topnav__dropdown-trigger');
+        if (trigger) {
+            e.stopPropagation();
+            console.log('[TopNav] Trigger clicked:', trigger.id || 'no-id');
             
-            item.addEventListener('click', function(e) {
-                if (e.target.closest('a')) return;
-                
+            const wasOpen = trigger.classList.contains('open');
+            
+            // Alle TopNav Dropdowns schließen
+            document.querySelectorAll('.topnav__dropdown-trigger').forEach(function(t) {
+                t.classList.remove('open');
+            });
+            
+            // Diesen öffnen wenn er vorher zu war
+            if (!wasOpen) {
+                trigger.classList.add('open');
+                console.log('[TopNav] Dropdown opened');
+            }
+            return;
+        }
+        
+        // MegaNav Item geklickt?
+        const megaItem = e.target.closest('.meganav__item');
+        if (megaItem && !megaItem.classList.contains('meganav__item--link')) {
+            // Nur wenn nicht auf einen Link geklickt wurde
+            if (!e.target.closest('a') || e.target.closest('.meganav__item') === megaItem) {
                 e.stopPropagation();
-                const wasOpen = this.classList.contains('open');
+                console.log('[TopNav] MegaNav item clicked');
                 
-                document.querySelectorAll('.meganav__item.open').forEach(i => {
+                const wasOpen = megaItem.classList.contains('open');
+                
+                // Alle MegaNav Dropdowns schließen
+                document.querySelectorAll('.meganav__item').forEach(function(i) {
                     i.classList.remove('open');
                 });
                 
                 if (!wasOpen) {
-                    this.classList.add('open');
-                    console.log('[TopNav] Opened mega dropdown');
+                    megaItem.classList.add('open');
                 }
-            });
-            
-            // Hover für Desktop
-            item.addEventListener('mouseenter', function() {
-                if (window.innerWidth > 768) {
-                    document.querySelectorAll('.meganav__item.open').forEach(i => {
-                        i.classList.remove('open');
-                    });
-                    this.classList.add('open');
-                }
-            });
-        });
-        
-        // MegaNav schließen wenn Maus verlässt
-        const meganav = document.querySelector('.meganav');
-        if (meganav) {
-            meganav.addEventListener('mouseleave', function() {
-                if (window.innerWidth > 768) {
-                    document.querySelectorAll('.meganav__item.open').forEach(i => {
-                        i.classList.remove('open');
-                    });
-                }
-            });
+            }
+            return;
         }
         
-        // ═══════════════════════════════════════════
-        // SEARCH FUNCTIONALITY
-        // ═══════════════════════════════════════════
-        const searchInput = document.getElementById('searchInput');
-        const searchDropdown = document.getElementById('search-dropdown');
+        // Klick außerhalb - alle schließen
+        document.querySelectorAll('.topnav__dropdown-trigger.open').forEach(function(t) {
+            t.classList.remove('open');
+        });
+        document.querySelectorAll('.meganav__item.open').forEach(function(i) {
+            i.classList.remove('open');
+        });
+    });
+    
+    // Hover für MegaNav (Desktop)
+    document.addEventListener('mouseenter', function(e) {
+        if (window.innerWidth <= 768) return;
         
-        if (searchInput && searchDropdown) {
-            const searchData = [
-                { cat: 'Seiten', name: 'Hub', url: 'index.html', icon: '🏠' },
-                { cat: 'Seiten', name: 'Würfel', url: 'dice.html', icon: '🎲' },
-                { cat: 'Seiten', name: 'Whiteboard', url: 'whiteboard.html', icon: '🎨' },
-                { cat: 'Seiten', name: 'Karten', url: 'maps.html', icon: '🗺️' },
-                { cat: 'Seiten', name: 'Chat', url: 'chat.html', icon: '💬' },
-                { cat: 'Seiten', name: 'Sessions', url: 'sessions.html', icon: '📅' },
-                { cat: 'Seiten', name: 'Einstellungen', url: 'user-settings.html', icon: '⚙️' },
-                { cat: 'Regelwerke', name: 'Worlds Apart', url: 'sheet-worldsapart.html', icon: '📗' },
-                { cat: 'Regelwerke', name: 'D&D 5e (2024)', url: 'sheet-dnd5e.html', icon: '📕' },
-                { cat: 'Regelwerke', name: 'Cyberpunk Red', url: 'sheet-cyberpunk.html', icon: '📘' },
-                { cat: 'Regelwerke', name: 'How To Be A Hero', url: 'sheet-htbah.html', icon: '📙' },
-            ];
-            
-            function doSearch(query) {
-                if (!query) {
-                    searchDropdown.classList.remove('active');
-                    return;
-                }
-                
-                const q = query.toLowerCase();
-                const results = searchData.filter(item => 
-                    item.name.toLowerCase().includes(q) || 
-                    item.cat.toLowerCase().includes(q)
-                );
-                
-                if (results.length === 0) {
-                    searchDropdown.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.5);">Keine Ergebnisse</div>';
-                } else {
-                    const groups = {};
-                    results.forEach(r => {
-                        if (!groups[r.cat]) groups[r.cat] = [];
-                        groups[r.cat].push(r);
-                    });
-                    
-                    let html = '';
-                    for (const [cat, items] of Object.entries(groups)) {
-                        html += '<div style="padding:8px 0;' + (html ? 'border-top:1px solid rgba(255,255,255,0.1);' : '') + '">';
-                        html += '<div style="padding:6px 16px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.4);">' + cat + '</div>';
-                        items.forEach(item => {
-                            html += '<a href="' + item.url + '" style="display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;color:#fff;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,70,85,0.1)\'" onmouseout="this.style.background=\'transparent\'">';
-                            html += '<span style="font-size:18px;">' + item.icon + '</span>';
-                            html += '<span style="font-weight:500;">' + item.name + '</span>';
-                            html += '</a>';
-                        });
-                        html += '</div>';
-                    }
-                    searchDropdown.innerHTML = html;
-                }
-                
-                searchDropdown.classList.add('active');
+        const megaItem = e.target.closest('.meganav__item:not(.meganav__item--link)');
+        if (megaItem) {
+            document.querySelectorAll('.meganav__item.open').forEach(function(i) {
+                i.classList.remove('open');
+            });
+            megaItem.classList.add('open');
+        }
+    }, true);
+    
+    // MegaNav verlassen
+    var meganav = document.querySelector('.meganav');
+    if (meganav) {
+        meganav.addEventListener('mouseleave', function() {
+            if (window.innerWidth > 768) {
+                document.querySelectorAll('.meganav__item.open').forEach(function(i) {
+                    i.classList.remove('open');
+                });
+            }
+        });
+    }
+    
+    // ═══════════════════════════════════════════
+    // SEARCH
+    // ═══════════════════════════════════════════
+    var searchInput = document.getElementById('searchInput');
+    var searchDropdown = document.getElementById('search-dropdown');
+    
+    if (searchInput && searchDropdown) {
+        var searchData = [
+            { cat: 'Seiten', name: 'Hub', url: 'index.html', icon: '🏠' },
+            { cat: 'Seiten', name: 'Würfel', url: 'dice.html', icon: '🎲' },
+            { cat: 'Seiten', name: 'Whiteboard', url: 'whiteboard.html', icon: '🎨' },
+            { cat: 'Seiten', name: 'Karten', url: 'maps.html', icon: '🗺️' },
+            { cat: 'Seiten', name: 'Chat', url: 'chat.html', icon: '💬' },
+            { cat: 'Seiten', name: 'Sessions', url: 'sessions.html', icon: '📅' },
+            { cat: 'Regelwerke', name: 'Worlds Apart', url: 'sheet-worldsapart.html', icon: '📗' },
+            { cat: 'Regelwerke', name: 'D&D 5e', url: 'sheet-dnd5e.html', icon: '📕' },
+            { cat: 'Regelwerke', name: 'Cyberpunk Red', url: 'sheet-cyberpunk.html', icon: '📘' },
+            { cat: 'Regelwerke', name: 'HTBAH', url: 'sheet-htbah.html', icon: '📙' }
+        ];
+        
+        searchInput.addEventListener('input', function() {
+            var query = this.value.toLowerCase();
+            if (!query) {
+                searchDropdown.classList.remove('active');
+                return;
             }
             
-            searchInput.addEventListener('input', function() {
-                doSearch(this.value);
+            var results = searchData.filter(function(item) {
+                return item.name.toLowerCase().indexOf(query) !== -1;
             });
             
-            searchInput.addEventListener('focus', function() {
-                if (this.value) doSearch(this.value);
-            });
+            if (results.length === 0) {
+                searchDropdown.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.5);">Keine Ergebnisse</div>';
+            } else {
+                var html = '';
+                results.forEach(function(item) {
+                    html += '<a href="' + item.url + '" style="display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;color:#fff;">';
+                    html += '<span style="font-size:18px;">' + item.icon + '</span>';
+                    html += '<span>' + item.name + '</span></a>';
+                });
+                searchDropdown.innerHTML = html;
+            }
+            searchDropdown.classList.add('active');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.topnav__search')) {
+                searchDropdown.classList.remove('active');
+            }
+        });
+    }
+    
+    // ═══════════════════════════════════════════
+    // USER & ROOM CODE
+    // ═══════════════════════════════════════════
+    var roomCode = localStorage.getItem('rift_current_room');
+    var roomTrigger = document.getElementById('roomTrigger');
+    
+    if (roomCode) {
+        var formatted = roomCode.length === 6 
+            ? roomCode.substring(0, 3) + '-' + roomCode.substring(3)
+            : roomCode;
+        formatted = formatted.toUpperCase();
+        
+        var codeDisplay = document.getElementById('roomCodeDisplay');
+        var codeLarge = document.getElementById('roomCodeLarge');
+        if (codeDisplay) codeDisplay.textContent = formatted;
+        if (codeLarge) codeLarge.textContent = formatted;
+    } else if (roomTrigger) {
+        roomTrigger.style.display = 'none';
+    }
+    
+    // Firebase Auth
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().onAuthStateChanged(function(user) {
+            var userAvatar = document.getElementById('userAvatar');
+            var userName = document.getElementById('userName');
+            var userAvatarLarge = document.getElementById('userAvatarLarge');
+            var userNameLarge = document.getElementById('userNameLarge');
+            var userEmail = document.getElementById('userEmail');
             
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.topnav__search')) {
-                    searchDropdown.classList.remove('active');
-                }
-            });
-        }
-        
-        // ═══════════════════════════════════════════
-        // USER DATA & ROOM CODE
-        // ═══════════════════════════════════════════
-        
-        // Room Code aus localStorage
-        const roomCode = localStorage.getItem('rift_current_room');
-        const roomTrigger = document.getElementById('roomTrigger');
-        const roomCodeDisplay = document.getElementById('roomCodeDisplay');
-        const roomCodeLarge = document.getElementById('roomCodeLarge');
-        
-        if (roomCode) {
-            const formatted = roomCode.length === 6 
-                ? (roomCode.substring(0, 3) + '-' + roomCode.substring(3)).toUpperCase()
-                : roomCode.toUpperCase();
-            if (roomCodeDisplay) roomCodeDisplay.textContent = formatted;
-            if (roomCodeLarge) roomCodeLarge.textContent = formatted;
-        } else if (roomTrigger) {
-            roomTrigger.style.display = 'none';
-        }
-        
-        // Firebase Auth Listener
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().onAuthStateChanged(function(user) {
-                const userAvatar = document.getElementById('userAvatar');
-                const userName = document.getElementById('userName');
-                const userAvatarLarge = document.getElementById('userAvatarLarge');
-                const userNameLarge = document.getElementById('userNameLarge');
-                const userEmail = document.getElementById('userEmail');
+            if (user) {
+                var displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Spieler');
+                var initial = displayName.charAt(0).toUpperCase();
                 
-                if (user) {
-                    const displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Spieler');
-                    const initial = displayName.charAt(0).toUpperCase();
-                    
-                    if (userAvatar) {
-                        userAvatar.style.background = '#8b5cf6';
-                        userAvatar.textContent = initial;
-                    }
-                    if (userName) userName.textContent = displayName;
-                    if (userAvatarLarge) {
-                        userAvatarLarge.style.background = '#8b5cf6';
-                        userAvatarLarge.textContent = initial;
-                    }
-                    if (userNameLarge) userNameLarge.textContent = displayName;
-                    if (userEmail) userEmail.textContent = user.email || '';
-                } else {
-                    if (userName) userName.textContent = 'Anmelden';
-                    if (userNameLarge) userNameLarge.textContent = 'Gast';
-                    if (userEmail) userEmail.textContent = 'Nicht angemeldet';
-                }
-            });
-        }
-        
-        // Logout Button
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (typeof firebase !== 'undefined' && firebase.auth) {
-                    firebase.auth().signOut().then(function() {
-                        window.location.href = 'login.html';
-                    });
-                }
-            });
-        }
-        
-        console.log('[TopNav] Initialized successfully');
-    })();
+                if (userAvatar) { userAvatar.style.background = '#8b5cf6'; userAvatar.textContent = initial; }
+                if (userName) userName.textContent = displayName;
+                if (userAvatarLarge) { userAvatarLarge.style.background = '#8b5cf6'; userAvatarLarge.textContent = initial; }
+                if (userNameLarge) userNameLarge.textContent = displayName;
+                if (userEmail) userEmail.textContent = user.email || '';
+            }
+        });
+    }
+    
+    // Logout
+    var logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                firebase.auth().signOut().then(function() {
+                    window.location.href = 'login.html';
+                });
+            }
+        });
+    }
+    
+    console.log('=== [TopNav] Initialized ===');
     </script>
 </body>
 </html>
