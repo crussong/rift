@@ -2771,7 +2771,7 @@
     // Firebase Auth - warte bis Firebase bereit ist
     function initFirebaseAuth() {
         if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
-            firebase.auth().onAuthStateChanged(function(user) {
+            firebase.auth().onAuthStateChanged(async function(user) {
                 var userAvatar = document.getElementById('userAvatar');
                 var userName = document.getElementById('userName');
                 var userAvatarLarge = document.getElementById('userAvatarLarge');
@@ -2779,12 +2779,45 @@
                 var userEmail = document.getElementById('userEmail');
                 
                 if (user) {
+                    // Hole User-Daten aus Firestore (displayName, color, avatar)
                     var displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Spieler');
+                    var color = '#8b5cf6';
+                    var avatarUrl = null;
+                    
+                    try {
+                        var userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+                        if (userDoc.exists) {
+                            var data = userDoc.data();
+                            if (data.displayName) displayName = data.displayName;
+                            if (data.color) color = data.color;
+                            if (data.avatar) avatarUrl = data.avatar;
+                        }
+                    } catch (e) {
+                        console.log('[TopNav] Could not load user data from Firestore');
+                    }
+                    
                     var initial = displayName.charAt(0).toUpperCase();
                     
-                    if (userAvatar) { userAvatar.style.background = '#8b5cf6'; userAvatar.textContent = initial; }
+                    // TopNav User
+                    if (userAvatar) {
+                        userAvatar.style.background = color;
+                        if (avatarUrl) {
+                            userAvatar.innerHTML = '<img src="' + avatarUrl + '" alt="">';
+                        } else {
+                            userAvatar.textContent = initial;
+                        }
+                    }
                     if (userName) userName.textContent = displayName;
-                    if (userAvatarLarge) { userAvatarLarge.style.background = '#8b5cf6'; userAvatarLarge.textContent = initial; }
+                    
+                    // Dropdown User
+                    if (userAvatarLarge) {
+                        userAvatarLarge.style.background = color;
+                        if (avatarUrl) {
+                            userAvatarLarge.innerHTML = '<img src="' + avatarUrl + '" alt="">';
+                        } else {
+                            userAvatarLarge.textContent = initial;
+                        }
+                    }
                     if (userNameLarge) userNameLarge.textContent = displayName;
                     if (userEmail) userEmail.textContent = user.email || '';
                 }
