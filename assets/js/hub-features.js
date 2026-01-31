@@ -120,6 +120,20 @@ class HeroCarousel {
         if (this.tabsContainer) this.tabsContainer.innerHTML = '';
         if (this.dotsContainer) this.dotsContainer.innerHTML = '';
         
+        // Get first slide's global settings (or use defaults)
+        const firstSlide = this.slidesData[0] || {};
+        const showArrows = firstSlide.carouselShowArrows !== false;
+        const showTabs = firstSlide.carouselShowTabs !== false;
+        const showDots = firstSlide.carouselShowDots !== false;
+        const autoplayEnabled = firstSlide.carouselAutoplay !== false;
+        
+        // Apply global carousel settings
+        if (this.prevBtn) this.prevBtn.style.display = showArrows ? '' : 'none';
+        if (this.nextBtn) this.nextBtn.style.display = showArrows ? '' : 'none';
+        if (this.tabsContainer) this.tabsContainer.style.display = showTabs ? '' : 'none';
+        if (this.dotsContainer) this.dotsContainer.style.display = showDots ? '' : 'none';
+        this.autoplayEnabled = autoplayEnabled;
+        
         this.slidesData.forEach((slide, index) => {
             // Build slide HTML
             const slideEl = document.createElement('div');
@@ -146,6 +160,49 @@ class HeroCarousel {
                 bgHtml = `<div class="hero-carousel__bg" style="background: ${slide.background || '#0d0d0d'};"></div>`;
             }
             
+            // Build overlay styles based on settings
+            let overlayStyle = '';
+            const overlayOpacity = (slide.overlayOpacity ?? 50) / 100;
+            const overlayColor = slide.overlayColor || 'black';
+            const gradientDir = slide.gradientDirection || 'to-right';
+            
+            // Get the base color
+            let baseColor = 'rgba(0,0,0,';
+            if (overlayColor === 'black') {
+                baseColor = 'rgba(0,0,0,';
+            } else if (overlayColor === 'accent') {
+                baseColor = 'rgba(255,70,85,'; // RIFT red
+            } else if (overlayColor === 'purple') {
+                baseColor = 'rgba(139,92,246,';
+            } else if (overlayColor === 'blue') {
+                baseColor = 'rgba(59,130,246,';
+            } else if (overlayColor === 'custom' && slide.overlayCustomColor) {
+                // Convert hex to rgba
+                const hex = slide.overlayCustomColor.replace('#', '');
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                baseColor = `rgba(${r},${g},${b},`;
+            } else if (overlayColor === 'none') {
+                baseColor = null;
+            }
+            
+            if (baseColor && overlayOpacity > 0) {
+                if (gradientDir === 'none') {
+                    overlayStyle = `background: ${baseColor}${overlayOpacity});`;
+                } else if (gradientDir === 'to-right') {
+                    overlayStyle = `background: linear-gradient(to right, ${baseColor}${overlayOpacity}) 0%, ${baseColor}${overlayOpacity * 0.5}) 50%, transparent 100%);`;
+                } else if (gradientDir === 'to-left') {
+                    overlayStyle = `background: linear-gradient(to left, ${baseColor}${overlayOpacity}) 0%, ${baseColor}${overlayOpacity * 0.5}) 50%, transparent 100%);`;
+                } else if (gradientDir === 'to-bottom') {
+                    overlayStyle = `background: linear-gradient(to bottom, ${baseColor}${overlayOpacity}) 0%, ${baseColor}${overlayOpacity * 0.5}) 50%, transparent 100%);`;
+                } else if (gradientDir === 'to-top') {
+                    overlayStyle = `background: linear-gradient(to top, ${baseColor}${overlayOpacity}) 0%, ${baseColor}${overlayOpacity * 0.5}) 50%, transparent 100%);`;
+                } else if (gradientDir === 'radial') {
+                    overlayStyle = `background: radial-gradient(circle at center, transparent 0%, ${baseColor}${overlayOpacity}) 100%);`;
+                }
+            }
+            
             // Countdown
             let countdownHtml = '';
             if (slide.countdownDate) {
@@ -165,28 +222,34 @@ class HeroCarousel {
                 }
             }
             
+            // UI Element visibility
+            const showBadge = slide.showBadge !== false;
+            const showTitle = slide.showTitle !== false;
+            const showDescription = slide.showDescription !== false;
+            const showCta = slide.showCta !== false;
+            
             slideEl.innerHTML = `
                 ${bgHtml}
-                <div class="hero-carousel__overlay"></div>
+                <div class="hero-carousel__overlay" style="${overlayStyle}"></div>
                 <div class="hero-carousel__content">
-                    <span class="hero-carousel__badge ${badgeClass}">
+                    ${showBadge ? `<span class="hero-carousel__badge ${badgeClass}">
                         ${liveIndicator}
                         ${slide.badge || ''}
-                    </span>
-                    <h2 class="hero-carousel__title">${slide.title || ''}</h2>
-                    <p class="hero-carousel__desc">${slide.description || ''}</p>
+                    </span>` : ''}
+                    ${showTitle ? `<h2 class="hero-carousel__title">${slide.title || ''}</h2>` : ''}
+                    ${showDescription ? `<p class="hero-carousel__desc">${slide.description || ''}</p>` : ''}
                     ${countdownHtml}
-                    <a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">
+                    ${showCta ? `<a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">
                         ${slide.ctaText || 'Mehr erfahren'}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    </a>
+                    </a>` : ''}
                 </div>
             `;
             
             this.slidesContainer.appendChild(slideEl);
             
             // Build tab
-            if (this.tabsContainer) {
+            if (this.tabsContainer && showTabs) {
                 const tabEl = document.createElement('button');
                 tabEl.className = `hero-carousel__tab${index === 0 ? ' active' : ''}`;
                 tabEl.dataset.slide = index;
@@ -197,7 +260,7 @@ class HeroCarousel {
             }
             
             // Build dot
-            if (this.dotsContainer) {
+            if (this.dotsContainer && showDots) {
                 const dotEl = document.createElement('button');
                 dotEl.className = `hero-carousel__dot${index === 0 ? ' active' : ''}`;
                 dotEl.dataset.slide = index;
@@ -294,6 +357,7 @@ class HeroCarousel {
     
     startAutoPlay() {
         if (this.autoPlayInterval) return;
+        if (this.autoplayEnabled === false) return; // Check global setting
         
         // Get current slide's autoplay time
         const currentSlide = this.slides[this.currentIndex];
