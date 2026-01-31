@@ -1398,7 +1398,7 @@
                 
                 <!-- Image Upload -->
                 <div class="form-group" id="bgImageGroup" style="display: none;">
-                    <label class="form-label">Bild hochladen</label>
+                    <label class="form-label">Bild hochladen oder URL eingeben</label>
                     <div class="image-upload" id="slideBgUpload">
                         <img class="image-upload__preview" id="slideBgPreview" src="" alt="">
                         <div class="image-upload__placeholder">
@@ -1412,6 +1412,10 @@
                         </div>
                         <input type="file" id="slideBgInput" accept="image/jpeg,image/png,image/webp">
                     </div>
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label class="form-label">Oder: Bild-URL direkt eingeben</label>
+                        <input type="text" class="form-input" id="slideBgImageUrlDirect" placeholder="https://example.com/image.jpg" oninput="CarouselAdmin.previewImageUrl(this.value)">
+                    </div>
                     <input type="hidden" id="slideBgImageUrl">
                 </div>
                 
@@ -1420,6 +1424,36 @@
                     <label class="form-label">Video URL <span>(YouTube oder MP4)</span></label>
                     <input type="text" class="form-input" id="slideVideoUrl" placeholder="https://youtube.com/watch?v=... oder video.mp4">
                     <p class="form-hint">YouTube-Links werden automatisch konvertiert. Videos laufen stumm im Loop.</p>
+                    
+                    <div class="form-row" style="margin-top: 16px;">
+                        <div class="form-group">
+                            <label class="form-label">Abspielgeschwindigkeit</label>
+                            <select class="form-select" id="slideVideoSpeed">
+                                <option value="0.25">0.25x (Sehr langsam)</option>
+                                <option value="0.5">0.5x (Langsam)</option>
+                                <option value="0.75">0.75x</option>
+                                <option value="1" selected>1x (Normal)</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x (Schnell)</option>
+                                <option value="2">2x (Sehr schnell)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Video Zoom</label>
+                            <select class="form-select" id="slideVideoZoom">
+                                <option value="100">100% (Kein Zoom)</option>
+                                <option value="110">110%</option>
+                                <option value="120" selected>120% (Standard)</option>
+                                <option value="130">130%</option>
+                                <option value="150">150%</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label class="form-label">Video Startzeit (Sekunden)</label>
+                        <input type="number" class="form-input" id="slideVideoStart" placeholder="0" min="0" value="0">
+                        <p class="form-hint">Video startet ab dieser Sekunde</p>
+                    </div>
                 </div>
                 
                 <!-- Overlay/Gradient Options -->
@@ -2247,6 +2281,14 @@
                 document.getElementById('slideCountdownDate').value = slide?.countdownDate || '';
                 document.getElementById('slideCountdownLabel').value = slide?.countdownLabel || '';
                 
+                // Video options
+                document.getElementById('slideVideoSpeed').value = slide?.videoSpeed || '1';
+                document.getElementById('slideVideoZoom').value = slide?.videoZoom || '120';
+                document.getElementById('slideVideoStart').value = slide?.videoStart || 0;
+                
+                // Image URL direct
+                document.getElementById('slideBgImageUrlDirect').value = slide?.bgImageUrl || '';
+                
                 // Overlay options
                 document.getElementById('slideOverlayColor').value = slide?.overlayColor || 'black';
                 document.getElementById('slideOverlayOpacity').value = slide?.overlayOpacity ?? 50;
@@ -2277,6 +2319,15 @@
                 this.initOverlayColorHandler();
             },
             
+            previewImageUrl(url) {
+                if (!url) return;
+                const preview = document.getElementById('slideBgPreview');
+                const upload = document.getElementById('slideBgUpload');
+                preview.src = url;
+                preview.onload = () => upload.classList.add('has-image');
+                preview.onerror = () => upload.classList.remove('has-image');
+            },
+            
             initBgUpload() {
                 const input = document.getElementById('slideBgInput');
                 const upload = document.getElementById('slideBgUpload');
@@ -2287,6 +2338,8 @@
                     if (!file) return;
                     
                     this.pendingBgImage = file;
+                    // Clear URL input when file is selected
+                    document.getElementById('slideBgImageUrlDirect').value = '';
                     
                     const reader = new FileReader();
                     reader.onload = (ev) => {
@@ -2360,8 +2413,14 @@
                     data.bgImageUrl = null;
                     data.videoUrl = null;
                 } else if (bgType === 'image') {
-                    // Upload image if pending
-                    if (this.pendingBgImage) {
+                    // Check for direct URL first
+                    const directUrl = document.getElementById('slideBgImageUrlDirect').value.trim();
+                    
+                    if (directUrl) {
+                        // Use direct URL
+                        data.bgImageUrl = directUrl;
+                    } else if (this.pendingBgImage) {
+                        // Upload image if pending
                         try {
                             showToast('Bild wird hochgeladen...');
                             data.bgImageUrl = await this.uploadImage(this.pendingBgImage);
@@ -2377,6 +2436,9 @@
                     data.videoUrl = null;
                 } else if (bgType === 'video') {
                     data.videoUrl = document.getElementById('slideVideoUrl').value.trim();
+                    data.videoSpeed = document.getElementById('slideVideoSpeed').value;
+                    data.videoZoom = document.getElementById('slideVideoZoom').value;
+                    data.videoStart = parseInt(document.getElementById('slideVideoStart').value) || 0;
                     data.background = null;
                     data.bgImageUrl = null;
                 }
