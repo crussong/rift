@@ -145,14 +145,21 @@ class HeroCarousel {
             const liveIndicator = slide.showLiveIndicator ? 
                 `<svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>` : '';
             
+            // Video options
+            const videoSpeed = slide.videoSpeed || '1';
+            const videoZoom = slide.videoZoom || '120';
+            const videoStart = slide.videoStart || 0;
+            const zoomOffset = (parseInt(videoZoom) - 100) / 2;
+            const videoZoomStyle = `width: ${videoZoom}%; height: ${videoZoom}%; left: -${zoomOffset}%; top: -${zoomOffset}%;`;
+            
             // Background - CSS, Image or Video
             let bgHtml = '';
             if (slide.videoUrl) {
-                const videoSrc = this.parseVideoUrl(slide.videoUrl);
+                const videoSrc = this.parseVideoUrl(slide.videoUrl, videoStart);
                 if (videoSrc.type === 'youtube') {
-                    bgHtml = `<iframe class="hero-carousel__video" src="${videoSrc.url}" frameborder="0" allow="autoplay; muted" allowfullscreen></iframe>`;
+                    bgHtml = `<iframe class="hero-carousel__video" style="${videoZoomStyle}" src="${videoSrc.url}" frameborder="0" allow="autoplay; muted" allowfullscreen></iframe>`;
                 } else {
-                    bgHtml = `<video class="hero-carousel__video" autoplay muted loop playsinline><source src="${videoSrc.url}" type="video/mp4"></video>`;
+                    bgHtml = `<video class="hero-carousel__video" style="${videoZoomStyle}" data-speed="${videoSpeed}" autoplay muted loop playsinline><source src="${videoSrc.url}#t=${videoStart}" type="video/mp4"></video>`;
                 }
             } else if (slide.bgImageUrl) {
                 bgHtml = `<div class="hero-carousel__bg" style="background: url('${slide.bgImageUrl}') center/cover;"></div>`;
@@ -270,19 +277,40 @@ class HeroCarousel {
         
         // Start countdown timers
         this.startCountdowns();
+        
+        // Apply video playback speeds
+        this.initVideoSpeeds();
     }
     
-    parseVideoUrl(url) {
+    parseVideoUrl(url, startTime = 0) {
         // YouTube
         const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
         if (ytMatch) {
+            let ytUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&rel=0&modestbranding=1`;
+            if (startTime > 0) {
+                ytUrl += `&start=${startTime}`;
+            }
             return {
                 type: 'youtube',
-                url: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0`
+                url: ytUrl
             };
         }
         // Direct video URL
         return { type: 'video', url: url };
+    }
+    
+    initVideoSpeeds() {
+        // Apply playback speed to HTML5 videos
+        const videos = this.container.querySelectorAll('video.hero-carousel__video');
+        videos.forEach(video => {
+            const speed = parseFloat(video.dataset.speed) || 1;
+            video.playbackRate = speed;
+            
+            // Re-apply speed after video loads (some browsers reset it)
+            video.addEventListener('loadeddata', () => {
+                video.playbackRate = speed;
+            });
+        });
     }
     
     startCountdowns() {
