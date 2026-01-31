@@ -41,12 +41,13 @@ function createUnifiedTopnav() {
                     <div class="topnav__dropdown topnav__dropdown--party">
                         <div class="topnav__dropdown-header">
                             <div class="topnav__dropdown-title">Party</div>
-                            <div class="topnav__dropdown-value">Keine Spieler</div>
+                            <div class="topnav__dropdown-value" id="partyHeaderValue">Keine Spieler</div>
                         </div>
                         <div class="topnav__dropdown-body" id="partyMembersList">
                             <div class="topnav__dropdown-empty">Noch niemand in der Party</div>
                         </div>
-                        <div class="topnav__dropdown-footer">
+                        <div class="topnav__dropdown-body">
+                            <div class="topnav__dropdown-divider"></div>
                             <a href="#" class="topnav__dropdown-item" onclick="RIFTLayout.invitePlayers(); return false;">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z"/><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z"/><path d="M17 3a1 1 0 0 1 1 1v1h1a1 1 0 0 1 0 2h-1v1a1 1 0 0 1 -2 0v-1h-1a1 1 0 0 1 0 -2h1v-1a1 1 0 0 1 1 -1"/></svg>
                                 Spieler einladen
@@ -78,7 +79,7 @@ function createUnifiedTopnav() {
                         </div>
                         <div class="topnav__dropdown-body">
                             <a href="#" class="topnav__dropdown-item" onclick="RIFTLayout.shareRoomLink(); return false;">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 4v2l-.015 .003a9 9 0 0 0 -6.985 8.997c.074 .838 .249 1.578 .407 2.128l.138 .457c.26 .804 .538 1.405 .762 1.9l.095 .2c.316 -.51 .618 -.994 .907 -1.45l.27 -.402a9 9 0 0 1 4.921 -3.653l.5 -.125v2.445l7 -5.5l-7 -5.5z"/><path d="M5 21a1 1 0 0 1 -.993 -.883l-.007 -.117v-5l.007 -.117a1 1 0 0 1 1.986 0l.007 .117v5l-.007 .117a1 1 0 0 1 -.993 .883"/></svg>
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 5a3 3 0 1 0 -3 3l.247 -.013l-2.507 4.386a3.003 3.003 0 0 0 -3.006 .507l-.24 .227l-2.507 -1.504a3 3 0 1 0 -2.987 2.397a3 3 0 0 0 2.74 -1.783l2.507 1.504a3 3 0 1 0 5.253 -1.724l.003 -.209a3 3 0 0 0 -.25 -1.206l2.507 -4.386c.085 .008 .171 .013 .258 .013a3 3 0 0 0 0 -6z"/></svg>
                                 Link teilen
                             </a>
                             <a href="#" class="topnav__dropdown-item" onclick="RIFTLayout.showQRCode(); return false;">

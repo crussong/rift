@@ -259,7 +259,9 @@ const PageTransitions = {
             main.className = newMain.className;
             
             // Re-initialize layout components
-            if (typeof initLayout === 'function') {
+            if (typeof initUnifiedLayout === 'function') {
+                initUnifiedLayout();
+            } else if (typeof initLayout === 'function') {
                 initLayout();
             }
             
