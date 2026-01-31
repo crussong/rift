@@ -149,8 +149,10 @@ class HeroCarousel {
             const videoSpeed = slide.videoSpeed || '1';
             const videoZoom = slide.videoZoom || '120';
             const videoStart = slide.videoStart || 0;
+            console.log('[Carousel] Slide video options:', { videoSpeed, videoZoom, videoStart, raw: { speed: slide.videoSpeed, zoom: slide.videoZoom, start: slide.videoStart } });
+            
             const zoomOffset = (parseInt(videoZoom) - 100) / 2;
-            const videoZoomStyle = `width: ${videoZoom}%; height: ${videoZoom}%; left: -${zoomOffset}%; top: -${zoomOffset}%;`;
+            const videoZoomStyle = `width: ${videoZoom}%; height: ${videoZoom}%; left: -${zoomOffset}%; top: -${zoomOffset}%; position: absolute;`;
             
             // Background - CSS, Image or Video
             let bgHtml = '';
@@ -302,12 +304,28 @@ class HeroCarousel {
     initVideoSpeeds() {
         // Apply playback speed to HTML5 videos
         const videos = this.container.querySelectorAll('video.hero-carousel__video');
+        console.log('[Carousel] Found videos:', videos.length);
+        
         videos.forEach(video => {
             const speed = parseFloat(video.dataset.speed) || 1;
+            console.log('[Carousel] Setting video speed:', speed);
+            
+            // Apply immediately
             video.playbackRate = speed;
             
-            // Re-apply speed after video loads (some browsers reset it)
+            // Re-apply when video can play
+            video.addEventListener('canplay', () => {
+                video.playbackRate = speed;
+                console.log('[Carousel] Video canplay, speed set to:', speed);
+            });
+            
+            // Re-apply after video loads
             video.addEventListener('loadeddata', () => {
+                video.playbackRate = speed;
+            });
+            
+            // Re-apply on play
+            video.addEventListener('play', () => {
                 video.playbackRate = speed;
             });
         });
