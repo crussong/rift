@@ -2427,8 +2427,6 @@ function initNewLayout() {
             mainContent.insertAdjacentHTML('beforeend', createFooter());
         }
         
-        // Initialize dock
-        initBottomDock();
         return;
     }
     
