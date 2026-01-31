@@ -1762,38 +1762,43 @@
                         // Name
                         document.getElementById('charPanelName').textContent = selectedChar.name || 'Charakter';
                         
-                        // Get character data from multiple sources
-                        let charData = {};
+                        // Get character data - SIMPLIFIED: Always try localStorage first for Worlds Apart
+                        let charData = null;
                         
-                        // Source 1: Try Room Character (if in a room)
-                        if (roomCode && userId && typeof RIFT !== 'undefined' && RIFT.rooms?.getActiveCharacter) {
+                        // Source 1: localStorage (most reliable for local characters)
+                        try {
+                            const localData = localStorage.getItem('worldsapart_character_v5');
+                            if (localData) {
+                                charData = JSON.parse(localData);
+                                console.log('[Hub] CharPanel: Loaded from localStorage:', charData);
+                            }
+                        } catch (e) {
+                            console.warn('[Hub] CharPanel: localStorage error:', e);
+                        }
+                        
+                        // Source 2: selectedChar.data as fallback
+                        if (!charData && selectedChar.data) {
+                            charData = selectedChar.data;
+                            console.log('[Hub] CharPanel: Using selectedChar.data');
+                        }
+                        
+                        // Source 3: Room Character if in a room
+                        if (!charData && roomCode && userId && typeof RIFT !== 'undefined' && RIFT.rooms?.getActiveCharacter) {
                             try {
                                 const activeChar = await RIFT.rooms.getActiveCharacter(roomCode, userId);
                                 if (activeChar && activeChar.data) {
                                     charData = activeChar.data;
                                     console.log('[Hub] CharPanel: Using Room Character data');
                                 }
-                            } catch (e) {}
+                            } catch (e) {
+                                console.warn('[Hub] CharPanel: Room error:', e);
+                            }
                         }
                         
-                        // Source 2: Try selectedChar.data
-                        if (Object.keys(charData).length === 0 && selectedChar.data) {
-                            charData = selectedChar.data;
-                            console.log('[Hub] CharPanel: Using selectedChar.data');
+                        if (!charData) {
+                            console.warn('[Hub] CharPanel: No character data found!');
+                            charData = {};
                         }
-                        
-                        // Source 3: Try localStorage
-                        if (Object.keys(charData).length === 0) {
-                            try {
-                                const localData = JSON.parse(localStorage.getItem('worldsapart_character_v5') || 'null');
-                                if (localData) {
-                                    charData = localData;
-                                    console.log('[Hub] CharPanel: Using localStorage data');
-                                }
-                            } catch (e) {}
-                        }
-                        
-                        console.log('[Hub] CharPanel data:', charData);
                         
                         // Meta: Geschlecht, Alter, Rolle, Element
                         const genderEl = document.getElementById('charPanelGender');
@@ -1802,7 +1807,7 @@
                         const elementEl = document.getElementById('charPanelElement');
                         
                         // Geschlecht
-                        const genderValue = charData.gender || selectedChar.gender;
+                        const genderValue = charData.gender;
                         if (genderValue) {
                             genderEl.querySelector('span').textContent = genderValue;
                             genderEl.style.display = 'flex';
@@ -1811,7 +1816,7 @@
                         }
                         
                         // Alter
-                        const ageValue = charData.age || selectedChar.age;
+                        const ageValue = charData.age;
                         if (ageValue) {
                             ageEl.querySelector('span').textContent = `${ageValue} Jahre`;
                             ageEl.style.display = 'flex';
@@ -1819,7 +1824,7 @@
                             ageEl.style.display = 'none';
                         }
                         
-                        // Rolle/Klasse
+                        // Rolle
                         const roleText = charData.role || selectedChar.role || selectedChar.class || '';
                         if (roleText) {
                             roleEl.textContent = roleText;
@@ -1830,17 +1835,24 @@
                         
                         // Fokus Element (Worlds Apart spezifisch)
                         const fokusType = charData.fokus?.type;
-                        if (fokusType && (selectedChar.ruleset === 'worldsapart' || !selectedChar.ruleset)) {
-                            // Fokus Namen übersetzen
+                        if (fokusType) {
+                            // Fokus Namen übersetzen (alle möglichen Typen)
                             const fokusNames = {
                                 'fire': 'Feuer',
-                                'water': 'Wasser',
+                                'water': 'Wasser', 
                                 'earth': 'Erde',
                                 'air': 'Luft',
                                 'light': 'Licht',
-                                'shadow': 'Schatten'
+                                'shadow': 'Schatten',
+                                'illusion': 'Illusion',
+                                'nature': 'Natur',
+                                'storm': 'Sturm',
+                                'ice': 'Eis',
+                                'lightning': 'Blitz',
+                                'force': 'Kraft'
                             };
-                            elementEl.querySelector('span').textContent = fokusNames[fokusType] || fokusType;
+                            const fokusName = fokusNames[fokusType] || fokusType.charAt(0).toUpperCase() + fokusType.slice(1);
+                            elementEl.querySelector('span').textContent = fokusName;
                             elementEl.style.display = 'flex';
                         } else {
                             elementEl.style.display = 'none';
@@ -1850,32 +1862,32 @@
                         const statsContainer = document.getElementById('charPanelStats');
                         
                         // LP
-                        let lpValue = charData.status?.health ?? charData.health?.current ?? null;
-                        let lpMax = charData.health?.max || 100;
-                        if (lpValue !== null) {
-                            const lpPercent = Math.min(100, Math.max(0, (lpValue / lpMax) * 100));
-                            document.getElementById('charPanelHp').textContent = lpValue;
+                        const lpCurrent = charData.health?.current ?? null;
+                        const lpMax = charData.health?.max || 100;
+                        if (lpCurrent !== null) {
+                            const lpPercent = Math.min(100, Math.max(0, (lpCurrent / lpMax) * 100));
+                            document.getElementById('charPanelHp').textContent = lpCurrent;
                             document.getElementById('charPanelHpBar').style.width = `${lpPercent}%`;
                         }
                         
                         // Moral
-                        let moralValue = charData.status?.moral ?? charData.moral?.current ?? null;
-                        let moralMax = charData.moral?.max || 100;
-                        if (moralValue !== null) {
-                            const moralPercent = Math.min(100, Math.max(0, (moralValue / moralMax) * 100));
-                            document.getElementById('charPanelMp').textContent = moralValue;
+                        const moralCurrent = charData.moral?.current ?? null;
+                        const moralMax = charData.moral?.max || 100;
+                        if (moralCurrent !== null) {
+                            const moralPercent = Math.min(100, Math.max(0, (moralCurrent / moralMax) * 100));
+                            document.getElementById('charPanelMp').textContent = moralCurrent;
                             document.getElementById('charPanelMpBar').style.width = `${moralPercent}%`;
                         }
                         
-                        // Resonanz (Worlds Apart spezifisch) - berechnet aus Power * Presence + 10
+                        // Resonanz (Worlds Apart) - 10 + KRF * PRÄ
                         const resonanzStat = document.getElementById('charPanelResonanzStat');
-                        if ((selectedChar.ruleset === 'worldsapart' || !selectedChar.ruleset) && charData.attributes) {
+                        if (charData.attributes) {
                             const power = charData.attributes.power || 0;
                             const presence = charData.attributes.presence || 0;
                             const resonanzValue = 10 + (power * presence);
+                            const resonanzMax = 100; // Für die Bar
+                            const resonanzPercent = Math.min(100, (resonanzValue / resonanzMax) * 100);
                             document.getElementById('charPanelResonanz').textContent = resonanzValue;
-                            // Resonanz hat keinen Max, zeigen wir als Prozent basierend auf ~50 als "gut"
-                            const resonanzPercent = Math.min(100, (resonanzValue / 50) * 100);
                             document.getElementById('charPanelResonanzBar').style.width = `${resonanzPercent}%`;
                             resonanzStat.style.display = 'flex';
                         } else {
