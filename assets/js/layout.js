@@ -549,17 +549,7 @@ function initLayout() {
         return;
     }
     
-    // Skip if page already has TopNav (e.g. index.html with custom nav)
-    if (document.querySelector('header.topnav') || document.querySelector('nav.meganav')) {
-        console.log('[Layout] Custom TopNav detected - skipping layout generation');
-        // Still initialize party and clock
-        updateClock();
-        setInterval(updateClock, 1000);
-        updatePartyFromStorage();
-        return;
-    }
-    
-    // Use new layout system
+    // Use new layout system (handles custom TopNav detection internally)
     initNewLayout();
     
     // Initialize clock
@@ -2416,6 +2406,31 @@ function createBottomDock() {
 function initNewLayout() {
     const app = document.querySelector('.app');
     if (!app) return;
+    
+    // Check if page has custom TopNav (e.g. index.html)
+    const hasCustomTopnav = document.querySelector('header.topnav') || document.querySelector('nav.meganav');
+    
+    if (hasCustomTopnav) {
+        console.log('[Layout] Custom TopNav detected - adding Dock and Footer only');
+        
+        // Add new layout class
+        app.classList.add('app--new-layout');
+        
+        // Add Dock if not exists
+        if (!document.querySelector('.dock')) {
+            app.insertAdjacentHTML('afterend', createBottomDock());
+        }
+        
+        // Add Footer if not exists inside main__content
+        const mainContent = app.querySelector('.main__content');
+        if (mainContent && !mainContent.querySelector('.footer')) {
+            mainContent.insertAdjacentHTML('beforeend', createFooter());
+        }
+        
+        // Initialize dock
+        initBottomDock();
+        return;
+    }
     
     // Add new layout class
     app.classList.add('app--new-layout');
