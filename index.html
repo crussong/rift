@@ -2670,10 +2670,12 @@
         },
         
         async init() {
+            console.log('[Banner] Initializing...');
             if (typeof firebase === 'undefined' || !firebase.apps?.length) {
                 setTimeout(() => this.init(), 100);
                 return;
             }
+            console.log('[Banner] Firebase ready, loading banners...');
             await this.loadBanners();
         },
         
@@ -2682,14 +2684,18 @@
                 const db = firebase.firestore();
                 const snapshot = await db.collection('announcements').get();
                 
+                console.log('[Banner] Found', snapshot.docs.length, 'banners in database');
+                
                 this.banners = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
                 
+                console.log('[Banner] Banners:', this.banners.map(b => ({ id: b.id, title: b.title, active: b.active })));
+                
                 this.displayBanners();
             } catch (e) {
-                console.warn('[Banner] Load error:', e.message);
+                console.error('[Banner] Load error:', e);
             }
         },
         
@@ -2698,39 +2704,70 @@
             const currentPage = this.getCurrentPage();
             const userState = this.getUserState();
             
+            console.log('[Banner] Current page:', currentPage, 'User state:', userState);
+            
             // Filter eligible banners
             const eligible = this.banners.filter(banner => {
+                console.log('[Banner] Checking:', banner.title, 'active:', banner.active);
+                
                 // Must be active
-                if (!banner.active) return false;
+                if (!banner.active) {
+                    console.log('[Banner] Skipped (not active):', banner.title);
+                    return false;
+                }
                 
                 // Check schedule
                 if (banner.startDate) {
                     const start = banner.startDate.toDate ? banner.startDate.toDate() : new Date(banner.startDate);
-                    if (now < start) return false;
+                    if (now < start) {
+                        console.log('[Banner] Skipped (not started yet):', banner.title);
+                        return false;
+                    }
                 }
                 if (banner.endDate) {
                     const end = banner.endDate.toDate ? banner.endDate.toDate() : new Date(banner.endDate);
-                    if (now > end) return false;
+                    if (now > end) {
+                        console.log('[Banner] Skipped (expired):', banner.title);
+                        return false;
+                    }
                 }
                 
                 // Check page targeting
                 if (banner.pages && banner.pages !== 'all') {
-                    if (banner.pages !== currentPage) return false;
+                    if (banner.pages !== currentPage) {
+                        console.log('[Banner] Skipped (wrong page):', banner.title, 'wants:', banner.pages);
+                        return false;
+                    }
                 }
                 
                 // Check audience targeting
                 if (banner.audience && banner.audience !== 'all') {
-                    if (banner.audience === 'logged_in' && !userState.isLoggedIn) return false;
-                    if (banner.audience === 'logged_out' && userState.isLoggedIn) return false;
-                    if (banner.audience === 'admin' && !userState.isAdmin) return false;
+                    if (banner.audience === 'logged_in' && !userState.isLoggedIn) {
+                        console.log('[Banner] Skipped (needs login):', banner.title);
+                        return false;
+                    }
+                    if (banner.audience === 'logged_out' && userState.isLoggedIn) {
+                        console.log('[Banner] Skipped (only for logged out):', banner.title);
+                        return false;
+                    }
+                    if (banner.audience === 'admin' && !userState.isAdmin) {
+                        console.log('[Banner] Skipped (admin only):', banner.title);
+                        return false;
+                    }
                 }
                 
                 // Check if dismissed
                 const dismissed = this.getDismissedBanners();
-                if (dismissed.includes(banner.id)) return false;
+                if (dismissed.includes(banner.id)) {
+                    console.log('[Banner] Skipped (dismissed):', banner.title);
+                    return false;
+                }
                 
+                console.log('[Banner] ELIGIBLE:', banner.title);
                 return true;
             });
+            
+            console.log('[Banner] Eligible banners:', eligible.length);
             
             // Sort by priority
             eligible.sort((a, b) => (b.priority || 0) - (a.priority || 0));
