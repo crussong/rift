@@ -91,6 +91,20 @@
 ## Dateien
 
 - **dock.css** - CSS Variablen, TopNav, MegaNav, Dock, Footer Styles
-- **hub.css** - `.main--hub` Layout (Background, Content Container)
+- **hub.css** - `.main--hub` Layout (Background, Content Container) - **PFLICHT FÜR ALLE SEITEN**
 - **layout-unified.js** - Injiziert alle Layout-Komponenten
 - **core.css** - Basis-Variablen (Farben, Fonts)
+
+## CSS Ladereihenfolge (PFLICHT)
+
+```html
+<link rel="stylesheet" href="assets/css/core.css">
+<link rel="stylesheet" href="assets/css/ui.css">
+<link rel="stylesheet" href="assets/css/dock.css">
+<link rel="stylesheet" href="assets/css/hub.css">    <!-- PFLICHT! -->
+<link rel="stylesheet" href="assets/css/settings.css">
+<!-- Dann page-spezifische CSS -->
+```
+
+**WICHTIG:** `hub.css` MUSS auf JEDER Seite geladen werden, nicht nur auf dem Hub! 
+Es enthält die `.main--hub` Styles die das Layout definieren.
