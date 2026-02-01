@@ -366,8 +366,9 @@ function createUnifiedDock() {
     const currentPage = getCurrentPage();
     const userData = getUserData();
     
-    // Check if we're on the hub/index page
-    const isHub = currentPage === 'index' || currentPage === '' || window.location.pathname === '/' || window.location.pathname.endsWith('/');
+    // Check if we're on the hub/index page - more robust check
+    const path = window.location.pathname.toLowerCase();
+    const isHub = currentPage === 'index' || currentPage === '' || path === '/' || path.endsWith('/') || path.endsWith('/index.html') || path.includes('index');
     
     return `
     <div class="dock" id="bottomDock">
