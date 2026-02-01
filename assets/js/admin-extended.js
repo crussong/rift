@@ -1812,6 +1812,7 @@ const AuditAdmin = {
             case 'rulesets': RulesetsAdmin.load(); break;
             case 'assets': AssetsAdmin.load(); break;
             case 'audit': AuditAdmin.load(); break;
+            case 'team': TeamAdmin.load(); break;
             case 'carousel': if(typeof CarouselAdmin !== 'undefined') CarouselAdmin.load(); break;
             case 'quotes': if(typeof QuotesAdmin !== 'undefined') QuotesAdmin.load(); break;
             case 'news': if(typeof NewsAdmin !== 'undefined') NewsAdmin.load(); break;
@@ -1819,5 +1820,152 @@ const AuditAdmin = {
         }
     };
 })();
+
+// ========================================
+// TEAM ADMIN MODULE
+// ========================================
+const TeamAdmin = {
+    admins: [],
+    
+    async load() {
+        try {
+            const doc = await db.collection('config').doc('admins').get();
+            if (doc.exists && doc.data().list) {
+                this.admins = doc.data().list;
+            } else {
+                // Initialize with current user if no list exists
+                this.admins = [{
+                    uid: firebase.auth().currentUser.uid,
+                    name: firebase.auth().currentUser.displayName || 'Owner',
+                    addedAt: new Date(),
+                    addedBy: 'system',
+                    isOwner: true
+                }];
+                await this.save();
+            }
+            this.render();
+            console.log('[Admin] Loaded', this.admins.length, 'admins');
+        } catch (e) {
+            console.warn('[Team] Could not load admins:', e.message);
+            this.admins = [];
+            this.render();
+        }
+    },
+    
+    render() {
+        const container = document.getElementById('adminList');
+        const countEl = document.getElementById('adminCount');
+        if (!container) return;
+        
+        if (countEl) countEl.textContent = this.admins.length;
+        
+        if (this.admins.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">Keine Admins konfiguriert</div>';
+            return;
+        }
+        
+        const currentUid = firebase.auth().currentUser?.uid;
+        
+        container.innerHTML = this.admins.map((admin, index) => {
+            const isOwner = admin.isOwner || index === 0;
+            const isSelf = admin.uid === currentUid;
+            const addedDate = admin.addedAt?.toDate ? admin.addedAt.toDate() : (admin.addedAt ? new Date(admin.addedAt) : null);
+            
+            return `
+                <div style="display:flex;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);gap:16px;">
+                    <div style="width:48px;height:48px;border-radius:12px;background:${isOwner ? 'linear-gradient(135deg, #F59E0B, #EF4444)' : 'var(--accent)'};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">
+                        ${isOwner ? '👑' : (admin.name || 'A').charAt(0).toUpperCase()}
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;display:flex;align-items:center;gap:8px;">
+                            ${admin.name || 'Unbenannt'}
+                            ${isOwner ? '<span style="padding:2px 8px;background:#F59E0B20;color:#F59E0B;border-radius:10px;font-size:11px;">Owner</span>' : ''}
+                            ${isSelf ? '<span style="padding:2px 8px;background:var(--accent)20;color:var(--accent);border-radius:10px;font-size:11px;">Du</span>' : ''}
+                        </div>
+                        <div style="font-size:13px;color:var(--text-muted);font-family:monospace;margin-top:2px;">${admin.uid}</div>
+                        ${addedDate ? '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Hinzugefügt: ' + addedDate.toLocaleDateString('de-DE') + '</div>' : ''}
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn--ghost btn--small" onclick="navigator.clipboard.writeText('${admin.uid}');showToast('UID kopiert');" title="UID kopieren">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </button>
+                        ${!isOwner && !isSelf ? `
+                            <button class="btn btn--ghost btn--small" onclick="TeamAdmin.removeAdmin('${admin.uid}')" title="Entfernen" style="color:var(--red);">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+    
+    async addAdmin() {
+        const uidInput = document.getElementById('newAdminUid');
+        const nameInput = document.getElementById('newAdminName');
+        
+        const uid = uidInput.value.trim();
+        const name = nameInput.value.trim();
+        
+        if (!uid) {
+            showToast('Bitte UID eingeben', 'error');
+            return;
+        }
+        
+        if (uid.length < 20) {
+            showToast('UID scheint ungültig zu sein', 'error');
+            return;
+        }
+        
+        // Check if already exists
+        if (this.admins.some(a => a.uid === uid)) {
+            showToast('Diese UID ist bereits Admin', 'error');
+            return;
+        }
+        
+        // Add to list
+        this.admins.push({
+            uid: uid,
+            name: name || 'Admin',
+            addedAt: new Date(),
+            addedBy: firebase.auth().currentUser?.displayName || firebase.auth().currentUser?.email || 'Unknown'
+        });
+        
+        await this.save();
+        
+        uidInput.value = '';
+        nameInput.value = '';
+        
+        showToast('Admin hinzugefügt');
+        this.render();
+    },
+    
+    async removeAdmin(uid) {
+        const admin = this.admins.find(a => a.uid === uid);
+        if (!admin) return;
+        
+        if (!confirm(`"${admin.name || uid}" wirklich als Admin entfernen?`)) return;
+        
+        this.admins = this.admins.filter(a => a.uid !== uid);
+        await this.save();
+        
+        showToast('Admin entfernt');
+        this.render();
+    },
+    
+    async save() {
+        try {
+            // Save list format for display
+            await db.collection('config').doc('admins').set({
+                list: this.admins,
+                uids: this.admins.map(a => a.uid),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (e) {
+            console.error('[Team] Save error:', e);
+            showToast('Fehler beim Speichern', 'error');
+        }
+    }
+};
 
 console.log('[Admin Extended] All modules loaded successfully');
