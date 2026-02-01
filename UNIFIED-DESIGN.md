@@ -42,8 +42,7 @@
     --topnav-height-row1: 66px;
     --topnav-height-row2: 55px;
     --topnav-total-height: 121px;
-    --content-max-width: 1500px;    /* Hintergrund + Container */
-    --topnav-max-width: 1400px;     /* TopNav + MegaNav */
+    --content-max-width: 1500px;
 }
 ```
 
@@ -51,10 +50,12 @@
 
 | Element | max-width | padding | Effektive Breite |
 |---------|-----------|---------|------------------|
-| TopNav (.topnav__inner) | 1448px | 0 24px | 1400px |
-| MegaNav (.meganav__inner) | 1448px | 0 24px | 1400px |
+| TopNav (.topnav__inner) | 1500px | 0 50px | 1400px |
+| MegaNav (.meganav__inner) | 1500px | 0 50px | 1400px |
 | Background (::before) | 1500px | - | 1500px |
 | Content (.main__content) | 1500px | 0 50px | 1400px |
+
+**ALLE Container haben identische Werte: 1500px max-width, 50px padding links/rechts.**
 
 ## Klassen
 
