@@ -309,7 +309,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">3D Dice Roller</div>
                             </div>
                         </a>
-                        <a href="maps.html" class="meganav__dropdown-card">
+                        <a href="map.html" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee;">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/></svg>
                             </div>
@@ -394,7 +394,7 @@ function createUnifiedDock() {
                 <path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0 -1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034 .57 2.22 .57 3.2 .032l6.804 -4.302c.98 -.537 1.623 -1.618 1.623 -2.793v-7.284l-.005 -.204a3.223 3.223 0 0 0 -1.284 -2.39l-.107 -.075l-.007 -.007a1.074 1.074 0 0 0 -.181 -.133l-6.776 -3.995a3.33 3.33 0 0 0 -3.216 0z"/>
             </svg>
         </a>
-        <a href="maps.html" class="dock__item ${currentPage === 'maps' || currentPage === 'map' ? 'active' : ''}" data-tooltip="Karte">
+        <a href="map.html" class="dock__item ${currentPage === 'map' ? 'active' : ''}" data-tooltip="Karte">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/>
             </svg>
@@ -451,7 +451,7 @@ function createUnifiedFooter() {
                     <a href="sessions.html">Sessions</a>
                     <a href="sheet.html">Charaktere</a>
                     <a href="dice.html">Würfel</a>
-                    <a href="maps.html">Karten</a>
+                    <a href="map.html">Karten</a>
                 </nav>
             </div>
             
