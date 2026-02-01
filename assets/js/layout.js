@@ -109,8 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // Current page detection
 function getCurrentPage() {
     const path = window.location.pathname;
-    const page = path.substring(path.lastIndexOf('/') + 1).replace('.html', '');
-    return page || 'index';
+    let page = path.substring(path.lastIndexOf('/') + 1).replace('.html', '');
+    // Handle root path and empty page
+    if (!page || page === '' || page === '/') {
+        page = 'index';
+    }
+    return page;
 }
 
 /**
