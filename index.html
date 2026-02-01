@@ -2757,8 +2757,7 @@
                 }
                 
                 // Check if dismissed
-                const dismissed = this.getDismissedBanners();
-                if (dismissed.includes(banner.id)) {
+                if (this.isDismissed(banner)) {
                     console.log('[Banner] Skipped (dismissed):', banner.title);
                     return false;
                 }
@@ -2799,10 +2798,44 @@
         
         getDismissedBanners() {
             try {
-                return JSON.parse(localStorage.getItem('dismissedBanners') || '[]');
+                const dismissed = JSON.parse(localStorage.getItem('dismissedBanners') || '{}');
+                // Neues Format: { bannerId: { timestamp, version } }
+                // Altes Format (Array) migrieren
+                if (Array.isArray(dismissed)) {
+                    localStorage.removeItem('dismissedBanners');
+                    return {};
+                }
+                return dismissed;
             } catch {
-                return [];
+                return {};
             }
+        },
+        
+        isDismissed(banner) {
+            const dismissed = this.getDismissedBanners();
+            const dismissInfo = dismissed[banner.id];
+            
+            if (!dismissInfo) return false;
+            
+            // Banner wurde aktualisiert seit dismiss? → Wieder anzeigen
+            if (banner.updatedAt) {
+                const updatedAt = banner.updatedAt.toDate ? banner.updatedAt.toDate() : new Date(banner.updatedAt);
+                if (updatedAt.getTime() > dismissInfo.timestamp) {
+                    console.log('[Banner] Showing again (updated since dismiss):', banner.title);
+                    return false;
+                }
+            }
+            
+            // Nach 24h wieder anzeigen (außer user hat "nicht mehr anzeigen" gewählt)
+            if (!dismissInfo.permanent) {
+                const hoursSinceDismiss = (Date.now() - dismissInfo.timestamp) / (1000 * 60 * 60);
+                if (hoursSinceDismiss > 24) {
+                    console.log('[Banner] Showing again (24h passed):', banner.title);
+                    return false;
+                }
+            }
+            
+            return true;
         },
         
         renderBanner(banner) {
@@ -2967,13 +3000,14 @@
             this.countdownIntervals[banner.id] = setInterval(update, 1000);
         },
         
-        dismiss(bannerId) {
-            // Save to dismissed list
+        dismiss(bannerId, permanent = false) {
+            // Save to dismissed list with timestamp
             const dismissed = this.getDismissedBanners();
-            if (!dismissed.includes(bannerId)) {
-                dismissed.push(bannerId);
-                localStorage.setItem('dismissedBanners', JSON.stringify(dismissed));
-            }
+            dismissed[bannerId] = {
+                timestamp: Date.now(),
+                permanent: permanent
+            };
+            localStorage.setItem('dismissedBanners', JSON.stringify(dismissed));
             
             // Track dismiss
             this.trackDismiss(bannerId);
