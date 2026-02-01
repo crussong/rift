@@ -114,6 +114,7 @@ function getCurrentPage() {
     if (!page || page === '' || page === '/') {
         page = 'index';
     }
+    console.log('[getCurrentPage] path:', path, '→ page:', page);
     return page;
 }
 
