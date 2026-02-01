@@ -2651,99 +2651,359 @@
     // ========================================
     // ANNOUNCEMENT BANNER
     // ========================================
-    async function loadAnnouncementBanner() {
-        const container = document.getElementById('announcementBanner');
-        if (!container) return;
+    // ========================================
+    // ADVANCED BANNER SYSTEM
+    // ========================================
+    const BannerSystem = {
+        banners: [],
+        shownBanners: new Set(),
+        countdownIntervals: {},
         
-        try {
-            const db = firebase.firestore();
-            // Simple query without composite index - filter client-side
-            const snapshot = await db.collection('announcements').get();
-            
-            if (snapshot.empty) {
-                container.style.display = 'none';
+        // Level Config
+        levelConfig: {
+            info: { color: '#3B82F6', icon: 'ℹ️' },
+            warning: { color: '#F59E0B', icon: '⚠️' },
+            critical: { color: '#EF4444', icon: '🚨' },
+            success: { color: '#22C55E', icon: '✅' },
+            maintenance: { color: '#8B5CF6', icon: '🔧' },
+            event: { color: '#EC4899', icon: '🎉' }
+        },
+        
+        async init() {
+            if (typeof firebase === 'undefined' || !firebase.apps?.length) {
+                setTimeout(() => this.init(), 100);
                 return;
             }
+            await this.loadBanners();
+        },
+        
+        async loadBanners() {
+            try {
+                const db = firebase.firestore();
+                const snapshot = await db.collection('announcements').get();
+                
+                this.banners = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                this.displayBanners();
+            } catch (e) {
+                console.warn('[Banner] Load error:', e.message);
+            }
+        },
+        
+        displayBanners() {
+            const now = new Date();
+            const currentPage = this.getCurrentPage();
+            const userState = this.getUserState();
             
-            // Find active banner (client-side filter)
-            let activeBanner = null;
-            let activeBannerId = null;
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                if (data.active === true) {
-                    if (!activeBanner || (data.createdAt && activeBanner.createdAt && data.createdAt.toMillis() > activeBanner.createdAt.toMillis())) {
-                        activeBanner = data;
-                        activeBannerId = doc.id;
-                    }
+            // Filter eligible banners
+            const eligible = this.banners.filter(banner => {
+                // Must be active
+                if (!banner.active) return false;
+                
+                // Check schedule
+                if (banner.startDate) {
+                    const start = banner.startDate.toDate ? banner.startDate.toDate() : new Date(banner.startDate);
+                    if (now < start) return false;
                 }
+                if (banner.endDate) {
+                    const end = banner.endDate.toDate ? banner.endDate.toDate() : new Date(banner.endDate);
+                    if (now > end) return false;
+                }
+                
+                // Check page targeting
+                if (banner.pages && banner.pages !== 'all') {
+                    if (banner.pages !== currentPage) return false;
+                }
+                
+                // Check audience targeting
+                if (banner.audience && banner.audience !== 'all') {
+                    if (banner.audience === 'logged_in' && !userState.isLoggedIn) return false;
+                    if (banner.audience === 'logged_out' && userState.isLoggedIn) return false;
+                    if (banner.audience === 'admin' && !userState.isAdmin) return false;
+                }
+                
+                // Check if dismissed
+                const dismissed = this.getDismissedBanners();
+                if (dismissed.includes(banner.id)) return false;
+                
+                return true;
             });
             
-            if (!activeBanner) {
-                container.style.display = 'none';
-                return;
-            }
+            // Sort by priority
+            eligible.sort((a, b) => (b.priority || 0) - (a.priority || 0));
             
-            const banner = activeBanner;
-            
-            // Check time constraints if set
-            const now = new Date();
-            if (banner.startDate) {
-                const start = banner.startDate.toDate ? banner.startDate.toDate() : new Date(banner.startDate);
-                if (now < start) { container.style.display = 'none'; return; }
-            }
-            if (banner.endDate) {
-                const end = banner.endDate.toDate ? banner.endDate.toDate() : new Date(banner.endDate);
-                if (now > end) { container.style.display = 'none'; return; }
-            }
-            
-            // Check if user dismissed this banner
-            const dismissedId = localStorage.getItem('dismissedBanner');
-            if (dismissedId === activeBannerId) {
-                container.style.display = 'none';
-                return;
-            }
-            
-            const colors = {
-                info: { bg: '#3B82F620', border: '#3B82F640', text: '#3B82F6', icon: 'ℹ️' },
-                warning: { bg: '#F59E0B20', border: '#F59E0B40', text: '#F59E0B', icon: '⚠️' },
-                critical: { bg: '#EF444420', border: '#EF444440', text: '#EF4444', icon: '🚨' }
+            // Display each banner based on position
+            eligible.forEach(banner => {
+                if (this.shownBanners.has(banner.id)) return;
+                this.renderBanner(banner);
+                this.shownBanners.add(banner.id);
+                this.trackView(banner.id);
+            });
+        },
+        
+        getCurrentPage() {
+            const path = window.location.pathname;
+            if (path.includes('index') || path === '/' || path.endsWith('/')) return 'hub';
+            if (path.includes('session')) return 'session';
+            if (path.includes('character') || path.includes('htbah') || path.includes('dnd') || path.includes('cyberpunk')) return 'character';
+            if (path.includes('landing')) return 'landing';
+            return 'hub';
+        },
+        
+        getUserState() {
+            return {
+                isLoggedIn: typeof currentUser !== 'undefined' && currentUser !== null,
+                isAdmin: typeof currentUser !== 'undefined' && currentUser?.uid === 'geBL1RI92jUiPrFK1oJ5u2Z25hM2'
             };
-            const c = colors[banner.level] || colors.info;
+        },
+        
+        getDismissedBanners() {
+            try {
+                return JSON.parse(localStorage.getItem('dismissedBanners') || '[]');
+            } catch {
+                return [];
+            }
+        },
+        
+        renderBanner(banner) {
+            const position = banner.position || 'top-banner';
+            const config = this.levelConfig[banner.level] || this.levelConfig.info;
             
-            container.innerHTML = `
-                <div style="background: ${c.bg}; border: 1px solid ${c.border}; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
-                    <span style="font-size: 24px;">${c.icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: ${c.text}; margin-bottom: 2px;">${banner.title}</div>
-                        ${banner.message ? '<div style="font-size: 14px; color: var(--text-muted);">' + banner.message + '</div>' : ''}
-                    </div>
-                    <button onclick="dismissBanner('${activeBannerId}')" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; font-size: 18px;" title="Schließen">✕</button>
+            // Remove existing banner of same position
+            const existingId = `banner-${position}`;
+            document.getElementById(existingId)?.remove();
+            
+            let html = '';
+            let containerStyle = '';
+            
+            switch (position) {
+                case 'top-bar':
+                    containerStyle = 'position:fixed;top:0;left:0;right:0;z-index:10000;';
+                    html = this.renderBarBanner(banner, config);
+                    break;
+                    
+                case 'bottom-bar':
+                    containerStyle = 'position:fixed;bottom:0;left:0;right:0;z-index:10000;';
+                    html = this.renderBarBanner(banner, config);
+                    break;
+                    
+                case 'modal':
+                    this.renderModalBanner(banner, config);
+                    return;
+                    
+                case 'corner':
+                    containerStyle = 'position:fixed;bottom:20px;right:20px;z-index:10000;max-width:360px;';
+                    html = this.renderCornerBanner(banner, config);
+                    break;
+                    
+                case 'top-banner':
+                default:
+                    // Render in the existing container
+                    const container = document.getElementById('announcementBanner');
+                    if (container) {
+                        container.innerHTML = this.renderInlineBanner(banner, config);
+                        container.style.display = 'block';
+                        this.startCountdown(banner);
+                    }
+                    return;
+            }
+            
+            // Create container for fixed banners
+            const container = document.createElement('div');
+            container.id = existingId;
+            container.style.cssText = containerStyle;
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                container.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                container.style.transform = 'translateY(0)';
+                container.style.opacity = '1';
+            });
+            
+            this.startCountdown(banner);
+        },
+        
+        renderBarBanner(banner, config) {
+            const hasLink = banner.linkUrl && banner.linkText;
+            return `
+                <div style="background: ${config.color}; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 14px;">
+                    <span>${config.icon}</span>
+                    <span><strong>${banner.title}</strong>${banner.message ? ' — ' + banner.message : ''}</span>
+                    ${banner.showCountdown && banner.endDate ? '<span id="countdown-' + banner.id + '" style="font-weight:700;"></span>' : ''}
+                    ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="color:white;text-decoration:underline;font-weight:500;">' + banner.linkText + '</a>' : ''}
+                    ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="background:none;border:none;color:white;cursor:pointer;padding:4px 8px;font-size:18px;opacity:0.8;">✕</button>' : ''}
                 </div>
             `;
-            container.style.display = 'block';
+        },
+        
+        renderInlineBanner(banner, config) {
+            const hasLink = banner.linkUrl && banner.linkText;
+            return `
+                <div style="background: ${config.color}20; border: 1px solid ${config.color}40; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+                    <span style="font-size: 28px;">${config.icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: ${config.color}; margin-bottom: 2px;">${banner.title}</div>
+                        ${banner.message ? '<div style="font-size: 14px; color: var(--text-muted);">' + banner.message + '</div>' : ''}
+                    </div>
+                    ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-weight:700;font-size:18px;color:' + config.color + ';"></div>' : ''}
+                    ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="padding:8px 16px;background:' + config.color + ';color:white;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;">' + banner.linkText + '</a>' : ''}
+                    ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:8px;font-size:18px;">✕</button>' : ''}
+                </div>
+            `;
+        },
+        
+        renderCornerBanner(banner, config) {
+            const hasLink = banner.linkUrl && banner.linkText;
+            return `
+                <div style="background: var(--bg-elevated); border: 1px solid ${config.color}40; border-radius: 12px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-size: 24px;">${config.icon}</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: ${config.color}; margin-bottom: 4px;">${banner.title}</div>
+                            ${banner.message ? '<div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">' + banner.message + '</div>' : ''}
+                            ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-weight:700;color:' + config.color + ';margin-bottom:12px;"></div>' : ''}
+                            ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="display:inline-block;padding:8px 16px;background:' + config.color + ';color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">' + banner.linkText + '</a>' : ''}
+                        </div>
+                        ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;font-size:16px;">✕</button>' : ''}
+                    </div>
+                </div>
+            `;
+        },
+        
+        renderModalBanner(banner, config) {
+            const hasLink = banner.linkUrl && banner.linkText;
+            const html = `
+                <div id="banner-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)BannerSystem.dismiss('${banner.id}')">
+                    <div style="background:var(--bg-elevated);border-radius:16px;padding:32px;max-width:450px;text-align:center;position:relative;">
+                        ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:20px;">✕</button>' : ''}
+                        ${banner.imageUrl ? '<img src="' + banner.imageUrl + '" style="max-width:100%;max-height:150px;border-radius:8px;margin-bottom:20px;">' : ''}
+                        <div style="font-size:48px;margin-bottom:16px;">${config.icon}</div>
+                        <div style="font-size:24px;font-weight:700;color:${config.color};margin-bottom:8px;">${banner.title}</div>
+                        ${banner.message ? '<div style="color:var(--text-muted);margin-bottom:20px;">' + banner.message + '</div>' : ''}
+                        ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-size:28px;font-weight:700;color:' + config.color + ';margin-bottom:20px;"></div>' : ''}
+                        ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="display:inline-block;padding:12px 32px;background:' + config.color + ';color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">' + banner.linkText + '</a>' : ''}
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+            this.startCountdown(banner);
+        },
+        
+        startCountdown(banner) {
+            if (!banner.showCountdown || !banner.endDate) return;
             
-            console.log('[Hub] Banner loaded:', banner.title);
+            const countdownEl = document.getElementById('countdown-' + banner.id);
+            if (!countdownEl) return;
             
-        } catch (e) {
-            console.warn('[Hub] Banner load error:', e.message);
-            container.style.display = 'none';
+            const endDate = banner.endDate.toDate ? banner.endDate.toDate() : new Date(banner.endDate);
+            
+            const update = () => {
+                const now = new Date();
+                const diff = endDate - now;
+                
+                if (diff <= 0) {
+                    countdownEl.textContent = 'Abgelaufen';
+                    clearInterval(this.countdownIntervals[banner.id]);
+                    return;
+                }
+                
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                if (days > 0) {
+                    countdownEl.textContent = days + 'd ' + hours + 'h ' + minutes + 'm';
+                } else if (hours > 0) {
+                    countdownEl.textContent = hours + 'h ' + minutes + 'm ' + seconds + 's';
+                } else {
+                    countdownEl.textContent = minutes + 'm ' + seconds + 's';
+                }
+            };
+            
+            update();
+            this.countdownIntervals[banner.id] = setInterval(update, 1000);
+        },
+        
+        dismiss(bannerId) {
+            // Save to dismissed list
+            const dismissed = this.getDismissedBanners();
+            if (!dismissed.includes(bannerId)) {
+                dismissed.push(bannerId);
+                localStorage.setItem('dismissedBanners', JSON.stringify(dismissed));
+            }
+            
+            // Track dismiss
+            this.trackDismiss(bannerId);
+            
+            // Remove from DOM
+            const banner = this.banners.find(b => b.id === bannerId);
+            if (banner) {
+                const position = banner.position || 'top-banner';
+                if (position === 'top-banner') {
+                    const container = document.getElementById('announcementBanner');
+                    if (container) container.style.display = 'none';
+                } else if (position === 'modal') {
+                    document.getElementById('banner-modal')?.remove();
+                } else {
+                    document.getElementById('banner-' + position)?.remove();
+                }
+            }
+            
+            // Clear countdown
+            if (this.countdownIntervals[bannerId]) {
+                clearInterval(this.countdownIntervals[bannerId]);
+            }
+            
+            this.shownBanners.delete(bannerId);
+        },
+        
+        async trackView(bannerId) {
+            try {
+                const db = firebase.firestore();
+                await db.collection('announcements').doc(bannerId).update({
+                    views: firebase.firestore.FieldValue.increment(1)
+                });
+            } catch (e) {
+                // Silently fail - tracking is not critical
+            }
+        },
+        
+        async trackClick(bannerId) {
+            try {
+                const db = firebase.firestore();
+                await db.collection('announcements').doc(bannerId).update({
+                    clicks: firebase.firestore.FieldValue.increment(1)
+                });
+            } catch (e) {
+                // Silently fail
+            }
+        },
+        
+        async trackDismiss(bannerId) {
+            try {
+                const db = firebase.firestore();
+                await db.collection('announcements').doc(bannerId).update({
+                    dismisses: firebase.firestore.FieldValue.increment(1)
+                });
+            } catch (e) {
+                // Silently fail
+            }
         }
-    }
+    };
     
+    // Legacy function for backwards compatibility
     function dismissBanner(id) {
-        localStorage.setItem('dismissedBanner', id);
-        document.getElementById('announcementBanner').style.display = 'none';
+        BannerSystem.dismiss(id);
     }
     
-    // Init banner when Firebase ready
-    function initAnnouncementBanner() {
-        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
-            loadAnnouncementBanner();
-        } else {
-            setTimeout(initAnnouncementBanner, 100);
-        }
-    }
-    initAnnouncementBanner();
+    // Initialize Banner System
+    BannerSystem.init();
     
     // Time-based greeting
     function updateGreetingTime() {
