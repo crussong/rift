@@ -2413,9 +2413,6 @@ function initNewLayout() {
     if (hasCustomTopnav) {
         console.log('[Layout] Custom TopNav detected - adding Dock and Footer only');
         
-        // Add new layout class
-        app.classList.add('app--new-layout');
-        
         // Add Dock if not exists
         if (!document.querySelector('.dock')) {
             app.insertAdjacentHTML('afterend', createBottomDock());
@@ -2429,9 +2426,6 @@ function initNewLayout() {
         
         return;
     }
-    
-    // Add new layout class
-    app.classList.add('app--new-layout');
     
     // Get the main element and preserve its classes
     const mainEl = app.querySelector('.main');
