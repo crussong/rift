@@ -17,8 +17,10 @@ const UsersAdmin = {
             this.updateStats();
             console.log('[Admin] Loaded', this.users.length, 'users');
         } catch (error) {
-            console.error('Error loading users:', error);
-            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</td></tr>';
+            console.warn('Users collection not accessible:', error.message);
+            this.users = [];
+            this.render();
+            this.updateStats();
         }
     },
     
@@ -144,8 +146,11 @@ const SessionsAdmin = {
             this.updateRulesetStats();
             console.log('[Admin] Loaded', this.sessions.length, 'sessions');
         } catch (error) {
-            console.error('Error loading sessions:', error);
-            document.getElementById('sessionsTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</td></tr>';
+            console.warn('Sessions collection not accessible:', error.message);
+            this.sessions = [];
+            this.render();
+            this.updateStats();
+            this.updateRulesetStats();
         }
     },
     
@@ -216,8 +221,10 @@ const FeedbackAdmin = {
             this.updateStats();
             console.log('[Admin] Loaded', this.items.length, 'feedback items');
         } catch (e) {
-            console.error('Error loading feedback:', e);
-            document.getElementById('feedbackListContainer').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</div>';
+            console.warn('Feedback collection not accessible:', e.message);
+            this.items = [];
+            this.render();
+            this.updateStats();
         }
     },
     
@@ -287,8 +294,10 @@ const AnnouncementsAdmin = {
             this.updateActiveBanner();
             console.log('[Admin] Loaded', this.items.length, 'announcements');
         } catch (e) {
-            console.error('Error:', e);
-            document.getElementById('announcementsList').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</div>';
+            console.warn('Announcements collection not accessible:', e.message);
+            this.items = [];
+            this.render();
+            this.updateActiveBanner();
         }
     },
     
@@ -475,8 +484,9 @@ const ChangelogAdmin = {
             this.render();
             console.log('[Admin] Loaded', this.versions.length, 'changelog versions');
         } catch (e) { 
-            console.error('Changelog error:', e);
-            document.getElementById('changelogList').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</div>';
+            console.warn('Changelog collection not accessible:', e.message);
+            this.versions = [];
+            this.render();
         }
     },
     
@@ -572,16 +582,21 @@ const FAQAdmin = {
     async load() {
         try {
             const faqSnap = await db.collection('faq').orderBy('order').get();
-            const catSnap = await db.collection('faq_categories').orderBy('order').get();
             this.items = faqSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            this.categories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            this.render(); 
-            this.renderCategories();
-            console.log('[Admin] Loaded', this.items.length, 'FAQs');
         } catch (e) { 
-            console.error('FAQ error:', e);
-            document.getElementById('faqList').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</div>';
+            console.warn('FAQ collection not accessible:', e.message);
+            this.items = [];
         }
+        try {
+            const catSnap = await db.collection('faq_categories').orderBy('order').get();
+            this.categories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn('FAQ categories not accessible:', e.message);
+            this.categories = [];
+        }
+        this.render(); 
+        this.renderCategories();
+        console.log('[Admin] Loaded', this.items.length, 'FAQs');
     },
     
     renderCategories() {
@@ -676,8 +691,9 @@ const RulesetsAdmin = {
             this.render();
             console.log('[Admin] Loaded', this.items.length, 'rulesets');
         } catch (e) { 
-            console.error('Rulesets error:', e);
-            document.getElementById('rulesetsGrid').innerHTML = '<div style="text-align:center;padding:60px;grid-column:1/-1;color:var(--text-muted);">Fehler beim Laden</div>';
+            console.warn('Rulesets collection not accessible:', e.message);
+            this.items = [];
+            this.render();
         }
     },
     
@@ -757,8 +773,10 @@ const AssetsAdmin = {
             this.updateStats();
             console.log('[Admin] Loaded', this.items.length, 'assets');
         } catch (e) { 
-            console.error('Assets error:', e);
-            document.getElementById('assetsContainer').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</div>';
+            console.warn('Assets collection not accessible:', e.message);
+            this.items = [];
+            this.render();
+            this.updateStats();
         }
     },
     
@@ -805,8 +823,9 @@ const AuditAdmin = {
             this.render();
             console.log('[Admin] Loaded', this.logs.length, 'audit logs');
         } catch (e) { 
-            console.error('Audit error:', e);
-            document.getElementById('auditLogContainer').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Fehler beim Laden</div>';
+            console.warn('Audit log collection not accessible:', e.message);
+            this.logs = [];
+            this.render();
         }
     },
     
