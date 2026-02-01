@@ -660,6 +660,13 @@ const AnnouncementsAdmin = {
         const config = this.levelConfig[banner.level] || this.levelConfig.info;
         const position = banner.position || 'top-banner';
         
+        // Use custom color if set, otherwise use preset color
+        const color = banner.customColor || config.color;
+        // Use custom emoji if set, otherwise use preset icon
+        const icon = banner.customEmoji || config.icon;
+        // Check if emoji should be shown
+        const showEmoji = banner.showEmoji !== false;
+        
         let style = '';
         let wrapperStyle = 'border-radius:12px;overflow:hidden;';
         
@@ -682,7 +689,7 @@ const AnnouncementsAdmin = {
         const hasCountdown = banner.endDate && banner.showCountdown;
         
         let html = '<div style="' + wrapperStyle + '">';
-        html += '<div style="background:' + config.color + '20;border:1px solid ' + config.color + '40;' + style + '">';
+        html += '<div style="background:' + color + '20;border:1px solid ' + color + '40;' + style + '">';
         
         if (position === 'modal') {
             // Modal Layout
@@ -690,33 +697,38 @@ const AnnouncementsAdmin = {
             if (banner.imageUrl) {
                 html += '<img src="' + banner.imageUrl + '" style="max-width:100%;max-height:150px;border-radius:8px;margin-bottom:16px;">';
             }
-            html += '<div style="font-size:32px;margin-bottom:12px;">' + config.icon + '</div>';
-            html += '<div style="font-size:20px;font-weight:700;color:' + config.color + ';margin-bottom:8px;">' + banner.title + '</div>';
+            if (showEmoji) {
+                html += '<div style="font-size:32px;margin-bottom:12px;">' + icon + '</div>';
+            }
+            html += '<div style="font-size:20px;font-weight:700;color:' + color + ';margin-bottom:8px;">' + banner.title + '</div>';
             if (banner.message) {
                 html += '<div style="color:var(--text-muted);margin-bottom:16px;">' + banner.message + '</div>';
             }
             if (hasCountdown) {
-                html += '<div id="bannerCountdown" style="font-size:24px;font-weight:700;color:' + config.color + ';margin-bottom:16px;">--:--:--</div>';
+                html += '<div id="bannerCountdown" style="font-size:24px;font-weight:700;color:' + color + ';margin-bottom:16px;">--:--:--</div>';
             }
             if (hasLink) {
-                html += '<a href="' + banner.linkUrl + '" target="_blank" style="display:inline-block;padding:10px 24px;background:' + config.color + ';color:white;border-radius:8px;text-decoration:none;font-weight:500;">' + banner.linkText + '</a>';
+                html += '<a href="' + banner.linkUrl + '" target="_blank" style="display:inline-block;padding:10px 24px;background:' + color + ';color:white;border-radius:8px;text-decoration:none;font-weight:500;">' + banner.linkText + '</a>';
             }
             html += '</div>';
         } else {
             // Bar/Banner Layout
             html += '<div style="display:flex;align-items:center;gap:16px;">';
-            html += '<span style="font-size:24px;">' + config.icon + '</span>';
+            if (showEmoji) {
+                html += '<span style="font-size:24px;">' + icon + '</span>';
+            }
             html += '<div style="flex:1;">';
-            html += '<div style="font-weight:600;color:' + config.color + ';">' + banner.title + '</div>';
+            html += '<div style="font-weight:600;color:' + color + ';">' + banner.title + '</div>';
             if (banner.message) {
                 html += '<div style="font-size:14px;color:var(--text-muted);">' + banner.message + '</div>';
             }
             html += '</div>';
             if (hasCountdown) {
-                html += '<div id="bannerCountdown" style="font-weight:700;color:' + config.color + ';font-size:18px;">--:--:--</div>';
+                html += '<div id="bannerCountdown" style="font-weight:700;color:' + color + ';font-size:18px;">--:--:--</div>';
             }
             if (hasLink) {
-                html += '<a href="' + banner.linkUrl + '" target="_blank" style="padding:8px 16px;background:' + config.color + ';color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;">' + banner.linkText + '</a>';
+                // Button style - nicht unterstrichen, erkennbarer Button
+                html += '<a href="' + banner.linkUrl + '" target="_blank" style="padding:8px 16px;background:' + color + ';color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;">' + banner.linkText + '</a>';
             }
             if (banner.dismissible !== false) {
                 html += '<button onclick="dismissBanner(\'' + banner.id + '\')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:8px;font-size:18px;">✕</button>';
@@ -752,8 +764,23 @@ const AnnouncementsAdmin = {
             '<option value="' + a.value + '"' + (item?.audience === a.value ? ' selected' : '') + '>' + a.label + '</option>'
         ).join('');
         
+        // Common emojis for quick pick
+        const emojis = ['ℹ️', '⚠️', '🚨', '✅', '🔧', '🎉', '📢', '🔔', '⭐', '🎮', '🎲', '⚔️', '🛡️', '💡', '🚀', '❤️', '🔥', '✨', '📅', '🎁'];
+        const emojiPicker = emojis.map(e => 
+            '<button type="button" onclick="AnnouncementsAdmin.selectEmoji(\'' + e + '\')" style="padding:8px;font-size:20px;background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;" onmouseover="this.style.background=\'var(--bg-elevated)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>'
+        ).join('');
+        
+        // Preset colors
+        const presetColors = ['#3B82F6', '#F59E0B', '#EF4444', '#22C55E', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
+        const colorPicker = presetColors.map(c =>
+            '<button type="button" onclick="AnnouncementsAdmin.selectColor(\'' + c + '\')" style="width:32px;height:32px;background:' + c + ';border:2px solid transparent;border-radius:6px;cursor:pointer;" onmouseover="this.style.borderColor=\'white\'" onmouseout="this.style.borderColor=\'transparent\'"></button>'
+        ).join('');
+        
         const startDate = item?.startDate ? this.toDatetimeLocal(item.startDate) : '';
         const endDate = item?.endDate ? this.toDatetimeLocal(item.endDate) : '';
+        const customColor = item?.customColor || '';
+        const customEmoji = item?.customEmoji || '';
+        const showEmoji = item?.showEmoji !== false;
         
         const html = '<div class="modal active" id="announcementModal" onclick="if(event.target===this)AnnouncementsAdmin.closeEditor()">' +
             '<div class="modal__content modal__content--wide" style="max-width:900px;">' +
@@ -774,14 +801,32 @@ const AnnouncementsAdmin = {
             '<textarea class="form-textarea" id="annMessage" placeholder="Optionale Details..." oninput="AnnouncementsAdmin.updatePreview()">' + (item?.message || '') + '</textarea></div>' +
             
             '<div class="form-row">' +
-            '<div class="form-group"><label class="form-label">Typ</label>' +
+            '<div class="form-group"><label class="form-label">Typ (Preset)</label>' +
             '<select class="form-select" id="annLevel" onchange="AnnouncementsAdmin.updatePreview()">' + levelOptions + '</select></div>' +
             '<div class="form-group"><label class="form-label">Position</label>' +
             '<select class="form-select" id="annPosition" onchange="AnnouncementsAdmin.updatePreview()">' + positionOptions + '</select></div>' +
             '</div>' +
             
-            '<div class="form-group"><label class="form-label">Bild-URL (optional)</label>' +
-            '<input type="text" class="form-input" id="annImage" value="' + (item?.imageUrl || '') + '" placeholder="https://..." oninput="AnnouncementsAdmin.updatePreview()"></div>' +
+            // Emoji Section
+            '<div class="form-group">' +
+            '<label class="form-label">Emoji</label>' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">' +
+            '<label class="form-checkbox"><input type="checkbox" id="annShowEmoji"' + (showEmoji ? ' checked' : '') + ' onchange="AnnouncementsAdmin.updatePreview()"><span>Emoji anzeigen</span></label>' +
+            '<div id="selectedEmoji" style="font-size:28px;min-width:40px;text-align:center;">' + (customEmoji || this.levelConfig[item?.level || 'info']?.icon || 'ℹ️') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px;padding:8px;background:var(--bg);border-radius:8px;">' + emojiPicker + '</div>' +
+            '<input type="hidden" id="annCustomEmoji" value="' + customEmoji + '">' +
+            '</div>' +
+            
+            // Color Section
+            '<div class="form-group">' +
+            '<label class="form-label">Farbe</label>' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">' +
+            '<div style="display:flex;gap:6px;">' + colorPicker + '</div>' +
+            '<input type="color" id="annCustomColor" value="' + (customColor || '#3B82F6') + '" style="width:40px;height:32px;border:none;border-radius:6px;cursor:pointer;" onchange="AnnouncementsAdmin.updatePreview()">' +
+            '<span style="font-size:12px;color:var(--text-muted);">Custom</span>' +
+            '</div>' +
+            '</div>' +
             
             '<h4 style="margin:24px 0 16px;display:flex;align-items:center;gap:8px;"><span style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;">2</span> Link / Button</h4>' +
             
@@ -790,6 +835,16 @@ const AnnouncementsAdmin = {
             '<input type="text" class="form-input" id="annLinkText" value="' + (item?.linkText || '') + '" placeholder="z.B. Mehr erfahren" oninput="AnnouncementsAdmin.updatePreview()"></div>' +
             '<div class="form-group"><label class="form-label">Link-URL</label>' +
             '<input type="text" class="form-input" id="annLinkUrl" value="' + (item?.linkUrl || '') + '" placeholder="https://..." oninput="AnnouncementsAdmin.updatePreview()"></div>' +
+            '</div>' +
+            
+            // Bild Section mit Upload
+            '<div class="form-group"><label class="form-label">Bild (optional, nur für Modal)</label>' +
+            '<div style="display:flex;gap:8px;">' +
+            '<input type="text" class="form-input" id="annImage" value="' + (item?.imageUrl || '') + '" placeholder="URL oder hochladen..." oninput="AnnouncementsAdmin.updatePreview()" style="flex:1;">' +
+            '<button type="button" class="btn btn--secondary" onclick="document.getElementById(\'annImageUpload\').click()">Upload</button>' +
+            '</div>' +
+            '<input type="file" id="annImageUpload" accept="image/*" style="display:none;" onchange="AnnouncementsAdmin.uploadImage(this.files[0])">' +
+            '<div id="imagePreview" style="margin-top:8px;"></div>' +
             '</div>' +
             '</div>' +
             
@@ -836,11 +891,61 @@ const AnnouncementsAdmin = {
         
         document.body.insertAdjacentHTML('beforeend', html);
         this.updatePreview();
+        
+        // Show image preview if exists
+        if (item?.imageUrl) {
+            document.getElementById('imagePreview').innerHTML = '<img src="' + item.imageUrl + '" style="max-width:100%;max-height:100px;border-radius:8px;">';
+        }
+    },
+    
+    selectEmoji(emoji) {
+        document.getElementById('annCustomEmoji').value = emoji;
+        document.getElementById('selectedEmoji').textContent = emoji;
+        this.updatePreview();
+    },
+    
+    selectColor(color) {
+        document.getElementById('annCustomColor').value = color;
+        this.updatePreview();
+    },
+    
+    async uploadImage(file) {
+        if (!file) return;
+        
+        const preview = document.getElementById('imagePreview');
+        preview.innerHTML = '<span style="color:var(--text-muted);">Uploading...</span>';
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', 'RIFTapp');
+            formData.append('folder', 'rift-banners');
+            
+            const response = await fetch('https://api.cloudinary.com/v1_1/dza4jgreq/image/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) throw new Error('Upload failed');
+            
+            const data = await response.json();
+            document.getElementById('annImage').value = data.secure_url;
+            preview.innerHTML = '<img src="' + data.secure_url + '" style="max-width:100%;max-height:100px;border-radius:8px;">';
+            this.updatePreview();
+            showToast('Bild hochgeladen');
+        } catch (e) {
+            preview.innerHTML = '<span style="color:var(--red);">Upload fehlgeschlagen</span>';
+            showToast('Upload fehlgeschlagen', 'error');
+        }
     },
     
     updatePreview() {
         const preview = document.getElementById('editorPreview');
         if (!preview) return;
+        
+        const customColor = document.getElementById('annCustomColor')?.value || '';
+        const customEmoji = document.getElementById('annCustomEmoji')?.value || '';
+        const showEmoji = document.getElementById('annShowEmoji')?.checked !== false;
         
         const banner = {
             title: document.getElementById('annTitle')?.value || 'Vorschau-Titel',
@@ -851,7 +956,10 @@ const AnnouncementsAdmin = {
             linkText: document.getElementById('annLinkText')?.value || '',
             linkUrl: document.getElementById('annLinkUrl')?.value || '',
             showCountdown: document.getElementById('annShowCountdown')?.checked || false,
-            dismissible: document.getElementById('annDismissible')?.checked !== false
+            dismissible: document.getElementById('annDismissible')?.checked !== false,
+            customColor: customColor,
+            customEmoji: customEmoji,
+            showEmoji: showEmoji
         };
         
         preview.innerHTML = this.generateBannerHTML(banner, true);
@@ -895,6 +1003,10 @@ const AnnouncementsAdmin = {
             priority: parseInt(document.getElementById('annPriority').value) || 0,
             dismissible: document.getElementById('annDismissible').checked,
             active: document.getElementById('annActive').checked,
+            // New fields
+            customColor: document.getElementById('annCustomColor').value || null,
+            customEmoji: document.getElementById('annCustomEmoji').value || null,
+            showEmoji: document.getElementById('annShowEmoji').checked,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         

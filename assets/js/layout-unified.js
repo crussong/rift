@@ -864,6 +864,11 @@ const BannerSystem = {
         
         console.log('[Banner] Rendering:', banner.title, 'position:', position, 'level:', level);
         
+        // Use custom color/emoji if set
+        const color = banner.customColor || config.color;
+        const icon = banner.customEmoji || config.icon;
+        const showEmoji = banner.showEmoji !== false;
+        
         const existingId = `banner-${position}`;
         document.getElementById(existingId)?.remove();
         
@@ -873,28 +878,28 @@ const BannerSystem = {
         switch (position) {
             case 'top-bar':
                 containerStyle = 'position:fixed;top:122px;left:0;right:0;z-index:9999;';
-                html = this.renderBarBanner(banner, config);
+                html = this.renderBarBanner(banner, color, icon, showEmoji);
                 break;
                 
             case 'bottom-bar':
                 containerStyle = 'position:fixed;bottom:72px;left:0;right:0;z-index:9999;';
-                html = this.renderBarBanner(banner, config);
+                html = this.renderBarBanner(banner, color, icon, showEmoji);
                 break;
                 
             case 'modal':
-                this.renderModalBanner(banner, config);
+                this.renderModalBanner(banner, color, icon, showEmoji);
                 return;
                 
             case 'corner':
                 containerStyle = 'position:fixed;bottom:100px;right:20px;z-index:9999;max-width:360px;';
-                html = this.renderCornerBanner(banner, config);
+                html = this.renderCornerBanner(banner, color, icon, showEmoji);
                 break;
                 
             case 'top-banner':
             default:
                 const container = document.getElementById('announcementBanner');
                 if (container) {
-                    container.innerHTML = this.renderInlineBanner(banner, config);
+                    container.innerHTML = this.renderInlineBanner(banner, color, icon, showEmoji);
                     container.style.display = 'block';
                     this.startCountdown(banner);
                 }
@@ -910,46 +915,46 @@ const BannerSystem = {
         this.startCountdown(banner);
     },
     
-    renderBarBanner(banner, config) {
+    renderBarBanner(banner, color, icon, showEmoji) {
         const hasLink = banner.linkUrl && banner.linkText;
         return `
-            <div style="background: ${config.color}; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 14px;">
-                <span>${config.icon}</span>
+            <div style="background: ${color}; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 14px;">
+                ${showEmoji ? '<span>' + icon + '</span>' : ''}
                 <span><strong>${banner.title}</strong>${banner.message ? ' — ' + banner.message : ''}</span>
                 ${banner.showCountdown && banner.endDate ? '<span id="countdown-' + banner.id + '" style="font-weight:700;"></span>' : ''}
-                ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="color:white;text-decoration:underline;font-weight:500;">' + banner.linkText + '</a>' : ''}
+                ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="padding:6px 14px;background:rgba(255,255,255,0.2);color:white;border-radius:6px;text-decoration:none;font-weight:500;font-size:13px;">' + banner.linkText + '</a>' : ''}
                 ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="background:none;border:none;color:white;cursor:pointer;padding:4px 8px;font-size:18px;opacity:0.8;">✕</button>' : ''}
             </div>
         `;
     },
     
-    renderInlineBanner(banner, config) {
+    renderInlineBanner(banner, color, icon, showEmoji) {
         const hasLink = banner.linkUrl && banner.linkText;
         return `
-            <div style="background: ${config.color}20; border: 1px solid ${config.color}40; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
-                <span style="font-size: 28px;">${config.icon}</span>
+            <div style="background: ${color}20; border: 1px solid ${color}40; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+                ${showEmoji ? '<span style="font-size: 28px;">' + icon + '</span>' : ''}
                 <div style="flex: 1;">
-                    <div style="font-weight: 600; color: ${config.color}; margin-bottom: 2px;">${banner.title}</div>
+                    <div style="font-weight: 600; color: ${color}; margin-bottom: 2px;">${banner.title}</div>
                     ${banner.message ? '<div style="font-size: 14px; color: var(--text-muted);">' + banner.message + '</div>' : ''}
                 </div>
-                ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-weight:700;font-size:18px;color:' + config.color + ';"></div>' : ''}
-                ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="padding:8px 16px;background:' + config.color + ';color:white;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;">' + banner.linkText + '</a>' : ''}
+                ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-weight:700;font-size:18px;color:' + color + ';"></div>' : ''}
+                ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="padding:8px 16px;background:' + color + ';color:white;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;">' + banner.linkText + '</a>' : ''}
                 ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:8px;font-size:18px;">✕</button>' : ''}
             </div>
         `;
     },
     
-    renderCornerBanner(banner, config) {
+    renderCornerBanner(banner, color, icon, showEmoji) {
         const hasLink = banner.linkUrl && banner.linkText;
         return `
-            <div style="background: var(--bg-elevated); border: 1px solid ${config.color}40; border-radius: 12px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <div style="background: var(--bg-elevated); border: 1px solid ${color}40; border-radius: 12px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
                 <div style="display: flex; align-items: flex-start; gap: 12px;">
-                    <span style="font-size: 24px;">${config.icon}</span>
+                    ${showEmoji ? '<span style="font-size: 24px;">' + icon + '</span>' : ''}
                     <div style="flex: 1;">
-                        <div style="font-weight: 600; color: ${config.color}; margin-bottom: 4px;">${banner.title}</div>
+                        <div style="font-weight: 600; color: ${color}; margin-bottom: 4px;">${banner.title}</div>
                         ${banner.message ? '<div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">' + banner.message + '</div>' : ''}
-                        ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-weight:700;color:' + config.color + ';margin-bottom:12px;"></div>' : ''}
-                        ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="display:inline-block;padding:8px 16px;background:' + config.color + ';color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">' + banner.linkText + '</a>' : ''}
+                        ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-weight:700;color:' + color + ';margin-bottom:12px;"></div>' : ''}
+                        ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="display:inline-block;padding:8px 16px;background:' + color + ';color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">' + banner.linkText + '</a>' : ''}
                     </div>
                     ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;font-size:16px;">✕</button>' : ''}
                 </div>
@@ -957,18 +962,18 @@ const BannerSystem = {
         `;
     },
     
-    renderModalBanner(banner, config) {
+    renderModalBanner(banner, color, icon, showEmoji) {
         const hasLink = banner.linkUrl && banner.linkText;
         const html = `
             <div id="banner-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)BannerSystem.dismiss('${banner.id}')">
                 <div style="background:var(--bg-elevated);border-radius:16px;padding:32px;max-width:450px;text-align:center;position:relative;">
                     ${banner.dismissible !== false ? '<button onclick="BannerSystem.dismiss(\'' + banner.id + '\')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:20px;">✕</button>' : ''}
                     ${banner.imageUrl ? '<img src="' + banner.imageUrl + '" style="max-width:100%;max-height:150px;border-radius:8px;margin-bottom:20px;">' : ''}
-                    <div style="font-size:48px;margin-bottom:16px;">${config.icon}</div>
-                    <div style="font-size:24px;font-weight:700;color:${config.color};margin-bottom:8px;">${banner.title}</div>
+                    ${showEmoji ? '<div style="font-size:48px;margin-bottom:16px;">' + icon + '</div>' : ''}
+                    <div style="font-size:24px;font-weight:700;color:${color};margin-bottom:8px;">${banner.title}</div>
                     ${banner.message ? '<div style="color:var(--text-muted);margin-bottom:20px;">' + banner.message + '</div>' : ''}
-                    ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-size:28px;font-weight:700;color:' + config.color + ';margin-bottom:20px;"></div>' : ''}
-                    ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="display:inline-block;padding:12px 32px;background:' + config.color + ';color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">' + banner.linkText + '</a>' : ''}
+                    ${banner.showCountdown && banner.endDate ? '<div id="countdown-' + banner.id + '" style="font-size:28px;font-weight:700;color:' + color + ';margin-bottom:20px;"></div>' : ''}
+                    ${hasLink ? '<a href="' + banner.linkUrl + '" target="_blank" onclick="BannerSystem.trackClick(\'' + banner.id + '\')" style="display:inline-block;padding:12px 32px;background:' + color + ';color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">' + banner.linkText + '</a>' : ''}
                 </div>
             </div>
         `;
