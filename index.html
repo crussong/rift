@@ -1132,6 +1132,164 @@
         })();
         
         // ========================================
+        // QUOTE OF THE DAY
+        // ========================================
+        (async function() {
+            const quoteText = document.getElementById('quoteText');
+            const quoteAuthor = document.getElementById('quoteAuthor');
+            const quoteSource = document.getElementById('quoteSource');
+            const quoteWidget = document.getElementById('quoteOfDay');
+            
+            if (!quoteText || !quoteAuthor) return;
+            
+            try {
+                const db = firebase.firestore();
+                
+                // Load settings
+                const settingsDoc = await db.collection('hub_settings').doc('quotes').get();
+                const settings = settingsDoc.exists ? settingsDoc.data() : {};
+                
+                // Check if widget is enabled
+                if (settings.enabled === false) {
+                    if (quoteWidget) quoteWidget.style.display = 'none';
+                    return;
+                }
+                
+                // Load quotes
+                const snapshot = await db.collection('hub_quotes')
+                    .where('active', '==', true)
+                    .get();
+                
+                if (snapshot.empty) {
+                    console.log('[Hub] No quotes found');
+                    return;
+                }
+                
+                const quotes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log('[Hub] Loaded', quotes.length, 'quotes');
+                
+                // Select quote based on display mode
+                let selectedQuote;
+                const mode = settings.displayMode || 'daily';
+                
+                // Check for special day quotes first
+                const today = new Date();
+                const month = today.getMonth() + 1;
+                const day = today.getDate();
+                
+                const specialDayMap = {
+                    'newyear': (m, d) => m === 1 && d === 1,
+                    'valentine': (m, d) => m === 2 && d === 14,
+                    'easter': (m, d) => false, // Would need calculation
+                    'halloween': (m, d) => m === 10 && d === 31,
+                    'christmas': (m, d) => m === 12 && (d >= 24 && d <= 26)
+                };
+                
+                // Find special day quote
+                const specialQuote = quotes.find(q => {
+                    if (!q.specialDays || q.specialDays.length === 0) return false;
+                    return q.specialDays.some(sd => specialDayMap[sd]?.(month, day));
+                });
+                
+                if (specialQuote) {
+                    selectedQuote = specialQuote;
+                } else if (mode === 'fixed' && settings.fixedQuoteId) {
+                    selectedQuote = quotes.find(q => q.id === settings.fixedQuoteId) || quotes[0];
+                } else if (mode === 'random') {
+                    // Weighted random based on priority
+                    const weighted = [];
+                    quotes.forEach(q => {
+                        const weight = q.priority || 1;
+                        for (let i = 0; i < weight; i++) weighted.push(q);
+                    });
+                    selectedQuote = weighted[Math.floor(Math.random() * weighted.length)];
+                } else if (mode === 'sequential') {
+                    // Based on day of year
+                    const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+                    selectedQuote = quotes[dayOfYear % quotes.length];
+                } else {
+                    // Daily mode (default) - same quote all day
+                    const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+                    // Use seeded random for consistent daily selection
+                    const seed = today.getFullYear() * 1000 + dayOfYear;
+                    const seededIndex = Math.abs(Math.sin(seed) * 10000) % quotes.length;
+                    selectedQuote = quotes[Math.floor(seededIndex)];
+                }
+                
+                if (!selectedQuote) {
+                    console.log('[Hub] No quote selected');
+                    return;
+                }
+                
+                // Apply quote marks based on settings
+                const quoteMarks = {
+                    german: ['„', '"'],
+                    english: ['"', '"'],
+                    guillemets: ['«', '»'],
+                    none: ['', '']
+                };
+                const marks = quoteMarks[settings.quoteMarks] || quoteMarks.german;
+                
+                // Update DOM
+                quoteText.textContent = `${marks[0]}${selectedQuote.text}${marks[1]}`;
+                quoteAuthor.textContent = selectedQuote.author || 'Unbekannt';
+                
+                if (quoteSource) {
+                    if (selectedQuote.source && settings.showSource !== false) {
+                        quoteSource.textContent = selectedQuote.source;
+                        quoteSource.style.display = '';
+                    } else {
+                        quoteSource.style.display = 'none';
+                    }
+                }
+                
+                // Apply font settings
+                if (settings.fontStyle) {
+                    const fontStyles = {
+                        normal: { fontStyle: 'normal', fontFamily: '' },
+                        italic: { fontStyle: 'italic', fontFamily: '' },
+                        serif: { fontStyle: 'normal', fontFamily: 'Georgia, serif' },
+                        handwritten: { fontStyle: 'normal', fontFamily: '"Brush Script MT", cursive' }
+                    };
+                    const style = fontStyles[settings.fontStyle] || fontStyles.normal;
+                    quoteText.style.fontStyle = style.fontStyle;
+                    if (style.fontFamily) quoteText.style.fontFamily = style.fontFamily;
+                }
+                
+                if (settings.fontSize) {
+                    const fontSizes = { small: '16px', medium: '18px', large: '22px', xlarge: '26px' };
+                    quoteText.style.fontSize = fontSizes[settings.fontSize] || '18px';
+                }
+                
+                if (settings.alignment && quoteWidget) {
+                    quoteWidget.style.textAlign = settings.alignment;
+                }
+                
+                // Hide author if disabled
+                if (settings.showAuthor === false) {
+                    quoteAuthor.parentElement.style.display = 'none';
+                }
+                
+                // Animation
+                if (settings.animation && settings.animation !== 'none' && quoteWidget) {
+                    quoteWidget.style.opacity = '0';
+                    quoteWidget.style.transform = settings.animation === 'slide' ? 'translateY(20px)' : '';
+                    
+                    setTimeout(() => {
+                        quoteWidget.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                        quoteWidget.style.opacity = '1';
+                        quoteWidget.style.transform = '';
+                    }, 100);
+                }
+                
+                console.log('[Hub] Quote loaded:', selectedQuote.text.substring(0, 50) + '...');
+                
+            } catch (e) {
+                console.error('[Hub] Quote load error:', e);
+            }
+        })();
+        
+        // ========================================
         // FEATURE SHOWCASE TABS
         // ========================================
         (function() {
