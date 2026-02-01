@@ -59,10 +59,13 @@ const UsersAdmin = {
                     <td style="text-align:center;">${user.sessionCount||0}</td>
                     <td>
                         <div class="news-table__actions">
+                            <button class="btn btn--ghost btn--small" onclick="UsersAdmin.viewDetails('${user.id}')" title="Details">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
                             <button class="btn btn--ghost btn--small" onclick="UsersAdmin.editRole('${user.id}')" title="Rolle ändern">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             </button>
-                            <button class="btn btn--ghost btn--small" onclick="UsersAdmin.toggleBan('${user.id}',${!isBanned})" title="${isBanned?'Entsperren':'Sperren'}" style="color:${isBanned?'var(--green)':'var(--red)'};">
+                            <button class="btn btn--ghost btn--small" onclick="UsersAdmin.toggleBan('${user.id}',${!isBanned})" title="${isBanned?'Entsperren':'Global Sperren'}" style="color:${isBanned?'var(--green)':'var(--red)'};">
                                 ${isBanned ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>'}
                             </button>
                         </div>
@@ -118,6 +121,63 @@ const UsersAdmin = {
         } catch (e) { showToast('Fehler', 'error'); }
     },
     
+    async viewDetails(userId) {
+        var user = this.users.find(u => u.id === userId);
+        if (!user) return;
+        
+        // Find rooms this user is in
+        var userRooms = [];
+        try {
+            var roomsSnap = await db.collection('rooms').get();
+            for (var i = 0; i < roomsSnap.docs.length; i++) {
+                var room = roomsSnap.docs[i];
+                var memberSnap = await db.collection('rooms').doc(room.id).collection('members').doc(userId).get();
+                if (memberSnap.exists) {
+                    userRooms.push({ id: room.id, name: room.data().name || room.id, isGM: room.data().gmId === userId });
+                }
+            }
+        } catch (e) { console.warn('Could not load user rooms:', e); }
+        
+        var roomsHtml = userRooms.length > 0 ? userRooms.map(function(r) {
+            return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg);border-radius:6px;">' +
+                '<div><div style="font-weight:500;">' + r.name + '</div>' +
+                '<div style="font-size:11px;color:var(--text-muted);">' + (r.isGM ? 'GM' : 'Spieler') + '</div></div>' +
+                (r.isGM ? '' : '<button class="btn btn--ghost btn--small" onclick="UsersAdmin.kickFromRoom(\'' + userId + '\',\'' + r.id + '\')" style="color:var(--red);">Kicken</button>') +
+                '</div>';
+        }).join('') : '<div style="color:var(--text-muted);">In keinen Räumen</div>';
+        
+        var html = '<div class="modal active" id="userDetailModal" onclick="if(event.target===this)this.remove()">' +
+            '<div class="modal__content"><div class="modal__header"><h3 class="modal__title">Benutzer Details</h3>' +
+            '<button class="btn btn--ghost" onclick="document.getElementById(\'userDetailModal\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+            '<div class="modal__body">' +
+            '<div style="display:flex;gap:16px;align-items:center;margin-bottom:24px;">' +
+            '<div style="width:64px;height:64px;border-radius:50%;background:' + (user.color||'#8B5CF6') + ';display:flex;align-items:center;justify-content:center;color:white;font-size:24px;font-weight:600;">' + 
+            (user.avatar ? '<img src="' + user.avatar + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : (user.displayName||'?').charAt(0).toUpperCase()) + '</div>' +
+            '<div><div style="font-size:18px;font-weight:600;">' + (user.displayName||'Unbekannt') + '</div>' +
+            '<div style="color:var(--text-muted);">' + (user.email||'—') + '</div></div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">' +
+            '<div style="padding:12px;background:var(--bg);border-radius:8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">User ID</div><code style="font-size:11px;">' + user.id + '</code></div>' +
+            '<div style="padding:12px;background:var(--bg);border-radius:8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Rolle</div><div>' + (user.role||'user') + '</div></div>' +
+            '<div style="padding:12px;background:var(--bg);border-radius:8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Registriert</div><div>' + this.formatDate(user.createdAt?.toDate?.()) + '</div></div>' +
+            '<div style="padding:12px;background:var(--bg);border-radius:8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Letzter Login</div><div>' + this.formatDate(user.lastLogin?.toDate?.()) + '</div></div>' +
+            '</div>' +
+            '<h4 style="margin-bottom:12px;">Räume (' + userRooms.length + ')</h4>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;">' + roomsHtml + '</div>' +
+            '</div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    
+    async kickFromRoom(userId, roomId) {
+        if (!confirm('Benutzer aus diesem Raum entfernen?')) return;
+        try {
+            await db.collection('rooms').doc(roomId).collection('members').doc(userId).delete();
+            showToast('Aus Raum entfernt');
+            document.getElementById('userDetailModal')?.remove();
+        } catch (e) {
+            showToast('Fehler: ' + e.message, 'error');
+        }
+    },
+    
     exportUsers() {
         const data = this.users.map(u => ({ id: u.id, displayName: u.displayName, email: u.email, role: u.role }));
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -132,7 +192,7 @@ const UsersAdmin = {
 };
 
 // ========================================
-// SESSIONS ADMIN MODULE
+// SESSIONS ADMIN MODULE (with Admin Features)
 // ========================================
 const SessionsAdmin = {
     sessions: [],
@@ -141,10 +201,24 @@ const SessionsAdmin = {
         try {
             const snapshot = await db.collection('rooms').get();
             this.sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Load member counts
+            for (var i = 0; i < this.sessions.length; i++) {
+                var s = this.sessions[i];
+                try {
+                    var membersSnap = await db.collection('rooms').doc(s.id).collection('members').get();
+                    s.memberCount = membersSnap.size;
+                    s.memberList = membersSnap.docs.map(d => ({ oderId: d.id, ...d.data() }));
+                } catch (e) {
+                    s.memberCount = 0;
+                    s.memberList = [];
+                }
+            }
+            
             this.render();
             this.updateStats();
             this.updateRulesetStats();
-            console.log('[Admin] Loaded', this.sessions.length, 'sessions');
+            console.log('[Admin] Loaded', this.sessions.length, 'sessions with members');
         } catch (error) {
             console.warn('Sessions collection not accessible:', error.message);
             this.sessions = [];
@@ -162,22 +236,30 @@ const SessionsAdmin = {
             return;
         }
         container.innerHTML = this.sessions.map(s => {
-            const memberCount = s.memberCount || Object.keys(s.members||{}).length || 0;
+            var memberCount = s.memberCount || 0;
+            var createdAt = s.createdAt ? this.formatDate(s.createdAt) : '—';
             return '<tr>' +
-                '<td><div style="font-weight:500;">' + (s.name||s.id||'Unbenannt') + '</div></td>' +
+                '<td><div style="font-weight:500;">' + (s.name||s.id||'Unbenannt') + '</div><div style="font-size:11px;color:var(--text-muted);">' + s.id + '</div></td>' +
                 '<td><span style="padding:4px 8px;background:var(--bg-elevated);border-radius:6px;font-size:12px;">' + (s.ruleset||'—') + '</span></td>' +
                 '<td style="text-align:center;">' + memberCount + '</td>' +
                 '<td style="color:var(--text-muted);font-size:13px;">' + (s.gmName||'—') + '</td>' +
-                '<td style="color:var(--text-muted);font-size:13px;">—</td>' +
+                '<td style="color:var(--text-muted);font-size:13px;">' + createdAt + '</td>' +
                 '<td><span style="padding:4px 10px;background:#22C55E20;color:#22C55E;border-radius:12px;font-size:12px;">Aktiv</span></td>' +
-                '<td><button class="btn btn--ghost btn--small" onclick="SessionsAdmin.view(\'' + s.id + '\')">Details</button></td>' +
+                '<td>' +
+                '<div class="news-table__actions">' +
+                '<button class="btn btn--ghost btn--small" onclick="SessionsAdmin.viewDetails(\'' + s.id + '\')" title="Details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>' +
+                '<button class="btn btn--ghost btn--small" onclick="SessionsAdmin.manageMembers(\'' + s.id + '\')" title="Mitglieder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>' +
+                '<button class="btn btn--ghost btn--small" onclick="SessionsAdmin.changeGM(\'' + s.id + '\')" title="GM ändern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>' +
+                '<button class="btn btn--ghost btn--small" onclick="SessionsAdmin.deleteRoom(\'' + s.id + '\')" title="Löschen" style="color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' +
+                '</div></td>' +
             '</tr>';
         }).join('');
     },
     
     updateStats() {
-        const active = this.sessions.length;
-        const avgPlayers = active > 0 ? Math.round(this.sessions.reduce((s,r) => s + (r.memberCount||Object.keys(r.members||{}).length||0), 0) / active * 10) / 10 : 0;
+        var active = this.sessions.length;
+        var totalMembers = this.sessions.reduce(function(s, r) { return s + (r.memberCount || 0); }, 0);
+        var avgPlayers = active > 0 ? Math.round(totalMembers / active * 10) / 10 : 0;
         document.getElementById('statSessionsActive').textContent = active;
         document.getElementById('statSessionsWeek').textContent = '—';
         document.getElementById('statSessionsTotal').textContent = active;
@@ -203,8 +285,149 @@ const SessionsAdmin = {
         }).join('');
     },
     
-    filter() {},
-    view(id) { var s = this.sessions.find(function(x) { return x.id === id; }); if (s) alert('Session: ' + (s.name||s.id) + '\nSpieler: ' + (s.memberCount||Object.keys(s.members||{}).length) + '\nRegelwerk: ' + (s.ruleset||'—')); }
+    filter() {
+        var search = document.getElementById('sessionSearch').value.toLowerCase();
+        var ruleset = document.getElementById('sessionRulesetFilter').value;
+        var rows = document.querySelectorAll('#sessionsTableBody tr');
+        var self = this;
+        this.sessions.forEach(function(s, i) {
+            var row = rows[i]; if (!row) return;
+            var matchSearch = !search || (s.name||'').toLowerCase().includes(search) || s.id.toLowerCase().includes(search);
+            var matchRuleset = !ruleset || s.ruleset === ruleset;
+            row.style.display = matchSearch && matchRuleset ? '' : 'none';
+        });
+    },
+    
+    viewDetails(id) {
+        var s = this.sessions.find(function(x) { return x.id === id; });
+        if (!s) return;
+        
+        var membersHtml = (s.memberList || []).map(function(m) {
+            return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg);border-radius:6px;">' +
+                '<div style="width:32px;height:32px;border-radius:50%;background:' + (m.color||'#8B5CF6') + ';display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:600;">' + (m.displayName||'?').charAt(0).toUpperCase() + '</div>' +
+                '<div><div style="font-weight:500;font-size:13px;">' + (m.displayName||'Unbekannt') + '</div>' +
+                '<div style="font-size:11px;color:var(--text-muted);">' + (m.oderId === s.gmId ? 'GM' : 'Spieler') + '</div></div></div>';
+        }).join('') || '<div style="color:var(--text-muted);">Keine Mitglieder</div>';
+        
+        var html = '<div class="modal active" id="sessionDetailModal" onclick="if(event.target===this)this.remove()">' +
+            '<div class="modal__content modal__content--wide"><div class="modal__header"><h3 class="modal__title">Session Details</h3>' +
+            '<button class="btn btn--ghost" onclick="document.getElementById(\'sessionDetailModal\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+            '<div class="modal__body">' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
+            '<div><h4 style="margin-bottom:12px;">Informationen</h4>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            '<div><span style="color:var(--text-muted);">Name:</span> <strong>' + (s.name||'Unbenannt') + '</strong></div>' +
+            '<div><span style="color:var(--text-muted);">ID:</span> <code style="font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px;">' + s.id + '</code></div>' +
+            '<div><span style="color:var(--text-muted);">Regelwerk:</span> ' + (s.ruleset||'—') + '</div>' +
+            '<div><span style="color:var(--text-muted);">GM:</span> ' + (s.gmName||'—') + '</div>' +
+            '<div><span style="color:var(--text-muted);">Erstellt:</span> ' + this.formatDate(s.createdAt) + '</div>' +
+            '</div></div>' +
+            '<div><h4 style="margin-bottom:12px;">Mitglieder (' + (s.memberCount||0) + ')</h4>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;">' + membersHtml + '</div></div>' +
+            '</div></div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    
+    manageMembers(id) {
+        var s = this.sessions.find(function(x) { return x.id === id; });
+        if (!s) return;
+        
+        var membersHtml = (s.memberList || []).map(function(m) {
+            var isGM = m.oderId === s.gmId;
+            return '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border-radius:8px;">' +
+                '<div style="width:40px;height:40px;border-radius:50%;background:' + (m.color||'#8B5CF6') + ';display:flex;align-items:center;justify-content:center;color:white;font-weight:600;">' + (m.displayName||'?').charAt(0).toUpperCase() + '</div>' +
+                '<div style="flex:1;"><div style="font-weight:500;">' + (m.displayName||'Unbekannt') + '</div>' +
+                '<div style="font-size:12px;color:var(--text-muted);">' + m.oderId + '</div></div>' +
+                (isGM ? '<span style="padding:4px 8px;background:var(--accent);color:white;border-radius:6px;font-size:11px;">GM</span>' : 
+                '<button class="btn btn--ghost btn--small" onclick="SessionsAdmin.kickMember(\'' + id + '\',\'' + m.oderId + '\')" style="color:var(--red);">Kicken</button>') +
+                '</div>';
+        }).join('') || '<div style="color:var(--text-muted);text-align:center;padding:20px;">Keine Mitglieder</div>';
+        
+        var html = '<div class="modal active" id="manageMembersModal" onclick="if(event.target===this)this.remove()">' +
+            '<div class="modal__content"><div class="modal__header"><h3 class="modal__title">Mitglieder verwalten - ' + (s.name||s.id) + '</h3>' +
+            '<button class="btn btn--ghost" onclick="document.getElementById(\'manageMembersModal\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+            '<div class="modal__body"><div style="display:flex;flex-direction:column;gap:8px;">' + membersHtml + '</div></div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    
+    async kickMember(roomId, oderId) {
+        if (!confirm('Spieler wirklich aus dem Raum entfernen?')) return;
+        try {
+            await db.collection('rooms').doc(roomId).collection('members').doc(oderId).delete();
+            showToast('Spieler entfernt');
+            document.getElementById('manageMembersModal')?.remove();
+            this.load();
+        } catch (e) {
+            showToast('Fehler: ' + e.message, 'error');
+        }
+    },
+    
+    async changeGM(id) {
+        var s = this.sessions.find(function(x) { return x.id === id; });
+        if (!s || !s.memberList || s.memberList.length === 0) {
+            showToast('Keine Mitglieder', 'error');
+            return;
+        }
+        
+        var members = s.memberList.filter(function(m) { return m.oderId !== s.gmId; });
+        if (members.length === 0) {
+            showToast('Keine anderen Mitglieder', 'error');
+            return;
+        }
+        
+        var options = members.map(function(m, i) { return (i+1) + '. ' + (m.displayName||'User') + ' (' + m.oderId.substring(0,8) + '...)'; }).join('\n');
+        var selection = prompt('Neuen GM wählen:\n\n' + options + '\n\nNummer eingeben:');
+        if (!selection) return;
+        
+        var idx = parseInt(selection) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= members.length) {
+            showToast('Ungültige Auswahl', 'error');
+            return;
+        }
+        
+        var newGM = members[idx];
+        try {
+            await db.collection('rooms').doc(id).update({
+                gmId: newGM.oderId,
+                gmName: newGM.displayName || 'GM'
+            });
+            showToast('GM geändert zu ' + (newGM.displayName || 'User'));
+            this.load();
+        } catch (e) {
+            showToast('Fehler: ' + e.message, 'error');
+        }
+    },
+    
+    async deleteRoom(id) {
+        var s = this.sessions.find(function(x) { return x.id === id; });
+        if (!confirm('Raum "' + (s?.name || id) + '" wirklich LÖSCHEN?\n\n⚠️ Alle Daten werden gelöscht!')) return;
+        if (!confirm('WIRKLICH sicher? Das kann nicht rückgängig gemacht werden!')) return;
+        
+        try {
+            // Delete subcollections
+            var subcollections = ['members', 'chat', 'characters', 'dice', 'notes', 'whiteboard', 'maps', 'markers', 'broadcasts', 'polls'];
+            for (var i = 0; i < subcollections.length; i++) {
+                try {
+                    var subSnap = await db.collection('rooms').doc(id).collection(subcollections[i]).get();
+                    var batch = db.batch();
+                    subSnap.docs.forEach(function(doc) { batch.delete(doc.ref); });
+                    if (subSnap.docs.length > 0) await batch.commit();
+                } catch (e) { /* subcollection might not exist */ }
+            }
+            
+            await db.collection('rooms').doc(id).delete();
+            showToast('Raum gelöscht');
+            this.load();
+        } catch (e) {
+            showToast('Fehler: ' + e.message, 'error');
+        }
+    },
+    
+    formatDate(ts) {
+        if (!ts) return '—';
+        var d = ts.toDate ? ts.toDate() : new Date(ts);
+        return new Intl.DateTimeFormat('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' }).format(d);
+    }
 };
 
 // ========================================
@@ -760,10 +983,14 @@ const RulesetsAdmin = {
 };
 
 // ========================================
-// ASSETS ADMIN MODULE
+// ASSETS ADMIN MODULE (with Cloudinary)
 // ========================================
 const AssetsAdmin = {
     items: [],
+    cloudinaryConfig: {
+        cloudName: 'dza4jgreq',
+        uploadPreset: 'RIFTapp'
+    },
     
     async load() {
         try {
@@ -784,16 +1011,17 @@ const AssetsAdmin = {
         const c = document.getElementById('assetsContainer'); 
         if (!c) return;
         if (this.items.length === 0) { 
-            c.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">Keine Assets</div>'; 
+            c.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">Keine Assets vorhanden<br><br><button class="btn btn--primary" onclick="AssetsAdmin.openUpload()">Erstes Asset hochladen</button></div>'; 
             return; 
         }
         c.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;">' +
             this.items.map(i => {
-                var preview = i.url ? '<img src="' + i.url + '" style="width:100%;height:100%;object-fit:cover;">' : '<span style="font-size:32px;">📁</span>';
-                return '<div style="background:var(--bg-elevated);border-radius:8px;overflow:hidden;cursor:pointer;" onclick="AssetsAdmin.view(\'' + i.id + '\')">' +
+                var preview = i.url ? '<img src="' + i.url + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy">' : '<span style="font-size:32px;">📁</span>';
+                return '<div style="background:var(--bg-elevated);border-radius:8px;overflow:hidden;cursor:pointer;position:relative;" onclick="AssetsAdmin.view(\'' + i.id + '\')">' +
                     '<div style="aspect-ratio:1;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;">' + preview + '</div>' +
                     '<div style="padding:10px;"><div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (i.name||'Unbenannt') + '</div>' +
-                    '<div style="font-size:11px;color:var(--text-muted);">' + (i.type||'image') + '</div></div></div>';
+                    '<div style="font-size:11px;color:var(--text-muted);">' + (i.type||'image') + '</div></div>' +
+                    '<button onclick="event.stopPropagation();AssetsAdmin.delete(\'' + i.id + '\')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);border:none;color:white;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:12px;">✕</button></div>';
             }).join('') + '</div>';
     },
     
@@ -804,10 +1032,164 @@ const AssetsAdmin = {
         document.getElementById('statAssetsStorage').textContent = this.formatSize(this.items.reduce((s,i) => s + (i.size||0), 0));
     },
     
-    filter() {},
-    openUpload() { showToast('Upload benötigt Firebase Storage', 'error'); },
-    view(id) { var i = this.items.find(function(x) { return x.id === id; }); if (i && i.url) window.open(i.url, '_blank'); },
-    formatSize(b) { if (!b) return '0 B'; var s = ['B','KB','MB','GB']; var i = Math.floor(Math.log(b)/Math.log(1024)); return Math.round(b/Math.pow(1024,i)*100)/100 + ' ' + s[i]; }
+    filter() {
+        var search = document.getElementById('assetSearch').value.toLowerCase();
+        var type = document.getElementById('assetTypeFilter').value;
+        var filtered = this.items.filter(function(i) {
+            var matchSearch = !search || (i.name||'').toLowerCase().includes(search);
+            var matchType = !type || i.type === type;
+            return matchSearch && matchType;
+        });
+        var orig = this.items;
+        this.items = filtered;
+        this.render();
+        this.items = orig;
+    },
+    
+    openUpload() {
+        var html = '<div class="modal active" id="assetUploadModal" onclick="if(event.target===this)AssetsAdmin.closeUpload()">' +
+            '<div class="modal__content"><div class="modal__header"><h3 class="modal__title">Asset hochladen</h3>' +
+            '<button class="btn btn--ghost" onclick="AssetsAdmin.closeUpload()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+            '<div class="modal__body">' +
+            '<div id="uploadDropzone" style="border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all 0.2s;" onclick="document.getElementById(\'assetFileInput\').click()" ondragover="event.preventDefault();this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-dim)\'" ondragleave="this.style.borderColor=\'var(--border)\';this.style.background=\'transparent\'" ondrop="event.preventDefault();this.style.borderColor=\'var(--border)\';this.style.background=\'transparent\';AssetsAdmin.handleFiles(event.dataTransfer.files)">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:48px;height:48px;color:var(--text-muted);margin-bottom:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
+            '<div style="font-weight:500;margin-bottom:8px;">Dateien hierher ziehen</div>' +
+            '<div style="font-size:13px;color:var(--text-muted);">oder klicken zum Auswählen</div>' +
+            '<input type="file" id="assetFileInput" style="display:none;" accept="image/*" multiple onchange="AssetsAdmin.handleFiles(this.files)">' +
+            '</div>' +
+            '<div id="uploadPreview" style="margin-top:16px;display:none;"></div>' +
+            '<div class="form-row" style="margin-top:16px;">' +
+            '<div class="form-group"><label class="form-label">Typ</label>' +
+            '<select class="form-select" id="uploadAssetType"><option value="image">Bild</option><option value="token">Token</option><option value="map">Map</option><option value="icon">Icon</option></select></div>' +
+            '</div>' +
+            '</div>' +
+            '<div class="modal__footer"><button class="btn btn--secondary" onclick="AssetsAdmin.closeUpload()">Abbrechen</button>' +
+            '<button class="btn btn--primary" id="uploadBtn" onclick="AssetsAdmin.uploadFiles()" disabled>Hochladen</button></div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.pendingFiles = [];
+    },
+    
+    closeUpload() { 
+        var m = document.getElementById('assetUploadModal'); 
+        if (m) m.remove(); 
+        this.pendingFiles = [];
+    },
+    
+    handleFiles(files) {
+        this.pendingFiles = Array.from(files);
+        var preview = document.getElementById('uploadPreview');
+        var btn = document.getElementById('uploadBtn');
+        
+        if (this.pendingFiles.length === 0) {
+            preview.style.display = 'none';
+            btn.disabled = true;
+            return;
+        }
+        
+        preview.style.display = 'block';
+        preview.innerHTML = '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">' + this.pendingFiles.length + ' Datei(en) ausgewählt:</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            this.pendingFiles.map(function(f) {
+                return '<div style="padding:8px 12px;background:var(--bg);border-radius:6px;font-size:12px;">' + f.name + ' (' + AssetsAdmin.formatSize(f.size) + ')</div>';
+            }).join('') + '</div>';
+        btn.disabled = false;
+    },
+    
+    async uploadFiles() {
+        if (!this.pendingFiles || this.pendingFiles.length === 0) return;
+        
+        var btn = document.getElementById('uploadBtn');
+        btn.disabled = true;
+        btn.textContent = 'Lädt...';
+        
+        var type = document.getElementById('uploadAssetType').value;
+        var uploaded = 0;
+        var errors = 0;
+        
+        for (var i = 0; i < this.pendingFiles.length; i++) {
+            var file = this.pendingFiles[i];
+            try {
+                var url = await this.uploadToCloudinary(file);
+                
+                // Save to Firestore
+                await db.collection('assets').add({
+                    name: file.name,
+                    url: url,
+                    type: type,
+                    size: file.size,
+                    mimeType: file.type,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    uploadedBy: currentUser?.uid || null
+                });
+                uploaded++;
+            } catch (e) {
+                console.error('Upload error:', e);
+                errors++;
+            }
+        }
+        
+        this.closeUpload();
+        
+        if (uploaded > 0) {
+            showToast(uploaded + ' Asset(s) hochgeladen');
+            this.load();
+        }
+        if (errors > 0) {
+            showToast(errors + ' Upload(s) fehlgeschlagen', 'error');
+        }
+    },
+    
+    async uploadToCloudinary(file) {
+        var formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', this.cloudinaryConfig.uploadPreset);
+        formData.append('folder', 'rift-assets');
+        
+        var response = await fetch('https://api.cloudinary.com/v1_1/' + this.cloudinaryConfig.cloudName + '/image/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Cloudinary upload failed');
+        }
+        
+        var data = await response.json();
+        return data.secure_url;
+    },
+    
+    view(id) { 
+        var i = this.items.find(function(x) { return x.id === id; }); 
+        if (i && i.url) {
+            // Show in modal
+            var html = '<div class="modal active" onclick="if(event.target===this)this.remove()" style="background:rgba(0,0,0,0.9);">' +
+                '<div style="max-width:90vw;max-height:90vh;position:relative;">' +
+                '<img src="' + i.url + '" style="max-width:100%;max-height:90vh;border-radius:8px;">' +
+                '<div style="position:absolute;bottom:-40px;left:0;right:0;text-align:center;color:white;">' + (i.name||'Asset') + '</div>' +
+                '<button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-40px;right:0;background:none;border:none;color:white;font-size:24px;cursor:pointer;">✕</button>' +
+                '<button onclick="navigator.clipboard.writeText(\'' + i.url + '\');showToast(\'URL kopiert\')" style="position:absolute;top:-40px;left:0;background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;">URL kopieren</button>' +
+                '</div></div>';
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+    },
+    
+    async delete(id) {
+        if (!confirm('Asset löschen?')) return;
+        try {
+            await db.collection('assets').doc(id).delete();
+            showToast('Gelöscht');
+            this.load();
+        } catch (e) {
+            showToast('Fehler', 'error');
+        }
+    },
+    
+    formatSize(b) { 
+        if (!b) return '0 B'; 
+        var s = ['B','KB','MB','GB']; 
+        var i = Math.floor(Math.log(b)/Math.log(1024)); 
+        return Math.round(b/Math.pow(1024,i)*100)/100 + ' ' + s[i]; 
+    }
 };
 
 // ========================================
