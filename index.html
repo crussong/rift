@@ -1155,17 +1155,18 @@
                     return;
                 }
                 
-                // Load quotes
-                const snapshot = await db.collection('hub_quotes')
-                    .where('active', '==', true)
-                    .get();
+                // Load quotes (active field might not exist, so we filter client-side)
+                const snapshot = await db.collection('hub_quotes').get();
                 
                 if (snapshot.empty) {
                     console.log('[Hub] No quotes found');
                     return;
                 }
                 
-                const quotes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Filter active quotes (active !== false means active)
+                const quotes = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(q => q.active !== false);
                 console.log('[Hub] Loaded', quotes.length, 'quotes');
                 
                 // Select quote based on display mode
