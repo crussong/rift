@@ -64,7 +64,7 @@
 - `<div class="main__content">` - Content Container
 
 ### VERBOTEN
-- `app--new-layout` - NICHT VERWENDEN (existiert nicht mehr)
+- `app--new-layout` - EXISTIERT NICHT MEHR, wurde komplett entfernt
 
 ## Farben
 
