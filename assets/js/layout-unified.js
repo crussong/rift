@@ -584,12 +584,6 @@ const RIFTLayout = {
 // INITIALIZE UNIFIED LAYOUT
 // ============================================================
 function initUnifiedLayout() {
-    // Add new layout class to app container
-    const appEl = document.querySelector('.app');
-    if (appEl) {
-        appEl.classList.add('app--new-layout');
-    }
-    
     // Check if we should inject layout (pages without custom header)
     const hasCustomHeader = document.querySelector('header.topnav');
     const hasCustomMeganav = document.querySelector('nav.meganav');
