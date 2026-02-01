@@ -2840,7 +2840,10 @@
         
         renderBanner(banner) {
             const position = banner.position || 'top-banner';
-            const config = this.levelConfig[banner.level] || this.levelConfig.info;
+            const level = banner.level || 'info';
+            const config = this.levelConfig[level] || this.levelConfig.info;
+            
+            console.log('[Banner] Rendering:', banner.title, 'position:', position, 'level:', level, 'config:', config);
             
             // Remove existing banner of same position
             const existingId = `banner-${position}`;
@@ -2851,12 +2854,16 @@
             
             switch (position) {
                 case 'top-bar':
-                    containerStyle = 'position:fixed;top:0;left:0;right:0;z-index:10000;';
+                    // Unter der TopNav als 2. Leiste
+                    containerStyle = 'position:fixed;top:56px;left:0;right:0;z-index:9999;';
                     html = this.renderBarBanner(banner, config);
+                    // Body padding hinzufügen damit Inhalt nicht überlappt
+                    document.body.style.paddingTop = '44px';
                     break;
                     
                 case 'bottom-bar':
-                    containerStyle = 'position:fixed;bottom:0;left:0;right:0;z-index:10000;';
+                    // Über dem Dock (Dock ist 72px hoch + 16px margin)
+                    containerStyle = 'position:fixed;bottom:88px;left:0;right:0;z-index:9999;';
                     html = this.renderBarBanner(banner, config);
                     break;
                     
@@ -2865,13 +2872,14 @@
                     return;
                     
                 case 'corner':
-                    containerStyle = 'position:fixed;bottom:20px;right:20px;z-index:10000;max-width:360px;';
+                    // Über dem Dock rechts
+                    containerStyle = 'position:fixed;bottom:100px;right:20px;z-index:9999;max-width:360px;';
                     html = this.renderCornerBanner(banner, config);
                     break;
                     
                 case 'top-banner':
                 default:
-                    // Render in the existing container
+                    // Render in the existing container (inline im Hub)
                     const container = document.getElementById('announcementBanner');
                     if (container) {
                         container.innerHTML = this.renderInlineBanner(banner, config);
@@ -3023,6 +3031,10 @@
                     document.getElementById('banner-modal')?.remove();
                 } else {
                     document.getElementById('banner-' + position)?.remove();
+                    // Reset body padding if top-bar was removed
+                    if (position === 'top-bar') {
+                        document.body.style.paddingTop = '';
+                    }
                 }
             }
             
