@@ -2673,6 +2673,11 @@
                     };
                     RIFT.ui.Toast.info(`Theme: ${names[theme] || theme}`);
                 }
+                
+                // Update preview dice colors
+                if (typeof DicePreview !== 'undefined' && DicePreview.updateColors) {
+                    DicePreview.updateColors();
+                }
             },
             
             // ========================================
@@ -4451,9 +4456,12 @@
                     // Normal dice
                     const geometry = this.createGeometry(type);
                     
+                    // Get current theme color from DiceRoller
+                    const themeColor = this.getThemeColor();
+                    
                     const material = new THREE.MeshPhongMaterial({
-                        color: 0xffffff,
-                        shininess: 30,
+                        color: themeColor,
+                        shininess: 60,
                         shading: THREE.FlatShading,
                         polygonOffset: true,
                         polygonOffsetFactor: 1,
@@ -4463,10 +4471,12 @@
                     mesh = new THREE.Mesh(geometry, material);
                     mesh.renderOrder = 0;
                     
-                    // Add gray edges - HELLER + depth fix
+                    // Add subtle edges
                     const edges = new THREE.EdgesGeometry(geometry, 1);
                     const lineMaterial = new THREE.LineBasicMaterial({ 
-                        color: 0xaaaaaa,
+                        color: 0x000000,
+                        transparent: true,
+                        opacity: 0.2,
                         depthTest: true
                     });
                     const wireframe = new THREE.LineSegments(edges, lineMaterial);
@@ -4525,9 +4535,12 @@
             createD100Group() {
                 const group = new THREE.Group();
                 
+                // Get current theme color
+                const themeColor = this.getThemeColor();
+                
                 const material = new THREE.MeshPhongMaterial({
-                    color: 0xffffff,
-                    shininess: 30,
+                    color: themeColor,
+                    shininess: 60,
                     shading: THREE.FlatShading,
                     polygonOffset: true,
                     polygonOffsetFactor: 1,
@@ -4540,10 +4553,12 @@
                 mesh1.position.x = -0.6;
                 mesh1.renderOrder = 0;
                 
-                // Add edges - HELLER
+                // Add edges - subtle
                 const edges1 = new THREE.EdgesGeometry(geom1, 1);
                 const lineMat = new THREE.LineBasicMaterial({ 
-                    color: 0xaaaaaa,
+                    color: 0x000000,
+                    transparent: true,
+                    opacity: 0.2,
                     depthTest: true
                 });
                 const lines1 = new THREE.LineSegments(edges1, lineMat);
@@ -4556,7 +4571,7 @@
                 mesh2.position.x = 0.6;
                 mesh2.renderOrder = 0;
                 
-                // Add edges - HELLER
+                // Add edges - subtle
                 const edges2 = new THREE.EdgesGeometry(geom2, 1);
                 const lines2 = new THREE.LineSegments(edges2, lineMat.clone());
                 lines2.renderOrder = 1;
@@ -4613,6 +4628,32 @@
                 geometry.computeVertexNormals();
                 
                 return geometry;
+            },
+            
+            // Get current theme color for preview dice
+            getThemeColor() {
+                // Try to get color from DiceRoller's current theme
+                if (typeof DiceRoller !== 'undefined' && DiceRoller.currentDiceColor) {
+                    // Convert hex string to number
+                    const hex = DiceRoller.currentDiceColor.replace('#', '');
+                    return parseInt(hex, 16);
+                }
+                // Default: nice purple/violet color
+                return 0x8B5CF6;
+            },
+            
+            // Update all preview dice colors when theme changes
+            updateColors() {
+                const color = this.getThemeColor();
+                this.previews.forEach(preview => {
+                    if (preview.isD100 && preview.mesh.userData.dice) {
+                        preview.mesh.userData.dice.forEach(die => {
+                            die.material.color.setHex(color);
+                        });
+                    } else {
+                        preview.mesh.material.color.setHex(color);
+                    }
+                });
             },
             
             animate() {
