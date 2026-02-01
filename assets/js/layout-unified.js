@@ -79,7 +79,7 @@ function createUnifiedTopnav() {
                         </div>
                         <div class="topnav__dropdown-body">
                             <a href="#" class="topnav__dropdown-item" onclick="RIFTLayout.shareRoomLink(); return false;">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 5a3 3 0 1 0 -3 3l.247 -.013l-2.507 4.386a3.003 3.003 0 0 0 -3.006 .507l-.24 .227l-2.507 -1.504a3 3 0 1 0 -2.987 2.397a3 3 0 0 0 2.74 -1.783l2.507 1.504a3 3 0 1 0 5.253 -1.724l.003 -.209a3 3 0 0 0 -.25 -1.206l2.507 -4.386c.085 .008 .171 .013 .258 .013a3 3 0 0 0 0 -6z"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                                 Link teilen
                             </a>
                             <a href="#" class="topnav__dropdown-item" onclick="RIFTLayout.showQRCode(); return false;">
