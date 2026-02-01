@@ -68,6 +68,9 @@
                     <span class="page-header__tagline">Dein Abenteuer beginnt hier</span>
                 </div>
                 
+                <!-- Announcement Banner (loaded from Firebase) -->
+                <div id="announcementBanner" style="display: none;"></div>
+                
                 <!-- User Greeting -->
                 <div class="hub-greeting" id="hubGreeting">
                     <h2 class="hub-greeting__text"><span class="hub-greeting__time" id="greetingTime">Guten Tag,</span> <span class="hub-greeting__name" id="greetingUsername">Abenteurer</span></h2>
@@ -2644,6 +2647,88 @@
         }
     }
     initQuoteOfDay();
+    
+    // ========================================
+    // ANNOUNCEMENT BANNER
+    // ========================================
+    async function loadAnnouncementBanner() {
+        const container = document.getElementById('announcementBanner');
+        if (!container) return;
+        
+        try {
+            const db = firebase.firestore();
+            const snapshot = await db.collection('announcements')
+                .where('active', '==', true)
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+            
+            if (snapshot.empty) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            const banner = snapshot.docs[0].data();
+            
+            // Check time constraints if set
+            const now = new Date();
+            if (banner.startDate) {
+                const start = banner.startDate.toDate ? banner.startDate.toDate() : new Date(banner.startDate);
+                if (now < start) { container.style.display = 'none'; return; }
+            }
+            if (banner.endDate) {
+                const end = banner.endDate.toDate ? banner.endDate.toDate() : new Date(banner.endDate);
+                if (now > end) { container.style.display = 'none'; return; }
+            }
+            
+            // Check if user dismissed this banner
+            const dismissedId = localStorage.getItem('dismissedBanner');
+            if (dismissedId === snapshot.docs[0].id) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            const colors = {
+                info: { bg: '#3B82F620', border: '#3B82F640', text: '#3B82F6', icon: 'ℹ️' },
+                warning: { bg: '#F59E0B20', border: '#F59E0B40', text: '#F59E0B', icon: '⚠️' },
+                critical: { bg: '#EF444420', border: '#EF444440', text: '#EF4444', icon: '🚨' }
+            };
+            const c = colors[banner.level] || colors.info;
+            
+            container.innerHTML = `
+                <div style="background: ${c.bg}; border: 1px solid ${c.border}; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+                    <span style="font-size: 24px;">${c.icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: ${c.text}; margin-bottom: 2px;">${banner.title}</div>
+                        ${banner.message ? '<div style="font-size: 14px; color: var(--text-muted);">' + banner.message + '</div>' : ''}
+                    </div>
+                    <button onclick="dismissBanner('${snapshot.docs[0].id}')" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; font-size: 18px;" title="Schließen">✕</button>
+                </div>
+            `;
+            container.style.display = 'block';
+            
+            console.log('[Hub] Banner loaded:', banner.title);
+            
+        } catch (e) {
+            console.warn('[Hub] Banner load error:', e.message);
+            container.style.display = 'none';
+        }
+    }
+    
+    function dismissBanner(id) {
+        localStorage.setItem('dismissedBanner', id);
+        document.getElementById('announcementBanner').style.display = 'none';
+    }
+    
+    // Init banner when Firebase ready
+    function initAnnouncementBanner() {
+        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+            loadAnnouncementBanner();
+        } else {
+            setTimeout(initAnnouncementBanner, 100);
+        }
+    }
+    initAnnouncementBanner();
     
     // Time-based greeting
     function updateGreetingTime() {
