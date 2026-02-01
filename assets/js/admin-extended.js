@@ -503,101 +503,529 @@ const FeedbackAdmin = {
 };
 
 // ========================================
-// ANNOUNCEMENTS ADMIN MODULE
+// ANNOUNCEMENTS ADMIN MODULE (Extended)
 // ========================================
 const AnnouncementsAdmin = {
     items: [],
     editingId: null,
     
+    // Banner-Typen mit Icons und Farben
+    levelConfig: {
+        info: { color: '#3B82F6', icon: 'ℹ️', label: 'Info' },
+        warning: { color: '#F59E0B', icon: '⚠️', label: 'Warnung' },
+        critical: { color: '#EF4444', icon: '🚨', label: 'Kritisch' },
+        success: { color: '#22C55E', icon: '✅', label: 'Erfolg' },
+        maintenance: { color: '#8B5CF6', icon: '🔧', label: 'Wartung' },
+        event: { color: '#EC4899', icon: '🎉', label: 'Event' }
+    },
+    
+    // Position-Optionen
+    positionConfig: {
+        'top-bar': { label: 'Oben (Bar)', desc: 'Schmaler Banner am Seitenanfang' },
+        'top-banner': { label: 'Oben (Groß)', desc: 'Großer Banner unter Header' },
+        'bottom-bar': { label: 'Unten (Bar)', desc: 'Fixierter Banner am unteren Rand' },
+        'modal': { label: 'Modal/Popup', desc: 'Zentriertes Popup-Fenster' },
+        'corner': { label: 'Ecke', desc: 'Kleine Benachrichtigung in der Ecke' }
+    },
+    
+    // Seiten-Optionen
+    pageOptions: [
+        { value: 'all', label: 'Alle Seiten' },
+        { value: 'hub', label: 'Nur Hub' },
+        { value: 'session', label: 'Nur Session' },
+        { value: 'character', label: 'Nur Charakterbogen' },
+        { value: 'landing', label: 'Nur Landing Page' }
+    ],
+    
+    // Zielgruppen
+    audienceOptions: [
+        { value: 'all', label: 'Alle User' },
+        { value: 'logged_in', label: 'Nur eingeloggte User' },
+        { value: 'logged_out', label: 'Nur nicht eingeloggte User' },
+        { value: 'admin', label: 'Nur Admins' },
+        { value: 'gm', label: 'Nur GMs' }
+    ],
+    
     async load() {
         try {
-            const snapshot = await db.collection('announcements').orderBy('createdAt', 'desc').get();
+            const snapshot = await db.collection('announcements').orderBy('priority', 'desc').get();
             this.items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             this.render();
+            this.renderStats();
             this.updateActiveBanner();
             console.log('[Admin] Loaded', this.items.length, 'announcements');
         } catch (e) {
             console.warn('Announcements collection not accessible:', e.message);
             this.items = [];
             this.render();
-            this.updateActiveBanner();
         }
+    },
+    
+    renderStats() {
+        const statsContainer = document.getElementById('bannerStats');
+        if (!statsContainer) return;
+        
+        const active = this.items.filter(i => i.active).length;
+        const scheduled = this.items.filter(i => {
+            if (!i.startDate) return false;
+            const start = i.startDate.toDate ? i.startDate.toDate() : new Date(i.startDate);
+            return start > new Date() && !i.active;
+        }).length;
+        const totalViews = this.items.reduce((sum, i) => sum + (i.views || 0), 0);
+        const totalDismisses = this.items.reduce((sum, i) => sum + (i.dismisses || 0), 0);
+        
+        statsContainer.innerHTML = 
+            '<div class="stat-card stat-card--small"><div class="stat-card__value" style="color:var(--green);">' + active + '</div><div class="stat-card__label">Aktiv</div></div>' +
+            '<div class="stat-card stat-card--small"><div class="stat-card__value" style="color:var(--accent);">' + scheduled + '</div><div class="stat-card__label">Geplant</div></div>' +
+            '<div class="stat-card stat-card--small"><div class="stat-card__value">' + totalViews + '</div><div class="stat-card__label">Views</div></div>' +
+            '<div class="stat-card stat-card--small"><div class="stat-card__value">' + totalDismisses + '</div><div class="stat-card__label">Dismissed</div></div>';
     },
     
     render() {
         const container = document.getElementById('announcementsList');
         if (!container) return;
+        
         if (this.items.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">Keine Ankündigungen</div>';
+            container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">Keine Ankündigungen<br><br><button class="btn btn--primary" onclick="AnnouncementsAdmin.openEditor()">Erste Ankündigung erstellen</button></div>';
             return;
         }
-        const levelColors = { info:'#3B82F6', warning:'#F59E0B', critical:'#EF4444' };
+        
         container.innerHTML = this.items.map(item => {
-            var lc = levelColors[item.level] || '#666';
-            var activeIcon = item.active ? '<span style="display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%;margin-right:8px;"></span>' : '';
-            return '<div class="slide-item" style="border-left:4px solid ' + lc + ';">' +
-                '<div class="slide-item__info">' +
-                '<div class="slide-item__title">' + activeIcon + (item.title||'Keine Überschrift') + '</div>' +
-                '<div class="slide-item__meta"><span style="padding:2px 8px;background:' + lc + '20;color:' + lc + ';border-radius:10px;font-size:11px;">' + (item.level||'info') + '</span></div></div>' +
-                '<div class="slide-item__actions">' +
-                '<label class="form-checkbox" style="margin-right:16px;"><input type="checkbox" ' + (item.active?'checked':'') + ' onchange="AnnouncementsAdmin.toggleActive(\'' + item.id + '\',this.checked)"><span>Aktiv</span></label>' +
-                '<button class="btn btn--ghost btn--small" onclick="AnnouncementsAdmin.edit(\'' + item.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
-                '<button class="btn btn--ghost btn--small" onclick="AnnouncementsAdmin.delete(\'' + item.id + '\')" style="color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div>';
+            const config = this.levelConfig[item.level] || this.levelConfig.info;
+            const isScheduled = item.startDate && new Date(item.startDate.toDate ? item.startDate.toDate() : item.startDate) > new Date();
+            const isExpired = item.endDate && new Date(item.endDate.toDate ? item.endDate.toDate() : item.endDate) < new Date();
+            
+            let statusBadge = '';
+            if (item.active && !isExpired) {
+                statusBadge = '<span style="padding:2px 8px;background:var(--green);color:white;border-radius:10px;font-size:10px;margin-left:8px;">LIVE</span>';
+            } else if (isScheduled) {
+                statusBadge = '<span style="padding:2px 8px;background:var(--accent);color:white;border-radius:10px;font-size:10px;margin-left:8px;">GEPLANT</span>';
+            } else if (isExpired) {
+                statusBadge = '<span style="padding:2px 8px;background:var(--text-muted);color:white;border-radius:10px;font-size:10px;margin-left:8px;">ABGELAUFEN</span>';
+            }
+            
+            const scheduleInfo = this.formatSchedule(item);
+            const viewsInfo = (item.views || 0) + ' Views, ' + (item.dismisses || 0) + ' Dismissed';
+            
+            return '<div class="slide-item" style="border-left:4px solid ' + config.color + ';">' +
+                '<div class="slide-item__info" style="flex:1;">' +
+                '<div class="slide-item__title">' +
+                '<span style="margin-right:8px;">' + config.icon + '</span>' +
+                (item.title || 'Keine Überschrift') + statusBadge +
+                '</div>' +
+                '<div style="display:flex;gap:16px;margin-top:6px;font-size:12px;color:var(--text-muted);">' +
+                '<span style="padding:2px 8px;background:' + config.color + '20;color:' + config.color + ';border-radius:6px;">' + config.label + '</span>' +
+                '<span>' + (this.positionConfig[item.position]?.label || 'Standard') + '</span>' +
+                (scheduleInfo ? '<span>📅 ' + scheduleInfo + '</span>' : '') +
+                '<span>👁 ' + viewsInfo + '</span>' +
+                '</div>' +
+                '</div>' +
+                '<div class="slide-item__actions" style="display:flex;gap:8px;align-items:center;">' +
+                '<label class="form-checkbox" style="margin-right:8px;"><input type="checkbox" ' + (item.active ? 'checked' : '') + ' onchange="AnnouncementsAdmin.toggleActive(\'' + item.id + '\',this.checked)"><span>Aktiv</span></label>' +
+                '<button class="btn btn--ghost btn--small" onclick="AnnouncementsAdmin.duplicate(\'' + item.id + '\')" title="Duplizieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' +
+                '<button class="btn btn--ghost btn--small" onclick="AnnouncementsAdmin.edit(\'' + item.id + '\')" title="Bearbeiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
+                '<button class="btn btn--ghost btn--small" onclick="AnnouncementsAdmin.showStats(\'' + item.id + '\')" title="Statistiken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></button>' +
+                '<button class="btn btn--ghost btn--small" onclick="AnnouncementsAdmin.delete(\'' + item.id + '\')" title="Löschen" style="color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' +
+                '</div></div>';
         }).join('');
+    },
+    
+    formatSchedule(item) {
+        const parts = [];
+        if (item.startDate) {
+            const d = item.startDate.toDate ? item.startDate.toDate() : new Date(item.startDate);
+            parts.push('Ab ' + d.toLocaleDateString('de-DE'));
+        }
+        if (item.endDate) {
+            const d = item.endDate.toDate ? item.endDate.toDate() : new Date(item.endDate);
+            parts.push('Bis ' + d.toLocaleDateString('de-DE'));
+        }
+        return parts.join(' · ');
     },
     
     updateActiveBanner() {
         const container = document.getElementById('activeBannerPreview');
         if (!container) return;
+        
         const active = this.items.find(i => i.active);
-        if (!active) { container.innerHTML = '<p style="color:var(--text-muted);text-align:center;">Kein aktiver Banner</p>'; return; }
-        const colors = { info:'#3B82F6', warning:'#F59E0B', critical:'#EF4444' };
-        var c = colors[active.level] || '#3B82F6';
-        container.innerHTML = '<div style="background:' + c + '20;border:1px solid ' + c + '40;border-radius:8px;padding:16px;display:flex;align-items:center;gap:16px;">' +
-            '<div style="width:40px;height:40px;background:' + c + ';border-radius:50%;display:flex;align-items:center;justify-content:center;">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width:20px;height:20px;"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg></div>' +
-            '<div><div style="font-weight:600;color:' + c + ';">' + active.title + '</div>' +
-            '<div style="font-size:14px;color:var(--text-muted);">' + (active.message||'') + '</div></div></div>';
+        if (!active) {
+            container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Kein aktiver Banner - Vorschau wird hier angezeigt</p>';
+            return;
+        }
+        
+        container.innerHTML = this.generateBannerHTML(active, true);
+    },
+    
+    generateBannerHTML(banner, isPreview = false) {
+        const config = this.levelConfig[banner.level] || this.levelConfig.info;
+        const position = banner.position || 'top-banner';
+        
+        let style = '';
+        let wrapperStyle = 'border-radius:12px;overflow:hidden;';
+        
+        if (position === 'top-bar') {
+            style = 'padding:10px 20px;font-size:14px;';
+        } else if (position === 'bottom-bar') {
+            style = 'padding:10px 20px;font-size:14px;';
+            if (!isPreview) wrapperStyle += 'position:fixed;bottom:0;left:0;right:0;z-index:1000;border-radius:0;';
+        } else if (position === 'modal') {
+            wrapperStyle = 'background:var(--bg-elevated);border-radius:16px;padding:24px;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+            style = '';
+        } else if (position === 'corner') {
+            wrapperStyle = 'max-width:320px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.3);';
+            if (!isPreview) wrapperStyle += 'position:fixed;bottom:20px;right:20px;z-index:1000;';
+        } else {
+            style = 'padding:16px 20px;';
+        }
+        
+        const hasLink = banner.linkUrl && banner.linkText;
+        const hasCountdown = banner.endDate && banner.showCountdown;
+        
+        let html = '<div style="' + wrapperStyle + '">';
+        html += '<div style="background:' + config.color + '20;border:1px solid ' + config.color + '40;' + style + '">';
+        
+        if (position === 'modal') {
+            // Modal Layout
+            html += '<div style="text-align:center;">';
+            if (banner.imageUrl) {
+                html += '<img src="' + banner.imageUrl + '" style="max-width:100%;max-height:150px;border-radius:8px;margin-bottom:16px;">';
+            }
+            html += '<div style="font-size:32px;margin-bottom:12px;">' + config.icon + '</div>';
+            html += '<div style="font-size:20px;font-weight:700;color:' + config.color + ';margin-bottom:8px;">' + banner.title + '</div>';
+            if (banner.message) {
+                html += '<div style="color:var(--text-muted);margin-bottom:16px;">' + banner.message + '</div>';
+            }
+            if (hasCountdown) {
+                html += '<div id="bannerCountdown" style="font-size:24px;font-weight:700;color:' + config.color + ';margin-bottom:16px;">--:--:--</div>';
+            }
+            if (hasLink) {
+                html += '<a href="' + banner.linkUrl + '" target="_blank" style="display:inline-block;padding:10px 24px;background:' + config.color + ';color:white;border-radius:8px;text-decoration:none;font-weight:500;">' + banner.linkText + '</a>';
+            }
+            html += '</div>';
+        } else {
+            // Bar/Banner Layout
+            html += '<div style="display:flex;align-items:center;gap:16px;">';
+            html += '<span style="font-size:24px;">' + config.icon + '</span>';
+            html += '<div style="flex:1;">';
+            html += '<div style="font-weight:600;color:' + config.color + ';">' + banner.title + '</div>';
+            if (banner.message) {
+                html += '<div style="font-size:14px;color:var(--text-muted);">' + banner.message + '</div>';
+            }
+            html += '</div>';
+            if (hasCountdown) {
+                html += '<div id="bannerCountdown" style="font-weight:700;color:' + config.color + ';font-size:18px;">--:--:--</div>';
+            }
+            if (hasLink) {
+                html += '<a href="' + banner.linkUrl + '" target="_blank" style="padding:8px 16px;background:' + config.color + ';color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;">' + banner.linkText + '</a>';
+            }
+            if (banner.dismissible !== false) {
+                html += '<button onclick="dismissBanner(\'' + banner.id + '\')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:8px;font-size:18px;">✕</button>';
+            }
+            html += '</div>';
+        }
+        
+        html += '</div></div>';
+        return html;
     },
     
     openEditor(id) {
         this.editingId = id || null;
         const item = id ? this.items.find(i => i.id === id) : null;
+        
+        // Level Options
+        const levelOptions = Object.entries(this.levelConfig).map(([key, cfg]) => 
+            '<option value="' + key + '"' + (item?.level === key ? ' selected' : '') + '>' + cfg.icon + ' ' + cfg.label + '</option>'
+        ).join('');
+        
+        // Position Options
+        const positionOptions = Object.entries(this.positionConfig).map(([key, cfg]) =>
+            '<option value="' + key + '"' + (item?.position === key ? ' selected' : '') + '>' + cfg.label + '</option>'
+        ).join('');
+        
+        // Page Options
+        const pageOpts = this.pageOptions.map(p =>
+            '<option value="' + p.value + '"' + (item?.pages === p.value ? ' selected' : '') + '>' + p.label + '</option>'
+        ).join('');
+        
+        // Audience Options
+        const audienceOpts = this.audienceOptions.map(a =>
+            '<option value="' + a.value + '"' + (item?.audience === a.value ? ' selected' : '') + '>' + a.label + '</option>'
+        ).join('');
+        
+        const startDate = item?.startDate ? this.toDatetimeLocal(item.startDate) : '';
+        const endDate = item?.endDate ? this.toDatetimeLocal(item.endDate) : '';
+        
         const html = '<div class="modal active" id="announcementModal" onclick="if(event.target===this)AnnouncementsAdmin.closeEditor()">' +
-            '<div class="modal__content"><div class="modal__header"><h3 class="modal__title">' + (id?'Bearbeiten':'Neue Ankündigung') + '</h3>' +
+            '<div class="modal__content modal__content--wide" style="max-width:900px;">' +
+            '<div class="modal__header"><h3 class="modal__title">' + (id ? 'Banner bearbeiten' : 'Neuer Banner') + '</h3>' +
             '<button class="btn btn--ghost" onclick="AnnouncementsAdmin.closeEditor()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
             '<div class="modal__body">' +
-            '<div class="form-group"><label class="form-label">Titel</label><input type="text" class="form-input" id="announcementTitle" value="' + (item?.title||'') + '" placeholder="z.B. Wartungsarbeiten"></div>' +
-            '<div class="form-group"><label class="form-label">Nachricht</label><textarea class="form-textarea" id="announcementMessage" placeholder="Details...">' + (item?.message||'') + '</textarea></div>' +
-            '<div class="form-group"><label class="form-label">Dringlichkeit</label><select class="form-select" id="announcementLevel">' +
-            '<option value="info"' + (item?.level==='info'?' selected':'') + '>Info (Blau)</option>' +
-            '<option value="warning"' + (item?.level==='warning'?' selected':'') + '>Warnung (Orange)</option>' +
-            '<option value="critical"' + (item?.level==='critical'?' selected':'') + '>Kritisch (Rot)</option></select></div>' +
-            '<div class="form-group"><label class="form-checkbox"><input type="checkbox" id="announcementActive"' + (item?.active!==false?' checked':'') + '><span>Sofort aktivieren</span></label></div></div>' +
-            '<div class="modal__footer"><button class="btn btn--secondary" onclick="AnnouncementsAdmin.closeEditor()">Abbrechen</button>' +
-            '<button class="btn btn--primary" onclick="AnnouncementsAdmin.save()">Speichern</button></div></div></div>';
+            
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
+            
+            // Linke Spalte - Inhalt
+            '<div>' +
+            '<h4 style="margin-bottom:16px;display:flex;align-items:center;gap:8px;"><span style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;">1</span> Inhalt</h4>' +
+            
+            '<div class="form-group"><label class="form-label">Titel *</label>' +
+            '<input type="text" class="form-input" id="annTitle" value="' + (item?.title || '') + '" placeholder="z.B. Wartungsarbeiten am Samstag" oninput="AnnouncementsAdmin.updatePreview()"></div>' +
+            
+            '<div class="form-group"><label class="form-label">Nachricht</label>' +
+            '<textarea class="form-textarea" id="annMessage" placeholder="Optionale Details..." oninput="AnnouncementsAdmin.updatePreview()">' + (item?.message || '') + '</textarea></div>' +
+            
+            '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Typ</label>' +
+            '<select class="form-select" id="annLevel" onchange="AnnouncementsAdmin.updatePreview()">' + levelOptions + '</select></div>' +
+            '<div class="form-group"><label class="form-label">Position</label>' +
+            '<select class="form-select" id="annPosition" onchange="AnnouncementsAdmin.updatePreview()">' + positionOptions + '</select></div>' +
+            '</div>' +
+            
+            '<div class="form-group"><label class="form-label">Bild-URL (optional)</label>' +
+            '<input type="text" class="form-input" id="annImage" value="' + (item?.imageUrl || '') + '" placeholder="https://..." oninput="AnnouncementsAdmin.updatePreview()"></div>' +
+            
+            '<h4 style="margin:24px 0 16px;display:flex;align-items:center;gap:8px;"><span style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;">2</span> Link / Button</h4>' +
+            
+            '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Button-Text</label>' +
+            '<input type="text" class="form-input" id="annLinkText" value="' + (item?.linkText || '') + '" placeholder="z.B. Mehr erfahren" oninput="AnnouncementsAdmin.updatePreview()"></div>' +
+            '<div class="form-group"><label class="form-label">Link-URL</label>' +
+            '<input type="text" class="form-input" id="annLinkUrl" value="' + (item?.linkUrl || '') + '" placeholder="https://..." oninput="AnnouncementsAdmin.updatePreview()"></div>' +
+            '</div>' +
+            '</div>' +
+            
+            // Rechte Spalte - Einstellungen
+            '<div>' +
+            '<h4 style="margin-bottom:16px;display:flex;align-items:center;gap:8px;"><span style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;">3</span> Zeitplanung</h4>' +
+            
+            '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Start (optional)</label>' +
+            '<input type="datetime-local" class="form-input" id="annStartDate" value="' + startDate + '"></div>' +
+            '<div class="form-group"><label class="form-label">Ende (optional)</label>' +
+            '<input type="datetime-local" class="form-input" id="annEndDate" value="' + endDate + '"></div>' +
+            '</div>' +
+            
+            '<div class="form-group"><label class="form-checkbox"><input type="checkbox" id="annShowCountdown"' + (item?.showCountdown ? ' checked' : '') + ' onchange="AnnouncementsAdmin.updatePreview()"><span>Countdown bis Ende anzeigen</span></label></div>' +
+            
+            '<h4 style="margin:24px 0 16px;display:flex;align-items:center;gap:8px;"><span style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;">4</span> Targeting</h4>' +
+            
+            '<div class="form-row">' +
+            '<div class="form-group"><label class="form-label">Seiten</label>' +
+            '<select class="form-select" id="annPages">' + pageOpts + '</select></div>' +
+            '<div class="form-group"><label class="form-label">Zielgruppe</label>' +
+            '<select class="form-select" id="annAudience">' + audienceOpts + '</select></div>' +
+            '</div>' +
+            
+            '<div class="form-group"><label class="form-label">Priorität</label>' +
+            '<input type="number" class="form-input" id="annPriority" value="' + (item?.priority || 0) + '" min="0" max="100" placeholder="0-100 (höher = wichtiger)"></div>' +
+            
+            '<h4 style="margin:24px 0 16px;display:flex;align-items:center;gap:8px;"><span style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;">5</span> Optionen</h4>' +
+            
+            '<div class="form-group"><label class="form-checkbox"><input type="checkbox" id="annDismissible"' + (item?.dismissible !== false ? ' checked' : '') + '><span>Kann geschlossen werden</span></label></div>' +
+            '<div class="form-group"><label class="form-checkbox"><input type="checkbox" id="annActive"' + (item?.active ? ' checked' : '') + '><span>Sofort aktivieren</span></label></div>' +
+            
+            '<h4 style="margin:24px 0 16px;">Vorschau</h4>' +
+            '<div id="editorPreview" style="background:var(--bg);border-radius:12px;padding:16px;min-height:100px;"></div>' +
+            '</div>' +
+            
+            '</div>' +
+            '</div>' +
+            '<div class="modal__footer">' +
+            '<button class="btn btn--secondary" onclick="AnnouncementsAdmin.closeEditor()">Abbrechen</button>' +
+            '<button class="btn btn--primary" onclick="AnnouncementsAdmin.save()">Speichern</button>' +
+            '</div></div></div>';
+        
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.updatePreview();
+    },
+    
+    updatePreview() {
+        const preview = document.getElementById('editorPreview');
+        if (!preview) return;
+        
+        const banner = {
+            title: document.getElementById('annTitle')?.value || 'Vorschau-Titel',
+            message: document.getElementById('annMessage')?.value || '',
+            level: document.getElementById('annLevel')?.value || 'info',
+            position: document.getElementById('annPosition')?.value || 'top-banner',
+            imageUrl: document.getElementById('annImage')?.value || '',
+            linkText: document.getElementById('annLinkText')?.value || '',
+            linkUrl: document.getElementById('annLinkUrl')?.value || '',
+            showCountdown: document.getElementById('annShowCountdown')?.checked || false,
+            dismissible: document.getElementById('annDismissible')?.checked !== false
+        };
+        
+        preview.innerHTML = this.generateBannerHTML(banner, true);
+    },
+    
+    toDatetimeLocal(timestamp) {
+        if (!timestamp) return '';
+        const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return d.toISOString().slice(0, 16);
+    },
+    
+    closeEditor() {
+        const m = document.getElementById('announcementModal');
+        if (m) m.remove();
+        this.editingId = null;
+    },
+    
+    async save() {
+        const title = document.getElementById('annTitle').value.trim();
+        if (!title) {
+            showToast('Bitte Titel eingeben', 'error');
+            return;
+        }
+        
+        const startDateVal = document.getElementById('annStartDate').value;
+        const endDateVal = document.getElementById('annEndDate').value;
+        
+        const data = {
+            title: title,
+            message: document.getElementById('annMessage').value.trim(),
+            level: document.getElementById('annLevel').value,
+            position: document.getElementById('annPosition').value,
+            imageUrl: document.getElementById('annImage').value.trim() || null,
+            linkText: document.getElementById('annLinkText').value.trim() || null,
+            linkUrl: document.getElementById('annLinkUrl').value.trim() || null,
+            startDate: startDateVal ? new Date(startDateVal) : null,
+            endDate: endDateVal ? new Date(endDateVal) : null,
+            showCountdown: document.getElementById('annShowCountdown').checked,
+            pages: document.getElementById('annPages').value,
+            audience: document.getElementById('annAudience').value,
+            priority: parseInt(document.getElementById('annPriority').value) || 0,
+            dismissible: document.getElementById('annDismissible').checked,
+            active: document.getElementById('annActive').checked,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+            if (this.editingId) {
+                await db.collection('announcements').doc(this.editingId).update(data);
+                showToast('Banner aktualisiert');
+            } else {
+                data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                data.views = 0;
+                data.dismisses = 0;
+                data.clicks = 0;
+                await db.collection('announcements').add(data);
+                showToast('Banner erstellt');
+            }
+            this.closeEditor();
+            this.load();
+        } catch (e) {
+            console.error('Save error:', e);
+            showToast('Fehler beim Speichern', 'error');
+        }
+    },
+    
+    edit(id) {
+        this.openEditor(id);
+    },
+    
+    async duplicate(id) {
+        const item = this.items.find(i => i.id === id);
+        if (!item) return;
+        
+        const newData = { ...item };
+        delete newData.id;
+        newData.title = item.title + ' (Kopie)';
+        newData.active = false;
+        newData.views = 0;
+        newData.dismisses = 0;
+        newData.clicks = 0;
+        newData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        newData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        
+        try {
+            await db.collection('announcements').add(newData);
+            showToast('Banner dupliziert');
+            this.load();
+        } catch (e) {
+            showToast('Fehler', 'error');
+        }
+    },
+    
+    async toggleActive(id, active) {
+        try {
+            await db.collection('announcements').doc(id).update({ active: active });
+            const item = this.items.find(i => i.id === id);
+            if (item) item.active = active;
+            this.updateActiveBanner();
+            this.renderStats();
+            showToast(active ? 'Banner aktiviert' : 'Banner deaktiviert');
+        } catch (e) {
+            showToast('Fehler', 'error');
+        }
+    },
+    
+    showStats(id) {
+        const item = this.items.find(i => i.id === id);
+        if (!item) return;
+        
+        const ctr = item.clicks && item.views ? ((item.clicks / item.views) * 100).toFixed(1) : 0;
+        const dismissRate = item.dismisses && item.views ? ((item.dismisses / item.views) * 100).toFixed(1) : 0;
+        
+        const html = '<div class="modal active" onclick="if(event.target===this)this.remove()">' +
+            '<div class="modal__content" style="max-width:400px;">' +
+            '<div class="modal__header"><h3 class="modal__title">Banner Statistiken</h3>' +
+            '<button class="btn btn--ghost" onclick="this.closest(\'.modal\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+            '<div class="modal__body">' +
+            '<h4 style="margin-bottom:16px;">' + item.title + '</h4>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+            '<div style="background:var(--bg);padding:16px;border-radius:8px;text-align:center;"><div style="font-size:28px;font-weight:700;color:var(--accent);">' + (item.views || 0) + '</div><div style="font-size:12px;color:var(--text-muted);">Aufrufe</div></div>' +
+            '<div style="background:var(--bg);padding:16px;border-radius:8px;text-align:center;"><div style="font-size:28px;font-weight:700;color:var(--green);">' + (item.clicks || 0) + '</div><div style="font-size:12px;color:var(--text-muted);">Klicks</div></div>' +
+            '<div style="background:var(--bg);padding:16px;border-radius:8px;text-align:center;"><div style="font-size:28px;font-weight:700;color:var(--text-muted);">' + (item.dismisses || 0) + '</div><div style="font-size:12px;color:var(--text-muted);">Geschlossen</div></div>' +
+            '<div style="background:var(--bg);padding:16px;border-radius:8px;text-align:center;"><div style="font-size:28px;font-weight:700;color:' + (ctr > 5 ? 'var(--green)' : 'var(--text-muted)') + ';">' + ctr + '%</div><div style="font-size:12px;color:var(--text-muted);">Click-Rate</div></div>' +
+            '</div>' +
+            '<div style="margin-top:16px;padding:12px;background:var(--bg);border-radius:8px;">' +
+            '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Dismiss-Rate</div>' +
+            '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="width:' + dismissRate + '%;height:100%;background:var(--accent);"></div></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + dismissRate + '% der Nutzer schließen den Banner</div>' +
+            '</div>' +
+            '</div></div></div>';
+        
         document.body.insertAdjacentHTML('beforeend', html);
     },
     
-    closeEditor() { var m = document.getElementById('announcementModal'); if (m) m.remove(); this.editingId = null; },
-    
-    async save() {
-        const title = document.getElementById('announcementTitle').value.trim();
-        const message = document.getElementById('announcementMessage').value.trim();
-        const level = document.getElementById('announcementLevel').value;
-        const active = document.getElementById('announcementActive').checked;
-        if (!title) { showToast('Bitte Titel eingeben', 'error'); return; }
-        const data = { title: title, message: message, level: level, active: active, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
-        try {
-            if (this.editingId) { await db.collection('announcements').doc(this.editingId).update(data); showToast('Aktualisiert'); }
-            else { data.createdAt = firebase.firestore.FieldValue.serverTimestamp(); await db.collection('announcements').add(data); showToast('Erstellt'); }
-            this.closeEditor(); this.load();
-        } catch (e) { showToast('Fehler', 'error'); }
+    filter() {
+        const statusFilter = document.getElementById('bannerFilterStatus')?.value || '';
+        const typeFilter = document.getElementById('bannerFilterType')?.value || '';
+        
+        const now = new Date();
+        const filtered = this.items.filter(item => {
+            // Status filter
+            if (statusFilter) {
+                const isScheduled = item.startDate && new Date(item.startDate.toDate ? item.startDate.toDate() : item.startDate) > now;
+                const isExpired = item.endDate && new Date(item.endDate.toDate ? item.endDate.toDate() : item.endDate) < now;
+                
+                if (statusFilter === 'active' && (!item.active || isExpired)) return false;
+                if (statusFilter === 'scheduled' && !isScheduled) return false;
+                if (statusFilter === 'inactive' && (item.active || isScheduled)) return false;
+            }
+            
+            // Type filter
+            if (typeFilter && item.level !== typeFilter) return false;
+            
+            return true;
+        });
+        
+        // Re-render with filtered items
+        const originalItems = this.items;
+        this.items = filtered;
+        this.render();
+        this.items = originalItems;
     },
     
-    edit(id) { this.openEditor(id); },
-    async toggleActive(id, active) { try { await db.collection('announcements').doc(id).update({ active: active }); var i = this.items.find(function(x) { return x.id === id; }); if (i) i.active = active; this.updateActiveBanner(); showToast(active?'Aktiviert':'Deaktiviert'); } catch(e) { showToast('Fehler','error'); } },
-    async delete(id) { if (!confirm('Löschen?')) return; try { await db.collection('announcements').doc(id).delete(); showToast('Gelöscht'); this.load(); } catch(e) { showToast('Fehler','error'); } }
+    async delete(id) {
+        if (!confirm('Banner wirklich löschen?')) return;
+        try {
+            await db.collection('announcements').doc(id).delete();
+            showToast('Banner gelöscht');
+            this.load();
+        } catch (e) {
+            showToast('Fehler', 'error');
+        }
+    }
 };
 
 // ========================================
