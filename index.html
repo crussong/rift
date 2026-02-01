@@ -2657,18 +2657,33 @@
         
         try {
             const db = firebase.firestore();
-            const snapshot = await db.collection('announcements')
-                .where('active', '==', true)
-                .orderBy('createdAt', 'desc')
-                .limit(1)
-                .get();
+            // Simple query without composite index - filter client-side
+            const snapshot = await db.collection('announcements').get();
             
             if (snapshot.empty) {
                 container.style.display = 'none';
                 return;
             }
             
-            const banner = snapshot.docs[0].data();
+            // Find active banner (client-side filter)
+            let activeBanner = null;
+            let activeBannerId = null;
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.active === true) {
+                    if (!activeBanner || (data.createdAt && activeBanner.createdAt && data.createdAt.toMillis() > activeBanner.createdAt.toMillis())) {
+                        activeBanner = data;
+                        activeBannerId = doc.id;
+                    }
+                }
+            });
+            
+            if (!activeBanner) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            const banner = activeBanner;
             
             // Check time constraints if set
             const now = new Date();
@@ -2683,7 +2698,7 @@
             
             // Check if user dismissed this banner
             const dismissedId = localStorage.getItem('dismissedBanner');
-            if (dismissedId === snapshot.docs[0].id) {
+            if (dismissedId === activeBannerId) {
                 container.style.display = 'none';
                 return;
             }
@@ -2702,7 +2717,7 @@
                         <div style="font-weight: 600; color: ${c.text}; margin-bottom: 2px;">${banner.title}</div>
                         ${banner.message ? '<div style="font-size: 14px; color: var(--text-muted);">' + banner.message + '</div>' : ''}
                     </div>
-                    <button onclick="dismissBanner('${snapshot.docs[0].id}')" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; font-size: 18px;" title="Schließen">✕</button>
+                    <button onclick="dismissBanner('${activeBannerId}')" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; font-size: 18px;" title="Schließen">✕</button>
                 </div>
             `;
             container.style.display = 'block';
