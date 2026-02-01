@@ -54,58 +54,34 @@ const HeaderController = {
         
         console.log('[Header] renderParty:', members.length, 'members');
         
-        // Avatars im Header
-        const avatarDiv = document.querySelector('.topnav__party-avatars');
-        if (avatarDiv) {
-            avatarDiv.innerHTML = members.slice(0, 3).map(m => 
-                `<div class="topnav__party-avatar" style="background:${m.color || '#8b5cf6'}">${(m.name || m.displayName || '?')[0].toUpperCase()}</div>`
-            ).join('');
-        }
-        
-        // Online Count
-        const statusEl = document.querySelector('.topnav__party-status');
+        // Online Count im Header
+        const statusEl = document.querySelector('.topnav__party-status, #partyOnlineCount');
         if (statusEl) {
             const online = members.filter(m => m.online !== false).length;
             statusEl.textContent = `${online} Online`;
         }
         
-        // Dropdown Header
+        // Dropdown Header Value
         const titleEl = document.querySelector('.topnav__dropdown--party .topnav__dropdown-title');
-        const valueEl = document.querySelector('.topnav__dropdown--party .topnav__dropdown-value');
+        const valueEl = document.querySelector('.topnav__dropdown--party .topnav__dropdown-value, #partyHeaderValue');
         if (titleEl) titleEl.textContent = 'Party';
         if (valueEl) valueEl.textContent = `${members.length} Spieler`;
         
         // Dropdown Body - Member Liste
-        const bodyEl = document.querySelector('.topnav__dropdown--party .topnav__dropdown-body');
+        const bodyEl = document.querySelector('#partyMembersList');
         if (bodyEl) {
-            const memberHtml = members.map(m => `
+            bodyEl.innerHTML = members.map(m => `
                 <div class="topnav__dropdown-member">
-                    <div class="topnav__dropdown-member-avatar" style="background:${m.color || '#8b5cf6'}">${(m.name || m.displayName || '?')[0].toUpperCase()}</div>
+                    <div class="topnav__dropdown-member-avatar" style="background:${m.color || '#8b5cf6'}">
+                        ${m.avatar ? `<img src="${m.avatar}" alt="">` : (m.name || m.displayName || '?')[0].toUpperCase()}
+                    </div>
                     <div class="topnav__dropdown-member-info">
                         <div class="topnav__dropdown-member-name">${m.name || m.displayName || 'Unbekannt'}</div>
-                        <div class="topnav__dropdown-member-role">${m.role === 'gm' ? 'Game Master' : 'Spieler'}</div>
+                        <div class="topnav__dropdown-member-role">${m.role === 'gm' ? 'Spielleiter' : 'Spieler'}</div>
                     </div>
                     <div class="topnav__dropdown-member-status${m.online === false ? ' topnav__dropdown-member-status--offline' : ''}"></div>
                 </div>
             `).join('');
-            
-            // Buttons behalten
-            const buttonsHtml = `
-                <div class="topnav__dropdown-divider"></div>
-                <a href="#" class="topnav__dropdown-item" data-action="invite">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-                    Spieler einladen
-                </a>
-                <a href="#" class="topnav__dropdown-item" data-action="manage">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    Party verwalten
-                </a>
-            `;
-            
-            bodyEl.innerHTML = memberHtml + buttonsHtml;
-            
-            // Event Listener neu binden
-            this.setupPartyButtons();
         }
     },
     
