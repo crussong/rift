@@ -819,9 +819,49 @@ const BannerSystem = {
     },
     
     getUserState() {
+        // Check multiple sources for logged in state
+        let isLoggedIn = false;
+        let userId = null;
+        
+        // 1. Check firebase.auth().currentUser
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            const fbUser = firebase.auth().currentUser;
+            if (fbUser && !fbUser.isAnonymous) {
+                isLoggedIn = true;
+                userId = fbUser.uid;
+            }
+        }
+        
+        // 2. Check window.currentUser
+        if (!isLoggedIn && typeof window.currentUser !== 'undefined' && window.currentUser) {
+            isLoggedIn = true;
+            userId = window.currentUser.oderId || window.currentUser.oderId;
+        }
+        
+        // 3. Check localStorage
+        if (!isLoggedIn) {
+            const stored = localStorage.getItem('rift_user');
+            if (stored) {
+                try {
+                    const userData = JSON.parse(stored);
+                    if (userData && userData.oderId) {
+                        isLoggedIn = true;
+                        userId = userData.oderId;
+                    }
+                } catch (e) {}
+            }
+        }
+        
+        // Admin check
+        const adminId = 'geBL1RI92jUiPrFK1oJ5u2Z25hM2';
+        const isAdmin = userId === adminId;
+        
+        console.log('[Banner] User state:', { isLoggedIn, userId, isAdmin });
+        
         return {
-            isLoggedIn: typeof currentUser !== 'undefined' && currentUser !== null,
-            isAdmin: typeof currentUser !== 'undefined' && currentUser?.uid === 'geBL1RI92jUiPrFK1oJ5u2Z25hM2'
+            isLoggedIn: isLoggedIn,
+            isAdmin: isAdmin,
+            userId: userId
         };
     },
     
