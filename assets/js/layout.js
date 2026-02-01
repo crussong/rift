@@ -331,7 +331,7 @@ function createTopbar() {
                 <div class="topbar__party-dropdown" id="partyDropdown">
                     <div class="topbar__party-header">
                         <span class="topbar__party-title">Party</span>
-                        <span class="topbar__party-count" id="partyOnlineCount">0 online</span>
+                        <span class="topbar__party-count" id="partyOnlineCount">0 Online</span>
                     </div>
                     <div class="topbar__party-list" id="partyMembersList">
                         <!-- Dynamisch befüllt -->
@@ -554,8 +554,10 @@ function initLayout() {
         return;
     }
     
-    // Use new layout system (handles custom TopNav detection internally)
-    initNewLayout();
+    // Use unified layout system
+    if (typeof initUnifiedLayout === 'function') {
+        initUnifiedLayout();
+    }
     
     // Initialize clock
     updateClock();
@@ -1634,7 +1636,7 @@ function updatePartyCount(online = 0, total = 0) {
         display.textContent = `${online}/${total}`;
     }
     if (onlineCount) {
-        onlineCount.textContent = `${online} online`;
+        onlineCount.textContent = `${online} Online`;
     }
 }
 
