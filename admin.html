@@ -1045,6 +1045,10 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                     Features
                 </button>
+                <button class="admin-tab" onclick="switchTab('quotes')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/></svg>
+                    Zitate
+                </button>
             </div>
             
             <!-- ═══════════════════════════════════════
@@ -1193,6 +1197,263 @@
                             <div class="loading-spinner" style="margin: 0 auto;"></div>
                             <p style="margin-top: 16px;">Lade Features...</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ═══════════════════════════════════════
+                 QUOTES PAGE (Zitat des Tages)
+                 ═══════════════════════════════════════ -->
+            <div class="admin-page" id="page-quotes">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-header__title">Zitat des Tages</h1>
+                        <p class="page-header__subtitle">Verwalte inspirierende Zitate für die Hub-Seite</p>
+                    </div>
+                    <button class="btn btn--primary" onclick="QuotesAdmin.openEditor()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Neues Zitat
+                    </button>
+                </div>
+                
+                <!-- Quote Settings -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card__header">
+                        <h2 class="card__title">Einstellungen</h2>
+                    </div>
+                    <div class="card__body" style="padding: 24px;">
+                        <div class="form-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;">
+                            <!-- Display Mode -->
+                            <div class="form-group">
+                                <label class="form-label">Anzeigemodus</label>
+                                <select class="form-select" id="quoteDisplayMode" onchange="QuotesAdmin.updateSettings()">
+                                    <option value="daily">Täglich wechselnd</option>
+                                    <option value="random">Zufällig bei Seitenaufruf</option>
+                                    <option value="sequential">Der Reihe nach</option>
+                                    <option value="fixed">Festes Zitat</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Change Time (for daily mode) -->
+                            <div class="form-group" id="quoteChangeTimeGroup">
+                                <label class="form-label">Wechselzeit (täglich)</label>
+                                <input type="time" class="form-input" id="quoteChangeTime" value="00:00" onchange="QuotesAdmin.updateSettings()">
+                            </div>
+                            
+                            <!-- Fixed Quote (for fixed mode) -->
+                            <div class="form-group" id="quoteFixedGroup" style="display: none;">
+                                <label class="form-label">Festes Zitat</label>
+                                <select class="form-select" id="quoteFixedId" onchange="QuotesAdmin.updateSettings()">
+                                    <option value="">Zitat auswählen...</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Animation -->
+                            <div class="form-group">
+                                <label class="form-label">Animation</label>
+                                <select class="form-select" id="quoteAnimation" onchange="QuotesAdmin.updateSettings()">
+                                    <option value="fade">Fade</option>
+                                    <option value="slide">Slide</option>
+                                    <option value="typewriter">Schreibmaschine</option>
+                                    <option value="none">Keine</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section-header" style="margin-top: 24px;">
+                            <span>Darstellung</span>
+                        </div>
+                        
+                        <div class="form-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 16px;">
+                            <!-- Font Style -->
+                            <div class="form-group">
+                                <label class="form-label">Schriftstil</label>
+                                <select class="form-select" id="quoteFontStyle" onchange="QuotesAdmin.updateSettings()">
+                                    <option value="normal">Normal</option>
+                                    <option value="italic">Kursiv</option>
+                                    <option value="serif">Serif (elegant)</option>
+                                    <option value="handwritten">Handschrift</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Font Size -->
+                            <div class="form-group">
+                                <label class="form-label">Schriftgröße</label>
+                                <select class="form-select" id="quoteFontSize" onchange="QuotesAdmin.updateSettings()">
+                                    <option value="small">Klein (16px)</option>
+                                    <option value="medium" selected>Mittel (18px)</option>
+                                    <option value="large">Groß (22px)</option>
+                                    <option value="xlarge">Sehr groß (26px)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Text Alignment -->
+                            <div class="form-group">
+                                <label class="form-label">Ausrichtung</label>
+                                <select class="form-select" id="quoteAlignment" onchange="QuotesAdmin.updateSettings()">
+                                    <option value="left">Links</option>
+                                    <option value="center" selected>Zentriert</option>
+                                    <option value="right">Rechts</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Show Quotation Marks -->
+                            <div class="form-group">
+                                <label class="form-label">Anführungszeichen</label>
+                                <select class="form-select" id="quoteMarks" onchange="QuotesAdmin.updateSettings()">
+                                    <option value="german">„Deutsch"</option>
+                                    <option value="english">"English"</option>
+                                    <option value="guillemets">«Guillemets»</option>
+                                    <option value="none">Keine</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 16px;">
+                            <!-- Show Author -->
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="quoteShowAuthor" checked onchange="QuotesAdmin.updateSettings()">
+                                    <span>Autor anzeigen</span>
+                                </label>
+                            </div>
+                            
+                            <!-- Show Source -->
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="quoteShowSource" checked onchange="QuotesAdmin.updateSettings()">
+                                    <span>Quelle anzeigen</span>
+                                </label>
+                            </div>
+                            
+                            <!-- Show Category Badge -->
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="quoteShowCategory" onchange="QuotesAdmin.updateSettings()">
+                                    <span>Kategorie-Badge</span>
+                                </label>
+                            </div>
+                            
+                            <!-- Enable Widget -->
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="quoteEnabled" checked onchange="QuotesAdmin.updateSettings()">
+                                    <span>Widget aktiv</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Preview -->
+                        <div class="form-section-header" style="margin-top: 24px;">
+                            <span>Vorschau</span>
+                        </div>
+                        
+                        <div id="quotePreview" style="margin-top: 16px; padding: 32px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border);">
+                            <div id="quotePreviewContent" style="text-align: center;">
+                                <p style="font-size: 18px; font-style: italic; color: var(--text); margin-bottom: 12px;">
+                                    „Das Würfeln ist des Spielers Lust."
+                                </p>
+                                <p style="font-size: 14px; color: var(--text-muted);">
+                                    — Unbekannter Roleplayer, <em>Irgendwo im Keller</em>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats -->
+                <div class="stats-grid" style="margin-bottom: 24px;">
+                    <div class="stat-card">
+                        <div class="stat-card__label">Gesamt</div>
+                        <div class="stat-card__value" id="statQuotesTotal">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">Aktiv</div>
+                        <div class="stat-card__value stat-card__value--green" id="statQuotesActive">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">Kategorien</div>
+                        <div class="stat-card__value stat-card__value--accent" id="statQuotesCategories">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">Heutiges Zitat</div>
+                        <div class="stat-card__value stat-card__value--blue" id="statQuotesToday">#1</div>
+                    </div>
+                </div>
+                
+                <!-- Filter Bar -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card__body" style="padding: 16px 24px;">
+                        <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                            <div class="form-group" style="margin: 0; flex: 1; min-width: 200px;">
+                                <input type="text" class="form-input" id="quoteSearch" placeholder="Zitate durchsuchen..." oninput="QuotesAdmin.filter()">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <select class="form-select" id="quoteCategoryFilter" onchange="QuotesAdmin.filter()">
+                                    <option value="">Alle Kategorien</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <select class="form-select" id="quoteStatusFilter" onchange="QuotesAdmin.filter()">
+                                    <option value="">Alle Status</option>
+                                    <option value="active">Aktiv</option>
+                                    <option value="inactive">Inaktiv</option>
+                                </select>
+                            </div>
+                            <button class="btn btn--secondary" onclick="QuotesAdmin.importQuotes()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                Import
+                            </button>
+                            <button class="btn btn--secondary" onclick="QuotesAdmin.exportQuotes()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quotes List -->
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">Alle Zitate</h2>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn--ghost btn--small" onclick="QuotesAdmin.selectAll()">Alle auswählen</button>
+                            <button class="btn btn--ghost btn--small" onclick="QuotesAdmin.deleteSelected()" id="deleteSelectedBtn" style="display: none; color: var(--red);">Ausgewählte löschen</button>
+                        </div>
+                    </div>
+                    <div id="quotesTableContainer">
+                        <table class="news-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="selectAllQuotes" onchange="QuotesAdmin.toggleSelectAll()"></th>
+                                    <th>Zitat</th>
+                                    <th style="width: 150px;">Autor</th>
+                                    <th style="width: 120px;">Kategorie</th>
+                                    <th style="width: 80px;">Status</th>
+                                    <th style="width: 120px;">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotesTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 60px;">
+                                        <div class="loading-spinner" style="margin: 0 auto;"></div>
+                                        <p style="margin-top: 16px; color: var(--text-muted);">Lade Zitate...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1779,6 +2040,240 @@
         </div>
     </div>
     
+    <!-- Quote Editor Modal -->
+    <div class="modal" id="quoteModal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h3 class="modal__title" id="quoteEditorTitle">Neues Zitat</h3>
+                <button class="btn btn--ghost" onclick="QuotesAdmin.closeEditor()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal__body">
+                <input type="hidden" id="quoteId">
+                
+                <!-- Quote Text -->
+                <div class="form-group">
+                    <label class="form-label">Zitat <span>*</span></label>
+                    <textarea class="form-textarea form-textarea--large" id="quoteText" placeholder="Das Zitat eingeben..." style="min-height: 120px;"></textarea>
+                    <p class="form-hint"><span id="quoteCharCount">0</span> Zeichen</p>
+                </div>
+                
+                <!-- Author & Source -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Autor <span>*</span></label>
+                        <input type="text" class="form-input" id="quoteAuthor" placeholder="z.B. Albert Einstein">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Quelle <span>(optional)</span></label>
+                        <input type="text" class="form-input" id="quoteSource" placeholder="z.B. Buch, Film, Rede...">
+                    </div>
+                </div>
+                
+                <!-- Year & Original Language -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Jahr <span>(optional)</span></label>
+                        <input type="text" class="form-input" id="quoteYear" placeholder="z.B. 1921">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Originalsprache</label>
+                        <select class="form-select" id="quoteLanguage">
+                            <option value="de">Deutsch</option>
+                            <option value="en">Englisch</option>
+                            <option value="la">Latein</option>
+                            <option value="fr">Französisch</option>
+                            <option value="other">Andere</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Category & Tags -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Kategorie</label>
+                        <select class="form-select" id="quoteCategory">
+                            <option value="wisdom">Weisheit</option>
+                            <option value="motivation">Motivation</option>
+                            <option value="humor">Humor</option>
+                            <option value="rpg">Rollenspiel</option>
+                            <option value="fantasy">Fantasy</option>
+                            <option value="scifi">Sci-Fi</option>
+                            <option value="philosophy">Philosophie</option>
+                            <option value="gaming">Gaming</option>
+                            <option value="life">Leben</option>
+                            <option value="friendship">Freundschaft</option>
+                            <option value="adventure">Abenteuer</option>
+                            <option value="custom">Eigene...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tags <span>(kommagetrennt)</span></label>
+                        <input type="text" class="form-input" id="quoteTags" placeholder="z.B. Leben, Mut, Träume">
+                    </div>
+                </div>
+                
+                <!-- Custom Category (hidden by default) -->
+                <div class="form-group" id="customCategoryGroup" style="display: none;">
+                    <label class="form-label">Eigene Kategorie</label>
+                    <input type="text" class="form-input" id="quoteCustomCategory" placeholder="Kategorie eingeben...">
+                </div>
+                
+                <div class="form-section-header" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+                    <span>Erweiterte Optionen</span>
+                </div>
+                
+                <!-- Link & Image -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Link <span>(optional)</span></label>
+                        <input type="text" class="form-input" id="quoteLink" placeholder="https://...">
+                        <p class="form-hint">Verlinkt das Zitat zu einer externen Quelle</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bild URL <span>(optional)</span></label>
+                        <input type="text" class="form-input" id="quoteImageUrl" placeholder="https://...">
+                        <p class="form-hint">Hintergrundbild für besondere Zitate</p>
+                    </div>
+                </div>
+                
+                <!-- Scheduling -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Gültig ab</label>
+                        <input type="date" class="form-input" id="quoteValidFrom">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Gültig bis</label>
+                        <input type="date" class="form-input" id="quoteValidUntil">
+                        <p class="form-hint">Leer = unbegrenzt</p>
+                    </div>
+                </div>
+                
+                <!-- Special Days -->
+                <div class="form-group">
+                    <label class="form-label">Für besondere Tage</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="quoteNewYear">
+                            <span>Neujahr</span>
+                        </label>
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="quoteChristmas">
+                            <span>Weihnachten</span>
+                        </label>
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="quoteHalloween">
+                            <span>Halloween</span>
+                        </label>
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="quoteEaster">
+                            <span>Ostern</span>
+                        </label>
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="quoteValentine">
+                            <span>Valentinstag</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Priority & Options -->
+                <div class="form-row" style="margin-top: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Priorität</label>
+                        <select class="form-select" id="quotePriority">
+                            <option value="1">Normal</option>
+                            <option value="2">Hoch (2x Chance)</option>
+                            <option value="3">Sehr hoch (3x Chance)</option>
+                        </select>
+                        <p class="form-hint">Höhere Priorität = häufiger angezeigt</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="quoteActive" checked>
+                                <span>Zitat aktiv</span>
+                            </label>
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="quoteFeatured">
+                                <span>Als Featured markieren</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="QuotesAdmin.closeEditor()">Abbrechen</button>
+                <button class="btn btn--primary" onclick="QuotesAdmin.save()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Import Quotes Modal -->
+    <div class="modal" id="importQuotesModal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h3 class="modal__title">Zitate importieren</h3>
+                <button class="btn btn--ghost" onclick="QuotesAdmin.closeImport()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal__body">
+                <div class="form-group">
+                    <label class="form-label">Format</label>
+                    <select class="form-select" id="importFormat">
+                        <option value="json">JSON</option>
+                        <option value="csv">CSV</option>
+                        <option value="text">Einfacher Text (ein Zitat pro Zeile)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Daten einfügen</label>
+                    <textarea class="form-textarea form-textarea--large" id="importData" placeholder="JSON, CSV oder Text hier einfügen..."></textarea>
+                </div>
+                
+                <div class="form-group" id="importTextOptions" style="display: none;">
+                    <label class="form-label">Trennzeichen für Text-Import</label>
+                    <input type="text" class="form-input" id="importSeparator" value=" — " placeholder="Trennzeichen zwischen Zitat und Autor">
+                    <p class="form-hint">z.B. " — " für "Zitat — Autor"</p>
+                </div>
+                
+                <div id="importPreview" style="display: none; margin-top: 16px; padding: 16px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border);">
+                    <p style="font-weight: 600; margin-bottom: 8px;">Vorschau (<span id="importCount">0</span> Zitate):</p>
+                    <div id="importPreviewList" style="max-height: 200px; overflow-y: auto;"></div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="QuotesAdmin.closeImport()">Abbrechen</button>
+                <button class="btn btn--secondary" onclick="QuotesAdmin.previewImport()">Vorschau</button>
+                <button class="btn btn--primary" onclick="QuotesAdmin.confirmImport()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Importieren
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
     
@@ -2118,6 +2613,8 @@
             // Load data for the tab
             if (tabId === 'carousel') {
                 CarouselAdmin.load();
+            } else if (tabId === 'quotes') {
+                QuotesAdmin.load();
             }
         }
         
@@ -2995,6 +3492,685 @@
             if (e.target.id === 'featuresModal') {
                 FeaturesAdmin.closeEditor();
             }
+        });
+        
+        document.getElementById('quoteModal').addEventListener('click', (e) => {
+            if (e.target.id === 'quoteModal') {
+                QuotesAdmin.closeEditor();
+            }
+        });
+        
+        document.getElementById('importQuotesModal').addEventListener('click', (e) => {
+            if (e.target.id === 'importQuotesModal') {
+                QuotesAdmin.closeImport();
+            }
+        });
+        
+        // ========================================
+        // QUOTES ADMIN MODULE
+        // ========================================
+        const QuotesAdmin = {
+            quotes: [],
+            settings: {},
+            editingId: null,
+            selectedIds: [],
+            categories: [
+                { id: 'wisdom', name: 'Weisheit', color: '#8B5CF6' },
+                { id: 'motivation', name: 'Motivation', color: '#22C55E' },
+                { id: 'humor', name: 'Humor', color: '#F59E0B' },
+                { id: 'rpg', name: 'Rollenspiel', color: '#EF4444' },
+                { id: 'fantasy', name: 'Fantasy', color: '#3B82F6' },
+                { id: 'scifi', name: 'Sci-Fi', color: '#06B6D4' },
+                { id: 'philosophy', name: 'Philosophie', color: '#A855F7' },
+                { id: 'gaming', name: 'Gaming', color: '#EC4899' },
+                { id: 'life', name: 'Leben', color: '#10B981' },
+                { id: 'friendship', name: 'Freundschaft', color: '#F97316' },
+                { id: 'adventure', name: 'Abenteuer', color: '#EAB308' }
+            ],
+            
+            async load() {
+                try {
+                    // Load quotes
+                    const quotesSnapshot = await db.collection('hub_quotes')
+                        .orderBy('createdAt', 'desc')
+                        .get();
+                    
+                    this.quotes = quotesSnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    
+                    // Load settings
+                    const settingsDoc = await db.collection('hub_settings').doc('quotes').get();
+                    this.settings = settingsDoc.exists ? settingsDoc.data() : this.getDefaultSettings();
+                    
+                    this.render();
+                    this.renderSettings();
+                    this.updateStats();
+                    this.updateCategoryFilter();
+                    this.updateFixedQuoteSelect();
+                    
+                } catch (error) {
+                    console.error('Error loading quotes:', error);
+                    showToast('Fehler beim Laden der Zitate', 'error');
+                }
+            },
+            
+            getDefaultSettings() {
+                return {
+                    displayMode: 'daily',
+                    changeTime: '00:00',
+                    fixedQuoteId: null,
+                    animation: 'fade',
+                    fontStyle: 'normal',
+                    fontSize: 'medium',
+                    alignment: 'center',
+                    quoteMarks: 'german',
+                    showAuthor: true,
+                    showSource: true,
+                    showCategory: false,
+                    enabled: true
+                };
+            },
+            
+            render() {
+                const container = document.getElementById('quotesTableBody');
+                
+                if (this.quotes.length === 0) {
+                    container.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 60px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 16px;">
+                                    <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/>
+                                    <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/>
+                                </svg>
+                                <p style="color: var(--text-muted);">Noch keine Zitate vorhanden</p>
+                                <button class="btn btn--primary" style="margin-top: 16px;" onclick="QuotesAdmin.openEditor()">Erstes Zitat erstellen</button>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = this.quotes.map(quote => {
+                    const category = this.categories.find(c => c.id === quote.category) || { name: quote.category, color: '#666' };
+                    const isSelected = this.selectedIds.includes(quote.id);
+                    
+                    return `
+                        <tr class="${isSelected ? 'selected' : ''}">
+                            <td>
+                                <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="QuotesAdmin.toggleSelect('${quote.id}')">
+                            </td>
+                            <td>
+                                <div class="news-table__title" style="font-style: italic; max-width: 400px;">
+                                    „${this.truncate(quote.text, 100)}"
+                                </div>
+                            </td>
+                            <td style="color: var(--text-muted);">${quote.author || '—'}</td>
+                            <td>
+                                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: ${category.color}20; color: ${category.color}; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                                    ${category.name}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge status-badge--${quote.active !== false ? 'published' : 'draft'}">
+                                    ${quote.active !== false ? 'Aktiv' : 'Inaktiv'}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="news-table__actions">
+                                    <button class="btn btn--ghost btn--small" onclick="QuotesAdmin.edit('${quote.id}')" title="Bearbeiten">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
+                                    <button class="btn btn--ghost btn--small" onclick="QuotesAdmin.duplicate('${quote.id}')" title="Duplizieren">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    </button>
+                                    <button class="btn btn--ghost btn--small" onclick="QuotesAdmin.delete('${quote.id}')" title="Löschen" style="color: var(--red);">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+            
+            renderSettings() {
+                // Apply settings to form
+                document.getElementById('quoteDisplayMode').value = this.settings.displayMode || 'daily';
+                document.getElementById('quoteChangeTime').value = this.settings.changeTime || '00:00';
+                document.getElementById('quoteAnimation').value = this.settings.animation || 'fade';
+                document.getElementById('quoteFontStyle').value = this.settings.fontStyle || 'normal';
+                document.getElementById('quoteFontSize').value = this.settings.fontSize || 'medium';
+                document.getElementById('quoteAlignment').value = this.settings.alignment || 'center';
+                document.getElementById('quoteMarks').value = this.settings.quoteMarks || 'german';
+                document.getElementById('quoteShowAuthor').checked = this.settings.showAuthor !== false;
+                document.getElementById('quoteShowSource').checked = this.settings.showSource !== false;
+                document.getElementById('quoteShowCategory').checked = this.settings.showCategory === true;
+                document.getElementById('quoteEnabled').checked = this.settings.enabled !== false;
+                
+                // Toggle visibility of mode-specific options
+                this.toggleModeOptions();
+                
+                // Update preview
+                this.updatePreview();
+            },
+            
+            toggleModeOptions() {
+                const mode = document.getElementById('quoteDisplayMode').value;
+                document.getElementById('quoteChangeTimeGroup').style.display = mode === 'daily' ? 'block' : 'none';
+                document.getElementById('quoteFixedGroup').style.display = mode === 'fixed' ? 'block' : 'none';
+            },
+            
+            async updateSettings() {
+                this.toggleModeOptions();
+                
+                const settings = {
+                    displayMode: document.getElementById('quoteDisplayMode').value,
+                    changeTime: document.getElementById('quoteChangeTime').value,
+                    fixedQuoteId: document.getElementById('quoteFixedId').value || null,
+                    animation: document.getElementById('quoteAnimation').value,
+                    fontStyle: document.getElementById('quoteFontStyle').value,
+                    fontSize: document.getElementById('quoteFontSize').value,
+                    alignment: document.getElementById('quoteAlignment').value,
+                    quoteMarks: document.getElementById('quoteMarks').value,
+                    showAuthor: document.getElementById('quoteShowAuthor').checked,
+                    showSource: document.getElementById('quoteShowSource').checked,
+                    showCategory: document.getElementById('quoteShowCategory').checked,
+                    enabled: document.getElementById('quoteEnabled').checked,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                try {
+                    await db.collection('hub_settings').doc('quotes').set(settings, { merge: true });
+                    this.settings = settings;
+                    this.updatePreview();
+                    showToast('Einstellungen gespeichert');
+                } catch (error) {
+                    console.error('Error saving settings:', error);
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            },
+            
+            updatePreview() {
+                const preview = document.getElementById('quotePreviewContent');
+                const quote = this.quotes[0] || { text: 'Das Würfeln ist des Spielers Lust.', author: 'Unbekannter Roleplayer', source: 'Irgendwo im Keller' };
+                
+                const fontStyles = {
+                    normal: '',
+                    italic: 'font-style: italic;',
+                    serif: 'font-family: Georgia, serif;',
+                    handwritten: 'font-family: "Brush Script MT", cursive;'
+                };
+                
+                const fontSizes = {
+                    small: '16px',
+                    medium: '18px',
+                    large: '22px',
+                    xlarge: '26px'
+                };
+                
+                const quoteMarks = {
+                    german: ['„', '"'],
+                    english: ['"', '"'],
+                    guillemets: ['«', '»'],
+                    none: ['', '']
+                };
+                
+                const marks = quoteMarks[this.settings.quoteMarks] || quoteMarks.german;
+                const fontSize = fontSizes[this.settings.fontSize] || '18px';
+                const fontStyle = fontStyles[this.settings.fontStyle] || '';
+                const alignment = this.settings.alignment || 'center';
+                
+                let authorHtml = '';
+                if (this.settings.showAuthor && quote.author) {
+                    authorHtml = `— ${quote.author}`;
+                    if (this.settings.showSource && quote.source) {
+                        authorHtml += `, <em>${quote.source}</em>`;
+                    }
+                }
+                
+                preview.innerHTML = `
+                    <p style="font-size: ${fontSize}; ${fontStyle} color: var(--text); margin-bottom: 12px; text-align: ${alignment};">
+                        ${marks[0]}${quote.text}${marks[1]}
+                    </p>
+                    ${authorHtml ? `<p style="font-size: 14px; color: var(--text-muted); text-align: ${alignment};">${authorHtml}</p>` : ''}
+                `;
+            },
+            
+            updateStats() {
+                const total = this.quotes.length;
+                const active = this.quotes.filter(q => q.active !== false).length;
+                const categories = [...new Set(this.quotes.map(q => q.category))].length;
+                
+                document.getElementById('statQuotesTotal').textContent = total;
+                document.getElementById('statQuotesActive').textContent = active;
+                document.getElementById('statQuotesCategories').textContent = categories;
+                
+                // Calculate today's quote
+                const todayIndex = this.getTodayQuoteIndex();
+                document.getElementById('statQuotesToday').textContent = total > 0 ? `#${todayIndex + 1}` : '—';
+            },
+            
+            getTodayQuoteIndex() {
+                if (this.quotes.length === 0) return 0;
+                const activeQuotes = this.quotes.filter(q => q.active !== false);
+                if (activeQuotes.length === 0) return 0;
+                
+                const today = new Date();
+                const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+                return dayOfYear % activeQuotes.length;
+            },
+            
+            updateCategoryFilter() {
+                const select = document.getElementById('quoteCategoryFilter');
+                const existingCategories = [...new Set(this.quotes.map(q => q.category))];
+                
+                select.innerHTML = '<option value="">Alle Kategorien</option>' +
+                    existingCategories.map(catId => {
+                        const cat = this.categories.find(c => c.id === catId) || { name: catId };
+                        return `<option value="${catId}">${cat.name}</option>`;
+                    }).join('');
+            },
+            
+            updateFixedQuoteSelect() {
+                const select = document.getElementById('quoteFixedId');
+                select.innerHTML = '<option value="">Zitat auswählen...</option>' +
+                    this.quotes.map(q => `<option value="${q.id}" ${this.settings.fixedQuoteId === q.id ? 'selected' : ''}>${this.truncate(q.text, 50)} — ${q.author}</option>`).join('');
+            },
+            
+            filter() {
+                const search = document.getElementById('quoteSearch').value.toLowerCase();
+                const category = document.getElementById('quoteCategoryFilter').value;
+                const status = document.getElementById('quoteStatusFilter').value;
+                
+                const rows = document.querySelectorAll('#quotesTableBody tr');
+                
+                this.quotes.forEach((quote, index) => {
+                    const row = rows[index];
+                    if (!row) return;
+                    
+                    const matchesSearch = !search || 
+                        quote.text.toLowerCase().includes(search) || 
+                        (quote.author && quote.author.toLowerCase().includes(search));
+                    const matchesCategory = !category || quote.category === category;
+                    const matchesStatus = !status || 
+                        (status === 'active' && quote.active !== false) ||
+                        (status === 'inactive' && quote.active === false);
+                    
+                    row.style.display = matchesSearch && matchesCategory && matchesStatus ? '' : 'none';
+                });
+            },
+            
+            openEditor(id = null) {
+                this.editingId = id;
+                const modal = document.getElementById('quoteModal');
+                
+                // Reset form
+                document.getElementById('quoteId').value = '';
+                document.getElementById('quoteText').value = '';
+                document.getElementById('quoteAuthor').value = '';
+                document.getElementById('quoteSource').value = '';
+                document.getElementById('quoteYear').value = '';
+                document.getElementById('quoteLanguage').value = 'de';
+                document.getElementById('quoteCategory').value = 'wisdom';
+                document.getElementById('quoteTags').value = '';
+                document.getElementById('quoteLink').value = '';
+                document.getElementById('quoteImageUrl').value = '';
+                document.getElementById('quoteValidFrom').value = '';
+                document.getElementById('quoteValidUntil').value = '';
+                document.getElementById('quotePriority').value = '1';
+                document.getElementById('quoteActive').checked = true;
+                document.getElementById('quoteFeatured').checked = false;
+                document.getElementById('quoteNewYear').checked = false;
+                document.getElementById('quoteChristmas').checked = false;
+                document.getElementById('quoteHalloween').checked = false;
+                document.getElementById('quoteEaster').checked = false;
+                document.getElementById('quoteValentine').checked = false;
+                document.getElementById('customCategoryGroup').style.display = 'none';
+                
+                if (id) {
+                    const quote = this.quotes.find(q => q.id === id);
+                    if (quote) {
+                        document.getElementById('quoteEditorTitle').textContent = 'Zitat bearbeiten';
+                        document.getElementById('quoteId').value = quote.id;
+                        document.getElementById('quoteText').value = quote.text || '';
+                        document.getElementById('quoteAuthor').value = quote.author || '';
+                        document.getElementById('quoteSource').value = quote.source || '';
+                        document.getElementById('quoteYear').value = quote.year || '';
+                        document.getElementById('quoteLanguage').value = quote.language || 'de';
+                        document.getElementById('quoteCategory').value = quote.category || 'wisdom';
+                        document.getElementById('quoteTags').value = (quote.tags || []).join(', ');
+                        document.getElementById('quoteLink').value = quote.link || '';
+                        document.getElementById('quoteImageUrl').value = quote.imageUrl || '';
+                        document.getElementById('quoteValidFrom').value = quote.validFrom || '';
+                        document.getElementById('quoteValidUntil').value = quote.validUntil || '';
+                        document.getElementById('quotePriority').value = quote.priority || '1';
+                        document.getElementById('quoteActive').checked = quote.active !== false;
+                        document.getElementById('quoteFeatured').checked = quote.featured === true;
+                        
+                        // Special days
+                        const specialDays = quote.specialDays || [];
+                        document.getElementById('quoteNewYear').checked = specialDays.includes('newyear');
+                        document.getElementById('quoteChristmas').checked = specialDays.includes('christmas');
+                        document.getElementById('quoteHalloween').checked = specialDays.includes('halloween');
+                        document.getElementById('quoteEaster').checked = specialDays.includes('easter');
+                        document.getElementById('quoteValentine').checked = specialDays.includes('valentine');
+                    }
+                } else {
+                    document.getElementById('quoteEditorTitle').textContent = 'Neues Zitat';
+                }
+                
+                // Update char count
+                this.updateCharCount();
+                
+                modal.classList.add('active');
+            },
+            
+            closeEditor() {
+                document.getElementById('quoteModal').classList.remove('active');
+                this.editingId = null;
+            },
+            
+            updateCharCount() {
+                const text = document.getElementById('quoteText').value;
+                document.getElementById('quoteCharCount').textContent = text.length;
+            },
+            
+            async save() {
+                const text = document.getElementById('quoteText').value.trim();
+                const author = document.getElementById('quoteAuthor').value.trim();
+                
+                if (!text) {
+                    showToast('Bitte gib ein Zitat ein', 'error');
+                    return;
+                }
+                
+                if (!author) {
+                    showToast('Bitte gib einen Autor an', 'error');
+                    return;
+                }
+                
+                // Collect special days
+                const specialDays = [];
+                if (document.getElementById('quoteNewYear').checked) specialDays.push('newyear');
+                if (document.getElementById('quoteChristmas').checked) specialDays.push('christmas');
+                if (document.getElementById('quoteHalloween').checked) specialDays.push('halloween');
+                if (document.getElementById('quoteEaster').checked) specialDays.push('easter');
+                if (document.getElementById('quoteValentine').checked) specialDays.push('valentine');
+                
+                const data = {
+                    text,
+                    author,
+                    source: document.getElementById('quoteSource').value.trim() || null,
+                    year: document.getElementById('quoteYear').value.trim() || null,
+                    language: document.getElementById('quoteLanguage').value,
+                    category: document.getElementById('quoteCategory').value,
+                    tags: document.getElementById('quoteTags').value.split(',').map(t => t.trim()).filter(t => t),
+                    link: document.getElementById('quoteLink').value.trim() || null,
+                    imageUrl: document.getElementById('quoteImageUrl').value.trim() || null,
+                    validFrom: document.getElementById('quoteValidFrom').value || null,
+                    validUntil: document.getElementById('quoteValidUntil').value || null,
+                    priority: parseInt(document.getElementById('quotePriority').value),
+                    active: document.getElementById('quoteActive').checked,
+                    featured: document.getElementById('quoteFeatured').checked,
+                    specialDays,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                try {
+                    const id = document.getElementById('quoteId').value;
+                    
+                    if (id) {
+                        await db.collection('hub_quotes').doc(id).update(data);
+                        showToast('Zitat aktualisiert');
+                    } else {
+                        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                        await db.collection('hub_quotes').add(data);
+                        showToast('Zitat erstellt');
+                    }
+                    
+                    this.closeEditor();
+                    this.load();
+                    
+                } catch (error) {
+                    console.error('Error saving quote:', error);
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            },
+            
+            async edit(id) {
+                this.openEditor(id);
+            },
+            
+            async duplicate(id) {
+                const quote = this.quotes.find(q => q.id === id);
+                if (!quote) return;
+                
+                try {
+                    const newData = { ...quote };
+                    delete newData.id;
+                    newData.text = quote.text + ' (Kopie)';
+                    newData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    newData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+                    
+                    await db.collection('hub_quotes').add(newData);
+                    showToast('Zitat dupliziert');
+                    this.load();
+                    
+                } catch (error) {
+                    console.error('Error duplicating quote:', error);
+                    showToast('Fehler beim Duplizieren', 'error');
+                }
+            },
+            
+            async delete(id) {
+                if (!confirm('Zitat wirklich löschen?')) return;
+                
+                try {
+                    await db.collection('hub_quotes').doc(id).delete();
+                    showToast('Zitat gelöscht');
+                    this.load();
+                    
+                } catch (error) {
+                    console.error('Error deleting quote:', error);
+                    showToast('Fehler beim Löschen', 'error');
+                }
+            },
+            
+            toggleSelect(id) {
+                const index = this.selectedIds.indexOf(id);
+                if (index === -1) {
+                    this.selectedIds.push(id);
+                } else {
+                    this.selectedIds.splice(index, 1);
+                }
+                this.updateSelectionUI();
+            },
+            
+            toggleSelectAll() {
+                const checkbox = document.getElementById('selectAllQuotes');
+                if (checkbox.checked) {
+                    this.selectedIds = this.quotes.map(q => q.id);
+                } else {
+                    this.selectedIds = [];
+                }
+                this.render();
+                this.updateSelectionUI();
+            },
+            
+            selectAll() {
+                this.selectedIds = this.quotes.map(q => q.id);
+                document.getElementById('selectAllQuotes').checked = true;
+                this.render();
+                this.updateSelectionUI();
+            },
+            
+            updateSelectionUI() {
+                const deleteBtn = document.getElementById('deleteSelectedBtn');
+                deleteBtn.style.display = this.selectedIds.length > 0 ? 'inline-flex' : 'none';
+                deleteBtn.textContent = `${this.selectedIds.length} löschen`;
+            },
+            
+            async deleteSelected() {
+                if (this.selectedIds.length === 0) return;
+                if (!confirm(`${this.selectedIds.length} Zitate wirklich löschen?`)) return;
+                
+                try {
+                    const batch = db.batch();
+                    this.selectedIds.forEach(id => {
+                        batch.delete(db.collection('hub_quotes').doc(id));
+                    });
+                    await batch.commit();
+                    
+                    showToast(`${this.selectedIds.length} Zitate gelöscht`);
+                    this.selectedIds = [];
+                    this.load();
+                    
+                } catch (error) {
+                    console.error('Error deleting quotes:', error);
+                    showToast('Fehler beim Löschen', 'error');
+                }
+            },
+            
+            importQuotes() {
+                document.getElementById('importQuotesModal').classList.add('active');
+                document.getElementById('importData').value = '';
+                document.getElementById('importPreview').style.display = 'none';
+            },
+            
+            closeImport() {
+                document.getElementById('importQuotesModal').classList.remove('active');
+            },
+            
+            previewImport() {
+                const format = document.getElementById('importFormat').value;
+                const data = document.getElementById('importData').value.trim();
+                
+                if (!data) {
+                    showToast('Bitte Daten eingeben', 'error');
+                    return;
+                }
+                
+                let quotes = [];
+                
+                try {
+                    if (format === 'json') {
+                        quotes = JSON.parse(data);
+                        if (!Array.isArray(quotes)) quotes = [quotes];
+                    } else if (format === 'csv') {
+                        const lines = data.split('\n');
+                        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                        quotes = lines.slice(1).map(line => {
+                            const values = line.split(',');
+                            const quote = {};
+                            headers.forEach((h, i) => {
+                                quote[h] = values[i]?.trim() || '';
+                            });
+                            return quote;
+                        });
+                    } else {
+                        const separator = document.getElementById('importSeparator').value || ' — ';
+                        quotes = data.split('\n').filter(l => l.trim()).map(line => {
+                            const parts = line.split(separator);
+                            return {
+                                text: parts[0]?.trim() || line,
+                                author: parts[1]?.trim() || 'Unbekannt'
+                            };
+                        });
+                    }
+                    
+                    document.getElementById('importCount').textContent = quotes.length;
+                    document.getElementById('importPreviewList').innerHTML = quotes.slice(0, 5).map(q => `
+                        <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <div style="font-style: italic;">"${this.truncate(q.text, 60)}"</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">— ${q.author || 'Unbekannt'}</div>
+                        </div>
+                    `).join('') + (quotes.length > 5 ? `<p style="color: var(--text-muted); margin-top: 8px;">... und ${quotes.length - 5} weitere</p>` : '');
+                    
+                    document.getElementById('importPreview').style.display = 'block';
+                    this.pendingImport = quotes;
+                    
+                } catch (error) {
+                    console.error('Parse error:', error);
+                    showToast('Fehler beim Parsen der Daten', 'error');
+                }
+            },
+            
+            async confirmImport() {
+                if (!this.pendingImport || this.pendingImport.length === 0) {
+                    showToast('Bitte erst Vorschau anzeigen', 'error');
+                    return;
+                }
+                
+                try {
+                    const batch = db.batch();
+                    
+                    this.pendingImport.forEach(quote => {
+                        const ref = db.collection('hub_quotes').doc();
+                        batch.set(ref, {
+                            text: quote.text || '',
+                            author: quote.author || 'Unbekannt',
+                            source: quote.source || null,
+                            category: quote.category || 'wisdom',
+                            active: true,
+                            priority: 1,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    
+                    await batch.commit();
+                    
+                    showToast(`${this.pendingImport.length} Zitate importiert`);
+                    this.pendingImport = null;
+                    this.closeImport();
+                    this.load();
+                    
+                } catch (error) {
+                    console.error('Import error:', error);
+                    showToast('Fehler beim Import', 'error');
+                }
+            },
+            
+            exportQuotes() {
+                const data = this.quotes.map(q => ({
+                    text: q.text,
+                    author: q.author,
+                    source: q.source,
+                    category: q.category,
+                    tags: q.tags,
+                    year: q.year
+                }));
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'rift-quotes-export.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showToast('Export gestartet');
+            },
+            
+            truncate(text, length) {
+                if (!text) return '';
+                return text.length > length ? text.substring(0, length) + '...' : text;
+            }
+        };
+        
+        // Quote text character counter
+        document.getElementById('quoteText')?.addEventListener('input', () => QuotesAdmin.updateCharCount());
+        
+        // Category custom option
+        document.getElementById('quoteCategory')?.addEventListener('change', (e) => {
+            document.getElementById('customCategoryGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
+        });
+        
+        // Import format change
+        document.getElementById('importFormat')?.addEventListener('change', (e) => {
+            document.getElementById('importTextOptions').style.display = e.target.value === 'text' ? 'block' : 'none';
         });
     </script>
 </body>
