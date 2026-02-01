@@ -1134,7 +1134,7 @@
         // ========================================
         // QUOTE OF THE DAY
         // ========================================
-        (async function() {
+        async function loadQuoteOfDay() {
             const quoteText = document.getElementById('quoteText');
             const quoteAuthor = document.getElementById('quoteAuthor');
             const quoteSource = document.getElementById('quoteSource');
@@ -1167,6 +1167,12 @@
                 const quotes = snapshot.docs
                     .map(doc => ({ id: doc.id, ...doc.data() }))
                     .filter(q => q.active !== false);
+                    
+                if (quotes.length === 0) {
+                    console.log('[Hub] No active quotes found');
+                    return;
+                }
+                
                 console.log('[Hub] Loaded', quotes.length, 'quotes');
                 
                 // Select quote based on display mode
@@ -1288,7 +1294,7 @@
             } catch (e) {
                 console.error('[Hub] Quote load error:', e);
             }
-        })();
+        }
         
         // ========================================
         // FEATURE SHOWCASE TABS
@@ -2628,6 +2634,16 @@
         }
     }
     initFirebaseAuth();
+    
+    // Load Quote of Day when Firebase is ready
+    function initQuoteOfDay() {
+        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+            loadQuoteOfDay();
+        } else {
+            setTimeout(initQuoteOfDay, 100);
+        }
+    }
+    initQuoteOfDay();
     
     // Time-based greeting
     function updateGreetingTime() {
