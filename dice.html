@@ -2811,8 +2811,8 @@
                         // Show dice labels - verwende die ECHTEN Label-Werte
                         this.showDiceLabels(labelValues, d100Count);
                         
-                        // Show result
-                        this.displayRollResult(displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color);
+                        // Show result - mit D100 Breakdown
+                        this.displayRollResult(displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color, d100Count, labelValues);
                         
                         // Add to history
                         this.addToHistory({
@@ -2930,7 +2930,7 @@
             },
             
             // Zeige Ergebnis an
-            displayRollResult(rolls, total, mod, isCritical, special, playerName, playerColor) {
+            displayRollResult(rolls, total, mod, isCritical, special, playerName, playerColor, d100Count = 0, labelValues = null) {
                 // Clear any existing timeout to prevent early hide
                 if (this.resultTimeout) {
                     clearTimeout(this.resultTimeout);
@@ -2958,12 +2958,35 @@
                     modStr = ` <span class="dice-result__mod dice-result__mod--${cls}">${mod > 0 ? '+' : ''}${mod}</span>`;
                 }
                 
-                if (special === 'advantage') {
-                    breakdownEl.innerHTML = `[${rolls.join(', ')}] → höchste: ${Math.max(...rolls)}${modStr}`;
-                } else if (special === 'disadvantage') {
-                    breakdownEl.innerHTML = `[${rolls.join(', ')}] → niedrigste: ${Math.min(...rolls)}${modStr}`;
+                // Build breakdown string
+                let breakdownParts = [];
+                
+                if (d100Count > 0 && labelValues && labelValues.length >= d100Count * 2) {
+                    // D100: Zeige "40 + 9 = 49" Format
+                    let idx = 0;
+                    for (let i = 0; i < d100Count; i++) {
+                        const tens = labelValues[idx];
+                        const ones = labelValues[idx + 1];
+                        const tensStr = tens === 0 ? '00' : tens.toString();
+                        breakdownParts.push(`${tensStr} + ${ones}`);
+                        idx += 2;
+                    }
+                    // Add remaining dice (non-D100)
+                    while (idx < labelValues.length) {
+                        breakdownParts.push(labelValues[idx].toString());
+                        idx++;
+                    }
                 } else {
-                    breakdownEl.innerHTML = `[${rolls.join(', ')}]${modStr} = ${total}`;
+                    // Normal dice: just show the results
+                    breakdownParts = rolls.map(r => r.toString());
+                }
+                
+                if (special === 'advantage') {
+                    breakdownEl.innerHTML = `[${breakdownParts.join(', ')}] → höchste: ${Math.max(...rolls)}${modStr}`;
+                } else if (special === 'disadvantage') {
+                    breakdownEl.innerHTML = `[${breakdownParts.join(', ')}] → niedrigste: ${Math.min(...rolls)}${modStr}`;
+                } else {
+                    breakdownEl.innerHTML = `[${breakdownParts.join(', ')}]${modStr} = ${total}`;
                 }
                 
                 if (this.secretRoll) resultEl.classList.add('secret');
@@ -3567,9 +3590,8 @@
                             DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
                         }
                         
-                        // Show dice labels (Zahlen-Indikatoren) and pulse effects
+                        // Show dice labels from sync data
                         const labelValues = roll.diceConfig?.labelValues || roll.labelValues || roll.results || [];
-                        // Get d100Count from diceConfig or extract from notation
                         const remoteD100Count = roll.diceConfig?.d100Count || 0;
                         this.showDiceLabels(labelValues, remoteD100Count);
                         
@@ -3581,15 +3603,17 @@
                             roll.critical,
                             roll.special,
                             roll.player,
-                            roll.color
+                            roll.color,
+                            remoteD100Count,
+                            labelValues
                         );
                     }, remainingTime);
                 };
                 
-                // Try 3D animation with the SAME results
-                if (this.box && roll.diceConfig && roll.diceConfig.notation && roll.diceConfig.rawResults) {
+                // Try 3D animation (Library würfelt frei, Labels kommen vom Sync)
+                if (this.box && roll.diceConfig && roll.diceConfig.notation) {
                     try {
-                        // Setze temporär die Würfelfarbe und Zahlenfarbe des ANDEREN Spielers (NUR für diesen Wurf)
+                        // Setze temporär die Würfelfarbe des ANDEREN Spielers
                         if (roll.diceTheme && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             const remoteColors = this.themeColors[roll.diceTheme] || this.themeColors.onyx;
                             DICE.setDiceColor(remoteColors.accent, remoteColors.gradient || null);
@@ -3600,11 +3624,9 @@
                         
                         this.box.setDice(roll.diceConfig.notation);
                         
-                        // before_roll gibt EXAKT die gleichen Ergebnisse zurück
-                        const beforeRoll = () => roll.diceConfig.rawResults;
-                        
                         let done = false;
-                        this.box.start_throw(beforeRoll, () => {
+                        // KEINE beforeRoll - Library würfelt frei, wir zeigen nur die richtigen Labels
+                        this.box.start_throw(null, () => {
                             if (done) return;
                             done = true;
                             showResult();
@@ -3615,7 +3637,6 @@
                         return;
                     } catch (e) {
                         console.error('[DiceRoller] Remote 3D failed:', e);
-                        // Bei Fehler: Eigene Farben und Zahlenfarbe wiederherstellen
                         if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             DICE.setDiceColor(myDiceColor, myDiceGradient);
                         }
