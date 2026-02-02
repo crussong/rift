@@ -1222,7 +1222,7 @@
                 },
                 critFail: {
                     primary: '#d32f2f', secondary: '#212121', accent: '#b71c1c',
-                    gradient: { type: 'radial', colors: ['#424242', '#212121', '#b71c1c'] }
+                    gradient: { type: 'radial', colors: ['#f44336', '#b71c1c', '#212121'] }
                 },
                 lucky: {
                     primary: '#388e3c', secondary: '#81c784', accent: '#2e7d32',
@@ -4139,8 +4139,8 @@
                     // Normal dice
                     const geometry = this.createGeometry(type);
                     
-                    // Get themed material with gradient texture
-                    const material = this.createThemedMaterial();
+                    // Get themed material with gradient texture AND number
+                    const material = this.createThemedMaterial(type);
                     
                     mesh = new THREE.Mesh(geometry, material);
                     mesh.renderOrder = 0;
@@ -4209,16 +4209,14 @@
             createD100Group() {
                 const group = new THREE.Group();
                 
-                // Get themed material with gradient texture
-                const material = this.createThemedMaterial();
-                
-                // Left D10 (tens) - GRÖSSER
+                // Left D10 (tens: 00) - mit "00" Textur
+                const material1 = this.createThemedMaterial('d10_tens');
                 const geom1 = this.createD10Geometry(0.7);
-                const mesh1 = new THREE.Mesh(geom1, material);
+                const mesh1 = new THREE.Mesh(geom1, material1);
                 mesh1.position.x = -0.6;
                 mesh1.renderOrder = 0;
                 
-                // Add edges - subtle
+                // Add edges
                 const edges1 = new THREE.EdgesGeometry(geom1, 1);
                 const lineMat = new THREE.LineBasicMaterial({ 
                     color: 0x000000,
@@ -4230,14 +4228,14 @@
                 lines1.renderOrder = 1;
                 mesh1.add(lines1);
                 
-                // Right D10 (ones) - GRÖSSER - eigene Material-Kopie mit gleicher Textur
+                // Right D10 (ones: 0) - mit "0" Textur
+                const material2 = this.createThemedMaterial('d10');
                 const geom2 = this.createD10Geometry(0.7);
-                const material2 = this.createThemedMaterial();
                 const mesh2 = new THREE.Mesh(geom2, material2);
                 mesh2.position.x = 0.6;
                 mesh2.renderOrder = 0;
                 
-                // Add edges - subtle
+                // Add edges
                 const edges2 = new THREE.EdgesGeometry(geom2, 1);
                 const lines2 = new THREE.LineSegments(edges2, lineMat.clone());
                 lines2.renderOrder = 1;
@@ -4316,8 +4314,198 @@
                 return null;
             },
             
-            // Create a gradient texture for the dice
-            createGradientTexture(themeData) {
+            // Get typical number for each dice type
+            getDiceNumber(type) {
+                const numbers = {
+                    'd4': '4',
+                    'd6': '6', 
+                    'd8': '8',
+                    'd10': '0',
+                    'd10_tens': '00',
+                    'd12': '12',
+                    'd20': '20',
+                    'd100': '' // D100 hat zwei Würfel
+                };
+                return numbers[type] || '';
+            },
+            
+            // Determine if text should be dark based on background brightness
+            getTextColor(colors) {
+                if (!colors || !colors[0]) return '#ffffff';
+                const hex = colors[0].replace('#', '');
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                return brightness > 160 ? '#1a1a1a' : '#ffffff';
+            },
+            
+            // Apply texture overlay (stripes, dots, marble, etc.)
+            applyTexture(ctx, width, height, texture, colors) {
+                ctx.save();
+                
+                switch(texture) {
+                    case 'stripes':
+                        ctx.globalCompositeOperation = 'overlay';
+                        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                        ctx.lineWidth = width / 15;
+                        for (let i = -height; i < width + height; i += width / 8) {
+                            ctx.beginPath();
+                            ctx.moveTo(i, 0);
+                            ctx.lineTo(i + height, height);
+                            ctx.stroke();
+                        }
+                        break;
+                        
+                    case 'dots':
+                        ctx.globalCompositeOperation = 'overlay';
+                        const dotSize = width / 25;
+                        const spacing = width / 10;
+                        for (let x = spacing/2; x < width; x += spacing) {
+                            for (let y = spacing/2; y < height; y += spacing) {
+                                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                                ctx.beginPath();
+                                ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                        break;
+                        
+                    case 'noise':
+                        const imageData = ctx.getImageData(0, 0, width, height);
+                        const data = imageData.data;
+                        for (let i = 0; i < data.length; i += 4) {
+                            const noise = (Math.random() - 0.5) * 45;
+                            data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                            data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
+                            data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
+                        }
+                        ctx.putImageData(imageData, 0, 0);
+                        break;
+                        
+                    case 'marble':
+                        for (let v = 0; v < 12; v++) {
+                            ctx.globalCompositeOperation = 'overlay';
+                            ctx.strokeStyle = v % 2 === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+                            ctx.lineWidth = 1 + Math.random() * 3;
+                            ctx.beginPath();
+                            let startX = Math.random() * width;
+                            let startY = Math.random() * height;
+                            ctx.moveTo(startX, startY);
+                            for (let j = 0; j < 6; j++) {
+                                const cpX = startX + (Math.random() - 0.5) * width * 0.5;
+                                const cpY = startY + (Math.random() - 0.5) * height * 0.5;
+                                const endX = startX + (Math.random() - 0.5) * width * 0.7;
+                                const endY = startY + (Math.random() - 0.5) * height * 0.7;
+                                ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+                                startX = endX; startY = endY;
+                            }
+                            ctx.stroke();
+                        }
+                        break;
+                        
+                    case 'sparkle':
+                        ctx.globalCompositeOperation = 'screen';
+                        for (let i = 0; i < 45; i++) {
+                            const x = Math.random() * width;
+                            const y = Math.random() * height;
+                            const size = Math.random() * 4 + 1.5;
+                            const alpha = Math.random() * 0.7 + 0.2;
+                            ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+                            ctx.beginPath();
+                            ctx.moveTo(x, y - size);
+                            ctx.lineTo(x + size * 0.25, y - size * 0.25);
+                            ctx.lineTo(x + size, y);
+                            ctx.lineTo(x + size * 0.25, y + size * 0.25);
+                            ctx.lineTo(x, y + size);
+                            ctx.lineTo(x - size * 0.25, y + size * 0.25);
+                            ctx.lineTo(x - size, y);
+                            ctx.lineTo(x - size * 0.25, y - size * 0.25);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                        break;
+                        
+                    case 'cracks':
+                        ctx.globalCompositeOperation = 'overlay';
+                        for (let c = 0; c < 8; c++) {
+                            ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            let cx = Math.random() * width;
+                            let cy = Math.random() * height;
+                            ctx.moveTo(cx, cy);
+                            for (let s = 0; s < 5; s++) {
+                                cx += (Math.random() - 0.5) * width * 0.25;
+                                cy += (Math.random() - 0.5) * height * 0.25;
+                                ctx.lineTo(cx, cy);
+                            }
+                            ctx.stroke();
+                        }
+                        break;
+                        
+                    case 'wood':
+                        ctx.globalCompositeOperation = 'overlay';
+                        for (let r = 0; r < 15; r++) {
+                            ctx.strokeStyle = r % 2 === 0 ? 'rgba(139,90,43,0.15)' : 'rgba(0,0,0,0.08)';
+                            ctx.lineWidth = 2 + Math.random() * 4;
+                            ctx.beginPath();
+                            const yPos = (r / 15) * height + (Math.random() - 0.5) * 10;
+                            ctx.moveTo(0, yPos);
+                            for (let x = 0; x < width; x += 20) {
+                                ctx.lineTo(x, yPos + Math.sin(x * 0.05) * 5);
+                            }
+                            ctx.stroke();
+                        }
+                        break;
+                        
+                    case 'hexagons':
+                        ctx.globalCompositeOperation = 'overlay';
+                        const hexSize = width / 8;
+                        for (let row = 0; row < height / hexSize + 2; row++) {
+                            for (let col = 0; col < width / hexSize + 2; col++) {
+                                const cx = col * hexSize * 1.5 + (row % 2) * hexSize * 0.75;
+                                const cy = row * hexSize * 0.866;
+                                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                                ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                for (let i = 0; i < 6; i++) {
+                                    const angle = (i / 6) * Math.PI * 2;
+                                    const hx = cx + Math.cos(angle) * hexSize * 0.45;
+                                    const hy = cy + Math.sin(angle) * hexSize * 0.45;
+                                    if (i === 0) ctx.moveTo(hx, hy);
+                                    else ctx.lineTo(hx, hy);
+                                }
+                                ctx.closePath();
+                                ctx.stroke();
+                            }
+                        }
+                        break;
+                        
+                    case 'scales':
+                        ctx.globalCompositeOperation = 'overlay';
+                        const scaleSize = width / 10;
+                        for (let row = 0; row < height / scaleSize + 2; row++) {
+                            for (let col = -1; col < width / scaleSize + 2; col++) {
+                                const scx = col * scaleSize + (row % 2) * scaleSize / 2;
+                                const scy = row * scaleSize * 0.65;
+                                ctx.fillStyle = 'rgba(255,255,255,0.12)';
+                                ctx.beginPath();
+                                ctx.arc(scx, scy, scaleSize * 0.55, 0, Math.PI);
+                                ctx.fill();
+                                ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                            }
+                        }
+                        break;
+                }
+                
+                ctx.restore();
+            },
+            
+            // Create a gradient texture for the dice with optional number
+            createGradientTexture(themeData, diceType) {
                 const size = 256;
                 const canvas = document.createElement('canvas');
                 canvas.width = size;
@@ -4334,14 +4522,12 @@
                     let grd;
                     
                     if (gradient.type === 'radial') {
-                        // Radial gradient from center
                         grd = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
                     } else {
-                        // Linear gradient diagonal for 3D effect
+                        // Linear gradient diagonal
                         grd = ctx.createLinearGradient(0, 0, size, size);
                     }
                     
-                    // Add color stops
                     const colors = gradient.colors || ['#ffffff', '#888888'];
                     const stops = gradient.stops || colors.map((_, i, arr) => i / (arr.length - 1));
                     colors.forEach((color, i) => {
@@ -4351,13 +4537,43 @@
                     ctx.fillStyle = grd;
                     ctx.fillRect(0, 0, size, size);
                     
-                    // Add subtle noise/texture for depth
-                    ctx.globalAlpha = 0.03;
-                    for (let i = 0; i < 1000; i++) {
+                    // Apply texture if present
+                    if (gradient.texture) {
+                        this.applyTexture(ctx, size, size, gradient.texture, colors);
+                    }
+                    
+                    // Add subtle noise for depth
+                    ctx.globalAlpha = 0.02;
+                    for (let i = 0; i < 500; i++) {
                         const x = Math.random() * size;
                         const y = Math.random() * size;
                         ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
                         ctx.fillRect(x, y, 1, 1);
+                    }
+                    ctx.globalAlpha = 1;
+                    
+                    // Add number if diceType provided
+                    if (diceType) {
+                        const number = this.getDiceNumber(diceType);
+                        if (number) {
+                            const textColor = this.getTextColor(colors);
+                            ctx.font = 'bold ' + (size * 0.5) + 'px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            
+                            // Text shadow for depth
+                            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                            ctx.fillText(number, size/2 + 2, size/2 + 2);
+                            
+                            // Main text
+                            ctx.fillStyle = textColor;
+                            ctx.fillText(number, size/2, size/2);
+                            
+                            // Underline for 6 and 9
+                            if (number === '6' || number === '9') {
+                                ctx.fillText('.', size/2 + size*0.2, size/2);
+                            }
+                        }
                     }
                 }
                 
@@ -4367,14 +4583,13 @@
             },
             
             // Create material with gradient texture
-            createThemedMaterial() {
+            createThemedMaterial(diceType) {
                 const themeData = this.getThemeData();
-                const texture = this.createGradientTexture(themeData);
-                const color = this.getThemeColor();
+                const texture = this.createGradientTexture(themeData, diceType);
                 
                 return new THREE.MeshPhongMaterial({
                     map: texture,
-                    color: 0xffffff, // White to let texture show through
+                    color: 0xffffff,
                     shininess: 80,
                     specular: 0x333333,
                     shading: THREE.FlatShading,
@@ -4387,16 +4602,18 @@
             // Update all preview dice colors when theme changes
             updateColors() {
                 const themeData = this.getThemeData();
-                const texture = this.createGradientTexture(themeData);
                 
                 this.previews.forEach(preview => {
                     if (preview.isD100 && preview.mesh.userData.dice) {
-                        preview.mesh.userData.dice.forEach(die => {
+                        // D100: Zwei Würfel mit 0 und 00
+                        preview.mesh.userData.dice.forEach((die, idx) => {
+                            const texture = this.createGradientTexture(themeData, idx === 0 ? 'd10_tens' : 'd10');
                             die.material.map = texture;
                             die.material.color.setHex(0xffffff);
                             die.material.needsUpdate = true;
                         });
                     } else {
+                        const texture = this.createGradientTexture(themeData, preview.type);
                         preview.mesh.material.map = texture;
                         preview.mesh.material.color.setHex(0xffffff);
                         preview.mesh.material.needsUpdate = true;
