@@ -4111,59 +4111,69 @@
                 // Create scene
                 const scene = new THREE.Scene();
                 
-                // Create camera
-                const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
-                camera.position.set(0, 0, type === 'd100' ? 4.8 : 4.2);
+                // Create camera - adjusted for DICE library scale
+                const camera = new THREE.PerspectiveCamera(28, 1, 1, 1000);
+                const cameraDistance = type === 'd100' ? 120 : 100;
+                camera.position.set(0, 0, cameraDistance);
                 camera.lookAt(0, 0, 0);
                 
                 // Lighting
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
                 scene.add(ambientLight);
                 
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                directionalLight.position.set(2, 2, 3);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+                directionalLight.position.set(50, 50, 80);
                 scene.add(directionalLight);
                 
                 const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
-                backLight.position.set(-1, -1, -2);
+                backLight.position.set(-30, -30, -50);
                 scene.add(backLight);
                 
                 let mesh;
                 let isD100 = type === 'd100';
                 
-                if (isD100) {
-                    // D100: Two D10s side by side
-                    mesh = this.createD100Group();
-                    scene.add(mesh);
-                } else {
-                    // Normal dice
-                    const geometry = this.createGeometry(type);
-                    
-                    // Get themed material with gradient texture AND number
-                    const material = this.createThemedMaterial(type);
-                    
-                    mesh = new THREE.Mesh(geometry, material);
-                    mesh.renderOrder = 0;
-                    
-                    // Add subtle edges
-                    const edges = new THREE.EdgesGeometry(geometry, 1);
-                    const lineMaterial = new THREE.LineBasicMaterial({ 
-                        color: 0x000000,
-                        transparent: true,
-                        opacity: 0.15,
-                        depthTest: true
-                    });
-                    const wireframe = new THREE.LineSegments(edges, lineMaterial);
-                    wireframe.renderOrder = 1;
-                    mesh.add(wireframe);
-                    
-                    scene.add(mesh);
-                    
-                    // Random starting rotation
-                    mesh.rotation.x = Math.random() * Math.PI * 2;
-                    mesh.rotation.y = Math.random() * Math.PI * 2;
-                    mesh.rotation.z = Math.random() * Math.PI;
+                // Use DICE library to create real dice with proper face textures
+                if (typeof DICE !== 'undefined' && DICE.createPreviewDice) {
+                    if (isD100) {
+                        // D100: Two dice - tens (d100) and ones (d10)
+                        mesh = new THREE.Group();
+                        
+                        const tensDice = DICE.createPreviewDice('d100', 0.7);
+                        const onesDice = DICE.createPreviewDice('d10', 0.7);
+                        
+                        if (tensDice && onesDice) {
+                            tensDice.position.x = -18;
+                            onesDice.position.x = 18;
+                            
+                            // Random starting rotation
+                            tensDice.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI);
+                            onesDice.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI);
+                            
+                            mesh.add(tensDice);
+                            mesh.add(onesDice);
+                            mesh.userData.dice = [tensDice, onesDice];
+                        }
+                    } else {
+                        mesh = DICE.createPreviewDice(type, 0.8);
+                        if (mesh) {
+                            // Random starting rotation
+                            mesh.rotation.x = Math.random() * Math.PI * 2;
+                            mesh.rotation.y = Math.random() * Math.PI * 2;
+                            mesh.rotation.z = Math.random() * Math.PI;
+                        }
+                    }
                 }
+                
+                // Fallback to simple geometry if DICE not available
+                if (!mesh) {
+                    console.warn('DICE.createPreviewDice not available, using fallback');
+                    const geometry = this.createGeometry(type);
+                    const material = this.createThemedMaterial(type);
+                    mesh = new THREE.Mesh(geometry, material);
+                    mesh.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI);
+                }
+                
+                scene.add(mesh);
                 
                 // Store preview data
                 this.previews.push({
@@ -4599,24 +4609,55 @@
                 });
             },
             
-            // Update all preview dice colors when theme changes
+            // Update all preview dice when theme changes - recreate meshes with new materials
             updateColors() {
-                const themeData = this.getThemeData();
+                if (typeof DICE === 'undefined' || !DICE.createPreviewDice) {
+                    console.warn('DICE.createPreviewDice not available for updateColors');
+                    return;
+                }
+                
+                // Tell DICE library to refresh materials (clears cache)
+                if (DICE.refreshPreviewMaterials) {
+                    DICE.refreshPreviewMaterials();
+                }
                 
                 this.previews.forEach(preview => {
-                    if (preview.isD100 && preview.mesh.userData.dice) {
-                        // D100: Zwei Würfel mit 0 und 00
-                        preview.mesh.userData.dice.forEach((die, idx) => {
-                            const texture = this.createGradientTexture(themeData, idx === 0 ? 'd10_tens' : 'd10');
-                            die.material.map = texture;
-                            die.material.color.setHex(0xffffff);
-                            die.material.needsUpdate = true;
-                        });
+                    // Remove old mesh from scene
+                    preview.scene.remove(preview.mesh);
+                    
+                    // Create new mesh with updated colors
+                    let newMesh;
+                    
+                    if (preview.isD100) {
+                        newMesh = new THREE.Group();
+                        const tensDice = DICE.createPreviewDice('d100', 0.7);
+                        const onesDice = DICE.createPreviewDice('d10', 0.7);
+                        
+                        if (tensDice && onesDice) {
+                            tensDice.position.x = -18;
+                            onesDice.position.x = 18;
+                            
+                            // Keep same rotation
+                            if (preview.mesh.userData.dice) {
+                                tensDice.rotation.copy(preview.mesh.userData.dice[0].rotation);
+                                onesDice.rotation.copy(preview.mesh.userData.dice[1].rotation);
+                            }
+                            
+                            newMesh.add(tensDice);
+                            newMesh.add(onesDice);
+                            newMesh.userData.dice = [tensDice, onesDice];
+                        }
                     } else {
-                        const texture = this.createGradientTexture(themeData, preview.type);
-                        preview.mesh.material.map = texture;
-                        preview.mesh.material.color.setHex(0xffffff);
-                        preview.mesh.material.needsUpdate = true;
+                        newMesh = DICE.createPreviewDice(preview.type, 0.8);
+                        if (newMesh && preview.mesh) {
+                            // Keep same rotation
+                            newMesh.rotation.copy(preview.mesh.rotation);
+                        }
+                    }
+                    
+                    if (newMesh) {
+                        preview.scene.add(newMesh);
+                        preview.mesh = newMesh;
                     }
                 });
             },

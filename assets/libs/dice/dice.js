@@ -1301,6 +1301,70 @@ const DICE = (function() {
           audio.remove();
         };
     }
+    
+    // RIFT: Create a preview dice mesh (fresh, not cached) for card previews
+    that.createPreviewDice = function(type, scale = 0.9) {
+        // Temporarily set scale for preview
+        const originalScale = vars.scale;
+        vars.scale = scale * 50; // Adjust for preview size
+        
+        let geometry, materials;
+        
+        switch(type) {
+            case 'd4':
+                geometry = create_d4_geometry(vars.scale * 1.2);
+                materials = create_d4_materials(vars.scale / 2, vars.scale * 2, CONSTS.d4_labels[0]);
+                break;
+            case 'd6':
+                geometry = create_d6_geometry(vars.scale * 1.1);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 0.9);
+                break;
+            case 'd8':
+                geometry = create_d8_geometry(vars.scale);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.4);
+                break;
+            case 'd10':
+                geometry = create_d10_geometry(vars.scale * 0.9);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
+                break;
+            case 'd12':
+                geometry = create_d12_geometry(vars.scale * 0.9);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
+                break;
+            case 'd20':
+                geometry = create_d20_geometry(vars.scale);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
+                break;
+            case 'd100':
+                geometry = create_d10_geometry(vars.scale * 0.9);
+                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5);
+                break;
+            default:
+                vars.scale = originalScale;
+                return null;
+        }
+        
+        vars.scale = originalScale;
+        
+        const material = new THREE.MeshFaceMaterial(materials);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.castShadow = true;
+        
+        return mesh;
+    };
+    
+    // RIFT: Refresh preview dice materials (call after theme change)
+    that.refreshPreviewMaterials = function() {
+        // Clear cached materials so they get recreated with new colors
+        threeD_dice.d4_material = null;
+        threeD_dice.dice_material = null;
+        threeD_dice.d100_material = null;
+        threeD_dice.d6_material = null;
+        threeD_dice.d8_material = null;
+        threeD_dice.d10_material = null;
+        threeD_dice.d12_material = null;
+        threeD_dice.d20_material = null;
+    };
 
     return that;
 }());
