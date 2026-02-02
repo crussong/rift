@@ -661,39 +661,92 @@ function initDropdowns() {
 
 // Initialize party display
 function initPartyDisplay() {
-    // Listen for party updates
-    const updateParty = () => {
+    const updatePartyUI = (members) => {
         const countEl = document.getElementById('partyOnlineCount');
         const listEl = document.getElementById('partyMembersList');
+        const headerEl = document.getElementById('partyHeaderValue');
         
         if (!countEl) return;
         
+        const online = members.filter(m => m.online === true || m.isOnline === true);
+        countEl.textContent = `${online.length} Online`;
+        
+        if (headerEl) {
+            headerEl.textContent = members.length > 0 ? `${members.length} Spieler` : 'Keine Spieler';
+        }
+        
+        if (listEl && members.length > 0) {
+            listEl.innerHTML = members.map(m => {
+                const isOnline = m.online === true || m.isOnline === true;
+                const color = m.color || '#FF4655';
+                const name = m.displayName || m.name || 'Unbekannt';
+                const initial = name.charAt(0).toUpperCase();
+                
+                return `
+                    <div class="topnav__dropdown-member">
+                        <div class="topnav__dropdown-member-avatar" style="background: ${color}">
+                            ${m.photoURL ? `<img src="${m.photoURL}" alt="">` : initial}
+                        </div>
+                        <span class="topnav__dropdown-member-name">${name}</span>
+                        <span class="topnav__dropdown-member-status" style="color: ${isOnline ? '#22c55e' : '#6b7280'}">●</span>
+                    </div>
+                `;
+            }).join('');
+        } else if (listEl) {
+            listEl.innerHTML = '<div style="padding: 12px; color: rgba(255,255,255,0.5); text-align: center;">Keine Spieler im Raum</div>';
+        }
+    };
+    
+    // Try to subscribe to Firebase for real-time updates
+    const roomCode = localStorage.getItem('rift_current_room');
+    
+    if (roomCode && typeof RIFT !== 'undefined' && RIFT.rooms && RIFT.rooms.subscribeToMembers) {
+        console.log('[Layout] Subscribing to party members for room:', roomCode);
+        
+        // Small delay to ensure Firebase is ready
+        setTimeout(() => {
+            try {
+                RIFT.rooms.subscribeToMembers(roomCode, (members) => {
+                    console.log('[Layout] Received members update:', members);
+                    updatePartyUI(members);
+                    
+                    // Also store in localStorage for other components
+                    localStorage.setItem('rift_party_members', JSON.stringify(members.map(m => ({
+                        name: m.displayName || m.name,
+                        color: m.color,
+                        avatar: m.photoURL,
+                        isOnline: m.online === true
+                    }))));
+                });
+            } catch (e) {
+                console.error('[Layout] Failed to subscribe to party:', e);
+            }
+        }, 1000);
+    } else {
+        // Fallback: read from localStorage
         const stored = localStorage.getItem('rift_party_members');
         if (stored) {
             try {
                 const members = JSON.parse(stored);
-                const online = members.filter(m => m.isOnline);
-                countEl.textContent = `${online.length} Online`;
-                
-                if (listEl && online.length > 0) {
-                    listEl.innerHTML = online.map(m => `
-                        <div class="topnav__dropdown-member">
-                            <div class="topnav__dropdown-member-avatar" style="background: ${m.color || '#FF4655'}">
-                                ${m.avatar ? `<img src="${m.avatar}" alt="">` : (m.name || 'U').charAt(0)}
-                            </div>
-                            <span class="topnav__dropdown-member-name">${m.name || 'Unbekannt'}</span>
-                            <span class="topnav__dropdown-member-status">●</span>
-                        </div>
-                    `).join('');
-                }
+                updatePartyUI(members.map(m => ({ ...m, online: m.isOnline })));
             } catch (e) {
-                console.error('[Layout] Failed to parse party:', e);
+                console.error('[Layout] Failed to parse party from localStorage:', e);
             }
         }
-    };
+    }
     
-    updateParty();
-    window.addEventListener('storage', updateParty);
+    // Listen for localStorage changes from other tabs/pages
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'rift_party_members') {
+            const stored = e.newValue;
+            if (stored) {
+                try {
+                    const members = JSON.parse(stored);
+                    updatePartyUI(members.map(m => ({ ...m, online: m.isOnline })));
+                } catch (e) {}
+            }
+        }
+    });
 }
 
 // ============================================================
