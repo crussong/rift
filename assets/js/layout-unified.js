@@ -173,7 +173,7 @@ function createUnifiedMeganav() {
     <nav class="meganav">
         <div class="meganav__inner">
             <!-- Hub -->
-            <a href="index.html" class="meganav__item meganav__item--link ${currentPage === 'index' ? 'active' : ''}">
+            <a href="index.html" class="meganav__item meganav__item--link ${currentPage === 'index' || currentPage === 'hub' ? 'active' : ''}">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12.707 2.293l9 9c.63 .63 .184 1.707 -.707 1.707h-1v6a3 3 0 0 1 -3 3h-1v-7a3 3 0 0 0 -2.824 -2.995l-.176 -.005h-2a3 3 0 0 0 -3 3v7h-1a3 3 0 0 1 -3 -3v-6h-1c-.89 0 -1.337 -1.077 -.707 -1.707l9 -9a1 1 0 0 1 1.414 0m.293 11.707a1 1 0 0 1 1 1v7h-4v-7a1 1 0 0 1 .883 -.993l.117 -.007z"/></svg>
                 Hub
             </a>
@@ -259,35 +259,19 @@ function createUnifiedMeganav() {
                 Regelwerke
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 
-                <div class="meganav__dropdown meganav__dropdown--wide">
-                    <div class="meganav__dropdown-grid meganav__dropdown-grid--2col">
-                        <a href="sheet-worldsapart.html" class="meganav__dropdown-card meganav__dropdown-card--ruleset" style="--ruleset-color: #8b5cf6;">
-                            <img src="assets/img/rulesets/worldsapart-icon.png" alt="Worlds Apart" class="meganav__dropdown-card-ruleset-icon">
-                            <div class="meganav__dropdown-card-content">
-                                <div class="meganav__dropdown-card-title">Worlds Apart</div>
-                                <div class="meganav__dropdown-card-desc">Piraten & Magie</div>
-                            </div>
+                <div class="meganav__dropdown meganav__dropdown--rulesets">
+                    <div class="meganav__ruleset-grid">
+                        <a href="sheet-worldsapart.html" class="meganav__ruleset-btn" title="Worlds Apart">
+                            <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066185/rs_worldapart_cuqdjn.png" alt="Worlds Apart">
                         </a>
-                        <a href="sheet-dnd5e.html" class="meganav__dropdown-card meganav__dropdown-card--ruleset" style="--ruleset-color: #ef4444;">
-                            <img src="assets/img/rulesets/dnd5e-icon.png" alt="D&D 5e" class="meganav__dropdown-card-ruleset-icon">
-                            <div class="meganav__dropdown-card-content">
-                                <div class="meganav__dropdown-card-title">D&D 5e (2024)</div>
-                                <div class="meganav__dropdown-card-desc">Fantasy-Klassiker</div>
-                            </div>
+                        <a href="sheet-5e-de.html" class="meganav__ruleset-btn" title="D&D 5e">
+                            <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066185/rs_dnd5e_siffwr.png" alt="D&D 5e">
                         </a>
-                        <a href="sheet-htbah.html" class="meganav__dropdown-card meganav__dropdown-card--ruleset" style="--ruleset-color: #22c55e;">
-                            <img src="assets/img/rulesets/htbah-icon.png" alt="HTBAH" class="meganav__dropdown-card-ruleset-icon">
-                            <div class="meganav__dropdown-card-content">
-                                <div class="meganav__dropdown-card-title">How To Be A Hero</div>
-                                <div class="meganav__dropdown-card-desc">Einfach & flexibel</div>
-                            </div>
+                        <a href="sheet-htbah.html" class="meganav__ruleset-btn" title="How To Be A Hero">
+                            <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066183/rs_htbah_fmv3sx.png" alt="How To Be A Hero">
                         </a>
-                        <a href="sheet-cyberpunk.html" class="meganav__dropdown-card meganav__dropdown-card--ruleset" style="--ruleset-color: #eab308;">
-                            <img src="assets/img/rulesets/cyberpunk-icon.png" alt="Cyberpunk" class="meganav__dropdown-card-ruleset-icon">
-                            <div class="meganav__dropdown-card-content">
-                                <div class="meganav__dropdown-card-title">Cyberpunk Red</div>
-                                <div class="meganav__dropdown-card-desc">Neon & Chrome</div>
-                            </div>
+                        <a href="sheet-cyberpunkred.html" class="meganav__ruleset-btn" title="Cyberpunk RED">
+                            <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066183/rs_cpred_ghwma4.png" alt="Cyberpunk RED">
                         </a>
                     </div>
                 </div>
@@ -366,12 +350,8 @@ function createUnifiedDock() {
     const currentPage = getCurrentPage();
     const userData = getUserData();
     
-    // Check if we're on the hub/index page - direct path check
-    const path = window.location.pathname;
-    const filename = path.substring(path.lastIndexOf('/') + 1);
-    const isHub = filename === '' || filename === 'index.html' || filename === 'index' || path === '/';
-    
-    console.log('[Dock] Path:', path, 'Filename:', filename, 'isHub:', isHub, 'currentPage:', currentPage);
+    // Hub check - includes 'hub' because Netlify redirects / to /hub
+    const isHub = currentPage === 'index' || currentPage === '' || currentPage === 'hub';
     
     return `
     <div class="dock" id="bottomDock">
@@ -588,12 +568,6 @@ const RIFTLayout = {
 // INITIALIZE UNIFIED LAYOUT
 // ============================================================
 function initUnifiedLayout() {
-    // Add new layout class to app container
-    const appEl = document.querySelector('.app');
-    if (appEl) {
-        appEl.classList.add('app--new-layout');
-    }
-    
     // Check if we should inject layout (pages without custom header)
     const hasCustomHeader = document.querySelector('header.topnav');
     const hasCustomMeganav = document.querySelector('nav.meganav');
