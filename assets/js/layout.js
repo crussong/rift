@@ -1915,7 +1915,7 @@ window.RIFTFab = {
         
         // Define which FABs to show on which pages
         const fabConfig = {
-            'dice': ['sheet', 'chat'],
+            'dice': [], // FABs disabled - using dock navigation now
             'chat': ['dice', 'sheet'],
             'sheet-5e': ['dice', 'chat'],
             'sheet-5e-de': ['dice', 'chat'],
