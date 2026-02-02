@@ -2686,10 +2686,8 @@
                 if (this.isRolling) return;
                 this.isRolling = true;
                 
-                // Clear previous labels immediately
                 this.clearDiceLabels();
                 
-                // Set dice color + gradient before roll
                 if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                     DICE.setDiceColor(this.currentDiceColor, this.currentDiceGradient);
                 }
@@ -2698,7 +2696,6 @@
                 const result = document.getElementById('diceResult');
                 const btn = document.getElementById('rollBtn');
                 
-                // UI Feedback
                 arena.classList.remove('empty');
                 arena.classList.add('throwing');
                 result.classList.remove('visible', 'critical', 'fumble', 'secret');
@@ -2706,12 +2703,10 @@
                 
                 setTimeout(() => arena.classList.remove('throwing'), 300);
                 
-                // Save for repeat
                 const displayNotation = document.getElementById('notationInput').value || notationStr;
                 this.lastRoll = { notation: displayNotation, notationClean: notationStr, special };
                 document.getElementById('repeatBtn').disabled = false;
                 
-                // Handle W100/D100 specially - Library braucht d100+d10
                 let libraryNotation = notationStr;
                 const d100Count = this.currentDice.d100 || 0;
                 if (d100Count > 0) {
@@ -2727,7 +2722,6 @@
                 const playerName = userData.name || 'Spieler';
                 const mod = parseInt(document.getElementById('modifierInput').value) || 0;
                 
-                // Build history notation
                 const parts = [];
                 for (const [type, count] of Object.entries(this.currentDice)) {
                     if (count > 0) parts.push(`${count}${type.replace('d', 'W')}`);
@@ -2736,14 +2730,10 @@
                 if (mod !== 0) histNotation += (mod > 0 ? '+' : '') + mod;
                 if (special) histNotation += ` (${special === 'advantage' ? 'V' : 'N'})`;
                 
-                // ================================================
-                // VORBERECHNUNG - Ergebnisse VOR Animation generieren
-                // ================================================
+                // VORBERECHNUNG
                 const precomputed = this.precomputeRoll(libraryNotation, d100Count);
-                
                 console.log('[DiceRoller] Precomputed:', precomputed);
                 
-                // Calculate final values with modifier
                 let finalTotal = precomputed.total + mod;
                 if (special === 'advantage') {
                     finalTotal = Math.max(...precomputed.displayRolls) + mod;
@@ -2753,10 +2743,8 @@
                 
                 const isCritical = this.checkCriticalFromResults(precomputed.displayRolls, special);
                 
-                // ================================================
-                // SOFORT SYNC - VOR Animation, damit andere Spieler gleichzeitig starten
-                // ================================================
-                const rollData = {
+                // SOFORT SYNC
+                this.syncRoll({
                     player: playerName,
                     playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
                     color: userData.color || '#FF4655',
@@ -2773,14 +2761,11 @@
                     timestamp: Date.now(),
                     diceConfig: {
                         notation: libraryNotation,
-                        beforeRollValues: precomputed.beforeRollValues, // Werte für Library beforeRoll
+                        beforeRollValues: precomputed.beforeRollValues,
                         labelValues: precomputed.labelValues,
                         d100Count: d100Count
                     }
-                };
-                
-                // SYNC SOFORT - andere Spieler starten ihre Animation gleichzeitig
-                this.syncRoll(rollData);
+                });
                 
                 const animationStartTime = Date.now();
                 const MIN_ANIMATION_TIME = 2500;
@@ -2791,14 +2776,8 @@
                     
                     setTimeout(() => {
                         btn.classList.remove('rolling');
-                        
-                        // Show dice labels
                         this.showDiceLabels(precomputed.labelValues, d100Count);
-                        
-                        // Show result
                         this.displayRollResult(precomputed.displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color, d100Count, precomputed.labelValues);
-                        
-                        // Add to history
                         this.addToHistory({
                             player: playerName,
                             color: userData.color || '#FF4655',
@@ -2809,15 +2788,12 @@
                             secret: this.secretRoll,
                             timestamp: Date.now()
                         });
-                        
                         this.isRolling = false;
                     }, remainingTime);
                 };
                 
                 if (this.box) {
                     this.box.setDice(libraryNotation);
-                    
-                    // beforeRoll gibt vorberechnete Werte - Library zeigt EXAKT diese Ergebnisse
                     const beforeRoll = () => precomputed.beforeRollValues;
                     
                     let done = false;
@@ -2833,75 +2809,54 @@
                         this.box.start_throw(beforeRoll, afterRoll);
                     }
                     
-                    // Fallback timeout
                     setTimeout(() => { if (!done) { done = true; showFinalResult(); } }, 8000);
                 } else {
                     setTimeout(showFinalResult, 1500);
                 }
             },
             
-            // Vorberechnung der Würfelergebnisse
-            // Generiert beforeRollValues (für Library) und displayRolls/labelValues (für Anzeige)
-            // 
-            // WICHTIG - Library Mapping (empirisch ermittelt):
-            // d10: Library zeigt (beforeRoll - 1), also beforeRoll = display + 1
-            // d100: Library zeigt Index (beforeRoll + 1) % 10, also beforeRoll = (displayIndex + 9) % 10
-            //
+            // Vorberechnung - EINFACHSTES Mapping
             precomputeRoll(libraryNotation, d100Count) {
-                const beforeRollValues = []; // Werte die Library erwartet
-                const displayRolls = [];     // Kombinierte Ergebnisse für History
-                const labelValues = [];      // Einzelne Würfel-Labels
+                const beforeRollValues = [];
+                const displayRolls = [];
+                const labelValues = [];
                 let total = 0;
                 
                 if (d100Count > 0) {
                     for (let i = 0; i < d100Count; i++) {
-                        // tens: Index 0-9 → Labels "00", "10", "20"..."90"
-                        const tensIndex = Math.floor(Math.random() * 10); // 0-9
-                        const tensDisplay = tensIndex * 10; // 0, 10, 20...90
-                        // Library Mapping: zeigt Index (beforeRoll + 1) % 10
-                        // Also: beforeRoll = (tensIndex + 9) % 10
-                        const tensBeforeRoll = (tensIndex + 9) % 10;
+                        // d100 tens: Index 0-9, zeigt "00","10","20"..."90"
+                        const tensIndex = Math.floor(Math.random() * 10);
+                        const tensDisplay = tensIndex * 10;
                         
-                        // ones: Display 0-9
-                        const onesDisplay = Math.floor(Math.random() * 10); // 0-9
-                        // Library Mapping: zeigt (beforeRoll - 1), also beforeRoll = display + 1
-                        // Für display=9: beforeRoll=10, Library konvertiert 10→0 intern
-                        const onesBeforeRoll = onesDisplay + 1; // 1-10 (10 wird von Library zu 0)
+                        // d10 ones: Index 0-9, zeigt "0","1"..."9"
+                        const onesIndex = Math.floor(Math.random() * 10);
+                        const onesDisplay = onesIndex;
                         
-                        // Wert für Berechnung: "0" auf Würfel = 10
-                        const onesValue = onesDisplay === 0 ? 10 : onesDisplay;
-                        
-                        // D100 Ergebnis
                         let result = tensDisplay + onesDisplay;
-                        if (result === 0) result = 100; // 00 + 0 = 100
+                        if (result === 0) result = 100;
                         
-                        console.log(`[DiceRoller] D100 precompute: tensIdx=${tensIndex}→"${tensDisplay}" (bR=${tensBeforeRoll}), onesDisp=${onesDisplay} (bR=${onesBeforeRoll}), result=${result}`);
-                        
-                        beforeRollValues.push(tensBeforeRoll);
-                        beforeRollValues.push(onesBeforeRoll);
-                        
-                        labelValues.push(tensDisplay);  // 0, 10, 20...90
-                        labelValues.push(onesDisplay);  // 0-9
-                        
+                        beforeRollValues.push(tensIndex);
+                        beforeRollValues.push(onesIndex);
+                        labelValues.push(tensDisplay);
+                        labelValues.push(onesDisplay);
                         displayRolls.push(result);
                         total += result;
+                        
+                        console.log(`[DiceRoller] D100: tens=${tensIndex}→${tensDisplay}, ones=${onesIndex}→${onesDisplay}, result=${result}`);
                     }
                     
-                    // Remaining non-d100 dice
                     const remaining = libraryNotation.replace(/\d*d100\+\d*d10/gi, '').replace(/^\+|\+$/g, '');
                     if (remaining) {
-                        total += this.parseAndAddDice(remaining, beforeRollValues, labelValues, displayRolls);
+                        total += this.parseOtherDice(remaining, beforeRollValues, labelValues, displayRolls);
                     }
                 } else {
-                    // Keine D100 - parse all dice
-                    total = this.parseAndAddDice(libraryNotation, beforeRollValues, labelValues, displayRolls);
+                    total = this.parseOtherDice(libraryNotation, beforeRollValues, labelValues, displayRolls);
                 }
                 
                 return { beforeRollValues, displayRolls, labelValues, total };
             },
             
-            // Parse dice notation and add to arrays, returns total
-            parseAndAddDice(notation, beforeRollValues, labelValues, displayRolls) {
+            parseOtherDice(notation, beforeRollValues, labelValues, displayRolls) {
                 let total = 0;
                 const diceRegex = /(\d*)d(\d+)/gi;
                 let match;
@@ -2912,20 +2867,19 @@
                     
                     for (let j = 0; j < count; j++) {
                         if (sides === 10) {
-                            // d10: Library zeigt (beforeRoll - 1)
-                            // Also: beforeRoll = display + 1
-                            const display = Math.floor(Math.random() * 10); // 0-9
-                            const value = display === 0 ? 10 : display;
-                            const beforeRoll = display + 1; // 1-10 (10 wird von Library zu 0)
+                            // d10 solo: Index 0-9
+                            const index = Math.floor(Math.random() * 10);
+                            const display = index;
+                            const value = index === 0 ? 10 : index;
                             
-                            beforeRollValues.push(beforeRoll);
+                            beforeRollValues.push(index);
                             labelValues.push(display);
                             displayRolls.push(value);
                             total += value;
                             
-                            console.log(`[DiceRoller] D10 precompute: display=${display}, value=${value}, beforeRoll=${beforeRoll}`);
+                            console.log(`[DiceRoller] D10: index=${index}, display=${display}, value=${value}`);
                         } else {
-                            // d4, d6, d8, d12, d20: Standard 1-basiert, kein Offset
+                            // d4,d6,d8,d12,d20: 1-N
                             const roll = Math.floor(Math.random() * sides) + 1;
                             beforeRollValues.push(roll);
                             labelValues.push(roll);
@@ -2934,11 +2888,9 @@
                         }
                     }
                 }
-                
                 return total;
             },
             
-            // Check critical from display results
             checkCriticalFromResults(rolls, special) {
                 const diceTypes = Object.entries(this.currentDice).filter(([t, c]) => c > 0);
                 const isD20 = diceTypes.length === 1 && diceTypes[0][0] === 'd20' && diceTypes[0][1] === 1;
@@ -3560,11 +3512,10 @@
                 this.executeRemoteRoll(roll);
             },
             
-            // Execute 3D animation for a remote roll - mit EXAKT gleichen Ergebnissen
+            // Execute 3D animation for a remote roll
             executeRemoteRoll(roll) {
                 console.log('[DiceRoller] 🎲 executeRemoteRoll:', roll.player, roll.notation, roll.total);
                 
-                // Clear any existing result timeout
                 if (this.resultTimeout) {
                     clearTimeout(this.resultTimeout);
                     this.resultTimeout = null;
@@ -3575,13 +3526,9 @@
                 
                 if (!arena || !resultEl) return;
                 
-                // Clear previous labels from last roll
                 this.clearDiceLabels();
-                
-                // Remove empty state
                 arena.classList.remove('empty');
                 
-                // Indicator zeigen
                 let indicator = document.getElementById('remotePlayerIndicator');
                 if (!indicator) {
                     indicator = document.createElement('div');
@@ -3592,19 +3539,17 @@
                 indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
                 indicator.classList.add('visible');
                 
-                // Clear previous result
                 resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
                 arena.classList.add('throwing');
                 
                 const animationStartTime = Date.now();
                 const MIN_ANIMATION_TIME = 2500;
                 
-                // Speichere EIGENE Würfelfarben
                 const myDiceColor = this.currentDiceColor;
                 const myDiceGradient = this.currentDiceGradient;
                 const myLabelColor = this.currentLabelColor;
                 
-                const labelValues = roll.diceConfig?.labelValues || roll.labelValues || roll.results || [];
+                const labelValues = roll.diceConfig?.labelValues || roll.labelValues || [];
                 const remoteD100Count = roll.diceConfig?.d100Count || 0;
                 
                 const showResult = () => {
@@ -3615,7 +3560,6 @@
                         arena.classList.remove('throwing');
                         indicator.classList.remove('visible');
                         
-                        // Stelle EIGENE Würfelfarben wieder her
                         if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             DICE.setDiceColor(myDiceColor, myDiceGradient);
                         }
@@ -3623,10 +3567,7 @@
                             DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
                         }
                         
-                        // Show dice labels
                         this.showDiceLabels(labelValues, remoteD100Count);
-                        
-                        // Show result
                         this.displayRollResult(
                             roll.results || [],
                             roll.total,
@@ -3639,7 +3580,6 @@
                             labelValues
                         );
                         
-                        // Add to history AFTER animation (same timing as local player)
                         this.addToHistory({
                             player: roll.player || 'Spieler',
                             color: roll.color || '#8b5cf6',
@@ -3654,10 +3594,8 @@
                     }, remainingTime);
                 };
                 
-                // 3D Animation mit beforeRollValues
                 if (this.box && roll.diceConfig && roll.diceConfig.notation && roll.diceConfig.beforeRollValues) {
                     try {
-                        // Setze temporär die Würfelfarbe des ANDEREN Spielers
                         if (roll.diceTheme && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             const remoteColors = this.themeColors[roll.diceTheme] || this.themeColors.onyx;
                             DICE.setDiceColor(remoteColors.accent, remoteColors.gradient || null);
@@ -3667,8 +3605,6 @@
                         }
                         
                         this.box.setDice(roll.diceConfig.notation);
-                        
-                        // beforeRoll gibt die vorberechneten Werte - Library zeigt EXAKT diese
                         const beforeRoll = () => roll.diceConfig.beforeRollValues;
                         
                         console.log('[DiceRoller] Remote beforeRollValues:', roll.diceConfig.beforeRollValues);
@@ -3680,7 +3616,6 @@
                             showResult();
                         });
                         
-                        // Fallback
                         setTimeout(() => { if (!done) { done = true; showResult(); } }, 8000);
                         return;
                     } catch (e) {
@@ -3694,7 +3629,6 @@
                     }
                 }
                 
-                // Fallback ohne 3D
                 setTimeout(showResult, MIN_ANIMATION_TIME);
             },
             
