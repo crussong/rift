@@ -978,18 +978,19 @@
         initUnifiedLayout();
         
         // ========================================
-        // SHEET PAGE CAROUSEL
+        // SHEET PAGE CAROUSEL (Full Featured)
         // ========================================
         const SheetCarousel = {
             slides: [],
             currentIndex: 0,
             autoplayInterval: null,
+            countdownIntervals: [],
             
             async init() {
                 await this.loadSlides();
                 this.render();
                 this.initNavigation();
-                this.startAutoplay();
+                this.initCountdowns();
             },
             
             async loadSlides() {
@@ -1000,7 +1001,6 @@
                     }
                     
                     const db = firebase.firestore();
-                    // Load all slides, filter/sort client-side (avoids composite index requirement)
                     const snapshot = await db.collection('sheet_slides').get();
                     
                     if (!snapshot.empty) {
@@ -1015,42 +1015,141 @@
                 }
             },
             
+            getOverlayStyle(slide) {
+                const opacity = (slide.overlayOpacity ?? 50) / 100;
+                let color = 'rgba(0,0,0,' + opacity + ')';
+                
+                if (slide.overlayColor === 'white') {
+                    color = 'rgba(255,255,255,' + opacity + ')';
+                } else if (slide.overlayColor === 'accent') {
+                    color = 'rgba(255,70,85,' + opacity + ')';
+                } else if (slide.overlayColor === 'custom' && slide.overlayCustomColor) {
+                    const hex = slide.overlayCustomColor.replace('#', '');
+                    const r = parseInt(hex.substr(0, 2), 16);
+                    const g = parseInt(hex.substr(2, 2), 16);
+                    const b = parseInt(hex.substr(4, 2), 16);
+                    color = `rgba(${r},${g},${b},${opacity})`;
+                }
+                
+                // Gradient direction
+                let direction = 'to right';
+                switch (slide.gradientDirection) {
+                    case 'to-left': direction = 'to left'; break;
+                    case 'to-bottom': direction = 'to bottom'; break;
+                    case 'to-top': direction = 'to top'; break;
+                    case 'radial': return `radial-gradient(circle at center, transparent 0%, ${color} 100%)`;
+                }
+                
+                return `linear-gradient(${direction}, ${color} 0%, transparent 60%)`;
+            },
+            
+            getBackgroundStyle(slide) {
+                if (slide.videoUrl) {
+                    return 'transparent';
+                }
+                if (slide.bgImageUrl) {
+                    return `url('${slide.bgImageUrl}') center/cover no-repeat`;
+                }
+                return slide.background || 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.2))';
+            },
+            
             render() {
                 if (this.slides.length === 0) return;
                 
+                const carousel = document.getElementById('sheetCarousel');
                 const container = document.getElementById('sheetCarouselSlides');
                 const tabsContainer = document.getElementById('sheetCarouselTabs');
                 const dotsContainer = document.getElementById('sheetCarouselDots');
                 if (!container) return;
                 
+                // Get first slide settings for global carousel options
+                const firstSlide = this.slides[0] || {};
+                const showArrows = firstSlide.carouselShowArrows !== false;
+                const showTabs = firstSlide.carouselShowTabs !== false;
+                const showDots = firstSlide.carouselShowDots !== false;
+                const autoplay = firstSlide.carouselAutoplay !== false;
+                
                 // Render slides
                 container.innerHTML = this.slides.map((slide, i) => `
-                    <div class="hero-carousel__slide ${i === 0 ? 'active' : ''}" 
-                         style="background: ${slide.bgImageUrl ? `url('${slide.bgImageUrl}') center/cover` : slide.background || 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.2))'};">
-                        <div class="hero-carousel__overlay"></div>
+                    <div class="hero-carousel__slide ${i === 0 ? 'active' : ''}" data-index="${i}">
+                        <!-- Background -->
+                        <div class="hero-carousel__bg" style="background: ${this.getBackgroundStyle(slide)};"></div>
+                        
+                        <!-- Video Background -->
+                        ${slide.videoUrl ? `
+                            <video class="hero-carousel__video" autoplay muted loop playsinline>
+                                <source src="${slide.videoUrl}" type="video/mp4">
+                            </video>
+                        ` : ''}
+                        
+                        <!-- Overlay -->
+                        <div class="hero-carousel__overlay" style="background: ${this.getOverlayStyle(slide)};"></div>
+                        
+                        <!-- Content -->
                         <div class="hero-carousel__content">
-                            ${slide.badge ? `<span class="hero-carousel__badge hero-carousel__badge--${slide.badgeType || 'new'}">${slide.badge}</span>` : ''}
-                            <h2 class="hero-carousel__title">${slide.title || ''}</h2>
-                            <p class="hero-carousel__desc">${slide.description || ''}</p>
-                            ${slide.ctaText ? `<a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">${slide.ctaText}</a>` : ''}
+                            ${slide.showLiveIndicator ? '<div class="hero-carousel__live"><span class="hero-carousel__live-dot"></span>Live</div>' : ''}
+                            
+                            ${slide.showBadge !== false && slide.badge ? `
+                                <span class="hero-carousel__badge hero-carousel__badge--${slide.badgeType || 'new'}">${slide.badge}</span>
+                            ` : ''}
+                            
+                            ${slide.showTitle !== false && slide.title ? `
+                                <h2 class="hero-carousel__title">${slide.title}</h2>
+                            ` : ''}
+                            
+                            ${slide.showDescription !== false && slide.description ? `
+                                <p class="hero-carousel__desc">${slide.description}</p>
+                            ` : ''}
+                            
+                            ${slide.countdownDate ? `
+                                <div class="hero-carousel__countdown" data-date="${slide.countdownDate}" data-slide="${i}">
+                                    ${slide.countdownLabel ? `<span class="hero-carousel__countdown-label">${slide.countdownLabel}</span>` : ''}
+                                    <span class="hero-carousel__countdown-time">--:--:--</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${slide.showCta !== false && slide.ctaText ? `
+                                <a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">${slide.ctaText}</a>
+                            ` : ''}
                         </div>
                     </div>
                 `).join('');
                 
+                // Show/hide arrows
+                carousel.querySelectorAll('.hero-carousel__nav').forEach(nav => {
+                    nav.style.display = showArrows && this.slides.length > 1 ? '' : 'none';
+                });
+                
                 // Render tabs
-                if (tabsContainer && this.slides.length > 1) {
-                    tabsContainer.innerHTML = this.slides.map((slide, i) => `
-                        <button class="hero-carousel__tab ${i === 0 ? 'active' : ''}" data-index="${i}">
-                            ${slide.tabLabel || slide.badge || `Slide ${i + 1}`}
-                        </button>
-                    `).join('');
+                if (tabsContainer) {
+                    if (showTabs && this.slides.length > 1) {
+                        tabsContainer.innerHTML = this.slides.map((slide, i) => `
+                            <button class="hero-carousel__tab ${i === 0 ? 'active' : ''}" data-index="${i}">
+                                ${slide.tabLabel || slide.badge || `Slide ${i + 1}`}
+                            </button>
+                        `).join('');
+                        tabsContainer.style.display = '';
+                    } else {
+                        tabsContainer.style.display = 'none';
+                    }
                 }
                 
                 // Render dots
-                if (dotsContainer && this.slides.length > 1) {
-                    dotsContainer.innerHTML = this.slides.map((_, i) => `
-                        <button class="hero-carousel__dot ${i === 0 ? 'active' : ''}" data-index="${i}"></button>
-                    `).join('');
+                if (dotsContainer) {
+                    if (showDots && this.slides.length > 1) {
+                        dotsContainer.innerHTML = this.slides.map((_, i) => `
+                            <button class="hero-carousel__dot ${i === 0 ? 'active' : ''}" data-index="${i}"></button>
+                        `).join('');
+                        dotsContainer.style.display = '';
+                    } else {
+                        dotsContainer.style.display = 'none';
+                    }
+                }
+                
+                // Start autoplay if enabled
+                if (autoplay && this.slides.length > 1) {
+                    const duration = (firstSlide.autoplay || 6) * 1000;
+                    this.startAutoplay(duration);
                 }
             },
             
@@ -1059,11 +1158,8 @@
                 if (!carousel || this.slides.length <= 1) return;
                 
                 // Arrows
-                const prevBtn = carousel.querySelector('.hero-carousel__nav--prev');
-                const nextBtn = carousel.querySelector('.hero-carousel__nav--next');
-                
-                prevBtn?.addEventListener('click', () => this.goTo(this.currentIndex - 1));
-                nextBtn?.addEventListener('click', () => this.goTo(this.currentIndex + 1));
+                carousel.querySelector('.hero-carousel__nav--prev')?.addEventListener('click', () => this.goTo(this.currentIndex - 1));
+                carousel.querySelector('.hero-carousel__nav--next')?.addEventListener('click', () => this.goTo(this.currentIndex + 1));
                 
                 // Tabs
                 carousel.querySelectorAll('.hero-carousel__tab').forEach(tab => {
@@ -1077,7 +1173,43 @@
                 
                 // Pause on hover
                 carousel.addEventListener('mouseenter', () => this.stopAutoplay());
-                carousel.addEventListener('mouseleave', () => this.startAutoplay());
+                carousel.addEventListener('mouseleave', () => {
+                    const firstSlide = this.slides[0] || {};
+                    if (firstSlide.carouselAutoplay !== false) {
+                        this.startAutoplay((firstSlide.autoplay || 6) * 1000);
+                    }
+                });
+            },
+            
+            initCountdowns() {
+                document.querySelectorAll('#sheetCarousel .hero-carousel__countdown').forEach(el => {
+                    const targetDate = new Date(el.dataset.date).getTime();
+                    const timeEl = el.querySelector('.hero-carousel__countdown-time');
+                    
+                    const update = () => {
+                        const now = Date.now();
+                        const diff = targetDate - now;
+                        
+                        if (diff <= 0) {
+                            timeEl.textContent = 'Jetzt!';
+                            return;
+                        }
+                        
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                        
+                        if (days > 0) {
+                            timeEl.textContent = `${days}T ${hours}h ${mins}m`;
+                        } else {
+                            timeEl.textContent = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                        }
+                    };
+                    
+                    update();
+                    this.countdownIntervals.push(setInterval(update, 1000));
+                });
             },
             
             goTo(index) {
@@ -1088,29 +1220,20 @@
                 const carousel = document.getElementById('sheetCarousel');
                 if (!carousel) return;
                 
-                // Update slides
                 carousel.querySelectorAll('.hero-carousel__slide').forEach((slide, i) => {
                     slide.classList.toggle('active', i === index);
                 });
-                
-                // Update tabs
                 carousel.querySelectorAll('.hero-carousel__tab').forEach((tab, i) => {
                     tab.classList.toggle('active', i === index);
                 });
-                
-                // Update dots
                 carousel.querySelectorAll('.hero-carousel__dot').forEach((dot, i) => {
                     dot.classList.toggle('active', i === index);
                 });
-                
-                // Restart autoplay
-                this.stopAutoplay();
-                this.startAutoplay();
             },
             
-            startAutoplay() {
-                if (this.slides.length <= 1) return;
-                this.autoplayInterval = setInterval(() => this.goTo(this.currentIndex + 1), 6000);
+            startAutoplay(duration = 6000) {
+                this.stopAutoplay();
+                this.autoplayInterval = setInterval(() => this.goTo(this.currentIndex + 1), duration);
             },
             
             stopAutoplay() {
@@ -1121,7 +1244,7 @@
             }
         };
         
-        // Initialize carousel when Firebase is ready
+        // Initialize when Firebase is ready
         function initSheetCarousel() {
             if (typeof firebase !== 'undefined' && firebase.apps?.length > 0) {
                 SheetCarousel.init();
