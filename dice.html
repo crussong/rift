@@ -3601,16 +3601,21 @@
                 const startX = -((total - 1) * spacing) / 2;
                 
                 diceTypes.forEach((type, i) => {
-                    const pos = { x: startX + i * spacing, y: 40, z: 0 };
+                    const pos = { x: startX + i * spacing, y: 50, z: 0 };
                     const velocity = { x: 0, y: 0, z: 0 };
-                    const angle = { x: 12, y: 18, z: 8 }; // Schnelle Rotation
+                    const angle = { x: 12, y: 18, z: 8 };
                     const axis = { x: 0.5, y: 0.5, z: 0.5, a: 0.5 };
                     
                     this.box.create_dice(type, pos, velocity, angle, axis);
                 });
                 
-                // Starte manuellen Rotations-Loop (Würfel schweben und rotieren)
+                // Aktiviere Glow-Effekt auf Arena
+                const arena = document.getElementById('diceArena');
+                arena.classList.add('dice-spinning-effect');
+                
+                // Starte manuellen Rotations-Loop
                 this.spinningRemote = true;
+                this.spinStartTime = Date.now();
                 this.spinRemoteDice();
             },
             
@@ -3618,31 +3623,36 @@
             spinRemoteDice() {
                 if (!this.spinningRemote || !this.box || !this.box.dices) return;
                 
-                this.box.dices.forEach((dice) => {
+                const elapsed = (Date.now() - this.spinStartTime) / 1000;
+                
+                this.box.dices.forEach((dice, index) => {
                     if (dice.body) {
-                        // Halte Position (verhindere Fallen)
-                        dice.body.position.y = 40;
+                        // Schwebende Bewegung (Sinus-Welle)
+                        const baseY = 50;
+                        const floatAmplitude = 8;
+                        const floatSpeed = 2 + index * 0.3;
+                        dice.body.position.y = baseY + Math.sin(elapsed * floatSpeed) * floatAmplitude;
+                        
+                        // Leichte horizontale Bewegung
+                        const baseX = dice.body.position.x;
+                        dice.body.position.x += Math.sin(elapsed * 1.5 + index) * 0.3;
+                        
+                        // Verhindere Drift
                         dice.body.velocity.set(0, 0, 0);
                         
-                        // Rotiere manuell
+                        // Rotation um ALLE Achsen
                         const q = dice.body.quaternion;
-                        const speed = 0.08;
+                        const speedX = 0.06 + index * 0.01;
+                        const speedY = 0.09 + index * 0.015;
+                        const speedZ = 0.04 + index * 0.008;
                         
-                        // Rotation um Y-Achse
-                        const halfAngle = speed;
-                        const sinHalf = Math.sin(halfAngle);
-                        const cosHalf = Math.cos(halfAngle);
+                        // Rotation um X
+                        this.applyQuaternionRotation(q, 1, 0, 0, speedX);
+                        // Rotation um Y
+                        this.applyQuaternionRotation(q, 0, 1, 0, speedY);
+                        // Rotation um Z
+                        this.applyQuaternionRotation(q, 0, 0, 1, speedZ);
                         
-                        // Quaternion multiplication: q = q * rotation
-                        const qw = q.w * cosHalf - q.y * sinHalf;
-                        const qx = q.x * cosHalf + q.z * sinHalf;
-                        const qy = q.y * cosHalf + q.w * sinHalf;
-                        const qz = q.z * cosHalf - q.x * sinHalf;
-                        
-                        q.w = qw;
-                        q.x = qx;
-                        q.y = qy;
-                        q.z = qz;
                         q.normalize();
                         
                         // Sync mesh mit body
@@ -3659,14 +3669,37 @@
                 requestAnimationFrame(() => this.spinRemoteDice());
             },
             
-            // Stoppe Rotation und zeige Ergebnis - KEIN WURF!
+            // Hilfs-Funktion für Quaternion-Rotation
+            applyQuaternionRotation(q, axisX, axisY, axisZ, angle) {
+                const halfAngle = angle / 2;
+                const s = Math.sin(halfAngle);
+                const c = Math.cos(halfAngle);
+                
+                // Rotation quaternion
+                const rw = c;
+                const rx = axisX * s;
+                const ry = axisY * s;
+                const rz = axisZ * s;
+                
+                // Multiply: q = q * r
+                const qw = q.w * rw - q.x * rx - q.y * ry - q.z * rz;
+                const qx = q.w * rx + q.x * rw + q.y * rz - q.z * ry;
+                const qy = q.w * ry - q.x * rz + q.y * rw + q.z * rx;
+                const qz = q.w * rz + q.x * ry - q.y * rx + q.z * rw;
+                
+                q.w = qw;
+                q.x = qx;
+                q.y = qy;
+                q.z = qz;
+            },
+            
+            // Stoppe Rotation und zeige RICHTIGES Ergebnis
             stopSpinningDice(roll) {
                 this.spinningRemote = false;
                 
-                // Stoppe Library Animation
-                if (this.box) {
-                    this.box.rolling = false;
-                }
+                // Entferne Glow-Effekt
+                const arena = document.getElementById('diceArena');
+                arena.classList.remove('dice-spinning-effect');
                 
                 let indicator = document.getElementById('remotePlayerIndicator');
                 
@@ -3676,57 +3709,72 @@
                 
                 const labelValues = roll.diceConfig?.labelValues || roll.labelValues || [];
                 const remoteD100Count = roll.diceConfig?.d100Count || 0;
+                const beforeRollValues = roll.diceConfig?.beforeRollValues || [];
+                const notation = roll.diceConfig?.notation || '1d20';
                 
-                // Stoppe Würfel-Rotation
-                if (this.box && this.box.dices) {
-                    this.box.dices.forEach((dice) => {
-                        if (dice.body) {
-                            dice.body.angularVelocity.set(0, 0, 0);
-                            dice.body.velocity.set(0, 0, 0);
+                // Lösche rotierende Würfel
+                this.box.clear();
+                
+                // Mini-Wurf mit echten beforeRollValues - Library setzt richtige Faces
+                if (beforeRollValues.length > 0) {
+                    this.box.setDice(notation);
+                    
+                    const beforeRoll = () => beforeRollValues;
+                    
+                    let done = false;
+                    this.box.start_throw(beforeRoll, () => {
+                        if (done) return;
+                        done = true;
+                        
+                        // Ergebnis zeigen
+                        setTimeout(() => {
+                            if (indicator) indicator.classList.remove('visible');
+                            
+                            // Eigene Farben wiederherstellen
+                            if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
+                                DICE.setDiceColor(myDiceColor, myDiceGradient);
+                            }
+                            if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
+                                DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
+                            }
+                            
+                            this.showDiceLabels(labelValues, remoteD100Count);
+                            this.displayRollResult(
+                                roll.results || [],
+                                roll.total,
+                                roll.modifier || 0,
+                                roll.critical,
+                                roll.special,
+                                roll.player,
+                                roll.color,
+                                remoteD100Count,
+                                labelValues
+                            );
+                            
+                            this.addToHistory({
+                                player: roll.player || 'Spieler',
+                                color: roll.color || '#8b5cf6',
+                                total: roll.total,
+                                notation: roll.notation,
+                                rolls: roll.results || [],
+                                critical: roll.critical,
+                                secret: roll.secret,
+                                timestamp: roll.timestamp || Date.now(),
+                                isRemote: true
+                            });
+                        }, 500);
+                    });
+                    
+                    // Fallback
+                    setTimeout(() => {
+                        if (!done) {
+                            done = true;
+                            this.showRemoteResult(roll);
                         }
-                    });
+                    }, 5000);
+                } else {
+                    this.showRemoteResult(roll);
                 }
-                
-                // Kurze Pause, dann Ergebnis zeigen
-                setTimeout(() => {
-                    if (indicator) indicator.classList.remove('visible');
-                    
-                    // Eigene Farben wiederherstellen
-                    if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                        DICE.setDiceColor(myDiceColor, myDiceGradient);
-                    }
-                    if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
-                        DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
-                    }
-                    
-                    // Zeige Labels über den Würfeln
-                    this.showDiceLabels(labelValues, remoteD100Count);
-                    
-                    // Zeige Ergebnis-Card
-                    this.displayRollResult(
-                        roll.results || [],
-                        roll.total,
-                        roll.modifier || 0,
-                        roll.critical,
-                        roll.special,
-                        roll.player,
-                        roll.color,
-                        remoteD100Count,
-                        labelValues
-                    );
-                    
-                    this.addToHistory({
-                        player: roll.player || 'Spieler',
-                        color: roll.color || '#8b5cf6',
-                        total: roll.total,
-                        notation: roll.notation,
-                        rolls: roll.results || [],
-                        critical: roll.critical,
-                        secret: roll.secret,
-                        timestamp: roll.timestamp || Date.now(),
-                        isRemote: true
-                    });
-                }, 300);
             },
             
             // Zeige Remote Ergebnis ohne Animation
