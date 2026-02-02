@@ -2730,60 +2730,114 @@
                 if (mod !== 0) histNotation += (mod > 0 ? '+' : '') + mod;
                 if (special) histNotation += ` (${special === 'advantage' ? 'V' : 'N'})`;
                 
-                // VORBERECHNUNG
-                const precomputed = this.precomputeRoll(libraryNotation, d100Count);
-                console.log('[DiceRoller] Precomputed:', precomputed);
+                const animationStartTime = Date.now();
+                const MIN_ANIMATION_TIME = 2500;
                 
-                let finalTotal = precomputed.total + mod;
-                if (special === 'advantage') {
-                    finalTotal = Math.max(...precomputed.displayRolls) + mod;
-                } else if (special === 'disadvantage') {
-                    finalTotal = Math.min(...precomputed.displayRolls) + mod;
-                }
-                
-                const isCritical = this.checkCriticalFromResults(precomputed.displayRolls, special);
-                
-                // SOFORT SYNC
-                this.syncRoll({
+                // SOFORT SYNC starten - andere Spieler sehen "würfelt..."
+                this.syncRollStart({
                     player: playerName,
                     playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
                     color: userData.color || '#FF4655',
                     diceTheme: this.currentTheme || 'onyx',
                     labelColor: this.currentLabelColor || 'auto',
-                    total: finalTotal,
                     notation: histNotation,
-                    results: precomputed.displayRolls,
-                    labelValues: precomputed.labelValues,
-                    modifier: mod,
-                    critical: isCritical,
                     secret: this.secretRoll,
                     special: special,
                     timestamp: Date.now(),
                     diceConfig: {
                         notation: libraryNotation,
-                        beforeRollValues: precomputed.beforeRollValues,
-                        labelValues: precomputed.labelValues,
                         d100Count: d100Count
                     }
                 });
                 
-                const animationStartTime = Date.now();
-                const MIN_ANIMATION_TIME = 2500;
-                
-                const showFinalResult = () => {
+                const handleResults = (libraryResults) => {
+                    console.log('[DiceRoller] Library returned:', libraryResults);
+                    
+                    let displayRolls = [];
+                    let labelValues = [];
+                    let total = 0;
+                    
+                    if (d100Count > 0) {
+                        let idx = 0;
+                        for (let i = 0; i < d100Count; i++) {
+                            const tensValue = libraryResults[idx];     // 0,10,20...90
+                            const onesValue = libraryResults[idx + 1]; // 0-9
+                            
+                            let d100Result = tensValue + onesValue;
+                            if (d100Result === 0) d100Result = 100;
+                            
+                            labelValues.push(tensValue);
+                            labelValues.push(onesValue);
+                            displayRolls.push(d100Result);
+                            total += d100Result;
+                            idx += 2;
+                        }
+                        while (idx < libraryResults.length) {
+                            const val = libraryResults[idx];
+                            labelValues.push(val);
+                            displayRolls.push(val);
+                            total += val;
+                            idx++;
+                        }
+                    } else {
+                        for (const val of libraryResults) {
+                            const onlyD10 = Object.keys(this.currentDice).filter(t => this.currentDice[t] > 0);
+                            if (onlyD10.length === 1 && onlyD10[0] === 'd10') {
+                                const calcVal = val === 0 ? 10 : val;
+                                labelValues.push(val);
+                                displayRolls.push(calcVal);
+                                total += calcVal;
+                            } else {
+                                labelValues.push(val);
+                                displayRolls.push(val);
+                                total += val;
+                            }
+                        }
+                    }
+                    
+                    let finalTotal = total + mod;
+                    if (special === 'advantage') finalTotal = Math.max(...displayRolls) + mod;
+                    if (special === 'disadvantage') finalTotal = Math.min(...displayRolls) + mod;
+                    
+                    const isCritical = this.checkCriticalFromResults(displayRolls, special);
+                    
+                    // Sync mit ECHTEN Library-Ergebnissen
+                    this.syncRollComplete({
+                        player: playerName,
+                        playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
+                        color: userData.color || '#FF4655',
+                        diceTheme: this.currentTheme || 'onyx',
+                        labelColor: this.currentLabelColor || 'auto',
+                        total: finalTotal,
+                        notation: histNotation,
+                        results: displayRolls,
+                        labelValues: labelValues,
+                        modifier: mod,
+                        critical: isCritical,
+                        secret: this.secretRoll,
+                        special: special,
+                        timestamp: Date.now(),
+                        diceConfig: {
+                            notation: libraryNotation,
+                            beforeRollValues: libraryResults, // ECHTE Werte für Remote
+                            labelValues: labelValues,
+                            d100Count: d100Count
+                        }
+                    });
+                    
                     const elapsed = Date.now() - animationStartTime;
                     const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsed);
                     
                     setTimeout(() => {
                         btn.classList.remove('rolling');
-                        this.showDiceLabels(precomputed.labelValues, d100Count);
-                        this.displayRollResult(precomputed.displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color, d100Count, precomputed.labelValues);
+                        this.showDiceLabels(labelValues, d100Count);
+                        this.displayRollResult(displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color, d100Count, labelValues);
                         this.addToHistory({
                             player: playerName,
                             color: userData.color || '#FF4655',
                             total: finalTotal,
                             notation: histNotation,
-                            rolls: precomputed.displayRolls,
+                            rolls: displayRolls,
                             critical: isCritical,
                             secret: this.secretRoll,
                             timestamp: Date.now()
@@ -2794,101 +2848,57 @@
                 
                 if (this.box) {
                     this.box.setDice(libraryNotation);
-                    const beforeRoll = () => precomputed.beforeRollValues;
                     
                     let done = false;
-                    const afterRoll = () => {
+                    const afterRoll = (notation) => {
                         if (done) return;
                         done = true;
-                        showFinalResult();
+                        handleResults(notation.result);
                     };
                     
+                    // Library würfelt FREI - keine beforeRoll!
                     if (throwVector && throwVector.vector && throwVector.boost) {
-                        this.box.throw_with_vector(throwVector.vector, throwVector.boost, beforeRoll, afterRoll);
+                        this.box.throw_with_vector(throwVector.vector, throwVector.boost, null, afterRoll);
                     } else {
-                        this.box.start_throw(beforeRoll, afterRoll);
+                        this.box.start_throw(null, afterRoll);
                     }
                     
-                    setTimeout(() => { if (!done) { done = true; showFinalResult(); } }, 8000);
+                    setTimeout(() => {
+                        if (!done) {
+                            done = true;
+                            handleResults(this.generateFallbackResults(libraryNotation, d100Count));
+                        }
+                    }, 8000);
                 } else {
-                    setTimeout(showFinalResult, 1500);
+                    setTimeout(() => {
+                        handleResults(this.generateFallbackResults(libraryNotation, d100Count));
+                    }, 1500);
                 }
             },
             
-            // Vorberechnung - EINFACHSTES Mapping
-            precomputeRoll(libraryNotation, d100Count) {
-                const beforeRollValues = [];
-                const displayRolls = [];
-                const labelValues = [];
-                let total = 0;
-                
+            generateFallbackResults(notation, d100Count) {
+                const results = [];
                 if (d100Count > 0) {
                     for (let i = 0; i < d100Count; i++) {
-                        // d100 tens: Index 0-9, zeigt "00","10","20"..."90"
-                        const tensIndex = Math.floor(Math.random() * 10);
-                        const tensDisplay = tensIndex * 10;
-                        
-                        // d10 ones: Index 0-9, zeigt "0","1"..."9"
-                        const onesIndex = Math.floor(Math.random() * 10);
-                        const onesDisplay = onesIndex;
-                        
-                        let result = tensDisplay + onesDisplay;
-                        if (result === 0) result = 100;
-                        
-                        beforeRollValues.push(tensIndex);
-                        beforeRollValues.push(onesIndex);
-                        labelValues.push(tensDisplay);
-                        labelValues.push(onesDisplay);
-                        displayRolls.push(result);
-                        total += result;
-                        
-                        console.log(`[DiceRoller] D100: tens=${tensIndex}→${tensDisplay}, ones=${onesIndex}→${onesDisplay}, result=${result}`);
+                        results.push(Math.floor(Math.random() * 10) * 10);
+                        results.push(Math.floor(Math.random() * 10));
                     }
-                    
-                    const remaining = libraryNotation.replace(/\d*d100\+\d*d10/gi, '').replace(/^\+|\+$/g, '');
-                    if (remaining) {
-                        total += this.parseOtherDice(remaining, beforeRollValues, labelValues, displayRolls);
-                    }
-                } else {
-                    total = this.parseOtherDice(libraryNotation, beforeRollValues, labelValues, displayRolls);
                 }
-                
-                return { beforeRollValues, displayRolls, labelValues, total };
-            },
-            
-            parseOtherDice(notation, beforeRollValues, labelValues, displayRolls) {
-                let total = 0;
+                const remaining = notation.replace(/\d*d100\+\d*d10/gi, '');
                 const diceRegex = /(\d*)d(\d+)/gi;
                 let match;
-                
-                while ((match = diceRegex.exec(notation)) !== null) {
+                while ((match = diceRegex.exec(remaining)) !== null) {
                     const count = parseInt(match[1]) || 1;
                     const sides = parseInt(match[2]);
-                    
                     for (let j = 0; j < count; j++) {
                         if (sides === 10) {
-                            // d10 solo: Index 0-9
-                            const index = Math.floor(Math.random() * 10);
-                            const display = index;
-                            const value = index === 0 ? 10 : index;
-                            
-                            beforeRollValues.push(index);
-                            labelValues.push(display);
-                            displayRolls.push(value);
-                            total += value;
-                            
-                            console.log(`[DiceRoller] D10: index=${index}, display=${display}, value=${value}`);
+                            results.push(Math.floor(Math.random() * 10));
                         } else {
-                            // d4,d6,d8,d12,d20: 1-N
-                            const roll = Math.floor(Math.random() * sides) + 1;
-                            beforeRollValues.push(roll);
-                            labelValues.push(roll);
-                            displayRolls.push(roll);
-                            total += roll;
+                            results.push(Math.floor(Math.random() * sides) + 1);
                         }
                     }
                 }
-                return total;
+                return results;
             },
             
             checkCriticalFromResults(rolls, special) {
@@ -2905,6 +2915,20 @@
                     if (rolls.includes(100)) return 'failure';
                 }
                 return false;
+            },
+            
+            // Sync: Start - andere Spieler starten Animation
+            syncRollStart(data) {
+                if (!this.diceRef || !this.multiplayerEnabled) return;
+                console.log('[DiceRoller] syncRollStart');
+                this.diceRef.push({ ...data, phase: 'start' });
+            },
+            
+            // Sync: Complete - echte Ergebnisse
+            syncRollComplete(data) {
+                if (!this.diceRef || !this.multiplayerEnabled) return;
+                console.log('[DiceRoller] syncRollComplete');
+                this.diceRef.push({ ...data, phase: 'complete' });
             },
             
             // Zeige Ergebnis an
@@ -3497,24 +3521,47 @@
             
             // Handle incoming roll from another player
             handleRemoteRoll(roll) {
-                console.log('[DiceRoller] handleRemoteRoll:', roll.player, roll.notation, roll.total);
+                console.log('[DiceRoller] handleRemoteRoll:', roll.player, roll.phase);
                 
-                // Skip if no results (incomplete data)
+                const arena = document.getElementById('diceArena');
+                
+                if (roll.phase === 'start') {
+                    // Phase 1: Zeige "würfelt..." Indikator sofort
+                    arena.classList.remove('empty');
+                    
+                    let indicator = document.getElementById('remotePlayerIndicator');
+                    if (!indicator) {
+                        indicator = document.createElement('div');
+                        indicator.id = 'remotePlayerIndicator';
+                        indicator.className = 'dice-remote-indicator';
+                        arena.appendChild(indicator);
+                    }
+                    indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
+                    indicator.classList.add('visible');
+                    
+                    // Speichere für phase 2
+                    this.pendingRemoteRolls = this.pendingRemoteRolls || {};
+                    this.pendingRemoteRolls[roll.playerId] = roll;
+                    return;
+                }
+                
+                if (roll.phase === 'complete') {
+                    // Phase 2: Animation mit echten beforeRollValues
+                    this.executeRemoteRoll(roll);
+                    return;
+                }
+                
+                // Legacy ohne phase
                 if (!roll.results && roll.total === undefined) {
                     console.log('[DiceRoller] Skipping roll without results');
                     return;
                 }
-                
-                // DON'T add to history here - wait until animation is done
-                // History entry will be added in executeRemoteRoll after animation
-                
-                // Execute 3D animation and show result
                 this.executeRemoteRoll(roll);
             },
             
             // Execute 3D animation for a remote roll
             executeRemoteRoll(roll) {
-                console.log('[DiceRoller] 🎲 executeRemoteRoll:', roll.player, roll.notation, roll.total);
+                console.log('[DiceRoller] 🎲 executeRemoteRoll:', roll.player, roll.total);
                 
                 if (this.resultTimeout) {
                     clearTimeout(this.resultTimeout);
@@ -3594,6 +3641,7 @@
                     }, remainingTime);
                 };
                 
+                // 3D Animation mit beforeRollValues (echte Library-Ergebnisse von Spieler A)
                 if (this.box && roll.diceConfig && roll.diceConfig.notation && roll.diceConfig.beforeRollValues) {
                     try {
                         if (roll.diceTheme && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
@@ -3605,6 +3653,8 @@
                         }
                         
                         this.box.setDice(roll.diceConfig.notation);
+                        
+                        // beforeRollValues sind die ECHTEN Ergebnisse von Spieler A's Library
                         const beforeRoll = () => roll.diceConfig.beforeRollValues;
                         
                         console.log('[DiceRoller] Remote beforeRollValues:', roll.diceConfig.beforeRollValues);
