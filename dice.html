@@ -3305,6 +3305,10 @@
                 const animationStartTime = Date.now();
                 const MIN_ANIMATION_TIME = 2500; // Mindestens 2.5 Sekunden
                 
+                // Speichere EIGENE Würfelfarben
+                const myDiceColor = this.currentDiceColor;
+                const myDiceGradient = this.currentDiceGradient;
+                
                 const showResult = () => {
                     const elapsed = Date.now() - animationStartTime;
                     const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsed);
@@ -3312,6 +3316,11 @@
                     setTimeout(() => {
                         arena.classList.remove('throwing');
                         indicator.classList.remove('visible');
+                        
+                        // Stelle EIGENE Würfelfarben wieder her (für Card Previews)
+                        if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
+                            DICE.setDiceColor(myDiceColor, myDiceGradient);
+                        }
                         
                         // Use displayRollResult with remote player's data
                         this.displayRollResult(
@@ -3329,10 +3338,10 @@
                 // Try 3D animation with the SAME results
                 if (this.box && roll.diceConfig && roll.diceConfig.notation && roll.diceConfig.rawResults) {
                     try {
-                        // Change theme if different
-                        const originalTheme = this.currentTheme;
-                        if (roll.diceTheme && roll.diceTheme !== originalTheme) {
-                            this.setTheme(roll.diceTheme);
+                        // Setze temporär die Würfelfarbe des ANDEREN Spielers (NUR für diesen Wurf)
+                        if (roll.diceTheme && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
+                            const remoteColors = this.themeColors[roll.diceTheme] || this.themeColors.classic;
+                            DICE.setDiceColor(remoteColors.accent, remoteColors.gradient || null);
                         }
                         
                         this.box.setDice(roll.diceConfig.notation);
@@ -3345,11 +3354,6 @@
                             if (done) return;
                             done = true;
                             showResult();
-                            
-                            // Restore theme
-                            if (roll.diceTheme && roll.diceTheme !== originalTheme) {
-                                setTimeout(() => this.setTheme(originalTheme), 2000);
-                            }
                         });
                         
                         // Fallback
@@ -3357,6 +3361,10 @@
                         return;
                     } catch (e) {
                         console.error('[DiceRoller] Remote 3D failed:', e);
+                        // Bei Fehler: Eigene Farben wiederherstellen
+                        if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
+                            DICE.setDiceColor(myDiceColor, myDiceGradient);
+                        }
                     }
                 }
                 
