@@ -261,16 +261,16 @@ function createUnifiedMeganav() {
                 
                 <div class="meganav__dropdown meganav__dropdown--rulesets">
                     <div class="meganav__ruleset-grid">
-                        <a href="sheet-worldsapart.html" class="meganav__ruleset-btn" title="Worlds Apart">
+                        <a href="worldsapart.html" class="meganav__ruleset-btn" title="Worlds Apart">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066185/rs_worldapart_cuqdjn.png" alt="Worlds Apart">
                         </a>
-                        <a href="sheet-5e-de.html" class="meganav__ruleset-btn" title="D&D 5e">
+                        <a href="dnd5e.html" class="meganav__ruleset-btn" title="D&D 5e">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066185/rs_dnd5e_siffwr.png" alt="D&D 5e">
                         </a>
-                        <a href="sheet-htbah.html" class="meganav__ruleset-btn" title="How To Be A Hero">
+                        <a href="htbah.html" class="meganav__ruleset-btn" title="How To Be A Hero">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066183/rs_htbah_fmv3sx.png" alt="How To Be A Hero">
                         </a>
-                        <a href="sheet-cyberpunkred.html" class="meganav__ruleset-btn" title="Cyberpunk RED">
+                        <a href="cyberpunkred.html" class="meganav__ruleset-btn" title="Cyberpunk RED">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066183/rs_cpred_ghwma4.png" alt="Cyberpunk RED">
                         </a>
                     </div>
@@ -443,10 +443,10 @@ function createUnifiedFooter() {
             <div class="footer__column">
                 <h4 class="footer__column-title">Regelwerke</h4>
                 <nav class="footer__nav">
-                    <a href="sheet-worldsapart.html">Worlds Apart</a>
-                    <a href="sheet-dnd5e.html">D&D 5e (2024)</a>
-                    <a href="sheet-htbah.html">How To Be A Hero</a>
-                    <a href="sheet-cyberpunk.html">Cyberpunk Red</a>
+                    <a href="worldsapart.html">Worlds Apart</a>
+                    <a href="dnd5e.html">D&D 5e (2024)</a>
+                    <a href="htbah.html">How To Be A Hero</a>
+                    <a href="cyberpunkred.html">Cyberpunk Red</a>
                 </nav>
             </div>
             
