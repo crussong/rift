@@ -1659,17 +1659,35 @@
                 
                 if (!tooltip) return;
                 
+                // Add info button to each dice card
                 buttons.forEach(btn => {
-                    btn.addEventListener('mouseenter', (e) => {
+                    // Create info button
+                    const infoBtn = document.createElement('button');
+                    infoBtn.className = 'dice-btn__info';
+                    infoBtn.innerHTML = '?';
+                    infoBtn.type = 'button';
+                    
+                    // Prevent click from propagating to dice button
+                    infoBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    });
+                    
+                    // Show tooltip on hover
+                    infoBtn.addEventListener('mouseenter', (e) => {
+                        e.stopPropagation();
                         const diceType = btn.dataset.dice;
                         if (diceType) {
-                            this.showProbabilityTooltip(diceType, btn);
+                            this.showProbabilityTooltip(diceType, infoBtn);
                         }
                     });
                     
-                    btn.addEventListener('mouseleave', () => {
+                    infoBtn.addEventListener('mouseleave', (e) => {
+                        e.stopPropagation();
                         this.hideProbabilityTooltip();
                     });
+                    
+                    btn.appendChild(infoBtn);
                 });
             },
             
@@ -2820,6 +2838,12 @@
             
             // Zeige Ergebnis an
             displayRollResult(rolls, total, mod, isCritical, special, playerName, playerColor) {
+                // Clear any existing timeout to prevent early hide
+                if (this.resultTimeout) {
+                    clearTimeout(this.resultTimeout);
+                    this.resultTimeout = null;
+                }
+                
                 const arena = document.getElementById('diceArena');
                 const resultEl = document.getElementById('diceResult');
                 const totalEl = document.getElementById('resultTotal');
@@ -3369,6 +3393,12 @@
             // Execute 3D animation for a remote roll
             executeRemoteRoll(roll) {
                 console.log('[DiceRoller] 🎲 executeRemoteRoll:', roll.player, roll.notation);
+                
+                // Clear any existing result timeout
+                if (this.resultTimeout) {
+                    clearTimeout(this.resultTimeout);
+                    this.resultTimeout = null;
+                }
                 
                 const arena = document.getElementById('diceArena');
                 const resultEl = document.getElementById('diceResult');
