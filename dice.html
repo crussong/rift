@@ -3580,67 +3580,81 @@
                     DICE.setLabelColor(roll.labelColor === 'auto' ? null : roll.labelColor);
                 }
                 
-                // Erstelle die Würfel
-                this.box.setDice(notation);
+                // Lösche alte Würfel
+                this.box.clear();
                 
-                // Positioniere in der Mitte
-                if (this.box.dices && this.box.dices.length > 0) {
-                    const spacing = 80;
-                    const total = this.box.dices.length;
-                    const startX = -((total - 1) * spacing) / 2;
-                    
-                    this.box.dices.forEach((dice, i) => {
-                        dice.body.position.set(startX + i * spacing, 40, 0);
-                        dice.body.velocity.set(0, 0, 0);
-                        dice.body.angularVelocity.set(0, 0, 0);
-                        dice.body.type = 2; // KINEMATIC
-                    });
-                    
-                    // Starte Rotation Loop
-                    this.spinningRemote = true;
-                    this.spinRemoteDice();
+                // Parse Notation um Würfeltypen zu bekommen
+                const diceTypes = [];
+                const matches = notation.matchAll(/(\d*)d(\d+)/gi);
+                for (const match of matches) {
+                    const count = parseInt(match[1]) || 1;
+                    const sides = parseInt(match[2]);
+                    const type = sides === 100 ? 'd100' : `d${sides}`;
+                    for (let i = 0; i < count; i++) {
+                        diceTypes.push(type);
+                    }
                 }
+                
+                // Erstelle Würfel in der Mitte mit Rotation
+                const spacing = 80;
+                const total = diceTypes.length;
+                const startX = -((total - 1) * spacing) / 2;
+                
+                diceTypes.forEach((type, i) => {
+                    const pos = { x: startX + i * spacing, y: 40, z: 0 };
+                    const velocity = { x: 0, y: 0, z: 0 };
+                    const angle = { x: 12, y: 18, z: 8 }; // Schnelle Rotation
+                    const axis = { x: 0.5, y: 0.5, z: 0.5, a: 0.5 };
+                    
+                    this.box.create_dice(type, pos, velocity, angle, axis);
+                });
+                
+                // Starte manuellen Rotations-Loop (Würfel schweben und rotieren)
+                this.spinningRemote = true;
+                this.spinRemoteDice();
             },
             
-            // Manuelle Rotation der Würfel
+            // Manueller Rotations-Loop für schwebende Würfel
             spinRemoteDice() {
                 if (!this.spinningRemote || !this.box || !this.box.dices) return;
                 
-                const speed = 0.15;
-                
                 this.box.dices.forEach((dice) => {
-                    if (dice.body && dice.body.quaternion) {
-                        // Einfache Quaternion Rotation
+                    if (dice.body) {
+                        // Halte Position (verhindere Fallen)
+                        dice.body.position.y = 40;
+                        dice.body.velocity.set(0, 0, 0);
+                        
+                        // Rotiere manuell
                         const q = dice.body.quaternion;
+                        const speed = 0.08;
                         
-                        // Rotation um Y und X Achse
-                        const angleY = speed;
-                        const angleX = speed * 0.7;
+                        // Rotation um Y-Achse
+                        const halfAngle = speed;
+                        const sinHalf = Math.sin(halfAngle);
+                        const cosHalf = Math.cos(halfAngle);
                         
-                        // Rotate around Y
-                        const cy = Math.cos(angleY / 2);
-                        const sy = Math.sin(angleY / 2);
-                        const qw = q.w * cy - q.y * sy;
-                        const qx = q.x * cy + q.z * sy;
-                        const qy = q.y * cy + q.w * sy;
-                        const qz = q.z * cy - q.x * sy;
+                        // Quaternion multiplication: q = q * rotation
+                        const qw = q.w * cosHalf - q.y * sinHalf;
+                        const qx = q.x * cosHalf + q.z * sinHalf;
+                        const qy = q.y * cosHalf + q.w * sinHalf;
+                        const qz = q.z * cosHalf - q.x * sinHalf;
                         
-                        // Rotate around X
-                        const cx = Math.cos(angleX / 2);
-                        const sx = Math.sin(angleX / 2);
-                        q.w = qw * cx - qx * sx;
-                        q.x = qx * cx + qw * sx;
-                        q.y = qy * cx + qz * sx;
-                        q.z = qz * cx - qy * sx;
+                        q.w = qw;
+                        q.x = qx;
+                        q.y = qy;
+                        q.z = qz;
+                        q.normalize();
                         
-                        // Normalize
-                        const len = Math.sqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
-                        q.w /= len;
-                        q.x /= len;
-                        q.y /= len;
-                        q.z /= len;
+                        // Sync mesh mit body
+                        dice.position.copy(dice.body.position);
+                        dice.quaternion.copy(dice.body.quaternion);
                     }
                 });
+                
+                // Render
+                if (this.box.renderer && this.box.scene && this.box.camera) {
+                    this.box.renderer.render(this.box.scene, this.box.camera);
+                }
                 
                 requestAnimationFrame(() => this.spinRemoteDice());
             },
@@ -3648,6 +3662,11 @@
             // Stoppe Rotation und zeige Ergebnis - KEIN WURF!
             stopSpinningDice(roll) {
                 this.spinningRemote = false;
+                
+                // Stoppe Library Animation
+                if (this.box) {
+                    this.box.rolling = false;
+                }
                 
                 let indicator = document.getElementById('remotePlayerIndicator');
                 
