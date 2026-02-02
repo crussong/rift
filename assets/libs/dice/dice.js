@@ -1309,12 +1309,13 @@ const DICE = (function() {
         if (!(value >= r[0] && value <= r[1])) return;
         var num = value - res;
         var geom = dice.geometry.clone();
+        var range = r[1] - r[0] + 1; // FIX: Use range instead of r[1]
         for (var i = 0, l = geom.faces.length; i < l; ++i) {
             var matindex = geom.faces[i].materialIndex;
             if (matindex == 0) continue;
             matindex += num - 1;
-            while (matindex > r[1]) matindex -= r[1];
-            while (matindex < r[0]) matindex += r[1];
+            while (matindex > r[1]) matindex -= range;
+            while (matindex < r[0]) matindex += range;
             geom.faces[i].materialIndex = matindex + 1;
         }
         if (dice.dice_type == 'd4' && num != 0) {
