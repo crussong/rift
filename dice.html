@@ -2842,34 +2842,43 @@
             
             // Vorberechnung der Würfelergebnisse
             // Generiert beforeRollValues (für Library) und displayRolls/labelValues (für Anzeige)
+            // 
+            // WICHTIG - Library Mapping (empirisch ermittelt):
+            // d10: Library zeigt (beforeRoll - 1), also beforeRoll = display + 1
+            // d100: Library zeigt Index (beforeRoll + 1) % 10, also beforeRoll = (displayIndex + 9) % 10
+            //
             precomputeRoll(libraryNotation, d100Count) {
                 const beforeRollValues = []; // Werte die Library erwartet
                 const displayRolls = [];     // Kombinierte Ergebnisse für History
                 const labelValues = [];      // Einzelne Würfel-Labels
                 let total = 0;
                 
-                // Library dice_face_range:
-                // d4, d6, d8, d12, d20: [1, N] - 1-basiert
-                // d10, d100: [0, 9] - 0-basiert
-                
                 if (d100Count > 0) {
                     for (let i = 0; i < d100Count; i++) {
-                        // d100 (tens): 0-9 → zeigt "00", "10", "20"..."90"
-                        const tensInput = Math.floor(Math.random() * 10); // 0-9
-                        // d10 (ones): 0-9 → zeigt "0", "1", "2"..."9"
-                        const onesInput = Math.floor(Math.random() * 10); // 0-9
+                        // tens: Index 0-9 → Labels "00", "10", "20"..."90"
+                        const tensIndex = Math.floor(Math.random() * 10); // 0-9
+                        const tensDisplay = tensIndex * 10; // 0, 10, 20...90
+                        // Library Mapping: zeigt Index (beforeRoll + 1) % 10
+                        // Also: beforeRoll = (tensIndex + 9) % 10
+                        const tensBeforeRoll = (tensIndex + 9) % 10;
                         
-                        const tensDisplay = tensInput * 10;  // 0, 10, 20...90
-                        const onesDisplay = onesInput;       // 0-9
+                        // ones: Display 0-9
+                        const onesDisplay = Math.floor(Math.random() * 10); // 0-9
+                        // Library Mapping: zeigt (beforeRoll - 1), also beforeRoll = display + 1
+                        // Für display=9: beforeRoll=10, Library konvertiert 10→0 intern
+                        const onesBeforeRoll = onesDisplay + 1; // 1-10 (10 wird von Library zu 0)
                         
-                        // Ergebnis: tens + ones, aber 00+0 = 100
+                        // Wert für Berechnung: "0" auf Würfel = 10
+                        const onesValue = onesDisplay === 0 ? 10 : onesDisplay;
+                        
+                        // D100 Ergebnis
                         let result = tensDisplay + onesDisplay;
-                        if (result === 0) result = 100;
+                        if (result === 0) result = 100; // 00 + 0 = 100
                         
-                        console.log(`[DiceRoller] D100 precompute: tens=${tensInput}→"${tensDisplay}", ones=${onesInput}→"${onesDisplay}", result=${result}`);
+                        console.log(`[DiceRoller] D100 precompute: tensIdx=${tensIndex}→"${tensDisplay}" (bR=${tensBeforeRoll}), onesDisp=${onesDisplay} (bR=${onesBeforeRoll}), result=${result}`);
                         
-                        beforeRollValues.push(tensInput); // 0-9
-                        beforeRollValues.push(onesInput); // 0-9
+                        beforeRollValues.push(tensBeforeRoll);
+                        beforeRollValues.push(onesBeforeRoll);
                         
                         labelValues.push(tensDisplay);  // 0, 10, 20...90
                         labelValues.push(onesDisplay);  // 0-9
@@ -2878,7 +2887,7 @@
                         total += result;
                     }
                     
-                    // Remaining non-d100 dice (nach d100+d10 pairs)
+                    // Remaining non-d100 dice
                     const remaining = libraryNotation.replace(/\d*d100\+\d*d10/gi, '').replace(/^\+|\+$/g, '');
                     if (remaining) {
                         total += this.parseAndAddDice(remaining, beforeRollValues, labelValues, displayRolls);
@@ -2903,19 +2912,20 @@
                     
                     for (let j = 0; j < count; j++) {
                         if (sides === 10) {
-                            // d10: Library erwartet 0-9, zeigt "0"-"9"
-                            // Wert: "0" = 10, "1"-"9" = 1-9
-                            const face = Math.floor(Math.random() * 10); // 0-9
-                            const value = face === 0 ? 10 : face;
+                            // d10: Library zeigt (beforeRoll - 1)
+                            // Also: beforeRoll = display + 1
+                            const display = Math.floor(Math.random() * 10); // 0-9
+                            const value = display === 0 ? 10 : display;
+                            const beforeRoll = display + 1; // 1-10 (10 wird von Library zu 0)
                             
-                            beforeRollValues.push(face); // 0-9 für Library
-                            labelValues.push(face);      // 0-9 für Label
-                            displayRolls.push(value);    // 10 oder 1-9 für Berechnung
+                            beforeRollValues.push(beforeRoll);
+                            labelValues.push(display);
+                            displayRolls.push(value);
                             total += value;
                             
-                            console.log(`[DiceRoller] D10 precompute: face=${face}, value=${value}`);
+                            console.log(`[DiceRoller] D10 precompute: display=${display}, value=${value}, beforeRoll=${beforeRoll}`);
                         } else {
-                            // d4, d6, d8, d12, d20: Library erwartet 1-N
+                            // d4, d6, d8, d12, d20: Standard 1-basiert, kein Offset
                             const roll = Math.floor(Math.random() * sides) + 1;
                             beforeRollValues.push(roll);
                             labelValues.push(roll);
@@ -3543,18 +3553,8 @@
                     return;
                 }
                 
-                // Add to history
-                this.addToHistory({
-                    player: roll.player || 'Spieler',
-                    color: roll.color || '#8b5cf6',
-                    total: roll.total,
-                    notation: roll.notation,
-                    rolls: roll.results || [],
-                    critical: roll.critical,
-                    secret: roll.secret,
-                    timestamp: roll.timestamp || Date.now(),
-                    isRemote: true
-                });
+                // DON'T add to history here - wait until animation is done
+                // History entry will be added in executeRemoteRoll after animation
                 
                 // Execute 3D animation and show result
                 this.executeRemoteRoll(roll);
@@ -3638,6 +3638,19 @@
                             remoteD100Count,
                             labelValues
                         );
+                        
+                        // Add to history AFTER animation (same timing as local player)
+                        this.addToHistory({
+                            player: roll.player || 'Spieler',
+                            color: roll.color || '#8b5cf6',
+                            total: roll.total,
+                            notation: roll.notation,
+                            rolls: roll.results || [],
+                            critical: roll.critical,
+                            secret: roll.secret,
+                            timestamp: roll.timestamp || Date.now(),
+                            isRemote: true
+                        });
                     }, remainingTime);
                 };
                 
