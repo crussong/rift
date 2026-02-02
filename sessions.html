@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="assets/css/ui.css">
     <link rel="stylesheet" href="assets/css/dock.css">
     <link rel="stylesheet" href="assets/css/hub.css">
+    <link rel="stylesheet" href="assets/css/hub-features.css">
     <link rel="stylesheet" href="assets/css/settings.css">
     <link rel="stylesheet" href="assets/css/sessions.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -49,27 +50,37 @@
                 <!-- Divider -->
                 <div class="section-divider"></div>
                 
-                <!-- Hero: Create New Session -->
-                <section class="sessions-hero">
-                    <div class="sessions-hero__content">
-                        <h2 class="sessions-hero__title">Bereit für ein neues Abenteuer?</h2>
-                        <p class="sessions-hero__desc">Starte eine neue Session und lade deine Party ein.</p>
-                        <button class="sessions-hero__btn" id="createSessionBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"/>
-                                <line x1="5" y1="12" x2="19" y2="12"/>
-                            </svg>
-                            Neue Session erstellen
-                        </button>
-                    </div>
-                    <div class="sessions-hero__visual">
-                        <div class="sessions-hero__dice">
-                            <svg width="60" height="60" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/>
-                            </svg>
+                <!-- Hero Carousel (Admin-editable via Firebase session_slides) -->
+                <div class="hero-carousel" id="sessionsCarousel">
+                    <div class="hero-carousel__slides" id="sessionsCarouselSlides">
+                        <!-- Slides werden dynamisch aus Firebase session_slides geladen -->
+                        <div class="hero-carousel__slide active" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.2));">
+                            <div class="hero-carousel__content">
+                                <span class="hero-carousel__badge hero-carousel__badge--new">Willkommen</span>
+                                <h2 class="hero-carousel__title">Sessions</h2>
+                                <p class="hero-carousel__desc">Verwalte deine Spielsitzungen und starte neue Abenteuer.</p>
+                            </div>
                         </div>
                     </div>
-                </section>
+                    
+                    <!-- Navigation Arrows -->
+                    <button class="hero-carousel__nav hero-carousel__nav--prev" aria-label="Vorherige Slide">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                    </button>
+                    <button class="hero-carousel__nav hero-carousel__nav--next" aria-label="Nächste Slide">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                    </button>
+                    
+                    <!-- Tab Navigation -->
+                    <div class="hero-carousel__tabs" id="sessionsCarouselTabs">
+                        <!-- Tabs werden dynamisch generiert -->
+                    </div>
+                    
+                    <!-- Dots (Mobile) -->
+                    <div class="hero-carousel__dots" id="sessionsCarouselDots">
+                        <!-- Dots werden dynamisch generiert -->
+                    </div>
+                </div>
                 
                 <!-- Divider -->
                 <div class="section-divider"></div>
@@ -635,6 +646,159 @@
     <script src="assets/js/app.js"></script>
     <script>
         initUnifiedLayout();
+        
+        // ========================================
+        // SESSIONS PAGE CAROUSEL
+        // ========================================
+        const SessionsCarousel = {
+            slides: [],
+            currentIndex: 0,
+            autoplayInterval: null,
+            
+            async init() {
+                await this.loadSlides();
+                this.render();
+                this.initNavigation();
+                this.startAutoplay();
+            },
+            
+            async loadSlides() {
+                try {
+                    if (typeof firebase === 'undefined' || !firebase.apps?.length) {
+                        console.log('[SessionsCarousel] Firebase not ready, using defaults');
+                        return;
+                    }
+                    
+                    const db = firebase.firestore();
+                    const snapshot = await db.collection('session_slides')
+                        .where('active', '==', true)
+                        .orderBy('order', 'asc')
+                        .get();
+                    
+                    if (!snapshot.empty) {
+                        this.slides = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        console.log('[SessionsCarousel] Loaded', this.slides.length, 'slides');
+                    }
+                } catch (e) {
+                    console.log('[SessionsCarousel] Could not load slides:', e.message);
+                }
+            },
+            
+            render() {
+                if (this.slides.length === 0) return;
+                
+                const container = document.getElementById('sessionsCarouselSlides');
+                const tabsContainer = document.getElementById('sessionsCarouselTabs');
+                const dotsContainer = document.getElementById('sessionsCarouselDots');
+                if (!container) return;
+                
+                // Render slides
+                container.innerHTML = this.slides.map((slide, i) => `
+                    <div class="hero-carousel__slide ${i === 0 ? 'active' : ''}" 
+                         style="background: ${slide.bgImageUrl ? `url('${slide.bgImageUrl}') center/cover` : slide.background || 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.2))'};">
+                        <div class="hero-carousel__overlay"></div>
+                        <div class="hero-carousel__content">
+                            ${slide.badge ? `<span class="hero-carousel__badge hero-carousel__badge--${slide.badgeType || 'new'}">${slide.badge}</span>` : ''}
+                            <h2 class="hero-carousel__title">${slide.title || ''}</h2>
+                            <p class="hero-carousel__desc">${slide.description || ''}</p>
+                            ${slide.ctaText ? `<a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">${slide.ctaText}</a>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Render tabs
+                if (tabsContainer && this.slides.length > 1) {
+                    tabsContainer.innerHTML = this.slides.map((slide, i) => `
+                        <button class="hero-carousel__tab ${i === 0 ? 'active' : ''}" data-index="${i}">
+                            ${slide.tabLabel || slide.badge || `Slide ${i + 1}`}
+                        </button>
+                    `).join('');
+                }
+                
+                // Render dots
+                if (dotsContainer && this.slides.length > 1) {
+                    dotsContainer.innerHTML = this.slides.map((_, i) => `
+                        <button class="hero-carousel__dot ${i === 0 ? 'active' : ''}" data-index="${i}"></button>
+                    `).join('');
+                }
+            },
+            
+            initNavigation() {
+                const carousel = document.getElementById('sessionsCarousel');
+                if (!carousel || this.slides.length <= 1) return;
+                
+                // Arrows
+                const prevBtn = carousel.querySelector('.hero-carousel__nav--prev');
+                const nextBtn = carousel.querySelector('.hero-carousel__nav--next');
+                
+                prevBtn?.addEventListener('click', () => this.goTo(this.currentIndex - 1));
+                nextBtn?.addEventListener('click', () => this.goTo(this.currentIndex + 1));
+                
+                // Tabs
+                carousel.querySelectorAll('.hero-carousel__tab').forEach(tab => {
+                    tab.addEventListener('click', () => this.goTo(parseInt(tab.dataset.index)));
+                });
+                
+                // Dots
+                carousel.querySelectorAll('.hero-carousel__dot').forEach(dot => {
+                    dot.addEventListener('click', () => this.goTo(parseInt(dot.dataset.index)));
+                });
+                
+                // Pause on hover
+                carousel.addEventListener('mouseenter', () => this.stopAutoplay());
+                carousel.addEventListener('mouseleave', () => this.startAutoplay());
+            },
+            
+            goTo(index) {
+                if (index < 0) index = this.slides.length - 1;
+                if (index >= this.slides.length) index = 0;
+                this.currentIndex = index;
+                
+                const carousel = document.getElementById('sessionsCarousel');
+                if (!carousel) return;
+                
+                // Update slides
+                carousel.querySelectorAll('.hero-carousel__slide').forEach((slide, i) => {
+                    slide.classList.toggle('active', i === index);
+                });
+                
+                // Update tabs
+                carousel.querySelectorAll('.hero-carousel__tab').forEach((tab, i) => {
+                    tab.classList.toggle('active', i === index);
+                });
+                
+                // Update dots
+                carousel.querySelectorAll('.hero-carousel__dot').forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+                
+                // Restart autoplay
+                this.stopAutoplay();
+                this.startAutoplay();
+            },
+            
+            startAutoplay() {
+                if (this.slides.length <= 1) return;
+                this.autoplayInterval = setInterval(() => this.goTo(this.currentIndex + 1), 6000);
+            },
+            
+            stopAutoplay() {
+                if (this.autoplayInterval) {
+                    clearInterval(this.autoplayInterval);
+                    this.autoplayInterval = null;
+                }
+            }
+        };
+        
+        // Initialize carousel when Firebase is ready
+        function initSessionsCarousel() {
+            if (typeof firebase !== 'undefined' && firebase.apps?.length > 0) {
+                SessionsCarousel.init();
+            } else {
+                setTimeout(initSessionsCarousel, 200);
+            }
+        }
+        initSessionsCarousel();
         
         // Get current room code
         const currentRoomCode = localStorage.getItem('rift_current_room') || null;

@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="assets/css/ui.css">
     <link rel="stylesheet" href="assets/css/dock.css">
     <link rel="stylesheet" href="assets/css/hub.css">
+    <link rel="stylesheet" href="assets/css/hub-features.css">
     <link rel="stylesheet" href="assets/css/settings.css">
     
     <style>
@@ -860,6 +861,38 @@
                         </a>
                     </div>
                     
+                    <!-- Hero Carousel (Admin-editable via Firebase sheet_slides) -->
+                    <div class="hero-carousel" id="sheetCarousel" style="margin-bottom: 24px;">
+                        <div class="hero-carousel__slides" id="sheetCarouselSlides">
+                            <!-- Slides werden dynamisch aus Firebase sheet_slides geladen -->
+                            <div class="hero-carousel__slide active" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.2));">
+                                <div class="hero-carousel__content">
+                                    <span class="hero-carousel__badge hero-carousel__badge--new">Charaktere</span>
+                                    <h2 class="hero-carousel__title">Deine Helden</h2>
+                                    <p class="hero-carousel__desc">Erstelle und verwalte deine Charaktere für verschiedene Regelwerke.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Navigation Arrows -->
+                        <button class="hero-carousel__nav hero-carousel__nav--prev" aria-label="Vorherige Slide">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                        </button>
+                        <button class="hero-carousel__nav hero-carousel__nav--next" aria-label="Nächste Slide">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                        </button>
+                        
+                        <!-- Tab Navigation -->
+                        <div class="hero-carousel__tabs" id="sheetCarouselTabs">
+                            <!-- Tabs werden dynamisch generiert -->
+                        </div>
+                        
+                        <!-- Dots (Mobile) -->
+                        <div class="hero-carousel__dots" id="sheetCarouselDots">
+                            <!-- Dots werden dynamisch generiert -->
+                        </div>
+                    </div>
+                    
                     <!-- Ruleset Tabs -->
                     <div class="ruleset-tabs" id="rulesetTabs">
                         <button class="ruleset-tab ruleset-tab--active" data-ruleset="worldsapart">
@@ -943,6 +976,159 @@
     <script>
         // Initialize unified layout (TopNav, MegaNav, Dock, Footer)
         initUnifiedLayout();
+        
+        // ========================================
+        // SHEET PAGE CAROUSEL
+        // ========================================
+        const SheetCarousel = {
+            slides: [],
+            currentIndex: 0,
+            autoplayInterval: null,
+            
+            async init() {
+                await this.loadSlides();
+                this.render();
+                this.initNavigation();
+                this.startAutoplay();
+            },
+            
+            async loadSlides() {
+                try {
+                    if (typeof firebase === 'undefined' || !firebase.apps?.length) {
+                        console.log('[SheetCarousel] Firebase not ready, using defaults');
+                        return;
+                    }
+                    
+                    const db = firebase.firestore();
+                    const snapshot = await db.collection('sheet_slides')
+                        .where('active', '==', true)
+                        .orderBy('order', 'asc')
+                        .get();
+                    
+                    if (!snapshot.empty) {
+                        this.slides = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        console.log('[SheetCarousel] Loaded', this.slides.length, 'slides');
+                    }
+                } catch (e) {
+                    console.log('[SheetCarousel] Could not load slides:', e.message);
+                }
+            },
+            
+            render() {
+                if (this.slides.length === 0) return;
+                
+                const container = document.getElementById('sheetCarouselSlides');
+                const tabsContainer = document.getElementById('sheetCarouselTabs');
+                const dotsContainer = document.getElementById('sheetCarouselDots');
+                if (!container) return;
+                
+                // Render slides
+                container.innerHTML = this.slides.map((slide, i) => `
+                    <div class="hero-carousel__slide ${i === 0 ? 'active' : ''}" 
+                         style="background: ${slide.bgImageUrl ? `url('${slide.bgImageUrl}') center/cover` : slide.background || 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.2))'};">
+                        <div class="hero-carousel__overlay"></div>
+                        <div class="hero-carousel__content">
+                            ${slide.badge ? `<span class="hero-carousel__badge hero-carousel__badge--${slide.badgeType || 'new'}">${slide.badge}</span>` : ''}
+                            <h2 class="hero-carousel__title">${slide.title || ''}</h2>
+                            <p class="hero-carousel__desc">${slide.description || ''}</p>
+                            ${slide.ctaText ? `<a href="${slide.ctaLink || '#'}" class="hero-carousel__cta">${slide.ctaText}</a>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Render tabs
+                if (tabsContainer && this.slides.length > 1) {
+                    tabsContainer.innerHTML = this.slides.map((slide, i) => `
+                        <button class="hero-carousel__tab ${i === 0 ? 'active' : ''}" data-index="${i}">
+                            ${slide.tabLabel || slide.badge || `Slide ${i + 1}`}
+                        </button>
+                    `).join('');
+                }
+                
+                // Render dots
+                if (dotsContainer && this.slides.length > 1) {
+                    dotsContainer.innerHTML = this.slides.map((_, i) => `
+                        <button class="hero-carousel__dot ${i === 0 ? 'active' : ''}" data-index="${i}"></button>
+                    `).join('');
+                }
+            },
+            
+            initNavigation() {
+                const carousel = document.getElementById('sheetCarousel');
+                if (!carousel || this.slides.length <= 1) return;
+                
+                // Arrows
+                const prevBtn = carousel.querySelector('.hero-carousel__nav--prev');
+                const nextBtn = carousel.querySelector('.hero-carousel__nav--next');
+                
+                prevBtn?.addEventListener('click', () => this.goTo(this.currentIndex - 1));
+                nextBtn?.addEventListener('click', () => this.goTo(this.currentIndex + 1));
+                
+                // Tabs
+                carousel.querySelectorAll('.hero-carousel__tab').forEach(tab => {
+                    tab.addEventListener('click', () => this.goTo(parseInt(tab.dataset.index)));
+                });
+                
+                // Dots
+                carousel.querySelectorAll('.hero-carousel__dot').forEach(dot => {
+                    dot.addEventListener('click', () => this.goTo(parseInt(dot.dataset.index)));
+                });
+                
+                // Pause on hover
+                carousel.addEventListener('mouseenter', () => this.stopAutoplay());
+                carousel.addEventListener('mouseleave', () => this.startAutoplay());
+            },
+            
+            goTo(index) {
+                if (index < 0) index = this.slides.length - 1;
+                if (index >= this.slides.length) index = 0;
+                this.currentIndex = index;
+                
+                const carousel = document.getElementById('sheetCarousel');
+                if (!carousel) return;
+                
+                // Update slides
+                carousel.querySelectorAll('.hero-carousel__slide').forEach((slide, i) => {
+                    slide.classList.toggle('active', i === index);
+                });
+                
+                // Update tabs
+                carousel.querySelectorAll('.hero-carousel__tab').forEach((tab, i) => {
+                    tab.classList.toggle('active', i === index);
+                });
+                
+                // Update dots
+                carousel.querySelectorAll('.hero-carousel__dot').forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+                
+                // Restart autoplay
+                this.stopAutoplay();
+                this.startAutoplay();
+            },
+            
+            startAutoplay() {
+                if (this.slides.length <= 1) return;
+                this.autoplayInterval = setInterval(() => this.goTo(this.currentIndex + 1), 6000);
+            },
+            
+            stopAutoplay() {
+                if (this.autoplayInterval) {
+                    clearInterval(this.autoplayInterval);
+                    this.autoplayInterval = null;
+                }
+            }
+        };
+        
+        // Initialize carousel when Firebase is ready
+        function initSheetCarousel() {
+            if (typeof firebase !== 'undefined' && firebase.apps?.length > 0) {
+                SheetCarousel.init();
+            } else {
+                setTimeout(initSheetCarousel, 200);
+            }
+        }
+        initSheetCarousel();
         
         // Ruleset Config with tags
         const rulesetConfig = {

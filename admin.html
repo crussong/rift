@@ -391,6 +391,35 @@
         .badge--hot { background: rgba(249, 115, 22, 0.15); color: #F97316; }
         .badge--community { background: rgba(20, 184, 166, 0.15); color: #14B8A6; }
         
+        /* Carousel Type Tabs */
+        .carousel-type-tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .carousel-type-tab:hover {
+            background: var(--bg-elevated);
+            border-color: var(--border-accent);
+            color: var(--text);
+        }
+        .carousel-type-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        .carousel-type-tab.active svg {
+            stroke: white;
+        }
+        
         /* Admin Tabs */
         .admin-nav {
             background: linear-gradient(135deg, var(--bg-card) 0%, rgba(139, 92, 246, 0.05) 100%);
@@ -1275,8 +1304,8 @@
                 <!-- Page Header -->
                 <div class="page-header">
                     <div>
-                        <h1 class="page-header__title">Carousel verwalten</h1>
-                        <p class="page-header__subtitle">Hero-Slides auf der Startseite bearbeiten</p>
+                        <h1 class="page-header__title">Carousels verwalten</h1>
+                        <p class="page-header__subtitle">Hero-Slides auf verschiedenen Seiten bearbeiten</p>
                     </div>
                     <button class="btn btn--primary" onclick="CarouselAdmin.openEditor()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1285,6 +1314,27 @@
                         </svg>
                         Neue Slide
                     </button>
+                </div>
+                
+                <!-- Carousel Type Tabs -->
+                <div class="carousel-type-tabs" style="display: flex; gap: 8px; margin-bottom: 24px;">
+                    <button class="carousel-type-tab active" data-collection="hub_slides" onclick="CarouselAdmin.switchCollection('hub_slides', this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                        Carousel (Hub)
+                    </button>
+                    <button class="carousel-type-tab" data-collection="session_slides" onclick="CarouselAdmin.switchCollection('session_slides', this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                        Carousel (Sessions)
+                    </button>
+                    <button class="carousel-type-tab" data-collection="sheet_slides" onclick="CarouselAdmin.switchCollection('sheet_slides', this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        Carousel (Charaktere)
+                    </button>
+                </div>
+                
+                <!-- Current Collection Indicator -->
+                <div id="currentCollectionInfo" style="margin-bottom: 16px; padding: 12px 16px; background: var(--bg-input); border-radius: 8px; font-size: 13px; color: var(--text-muted);">
+                    📍 Aktive Collection: <strong style="color: var(--text);">hub_slides</strong> (Hub-Startseite)
                 </div>
                 
                 <!-- Stats -->
@@ -3465,10 +3515,34 @@
             slides: [],
             editingId: null,
             pendingBgImage: null,
+            currentCollection: 'hub_slides',
+            
+            collectionNames: {
+                'hub_slides': 'Hub-Startseite',
+                'session_slides': 'Sessions-Seite',
+                'sheet_slides': 'Charaktere-Seite'
+            },
+            
+            switchCollection(collection, btn) {
+                this.currentCollection = collection;
+                
+                // Update tab styles
+                document.querySelectorAll('.carousel-type-tab').forEach(t => t.classList.remove('active'));
+                if (btn) btn.classList.add('active');
+                
+                // Update info text
+                const info = document.getElementById('currentCollectionInfo');
+                if (info) {
+                    info.innerHTML = `📍 Aktive Collection: <strong style="color: var(--text);">${collection}</strong> (${this.collectionNames[collection]})`;
+                }
+                
+                // Reload slides
+                this.load();
+            },
             
             async load() {
                 try {
-                    const snapshot = await db.collection('hub_slides')
+                    const snapshot = await db.collection(this.currentCollection)
                         .orderBy('order', 'asc')
                         .get();
                     
@@ -3787,12 +3861,12 @@
                 
                 try {
                     if (id) {
-                        await db.collection('hub_slides').doc(id).update(data);
+                        await db.collection(this.currentCollection).doc(id).update(data);
                         showToast('Slide aktualisiert');
                     } else {
                         data.order = this.slides.length;
                         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                        await db.collection('hub_slides').add(data);
+                        await db.collection(this.currentCollection).add(data);
                         showToast('Slide erstellt');
                     }
                     
@@ -3833,8 +3907,8 @@
                 
                 try {
                     const batch = db.batch();
-                    batch.update(db.collection('hub_slides').doc(slide.id), { order: newIndex });
-                    batch.update(db.collection('hub_slides').doc(otherSlide.id), { order: index });
+                    batch.update(db.collection(this.currentCollection).doc(slide.id), { order: newIndex });
+                    batch.update(db.collection(this.currentCollection).doc(otherSlide.id), { order: index });
                     await batch.commit();
                     
                     this.load();
@@ -3848,7 +3922,7 @@
                 if (!confirm('Slide wirklich löschen?')) return;
                 
                 try {
-                    await db.collection('hub_slides').doc(id).delete();
+                    await db.collection(this.currentCollection).doc(id).delete();
                     showToast('Slide gelöscht');
                     this.load();
                 } catch (e) {
