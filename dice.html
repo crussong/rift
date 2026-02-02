@@ -3235,10 +3235,19 @@
                 // ================================================
                 // Animation mit vorberechneten Ergebnissen
                 // ================================================
+                const animationStartTime = Date.now();
+                const MIN_ANIMATION_TIME = 2500; // Mindestens 2.5 Sekunden Animation
+                
                 const showFinalResult = () => {
-                    btn.classList.remove('rolling');
-                    this.displayRollResult(precomputed.displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color);
-                    this.isRolling = false;
+                    const elapsed = Date.now() - animationStartTime;
+                    const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsed);
+                    
+                    // Warte bis Mindestzeit erreicht
+                    setTimeout(() => {
+                        btn.classList.remove('rolling');
+                        this.displayRollResult(precomputed.displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color);
+                        this.isRolling = false;
+                    }, remainingTime);
                 };
                 
                 if (this.box) {
@@ -3280,26 +3289,39 @@
                     const count = parseInt(match[1]) || 1;
                     const sides = parseInt(match[2]);
                     for (let i = 0; i < count; i++) {
-                        rawResults.push(Math.floor(Math.random() * sides) + 1);
+                        // WICHTIG: Die Library erwartet für d100 Werte 1-10 (nicht 1-100!)
+                        // d100 in der Library = Zehnerstelle (1-10 → 00,10,20...90)
+                        // d10 in der Library = Einerstelle (1-10 → 0-9, wobei 10=0)
+                        if (sides === 100) {
+                            // Für d100: generiere 1-10 (wird zu 00-90)
+                            rawResults.push(Math.floor(Math.random() * 10) + 1);
+                        } else {
+                            rawResults.push(Math.floor(Math.random() * sides) + 1);
+                        }
                     }
                 }
                 
-                // Handle D100 conversion
+                // Handle D100 conversion für Display
                 if (d100Count > 0) {
                     let idx = 0;
                     for (let i = 0; i < d100Count; i++) {
-                        const tens = rawResults[idx] || 1;
-                        const ones = rawResults[idx + 1] || 1;
-                        // Library d100: 1-10 → 00,10,20...90 | d10: 1-10 → 0-9
-                        const tensVal = (tens - 1) * 10;
-                        const onesVal = ones === 10 ? 0 : ones;
+                        const tens = rawResults[idx] || 1;      // 1-10
+                        const ones = rawResults[idx + 1] || 1;  // 1-10
+                        
+                        // Library: d100 1-10 → 00,10,20...90 | d10 1-10 → 1-9,0
+                        const tensVal = (tens - 1) * 10;        // 0, 10, 20...90
+                        const onesVal = ones === 10 ? 0 : ones; // 1-9, oder 0
+                        
                         let value = tensVal + onesVal;
-                        if (value === 0) value = 100;
+                        if (value === 0) value = 100; // 00+0 = 100
+                        
+                        console.log(`[DiceRoller] D100: tens=${tens}→${tensVal}, ones=${ones}→${onesVal}, result=${value}`);
+                        
                         displayRolls.push(value);
                         total += value;
                         idx += 2;
                     }
-                    // Remaining dice
+                    // Remaining dice (non-d100)
                     while (idx < rawResults.length) {
                         displayRolls.push(rawResults[idx]);
                         total += rawResults[idx];
@@ -3901,20 +3923,28 @@
                 resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
                 arena.classList.add('throwing');
                 
+                const animationStartTime = Date.now();
+                const MIN_ANIMATION_TIME = 2500; // Mindestens 2.5 Sekunden
+                
                 const showResult = () => {
-                    arena.classList.remove('throwing');
-                    indicator.classList.remove('visible');
+                    const elapsed = Date.now() - animationStartTime;
+                    const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsed);
                     
-                    // Use displayRollResult with remote player's data
-                    this.displayRollResult(
-                        roll.results || [],
-                        roll.total,
-                        roll.modifier || 0,
-                        roll.critical,
-                        roll.special,
-                        roll.player,
-                        roll.color
-                    );
+                    setTimeout(() => {
+                        arena.classList.remove('throwing');
+                        indicator.classList.remove('visible');
+                        
+                        // Use displayRollResult with remote player's data
+                        this.displayRollResult(
+                            roll.results || [],
+                            roll.total,
+                            roll.modifier || 0,
+                            roll.critical,
+                            roll.special,
+                            roll.player,
+                            roll.color
+                        );
+                    }, remainingTime);
                 };
                 
                 // Try 3D animation with the SAME results
@@ -3952,7 +3982,7 @@
                 }
                 
                 // Fallback: show result after delay
-                setTimeout(showResult, 1500);
+                setTimeout(showResult, MIN_ANIMATION_TIME);
             },
             
             syncRoll(rollData) {
