@@ -3527,7 +3527,7 @@
                 const arena = document.getElementById('diceArena');
                 
                 if (roll.phase === 'start') {
-                    // Phase 1: Zeige Silhouetten-Animation sofort
+                    // Phase 1: Zeige rotierende Würfel-Platzhalter sofort
                     arena.classList.remove('empty');
                     this.clearDiceLabels();
                     
@@ -3542,8 +3542,8 @@
                     indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
                     indicator.classList.add('visible');
                     
-                    // Silhouetten-Würfel zeigen
-                    this.showDiceSilhouettes(roll.diceConfig?.notation || '1d20');
+                    // Rotierende Würfel zeigen
+                    this.showSpinningDice(roll.diceConfig?.notation || '1d20', roll.diceTheme);
                     
                     // Speichere Startzeit für phase 2
                     this.pendingRemoteRolls = this.pendingRemoteRolls || {};
@@ -3552,14 +3552,14 @@
                 }
                 
                 if (roll.phase === 'complete') {
-                    // Phase 2: Echte Animation mit beforeRollValues
+                    // Phase 2: Stoppe Rotation, zeige echte Werte
                     const pending = this.pendingRemoteRolls?.[roll.playerId];
                     const startTime = pending?.startTime || Date.now();
                     
-                    // Silhouetten entfernen
-                    this.hideDiceSilhouettes();
+                    // Rotierende Würfel entfernen
+                    this.hideSpinningDice();
                     
-                    // Animation starten
+                    // Echte Animation mit korrekten Werten
                     this.executeRemoteRoll(roll, startTime);
                     
                     // Cleanup
@@ -3577,39 +3577,67 @@
                 this.executeRemoteRoll(roll, Date.now());
             },
             
-            // Zeige Silhouetten-Würfel während des Wartens
-            showDiceSilhouettes(notation) {
-                let container = document.getElementById('diceSilhouettes');
+            // Zeige rotierende Würfel während des Wartens
+            showSpinningDice(notation, theme) {
+                let container = document.getElementById('spinningDiceContainer');
                 if (!container) {
                     container = document.createElement('div');
-                    container.id = 'diceSilhouettes';
-                    container.className = 'dice-silhouettes';
+                    container.id = 'spinningDiceContainer';
+                    container.className = 'spinning-dice-container';
                     document.getElementById('diceArena').appendChild(container);
                 }
                 container.innerHTML = '';
                 
-                // Parse notation um Anzahl zu bestimmen
-                let diceCount = 0;
+                // Parse notation
+                const diceTypes = [];
                 const matches = notation.matchAll(/(\d*)d(\d+)/gi);
                 for (const match of matches) {
-                    diceCount += parseInt(match[1]) || 1;
+                    const count = parseInt(match[1]) || 1;
+                    const sides = parseInt(match[2]);
+                    for (let i = 0; i < count; i++) {
+                        diceTypes.push(sides);
+                    }
                 }
-                diceCount = Math.min(diceCount, 6); // Max 6 Silhouetten
                 
-                for (let i = 0; i < diceCount; i++) {
-                    const silhouette = document.createElement('div');
-                    silhouette.className = 'dice-silhouette';
-                    silhouette.style.animationDelay = `${i * 0.15}s`;
-                    silhouette.style.left = `${20 + Math.random() * 60}%`;
-                    container.appendChild(silhouette);
-                }
+                // Hole Farbe vom Theme
+                const colors = this.themeColors[theme] || this.themeColors.onyx;
+                const diceColor = colors.accent || '#1a1a2e';
+                
+                // Erstelle rotierende Würfel
+                diceTypes.slice(0, 4).forEach((sides, index) => {
+                    const spinner = document.createElement('div');
+                    spinner.className = `spinning-dice spinning-dice--d${sides}`;
+                    spinner.style.setProperty('--dice-color', diceColor);
+                    spinner.style.animationDelay = `${index * 0.1}s`;
+                    
+                    // Position basierend auf Anzahl
+                    const total = Math.min(diceTypes.length, 4);
+                    if (total === 1) {
+                        spinner.style.left = '50%';
+                        spinner.style.top = '50%';
+                    } else if (total === 2) {
+                        spinner.style.left = index === 0 ? '35%' : '65%';
+                        spinner.style.top = '50%';
+                    } else {
+                        const positions = [
+                            { left: '35%', top: '40%' },
+                            { left: '65%', top: '40%' },
+                            { left: '35%', top: '60%' },
+                            { left: '65%', top: '60%' }
+                        ];
+                        spinner.style.left = positions[index].left;
+                        spinner.style.top = positions[index].top;
+                    }
+                    
+                    container.appendChild(spinner);
+                });
                 
                 container.classList.add('visible');
             },
             
-            // Silhouetten ausblenden
-            hideDiceSilhouettes() {
-                const container = document.getElementById('diceSilhouettes');
+            // Rotierende Würfel ausblenden
+            hideSpinningDice() {
+                const container = document.getElementById('spinningDiceContainer');
                 if (container) {
                     container.classList.remove('visible');
                     setTimeout(() => container.innerHTML = '', 300);
@@ -3641,7 +3669,7 @@
                 resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
                 arena.classList.add('throwing');
                 
-                const MIN_ANIMATION_TIME = 2000; // Etwas kürzer für Remote
+                const MIN_ANIMATION_TIME = 2000;
                 
                 const myDiceColor = this.currentDiceColor;
                 const myDiceGradient = this.currentDiceGradient;
