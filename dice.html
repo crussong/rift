@@ -2772,15 +2772,16 @@
                     diceConfig: {
                         notation: libraryNotation,
                         rawResults: precomputed.rawResults,
-                        labelValues: precomputed.labelValues
+                        labelValues: precomputed.labelValues,
+                        d100Count: d100Count
                     }
                 };
                 
                 // Push to Firebase IMMEDIATELY
                 this.syncRoll(rollData);
                 
-                // Add to own history
-                this.addToHistory({
+                // History wird erst NACH Animation hinzugefügt (unten in showFinalResult)
+                const historyEntry = {
                     player: playerName,
                     color: userData.color || '#FF4655',
                     total: finalTotal,
@@ -2789,7 +2790,7 @@
                     critical: isCritical,
                     secret: this.secretRoll,
                     timestamp: Date.now()
-                });
+                };
                 
                 // ================================================
                 // Animation mit vorberechneten Ergebnissen
@@ -2806,9 +2807,13 @@
                         btn.classList.remove('rolling');
                         
                         // Show dice labels (Zahlen-Indikatoren) and pulse effects
-                        this.showDiceLabels(precomputed.labelValues);
+                        this.showDiceLabels(precomputed.labelValues, d100Count);
                         
                         this.displayRollResult(precomputed.displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color);
+                        
+                        // JETZT erst in History aufnehmen - nachdem Ergebnis sichtbar
+                        this.addToHistory(historyEntry);
+                        
                         this.isRolling = false;
                     }, remainingTime);
                 };
@@ -3107,8 +3112,8 @@
                 // Check critical
                 const isCritical = this.checkCritical(rolls, special);
                 
-                // Show dice labels above each die (use rolls as labelValues for legacy)
-                this.showDiceLabels(rolls);
+                // Show dice labels above each die (use rolls as labelValues for legacy, no d100)
+                this.showDiceLabels(rolls, 0);
                 
                 // Get user info
                 const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
@@ -3577,7 +3582,9 @@
                         
                         // Show dice labels (Zahlen-Indikatoren) and pulse effects
                         const labelValues = roll.diceConfig?.labelValues || roll.labelValues || roll.results || [];
-                        this.showDiceLabels(labelValues);
+                        // Get d100Count from diceConfig or extract from notation
+                        const remoteD100Count = roll.diceConfig?.d100Count || 0;
+                        this.showDiceLabels(labelValues, remoteD100Count);
                         
                         // Use displayRollResult with remote player's data
                         this.displayRollResult(
@@ -3827,7 +3834,7 @@
                 if (pulseContainer) pulseContainer.innerHTML = '';
             },
             
-            showDiceLabels(labelValues) {
+            showDiceLabels(labelValues, d100Count = 0) {
                 this.clearDiceLabels();
                 
                 if (!this.box) return;
@@ -3845,13 +3852,48 @@
                 
                 console.log('[DiceRoller] Dice positions:', positions);
                 console.log('[DiceRoller] Label values to display:', labelValues);
+                console.log('[DiceRoller] D100 count:', d100Count);
                 
-                // Create labels and pulses for each die
-                for (let i = 0; i < Math.min(positions.length, labelValues.length); i++) {
+                // For D100: We need to match labels to dice by TYPE, not by index
+                // because the library may return positions in different order
+                // Our labelValues for D100: [tensDisplay, onesDisplay, ...]
+                // positions may be: [{type:'d10',...}, {type:'d100',...}] in any order
+                
+                let tensLabelIdx = 0;  // Index in labelValues for tens values
+                let onesLabelIdx = 1;  // Index in labelValues for ones values
+                let otherLabelIdx = d100Count * 2;  // Index for non-d100 dice
+                
+                // Track which label indices we've used
+                const usedLabels = new Set();
+                
+                for (let i = 0; i < positions.length; i++) {
                     const pos = positions[i];
-                    const value = labelValues[i];
+                    let value;
                     
                     if (pos.x < 0 || pos.y < 0) continue; // Skip if off-screen
+                    
+                    // Determine which label value to use based on dice type
+                    if (d100Count > 0 && pos.type === 'd100') {
+                        // This is the TENS die (00, 10, 20... 90)
+                        value = labelValues[tensLabelIdx];
+                        usedLabels.add(tensLabelIdx);
+                        tensLabelIdx += 2; // Next d100 pair
+                    } else if (d100Count > 0 && pos.type === 'd10') {
+                        // This is the ONES die (0-9)
+                        value = labelValues[onesLabelIdx];
+                        usedLabels.add(onesLabelIdx);
+                        onesLabelIdx += 2; // Next d100 pair
+                    } else {
+                        // Regular die
+                        while (usedLabels.has(otherLabelIdx) && otherLabelIdx < labelValues.length) {
+                            otherLabelIdx++;
+                        }
+                        value = labelValues[otherLabelIdx];
+                        usedLabels.add(otherLabelIdx);
+                        otherLabelIdx++;
+                    }
+                    
+                    if (value === undefined) continue;
                     
                     // Create pulse effect in separate container (UNDER dice)
                     if (pulseContainer) {
@@ -3876,7 +3918,7 @@
                         label.classList.add('dice-label--crit-failure');
                     }
                     
-                    // Format value for display - labelValues are already converted!
+                    // Format value for display
                     let displayValue = value;
                     if (pos.type === 'd100' && value === 0) {
                         // D100 Tens die: 0 becomes "00"
