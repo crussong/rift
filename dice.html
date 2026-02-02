@@ -1968,6 +1968,11 @@
                     DICE.setDiceColor(colors.accent, colors.gradient);
                 }
                 
+                // Update preview dice with new gradient texture
+                if (typeof DicePreview !== 'undefined' && DicePreview.updateColors) {
+                    DicePreview.updateColors();
+                }
+                
                 localStorage.setItem('rift_dice_theme', theme);
                 
                 // Only show toast when explicitly changing theme
@@ -4134,17 +4139,8 @@
                     // Normal dice
                     const geometry = this.createGeometry(type);
                     
-                    // Get current theme color from DiceRoller
-                    const themeColor = this.getThemeColor();
-                    
-                    const material = new THREE.MeshPhongMaterial({
-                        color: themeColor,
-                        shininess: 60,
-                        shading: THREE.FlatShading,
-                        polygonOffset: true,
-                        polygonOffsetFactor: 1,
-                        polygonOffsetUnits: 1
-                    });
+                    // Get themed material with gradient texture
+                    const material = this.createThemedMaterial();
                     
                     mesh = new THREE.Mesh(geometry, material);
                     mesh.renderOrder = 0;
@@ -4154,7 +4150,7 @@
                     const lineMaterial = new THREE.LineBasicMaterial({ 
                         color: 0x000000,
                         transparent: true,
-                        opacity: 0.2,
+                        opacity: 0.15,
                         depthTest: true
                     });
                     const wireframe = new THREE.LineSegments(edges, lineMaterial);
@@ -4213,17 +4209,8 @@
             createD100Group() {
                 const group = new THREE.Group();
                 
-                // Get current theme color
-                const themeColor = this.getThemeColor();
-                
-                const material = new THREE.MeshPhongMaterial({
-                    color: themeColor,
-                    shininess: 60,
-                    shading: THREE.FlatShading,
-                    polygonOffset: true,
-                    polygonOffsetFactor: 1,
-                    polygonOffsetUnits: 1
-                });
+                // Get themed material with gradient texture
+                const material = this.createThemedMaterial();
                 
                 // Left D10 (tens) - GRÖSSER
                 const geom1 = this.createD10Geometry(0.7);
@@ -4236,16 +4223,17 @@
                 const lineMat = new THREE.LineBasicMaterial({ 
                     color: 0x000000,
                     transparent: true,
-                    opacity: 0.2,
+                    opacity: 0.15,
                     depthTest: true
                 });
                 const lines1 = new THREE.LineSegments(edges1, lineMat);
                 lines1.renderOrder = 1;
                 mesh1.add(lines1);
                 
-                // Right D10 (ones) - GRÖSSER
+                // Right D10 (ones) - GRÖSSER - eigene Material-Kopie mit gleicher Textur
                 const geom2 = this.createD10Geometry(0.7);
-                const mesh2 = new THREE.Mesh(geom2, material.clone());
+                const material2 = this.createThemedMaterial();
+                const mesh2 = new THREE.Mesh(geom2, material2);
                 mesh2.position.x = 0.6;
                 mesh2.renderOrder = 0;
                 
@@ -4320,16 +4308,98 @@
                 return 0x8B5CF6;
             },
             
+            // Get full theme data including gradient
+            getThemeData() {
+                if (typeof DiceRoller !== 'undefined' && DiceRoller.currentTheme && DiceRoller.themeColors) {
+                    return DiceRoller.themeColors[DiceRoller.currentTheme] || null;
+                }
+                return null;
+            },
+            
+            // Create a gradient texture for the dice
+            createGradientTexture(themeData) {
+                const size = 256;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                
+                if (!themeData || !themeData.gradient) {
+                    // Fallback: solid color
+                    const color = themeData?.accent || '#8B5CF6';
+                    ctx.fillStyle = color;
+                    ctx.fillRect(0, 0, size, size);
+                } else {
+                    const gradient = themeData.gradient;
+                    let grd;
+                    
+                    if (gradient.type === 'radial') {
+                        // Radial gradient from center
+                        grd = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+                    } else {
+                        // Linear gradient diagonal for 3D effect
+                        grd = ctx.createLinearGradient(0, 0, size, size);
+                    }
+                    
+                    // Add color stops
+                    const colors = gradient.colors || ['#ffffff', '#888888'];
+                    const stops = gradient.stops || colors.map((_, i, arr) => i / (arr.length - 1));
+                    colors.forEach((color, i) => {
+                        grd.addColorStop(stops[i] || i / (colors.length - 1), color);
+                    });
+                    
+                    ctx.fillStyle = grd;
+                    ctx.fillRect(0, 0, size, size);
+                    
+                    // Add subtle noise/texture for depth
+                    ctx.globalAlpha = 0.03;
+                    for (let i = 0; i < 1000; i++) {
+                        const x = Math.random() * size;
+                        const y = Math.random() * size;
+                        ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.needsUpdate = true;
+                return texture;
+            },
+            
+            // Create material with gradient texture
+            createThemedMaterial() {
+                const themeData = this.getThemeData();
+                const texture = this.createGradientTexture(themeData);
+                const color = this.getThemeColor();
+                
+                return new THREE.MeshPhongMaterial({
+                    map: texture,
+                    color: 0xffffff, // White to let texture show through
+                    shininess: 80,
+                    specular: 0x333333,
+                    shading: THREE.FlatShading,
+                    polygonOffset: true,
+                    polygonOffsetFactor: 1,
+                    polygonOffsetUnits: 1
+                });
+            },
+            
             // Update all preview dice colors when theme changes
             updateColors() {
-                const color = this.getThemeColor();
+                const themeData = this.getThemeData();
+                const texture = this.createGradientTexture(themeData);
+                
                 this.previews.forEach(preview => {
                     if (preview.isD100 && preview.mesh.userData.dice) {
                         preview.mesh.userData.dice.forEach(die => {
-                            die.material.color.setHex(color);
+                            die.material.map = texture;
+                            die.material.color.setHex(0xffffff);
+                            die.material.needsUpdate = true;
                         });
                     } else {
-                        preview.mesh.material.color.setHex(color);
+                        preview.mesh.material.map = texture;
+                        preview.mesh.material.color.setHex(0xffffff);
+                        preview.mesh.material.needsUpdate = true;
                     }
                 });
             },
