@@ -2741,6 +2741,26 @@
                 // afterRoll bekommt die ECHTEN Ergebnisse
                 // ================================================
                 
+                // PHASE 1: Sync sofort dass Wurf gestartet wurde
+                // Andere Spieler sehen sofort "X würfelt..."
+                const rollId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                this.syncRollStart({
+                    rollId: rollId,
+                    player: playerName,
+                    playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
+                    color: userData.color || '#FF4655',
+                    diceTheme: this.currentTheme || 'onyx',
+                    labelColor: this.currentLabelColor || 'auto',
+                    notation: histNotation,
+                    secret: this.secretRoll,
+                    phase: 'start',
+                    timestamp: Date.now(),
+                    diceConfig: {
+                        notation: libraryNotation,
+                        d100Count: d100Count
+                    }
+                });
+                
                 const animationStartTime = Date.now();
                 const MIN_ANIMATION_TIME = 2500;
                 
@@ -2826,8 +2846,9 @@
                             timestamp: Date.now()
                         });
                         
-                        // Sync to multiplayer NACH dem Wurf
+                        // PHASE 2: Sync mit Ergebnissen NACH dem Wurf
                         this.syncRoll({
+                            rollId: rollId,
                             player: playerName,
                             playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
                             color: userData.color || '#FF4655',
@@ -2841,9 +2862,11 @@
                             critical: isCritical,
                             secret: this.secretRoll,
                             special: special,
+                            phase: 'complete',
                             timestamp: Date.now(),
                             diceConfig: {
                                 notation: libraryNotation,
+                                rawResults: libraryResults, // DIE ECHTEN Library-Ergebnisse für Remote-Animation
                                 labelValues: labelValues,
                                 d100Count: d100Count
                             }
@@ -3511,7 +3534,22 @@
             
             // Handle incoming roll from another player
             handleRemoteRoll(roll) {
-                console.log('[DiceRoller] handleRemoteRoll:', roll);
+                console.log('[DiceRoller] handleRemoteRoll:', roll.phase, roll.player, roll.notation);
+                
+                // PHASE 1: Wurf gestartet - zeige nur Indicator
+                if (roll.phase === 'start') {
+                    this.showRemoteRollingIndicator(roll);
+                    // Speichere pending roll für Animation
+                    if (!this.pendingRemoteRolls) this.pendingRemoteRolls = {};
+                    this.pendingRemoteRolls[roll.rollId] = roll;
+                    return;
+                }
+                
+                // PHASE 2: Wurf komplett - Animation mit Ergebnissen
+                // Entferne aus pending falls vorhanden
+                if (this.pendingRemoteRolls && roll.rollId) {
+                    delete this.pendingRemoteRolls[roll.rollId];
+                }
                 
                 // Add to history
                 this.addToHistory({
@@ -3530,7 +3568,25 @@
                 this.executeRemoteRoll(roll);
             },
             
-            // Execute 3D animation for a remote roll
+            // Show "X würfelt..." indicator for phase 1
+            showRemoteRollingIndicator(roll) {
+                const arena = document.getElementById('diceArena');
+                if (!arena) return;
+                
+                arena.classList.remove('empty');
+                
+                let indicator = document.getElementById('remotePlayerIndicator');
+                if (!indicator) {
+                    indicator = document.createElement('div');
+                    indicator.id = 'remotePlayerIndicator';
+                    indicator.className = 'dice-remote-indicator';
+                    arena.appendChild(indicator);
+                }
+                indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
+                indicator.classList.add('visible');
+            },
+            
+            // Execute 3D animation for a remote roll - mit EXAKT gleichen Ergebnissen
             executeRemoteRoll(roll) {
                 console.log('[DiceRoller] 🎲 executeRemoteRoll:', roll.player, roll.notation);
                 
@@ -3548,10 +3604,10 @@
                 // Clear previous labels from last roll
                 this.clearDiceLabels();
                 
-                // Remove empty state (for remote rolls too)
+                // Remove empty state
                 arena.classList.remove('empty');
                 
-                // Create/show indicator
+                // Indicator zeigen (falls nicht schon von Phase 1)
                 let indicator = document.getElementById('remotePlayerIndicator');
                 if (!indicator) {
                     indicator = document.createElement('div');
@@ -3559,20 +3615,24 @@
                     indicator.className = 'dice-remote-indicator';
                     arena.appendChild(indicator);
                 }
+                // Update indicator (könnte schon von phase:start sichtbar sein)
                 indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
                 indicator.classList.add('visible');
                 
-                // Clear previous
+                // Clear previous result
                 resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
                 arena.classList.add('throwing');
                 
                 const animationStartTime = Date.now();
-                const MIN_ANIMATION_TIME = 2500; // Mindestens 2.5 Sekunden
+                const MIN_ANIMATION_TIME = 2500;
                 
-                // Speichere EIGENE Würfelfarben und Zahlenfarbe
+                // Speichere EIGENE Würfelfarben
                 const myDiceColor = this.currentDiceColor;
                 const myDiceGradient = this.currentDiceGradient;
                 const myLabelColor = this.currentLabelColor;
+                
+                const labelValues = roll.diceConfig?.labelValues || roll.labelValues || roll.results || [];
+                const remoteD100Count = roll.diceConfig?.d100Count || 0;
                 
                 const showResult = () => {
                     const elapsed = Date.now() - animationStartTime;
@@ -3582,7 +3642,7 @@
                         arena.classList.remove('throwing');
                         indicator.classList.remove('visible');
                         
-                        // Stelle EIGENE Würfelfarben und Zahlenfarbe wieder her (für Card Previews)
+                        // Stelle EIGENE Würfelfarben wieder her
                         if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             DICE.setDiceColor(myDiceColor, myDiceGradient);
                         }
@@ -3590,12 +3650,10 @@
                             DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
                         }
                         
-                        // Show dice labels from sync data
-                        const labelValues = roll.diceConfig?.labelValues || roll.labelValues || roll.results || [];
-                        const remoteD100Count = roll.diceConfig?.d100Count || 0;
+                        // Show dice labels
                         this.showDiceLabels(labelValues, remoteD100Count);
                         
-                        // Use displayRollResult with remote player's data
+                        // Show result
                         this.displayRollResult(
                             roll.results || [],
                             roll.total,
@@ -3610,8 +3668,8 @@
                     }, remainingTime);
                 };
                 
-                // Try 3D animation (Library würfelt frei, Labels kommen vom Sync)
-                if (this.box && roll.diceConfig && roll.diceConfig.notation) {
+                // 3D Animation mit EXAKT den gleichen rawResults
+                if (this.box && roll.diceConfig && roll.diceConfig.notation && roll.diceConfig.rawResults) {
                     try {
                         // Setze temporär die Würfelfarbe des ANDEREN Spielers
                         if (roll.diceTheme && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
@@ -3624,9 +3682,35 @@
                         
                         this.box.setDice(roll.diceConfig.notation);
                         
+                        // KONVERTIERE rawResults zu beforeRoll Format!
+                        // Library GIBT zurück: d100=0,10,20...90, d10=1-10
+                        // beforeRoll ERWARTET: d100=0-9, d10=0-9 (mit 10→0)
+                        const d100Count = roll.diceConfig.d100Count || 0;
+                        const rawResults = roll.diceConfig.rawResults;
+                        const beforeRollValues = [];
+                        
+                        let idx = 0;
+                        for (let i = 0; i < d100Count; i++) {
+                            // d100: 0,10,20...90 → 0,1,2...9
+                            beforeRollValues.push(rawResults[idx] / 10);
+                            // d10: 1-10 bleibt (shift_dice_faces konvertiert 10→0)
+                            beforeRollValues.push(rawResults[idx + 1]);
+                            idx += 2;
+                        }
+                        // Remaining dice (d4, d6, d8, d12, d20) - unchanged
+                        while (idx < rawResults.length) {
+                            beforeRollValues.push(rawResults[idx]);
+                            idx++;
+                        }
+                        
+                        console.log('[DiceRoller] Remote rawResults:', rawResults);
+                        console.log('[DiceRoller] Remote beforeRollValues:', beforeRollValues);
+                        
+                        // beforeRoll gibt die konvertierten Werte zurück
+                        const beforeRoll = () => beforeRollValues;
+                        
                         let done = false;
-                        // KEINE beforeRoll - Library würfelt frei, wir zeigen nur die richtigen Labels
-                        this.box.start_throw(null, () => {
+                        this.box.start_throw(beforeRoll, () => {
                             if (done) return;
                             done = true;
                             showResult();
@@ -3646,8 +3730,23 @@
                     }
                 }
                 
-                // Fallback: show result after delay
+                // Fallback ohne 3D
                 setTimeout(showResult, MIN_ANIMATION_TIME);
+            },
+            
+            syncRollStart(rollData) {
+                if (!this.diceRef) return;
+                
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                if (rollData.secret && !userData.isGM) {
+                    return;
+                }
+                
+                try {
+                    this.diceRef.push(rollData);
+                } catch (e) {
+                    console.error('[DiceRoller] Sync start failed:', e);
+                }
             },
             
             syncRoll(rollData) {
@@ -3663,8 +3762,10 @@
                     // 1. Push to Realtime Database (for live feed)
                     this.diceRef.push(rollData);
                     
-                    // 2. Also write to Firestore (for GM logs)
-                    this.logRollToFirestore(rollData);
+                    // 2. Also write to Firestore (for GM logs) - nur bei complete
+                    if (rollData.phase === 'complete') {
+                        this.logRollToFirestore(rollData);
+                    }
                 } catch (e) {
                     console.error('[DiceRoller] Sync failed:', e);
                 }
