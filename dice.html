@@ -3155,7 +3155,7 @@
                 this.lastRoll = { notation: displayNotation, notationClean: notationStr, special };
                 document.getElementById('repeatBtn').disabled = false;
                 
-                // Handle W100/D100 specially: Convert to d100 (tens) + d10 (ones) for library
+                // Handle W100/D100 specially
                 let libraryNotation = notationStr;
                 const d100Count = this.currentDice.d100 || 0;
                 if (d100Count > 0) {
@@ -3165,81 +3165,224 @@
                     });
                 }
                 
-                // Store for multiplayer sync
                 this.currentLibraryNotation = libraryNotation;
                 
-                console.log('[DiceRoller] Library notation:', libraryNotation);
+                // ================================================
+                // ECHTZEIT-SYNC: Berechne Ergebnisse VOR Animation
+                // ================================================
+                const precomputed = this.precomputeRoll(libraryNotation, d100Count);
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                const playerName = userData.name || 'Spieler';
+                const mod = parseInt(document.getElementById('modifierInput').value) || 0;
                 
-                // Track when roll started for minimum animation time
-                const rollStartTime = Date.now();
-                const MIN_ANIMATION_TIME = 1500; // Minimum 1.5 seconds
+                // Calculate final values
+                let finalTotal = precomputed.total + mod;
+                if (special === 'advantage') {
+                    finalTotal = Math.max(...precomputed.displayRolls) + mod;
+                } else if (special === 'disadvantage') {
+                    finalTotal = Math.min(...precomputed.displayRolls) + mod;
+                }
                 
-                // Roll with 3D or fallback
+                const isCritical = this.checkCriticalPrecomputed(precomputed.displayRolls, special);
+                
+                // Build history notation
+                const parts = [];
+                for (const [type, count] of Object.entries(this.currentDice)) {
+                    if (count > 0) parts.push(`${count}${type.replace('d', 'W')}`);
+                }
+                let histNotation = parts.join('+');
+                if (mod !== 0) histNotation += (mod > 0 ? '+' : '') + mod;
+                if (special) histNotation += ` (${special === 'advantage' ? 'V' : 'N'})`;
+                
+                // ================================================
+                // SYNC SOFORT - VOR Animation starten
+                // ================================================
+                const rollData = {
+                    player: playerName,
+                    playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
+                    color: userData.color || '#FF4655',
+                    diceTheme: this.currentTheme || 'classic',
+                    total: finalTotal,
+                    notation: histNotation,
+                    results: precomputed.displayRolls,
+                    rawResults: precomputed.rawResults,
+                    modifier: mod,
+                    critical: isCritical,
+                    secret: this.secretRoll,
+                    special: special,
+                    timestamp: Date.now(),
+                    diceConfig: {
+                        notation: libraryNotation,
+                        rawResults: precomputed.rawResults
+                    }
+                };
+                
+                // Push to Firebase IMMEDIATELY
+                this.syncRoll(rollData);
+                
+                // Add to own history
+                this.addToHistory({
+                    player: playerName,
+                    color: userData.color || '#FF4655',
+                    total: finalTotal,
+                    notation: histNotation,
+                    rolls: precomputed.displayRolls,
+                    critical: isCritical,
+                    secret: this.secretRoll,
+                    timestamp: Date.now()
+                });
+                
+                // ================================================
+                // Animation mit vorberechneten Ergebnissen
+                // ================================================
+                const showFinalResult = () => {
+                    btn.classList.remove('rolling');
+                    this.displayRollResult(precomputed.displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color);
+                    this.isRolling = false;
+                };
+                
                 if (this.box) {
                     this.box.setDice(libraryNotation);
                     
-                    // Use a flag to prevent double-callback
-                    let resultHandled = false;
+                    // before_roll gibt vorberechnete Ergebnisse zurück
+                    const beforeRoll = (notation) => precomputed.rawResults;
                     
-                    const afterRoll = (notation) => {
-                        if (resultHandled) return;
-                        resultHandled = true;
-                        
-                        // Calculate how long animation actually took
-                        const elapsed = Date.now() - rollStartTime;
-                        const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsed);
-                        
-                        console.log('[DiceRoller] Animation took', elapsed, 'ms, waiting additional', remainingTime, 'ms');
-                        
-                        // Ensure minimum animation time before showing result
-                        setTimeout(() => {
-                            btn.classList.remove('rolling');
-                            
-                            let rolls = notation.result;
-                            let total = notation.resultTotal;
-                            const rawRolls = [...notation.result];
-                            
-                            console.log('[DiceRoller] Raw results:', rolls);
-                            
-                            if (d100Count > 0) {
-                                const d100Result = this.calculateD100Result(rolls, d100Count);
-                                rolls = d100Result.rolls;
-                                total = d100Result.total;
-                                
-                                const mod = parseInt(document.getElementById('modifierInput').value) || 0;
-                                total += mod;
-                            }
-                            
-                            this.handleResult(rolls, total, notation, special, rawRolls);
-                        }, remainingTime);
+                    let done = false;
+                    const afterRoll = () => {
+                        if (done) return;
+                        done = true;
+                        showFinalResult();
                     };
                     
-                    // Throw with vector if provided, otherwise random
                     if (throwVector && throwVector.vector && throwVector.boost) {
-                        this.box.throw_with_vector(throwVector.vector, throwVector.boost, null, afterRoll);
+                        this.box.throw_with_vector(throwVector.vector, throwVector.boost, beforeRoll, afterRoll);
                     } else {
-                        this.box.start_throw(null, afterRoll);
+                        this.box.start_throw(beforeRoll, afterRoll);
                     }
                     
-                    // Fallback timeout in case callback never fires
-                    setTimeout(() => {
-                        if (!resultHandled) {
-                            console.warn('[DiceRoller] Callback timeout - using fallback');
-                            resultHandled = true;
-                            btn.classList.remove('rolling');
-                            const results = this.simulateRoll(notationStr);
-                            this.handleResult(results.rolls, results.total, { resultString: results.breakdown }, special, null);
-                        }
-                    }, 10000); // 10 second timeout
-                    
+                    // Fallback timeout
+                    setTimeout(() => { if (!done) { done = true; showFinalResult(); } }, 8000);
                 } else {
-                    // Fallback without 3D
-                    setTimeout(() => {
-                        btn.classList.remove('rolling');
-                        const results = this.simulateRoll(notationStr);
-                        this.handleResult(results.rolls, results.total, { resultString: results.breakdown }, special, null);
-                    }, MIN_ANIMATION_TIME);
+                    setTimeout(showFinalResult, 1500);
                 }
+            },
+            
+            // Berechne Würfelergebnisse VOR Animation
+            precomputeRoll(libraryNotation, d100Count) {
+                const rawResults = [];
+                const displayRolls = [];
+                let total = 0;
+                
+                // Parse dice notation
+                const diceRegex = /(\d*)d(\d+)/gi;
+                let match;
+                while ((match = diceRegex.exec(libraryNotation)) !== null) {
+                    const count = parseInt(match[1]) || 1;
+                    const sides = parseInt(match[2]);
+                    for (let i = 0; i < count; i++) {
+                        rawResults.push(Math.floor(Math.random() * sides) + 1);
+                    }
+                }
+                
+                // Handle D100 conversion
+                if (d100Count > 0) {
+                    let idx = 0;
+                    for (let i = 0; i < d100Count; i++) {
+                        const tens = rawResults[idx] || 1;
+                        const ones = rawResults[idx + 1] || 1;
+                        // Library d100: 1-10 → 00,10,20...90 | d10: 1-10 → 0-9
+                        const tensVal = (tens - 1) * 10;
+                        const onesVal = ones === 10 ? 0 : ones;
+                        let value = tensVal + onesVal;
+                        if (value === 0) value = 100;
+                        displayRolls.push(value);
+                        total += value;
+                        idx += 2;
+                    }
+                    // Remaining dice
+                    while (idx < rawResults.length) {
+                        displayRolls.push(rawResults[idx]);
+                        total += rawResults[idx];
+                        idx++;
+                    }
+                } else {
+                    displayRolls.push(...rawResults);
+                    total = rawResults.reduce((a, b) => a + b, 0);
+                }
+                
+                return { rawResults, displayRolls, total };
+            },
+            
+            // Check critical from precomputed rolls
+            checkCriticalPrecomputed(rolls, special) {
+                const diceTypes = Object.entries(this.currentDice).filter(([t, c]) => c > 0);
+                const isD20 = diceTypes.length === 1 && diceTypes[0][0] === 'd20' && diceTypes[0][1] === 1;
+                const isD100 = diceTypes.length === 1 && diceTypes[0][0] === 'd100' && diceTypes[0][1] === 1;
+                
+                if (isD20 || (special && diceTypes.some(([t]) => t === 'd20'))) {
+                    if (rolls.includes(20)) return 'success';
+                    if (rolls.includes(1)) return 'failure';
+                }
+                if (isD100) {
+                    if (rolls.includes(1)) return 'success';
+                    if (rolls.includes(100)) return 'failure';
+                }
+                return false;
+            },
+            
+            // Zeige Ergebnis an
+            displayRollResult(rolls, total, mod, isCritical, special, playerName, playerColor) {
+                const arena = document.getElementById('diceArena');
+                const resultEl = document.getElementById('diceResult');
+                const totalEl = document.getElementById('resultTotal');
+                const breakdownEl = document.getElementById('resultBreakdown');
+                const playerEl = document.getElementById('resultPlayer');
+                
+                arena.classList.remove('throwing');
+                
+                if (playerEl) {
+                    playerEl.textContent = playerName;
+                    playerEl.style.color = playerColor || '#FF4655';
+                }
+                
+                totalEl.textContent = total;
+                
+                let modStr = '';
+                if (mod !== 0) {
+                    const cls = mod > 0 ? 'positive' : 'negative';
+                    modStr = ` <span class="dice-result__mod dice-result__mod--${cls}">${mod > 0 ? '+' : ''}${mod}</span>`;
+                }
+                
+                if (special === 'advantage') {
+                    breakdownEl.innerHTML = `[${rolls.join(', ')}] → höchste: ${Math.max(...rolls)}${modStr}`;
+                } else if (special === 'disadvantage') {
+                    breakdownEl.innerHTML = `[${rolls.join(', ')}] → niedrigste: ${Math.min(...rolls)}${modStr}`;
+                } else {
+                    breakdownEl.innerHTML = `[${rolls.join(', ')}]${modStr} = ${total}`;
+                }
+                
+                if (this.secretRoll) resultEl.classList.add('secret');
+                
+                if (isCritical === 'success') {
+                    resultEl.classList.add('critical');
+                    arena.classList.add('shake');
+                    this.spawnParticles(30);
+                    this.showCritFlash('success');
+                    setTimeout(() => arena.classList.remove('shake'), 500);
+                } else if (isCritical === 'failure') {
+                    resultEl.classList.add('fumble');
+                    arena.classList.add('shake');
+                    this.spawnParticles(30);
+                    this.showCritFlash('failure');
+                    setTimeout(() => arena.classList.remove('shake'), 500);
+                }
+                
+                resultEl.classList.add('visible');
+                
+                this.resultTimeout = setTimeout(() => {
+                    resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
+                    this.clearDiceLabels();
+                }, 8000);
             },
             
             calculateD100Result(rawRolls, d100Count) {
@@ -3736,14 +3879,14 @@
             
             // Execute 3D animation for a remote roll
             executeRemoteRoll(roll) {
+                console.log('[DiceRoller] 🎲 executeRemoteRoll:', roll.player, roll.notation);
+                
                 const arena = document.getElementById('diceArena');
                 const resultEl = document.getElementById('diceResult');
-                const totalEl = document.getElementById('diceTotal');
-                const breakdownEl = document.getElementById('diceBreakdown');
                 
                 if (!arena || !resultEl) return;
                 
-                // Create indicator
+                // Create/show indicator
                 let indicator = document.getElementById('remotePlayerIndicator');
                 if (!indicator) {
                     indicator = document.createElement('div');
@@ -3751,12 +3894,10 @@
                     indicator.className = 'dice-remote-indicator';
                     arena.appendChild(indicator);
                 }
-                
-                // Show who is rolling
                 indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
                 indicator.classList.add('visible');
                 
-                // Clear previous result
+                // Clear previous
                 resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
                 arena.classList.add('throwing');
                 
@@ -3764,65 +3905,49 @@
                     arena.classList.remove('throwing');
                     indicator.classList.remove('visible');
                     
-                    // Show result
-                    totalEl.textContent = roll.total;
-                    
-                    // Build breakdown
-                    const results = roll.results || roll.rolls || [];
-                    let modStr = '';
-                    if (roll.modifier && roll.modifier !== 0) {
-                        const modClass = roll.modifier > 0 ? 'positive' : 'negative';
-                        const modSign = roll.modifier > 0 ? '+' : '';
-                        modStr = ` <span class="dice-result__mod dice-result__mod--${modClass}">${modSign}${roll.modifier}</span>`;
-                    }
-                    
-                    if (results.length > 0) {
-                        breakdownEl.innerHTML = `[${results.join(', ')}]${modStr} = ${roll.total}`;
-                    } else {
-                        breakdownEl.innerHTML = `${roll.notation} = ${roll.total}`;
-                    }
-                    
-                    // Critical styling
-                    if (roll.critical === 'success') {
-                        resultEl.classList.add('critical');
-                        arena.classList.add('shake');
-                        this.spawnParticles(30);
-                        this.showCritFlash('success');
-                        setTimeout(() => arena.classList.remove('shake'), 500);
-                    } else if (roll.critical === 'failure') {
-                        resultEl.classList.add('fumble');
-                        arena.classList.add('shake');
-                        this.spawnParticles(30);
-                        this.showCritFlash('failure');
-                        setTimeout(() => arena.classList.remove('shake'), 500);
-                    }
-                    
-                    resultEl.classList.add('visible');
-                    
-                    // Auto-hide
-                    setTimeout(() => {
-                        resultEl.classList.remove('visible', 'critical', 'fumble');
-                    }, 6000);
+                    // Use displayRollResult with remote player's data
+                    this.displayRollResult(
+                        roll.results || [],
+                        roll.total,
+                        roll.modifier || 0,
+                        roll.critical,
+                        roll.special,
+                        roll.player,
+                        roll.color
+                    );
                 };
                 
-                // Try 3D animation
-                if (this.box && roll.diceConfig && roll.diceConfig.notation) {
+                // Try 3D animation with the SAME results
+                if (this.box && roll.diceConfig && roll.diceConfig.notation && roll.diceConfig.rawResults) {
                     try {
+                        // Change theme if different
                         const originalTheme = this.currentTheme;
                         if (roll.diceTheme && roll.diceTheme !== originalTheme) {
                             this.setTheme(roll.diceTheme);
                         }
                         
                         this.box.setDice(roll.diceConfig.notation);
-                        this.box.start_throw(null, () => {
+                        
+                        // before_roll gibt EXAKT die gleichen Ergebnisse zurück
+                        const beforeRoll = () => roll.diceConfig.rawResults;
+                        
+                        let done = false;
+                        this.box.start_throw(beforeRoll, () => {
+                            if (done) return;
+                            done = true;
                             showResult();
+                            
+                            // Restore theme
                             if (roll.diceTheme && roll.diceTheme !== originalTheme) {
                                 setTimeout(() => this.setTheme(originalTheme), 2000);
                             }
                         });
+                        
+                        // Fallback
+                        setTimeout(() => { if (!done) { done = true; showResult(); } }, 8000);
                         return;
                     } catch (e) {
-                        console.error('[DiceRoller] 3D animation failed:', e);
+                        console.error('[DiceRoller] Remote 3D failed:', e);
                     }
                 }
                 
