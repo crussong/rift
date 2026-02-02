@@ -2763,6 +2763,7 @@
                     notation: histNotation,
                     results: precomputed.displayRolls,
                     rawResults: precomputed.rawResults,
+                    labelValues: precomputed.labelValues,
                     modifier: mod,
                     critical: isCritical,
                     secret: this.secretRoll,
@@ -2770,7 +2771,8 @@
                     timestamp: Date.now(),
                     diceConfig: {
                         notation: libraryNotation,
-                        rawResults: precomputed.rawResults
+                        rawResults: precomputed.rawResults,
+                        labelValues: precomputed.labelValues
                     }
                 };
                 
@@ -2804,7 +2806,7 @@
                         btn.classList.remove('rolling');
                         
                         // Show dice labels (Zahlen-Indikatoren) and pulse effects
-                        this.showDiceLabels(precomputed.displayRolls, precomputed.rawResults);
+                        this.showDiceLabels(precomputed.labelValues);
                         
                         this.displayRollResult(precomputed.displayRolls, finalTotal, mod, isCritical, special, playerName, userData.color);
                         this.isRolling = false;
@@ -2839,8 +2841,9 @@
             
             // Berechne Würfelergebnisse VOR Animation
             precomputeRoll(libraryNotation, d100Count) {
-                const rawResults = [];
-                const displayRolls = [];
+                const rawResults = [];      // Rohe Werte für die Library (1-10)
+                const displayRolls = [];    // Kombinierte D100 Werte für History
+                const labelValues = [];     // Einzelne Würfel-Labels (00-90, 0-9)
                 let total = 0;
                 
                 // Parse dice notation
@@ -2850,11 +2853,8 @@
                     const count = parseInt(match[1]) || 1;
                     const sides = parseInt(match[2]);
                     for (let i = 0; i < count; i++) {
-                        // WICHTIG: Die Library erwartet für d100 Werte 1-10 (nicht 1-100!)
-                        // d100 in der Library = Zehnerstelle (1-10 → 00,10,20...90)
-                        // d10 in der Library = Einerstelle (1-10 → 0-9, wobei 10=0)
                         if (sides === 100) {
-                            // Für d100: generiere 1-10 (wird zu 00-90)
+                            // D100 Zehnerwürfel: generiere 1-10 (wird zu 00-90)
                             rawResults.push(Math.floor(Math.random() * 10) + 1);
                         } else {
                             rawResults.push(Math.floor(Math.random() * sides) + 1);
@@ -2866,17 +2866,22 @@
                 if (d100Count > 0) {
                     let idx = 0;
                     for (let i = 0; i < d100Count; i++) {
-                        const tens = rawResults[idx] || 1;      // 1-10
-                        const ones = rawResults[idx + 1] || 1;  // 1-10
+                        const tensRaw = rawResults[idx] || 1;      // 1-10 raw
+                        const onesRaw = rawResults[idx + 1] || 1;  // 1-10 raw
                         
-                        // Library: d100 1-10 → 00,10,20...90 | d10 1-10 → 1-9,0
-                        const tensVal = (tens - 1) * 10;        // 0, 10, 20...90
-                        const onesVal = ones === 10 ? 0 : ones; // 1-9, oder 0
+                        // Konvertiere für Labels
+                        const tensDisplay = (tensRaw - 1) * 10;    // 0, 10, 20...90
+                        const onesDisplay = onesRaw === 10 ? 0 : onesRaw; // 1-9, oder 0
                         
-                        let value = tensVal + onesVal;
+                        // D100 Ergebnis
+                        let value = tensDisplay + onesDisplay;
                         if (value === 0) value = 100; // 00+0 = 100
                         
-                        console.log(`[DiceRoller] D100: tens=${tens}→${tensVal}, ones=${ones}→${onesVal}, result=${value}`);
+                        console.log(`[DiceRoller] D100 #${i+1}: tensRaw=${tensRaw}→${tensDisplay}, onesRaw=${onesRaw}→${onesDisplay}, result=${value}`);
+                        
+                        // Speichere Label-Werte für beide Würfel
+                        labelValues.push(tensDisplay);  // Zehnerwürfel: 0, 10, 20...90
+                        labelValues.push(onesDisplay);  // Einerwürfel: 0-9
                         
                         displayRolls.push(value);
                         total += value;
@@ -2884,16 +2889,18 @@
                     }
                     // Remaining dice (non-d100)
                     while (idx < rawResults.length) {
+                        labelValues.push(rawResults[idx]);
                         displayRolls.push(rawResults[idx]);
                         total += rawResults[idx];
                         idx++;
                     }
                 } else {
+                    labelValues.push(...rawResults);
                     displayRolls.push(...rawResults);
                     total = rawResults.reduce((a, b) => a + b, 0);
                 }
                 
-                return { rawResults, displayRolls, total };
+                return { rawResults, displayRolls, labelValues, total };
             },
             
             // Check critical from precomputed rolls
@@ -3083,8 +3090,8 @@
                 // Check critical
                 const isCritical = this.checkCritical(rolls, special);
                 
-                // Show dice labels above each die
-                this.showDiceLabels(rolls, rawRolls);
+                // Show dice labels above each die (use rolls as labelValues for legacy)
+                this.showDiceLabels(rolls);
                 
                 // Get user info
                 const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
@@ -3552,8 +3559,8 @@
                         }
                         
                         // Show dice labels (Zahlen-Indikatoren) and pulse effects
-                        const rawResults = roll.diceConfig?.rawResults || roll.rawResults || null;
-                        this.showDiceLabels(roll.results || [], rawResults);
+                        const labelValues = roll.diceConfig?.labelValues || roll.labelValues || roll.results || [];
+                        this.showDiceLabels(labelValues);
                         
                         // Use displayRollResult with remote player's data
                         this.displayRollResult(
@@ -3803,7 +3810,7 @@
                 if (pulseContainer) pulseContainer.innerHTML = '';
             },
             
-            showDiceLabels(rolls, rawRolls = null) {
+            showDiceLabels(labelValues) {
                 this.clearDiceLabels();
                 
                 if (!this.box) return;
@@ -3820,20 +3827,16 @@
                 if (!positions || positions.length === 0) return;
                 
                 console.log('[DiceRoller] Dice positions:', positions);
-                console.log('[DiceRoller] Rolls to display:', rolls, 'Raw:', rawRolls);
-                
-                // Use rawRolls if available (for d100 we need the individual dice values)
-                const valuesToShow = rawRolls || rolls;
+                console.log('[DiceRoller] Label values to display:', labelValues);
                 
                 // Create labels and pulses for each die
-                for (let i = 0; i < Math.min(positions.length, valuesToShow.length); i++) {
+                for (let i = 0; i < Math.min(positions.length, labelValues.length); i++) {
                     const pos = positions[i];
-                    const value = valuesToShow[i];
+                    const value = labelValues[i];
                     
                     if (pos.x < 0 || pos.y < 0) continue; // Skip if off-screen
                     
                     // Create pulse effect in separate container (UNDER dice)
-                    // Multiple rings for better effect
                     if (pulseContainer) {
                         for (let r = 0; r < 4; r++) {
                             const pulse = document.createElement('div');
@@ -3856,14 +3859,11 @@
                         label.classList.add('dice-label--crit-failure');
                     }
                     
-                    // Format value for display
+                    // Format value for display - labelValues are already converted!
                     let displayValue = value;
-                    if (pos.type === 'd100') {
-                        // Tens die: 0, 10, 20... display as "00", "10", "20"...
-                        displayValue = value === 0 ? '00' : value;
-                    } else if (pos.type === 'd10') {
-                        // Ones die: library returns 1-10, display 0-9 (10 becomes 0)
-                        displayValue = value === 10 ? '0' : value;
+                    if (pos.type === 'd100' && value === 0) {
+                        // D100 Tens die: 0 becomes "00"
+                        displayValue = '00';
                     }
                     
                     label.textContent = displayValue;
