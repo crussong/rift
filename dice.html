@@ -2475,6 +2475,9 @@
                     });
                 }
                 
+                // Store for multiplayer sync
+                this.currentLibraryNotation = libraryNotation;
+                
                 console.log('[DiceRoller] Library notation:', libraryNotation);
                 
                 // Track when roll started for minimum animation time
@@ -2911,14 +2914,21 @@
                 // Sync to multiplayer
                 this.syncRoll({
                     player: playerName,
+                    playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || null,
                     color: userData.color || '#FF4655',
                     diceTheme: this.currentTheme || 'classic',
                     total: finalTotal,
                     notation: histNotation,
-                    rolls: displayRolls,
+                    results: displayRolls,
+                    modifier: mod,
                     critical: isCritical,
                     secret: this.secretRoll,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    // Config for 3D animation replay
+                    diceConfig: {
+                        notation: this.currentLibraryNotation,
+                        results: displayRolls
+                    }
                 });
                 
                 this.isRolling = false;
@@ -2976,21 +2986,146 @@
                 // Store normalized room code for Firestore
                 this.roomCode = roomCode.replace(/-/g, '').toUpperCase();
                 
+                // Get current user for filtering
+                const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                this.currentPlayerId = userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || null;
+                
                 try {
                     this.roomRef = firebase.database().ref(`rooms/${roomCode}`);
                     this.diceRef = this.roomRef.child('dice_rolls');
                     
-                    // Listen for new rolls
+                    // Listen for new rolls from ALL players
                     this.diceRef.orderByChild('timestamp').limitToLast(10).on('child_added', (snapshot) => {
                         const roll = snapshot.val();
-                        if (roll && Date.now() - roll.timestamp < 30000) {
-                            this.showFeedItem(roll);
+                        if (!roll || Date.now() - roll.timestamp > 30000) return;
+                        
+                        // Check if this is from another player
+                        const isRemoteRoll = roll.playerId !== this.currentPlayerId;
+                        
+                        if (isRemoteRoll) {
+                            console.log('[DiceRoller] Remote roll received:', roll.player, roll.notation);
+                            this.handleRemoteRoll(roll);
                         }
                     });
                     
-                    console.log('[DiceRoller] Multiplayer connected');
+                    console.log('[DiceRoller] Multiplayer connected with live rolls');
                 } catch (e) {
                     console.error('[DiceRoller] Multiplayer init failed:', e);
+                }
+            },
+            
+            // Handle incoming roll from another player - show 3D animation + add to history
+            handleRemoteRoll(roll) {
+                // Add to history first
+                this.addToHistory({
+                    player: roll.player || 'Spieler',
+                    color: roll.color || '#8b5cf6',
+                    total: roll.total,
+                    notation: roll.notation,
+                    rolls: roll.results || [],
+                    critical: roll.critical,
+                    secret: roll.secret,
+                    timestamp: roll.timestamp || Date.now(),
+                    isRemote: true
+                });
+                
+                // Show feed item for quick notification
+                this.showFeedItem(roll);
+                
+                // Execute 3D animation if we have the dice info
+                if (roll.diceConfig && this.box) {
+                    this.executeRemoteRoll(roll);
+                }
+            },
+            
+            // Execute 3D animation for a remote roll
+            executeRemoteRoll(roll) {
+                if (!this.box || !roll.diceConfig) return;
+                
+                const arena = document.getElementById('diceArena');
+                const resultEl = document.getElementById('diceResult');
+                const totalEl = document.getElementById('diceTotal');
+                const breakdownEl = document.getElementById('diceBreakdown');
+                const playerIndicator = document.getElementById('remotePlayerIndicator');
+                
+                // Show who is rolling
+                if (!playerIndicator) {
+                    const indicator = document.createElement('div');
+                    indicator.id = 'remotePlayerIndicator';
+                    indicator.className = 'dice-remote-indicator';
+                    arena.appendChild(indicator);
+                }
+                const indEl = document.getElementById('remotePlayerIndicator');
+                if (indEl) {
+                    indEl.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
+                    indEl.classList.add('visible');
+                }
+                
+                // Set theme temporarily if different
+                const originalTheme = this.currentTheme;
+                if (roll.diceTheme && roll.diceTheme !== this.currentTheme) {
+                    this.box.updateOptions({ themeColor: roll.diceTheme });
+                }
+                
+                // Clear previous result
+                resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
+                
+                // Set dice and throw
+                arena.classList.add('throwing');
+                
+                try {
+                    this.box.setDice(roll.diceConfig.notation);
+                    
+                    // Use predetermined results for the roll
+                    this.box.start_throw(roll.diceConfig.results, () => {
+                        arena.classList.remove('throwing');
+                        
+                        // Hide player indicator
+                        if (indEl) indEl.classList.remove('visible');
+                        
+                        // Show result
+                        totalEl.textContent = roll.total;
+                        
+                        // Build breakdown
+                        let modStr = '';
+                        if (roll.modifier && roll.modifier !== 0) {
+                            const modClass = roll.modifier > 0 ? 'positive' : 'negative';
+                            const modSign = roll.modifier > 0 ? '+' : '';
+                            modStr = ` <span class="dice-result__mod dice-result__mod--${modClass}">${modSign}${roll.modifier}</span>`;
+                        }
+                        breakdownEl.innerHTML = `[${(roll.results || []).join(', ')}]${modStr} = ${roll.total}`;
+                        
+                        // Critical styling
+                        if (roll.critical === 'success') {
+                            resultEl.classList.add('critical');
+                            arena.classList.add('shake');
+                            this.spawnParticles(30);
+                            setTimeout(() => arena.classList.remove('shake'), 500);
+                        } else if (roll.critical === 'failure') {
+                            resultEl.classList.add('fumble');
+                            arena.classList.add('shake');
+                            this.spawnParticles(30);
+                            setTimeout(() => arena.classList.remove('shake'), 500);
+                        }
+                        
+                        resultEl.classList.add('visible');
+                        
+                        // Restore original theme
+                        if (roll.diceTheme && roll.diceTheme !== originalTheme) {
+                            setTimeout(() => {
+                                this.box.updateOptions({ themeColor: originalTheme });
+                            }, 2000);
+                        }
+                        
+                        // Auto-hide
+                        setTimeout(() => {
+                            resultEl.classList.remove('visible', 'critical', 'fumble');
+                        }, 6000);
+                    });
+                } catch (e) {
+                    console.error('[DiceRoller] Remote roll animation failed:', e);
+                    arena.classList.remove('throwing');
+                    if (indEl) indEl.classList.remove('visible');
                 }
             },
             
