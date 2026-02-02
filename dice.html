@@ -1997,6 +1997,9 @@
                 
                 // Load saved label color
                 this.loadLabelColor();
+                
+                // Load saved arena theme
+                this.loadArenaTheme();
             },
             
             setTheme(theme, showNotification = false) {
@@ -2267,7 +2270,13 @@
                     content.classList.remove('active');
                 });
                 
-                const targetContent = document.getElementById(tabName === 'diceColor' ? 'tabDiceColor' : 'tabLabelColor');
+                const tabMap = {
+                    'diceColor': 'tabDiceColor',
+                    'labelColor': 'tabLabelColor',
+                    'arenaTheme': 'tabArenaTheme'
+                };
+                
+                const targetContent = document.getElementById(tabMap[tabName]);
                 if (targetContent) {
                     targetContent.classList.add('active');
                 }
@@ -2322,6 +2331,54 @@
                 const saved = localStorage.getItem('rift_dice_label_color');
                 if (saved) {
                     this.setLabelColor(saved, false);
+                }
+            },
+            
+            // ========================================
+            // ARENA THEME
+            // ========================================
+            
+            currentArenaTheme: 'default',
+            
+            setArenaTheme(theme, showNotification = true) {
+                this.currentArenaTheme = theme;
+                
+                // Apply to arena
+                const arena = document.getElementById('diceArena');
+                if (arena) {
+                    arena.dataset.arenaTheme = theme;
+                }
+                
+                // Update UI
+                document.querySelectorAll('.dice-arena-theme-card').forEach(card => {
+                    card.classList.toggle('active', card.dataset.arenaTheme === theme);
+                });
+                
+                // Save preference
+                localStorage.setItem('rift_dice_arena_theme', theme);
+                
+                // Toast notification
+                if (showNotification && window.RIFT?.ui?.Toast) {
+                    const themeNames = {
+                        'default': 'Standard',
+                        'tavern': 'Taverne',
+                        'casino': 'Casino',
+                        'dungeon': 'Kerker',
+                        'arcane': 'Arkane Magie',
+                        'cyber': 'Cyber-Grid',
+                        'nebula': 'Nebula',
+                        'lava': 'Lavahöhle',
+                        'frost': 'Frostreich',
+                        'parchment': 'Pergament'
+                    };
+                    RIFT.ui.Toast.show(`Arena: ${themeNames[theme] || theme}`, 'success');
+                }
+            },
+            
+            loadArenaTheme() {
+                const saved = localStorage.getItem('rift_dice_arena_theme');
+                if (saved) {
+                    this.setArenaTheme(saved, false);
                 }
             },
             
@@ -4941,10 +4998,13 @@
         <!-- TABS -->
         <div class="dice-settings-tabs">
             <button class="dice-settings-tab active" data-tab="diceColor" onclick="DiceRoller.switchSettingsTab('diceColor')">
-                🎲 Würfelfarbe
+                🎲 Würfel
             </button>
             <button class="dice-settings-tab" data-tab="labelColor" onclick="DiceRoller.switchSettingsTab('labelColor')">
-                🔢 Zahlenfarbe
+                🔢 Zahlen
+            </button>
+            <button class="dice-settings-tab" data-tab="arenaTheme" onclick="DiceRoller.switchSettingsTab('arenaTheme')">
+                🏟️ Arena
             </button>
         </div>
         
@@ -5599,6 +5659,56 @@
             </div>
         </div>
     </div><!-- Ende Tab Zahlenfarbe -->
+    
+    <!-- TAB CONTENT: Arena-Theme -->
+    <div class="dice-settings-tab-content" id="tabArenaTheme">
+        <div class="dice-settings-popup__section">
+            <span class="dice-settings-popup__label">Würfelareal</span>
+            <p class="dice-settings-popup__hint">Wähle das Aussehen der Würfelfläche.</p>
+            <div class="dice-arena-theme-grid">
+                <button class="dice-arena-theme-card active" data-arena-theme="default" onclick="DiceRoller.setArenaTheme('default')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--default"></div>
+                    <span>Standard</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="tavern" onclick="DiceRoller.setArenaTheme('tavern')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--tavern"></div>
+                    <span>Taverne</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="casino" onclick="DiceRoller.setArenaTheme('casino')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--casino"></div>
+                    <span>Casino</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="dungeon" onclick="DiceRoller.setArenaTheme('dungeon')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--dungeon"></div>
+                    <span>Kerker</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="arcane" onclick="DiceRoller.setArenaTheme('arcane')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--arcane"></div>
+                    <span>Arkane Magie</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="cyber" onclick="DiceRoller.setArenaTheme('cyber')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--cyber"></div>
+                    <span>Cyber-Grid</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="nebula" onclick="DiceRoller.setArenaTheme('nebula')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--nebula"></div>
+                    <span>Nebula</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="lava" onclick="DiceRoller.setArenaTheme('lava')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--lava"></div>
+                    <span>Lavahöhle</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="frost" onclick="DiceRoller.setArenaTheme('frost')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--frost"></div>
+                    <span>Frostreich</span>
+                </button>
+                <button class="dice-arena-theme-card" data-arena-theme="parchment" onclick="DiceRoller.setArenaTheme('parchment')">
+                    <div class="dice-arena-theme-preview dice-arena-theme-preview--parchment"></div>
+                    <span>Pergament</span>
+                </button>
+            </div>
+        </div>
+    </div><!-- Ende Tab Arena-Theme -->
     
     <div class="dice-settings-popup__section">
         <span class="dice-settings-popup__label">Optionen</span>
