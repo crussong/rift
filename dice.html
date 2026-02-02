@@ -3462,6 +3462,8 @@
             
             initMultiplayer() {
                 const roomCode = localStorage.getItem('rift_current_room');
+                console.log('[DiceRoller] initMultiplayer called, roomCode:', roomCode, 'firebase:', typeof firebase !== 'undefined');
+                
                 if (!roomCode || typeof firebase === 'undefined') {
                     console.log('[DiceRoller] No room or Firebase, skipping multiplayer');
                     return;
@@ -3481,6 +3483,8 @@
                     this.roomRef = firebase.database().ref(`rooms/${roomCode}`);
                     this.diceRef = this.roomRef.child('dice_rolls');
                     this.statsRef = this.roomRef.child('dice_stats');
+                    
+                    console.log('[DiceRoller] Firebase refs created, diceRef:', !!this.diceRef);
                     
                     // Initialize stats structure if not exists
                     this.statsRef.once('value', (snapshot) => {
@@ -3508,17 +3512,21 @@
                     // Listen for new rolls from ALL players
                     this.diceRef.orderByChild('timestamp').limitToLast(20).on('child_added', (snapshot) => {
                         const roll = snapshot.val();
+                        console.log('[DiceRoller] child_added event, roll:', roll?.player, roll?.phase || 'no-phase');
                         if (!roll) return;
                         
                         // Skip old rolls (more than 30 seconds)
                         const rollAge = Date.now() - roll.timestamp;
-                        if (rollAge > 30000) return;
+                        if (rollAge > 30000) {
+                            console.log('[DiceRoller] Skipping old roll, age:', rollAge);
+                            return;
+                        }
                         
                         // Check if this is from another player
                         const isOwnRoll = (roll.playerId && roll.playerId === this.currentPlayerId) || 
                                           (!roll.playerId && roll.player === this.currentPlayerName);
                         
-                        console.log('[DiceRoller] Roll received:', roll.player, '| Own:', isOwnRoll);
+                        console.log('[DiceRoller] Roll received:', roll.player, '| Own:', isOwnRoll, '| PlayerId:', roll.playerId, 'vs', this.currentPlayerId);
                         
                         if (!isOwnRoll) {
                             console.log('[DiceRoller] 🎲 REMOTE ROLL from', roll.player, ':', roll.notation, '=', roll.total);
@@ -3534,7 +3542,7 @@
             
             // Handle incoming roll from another player
             handleRemoteRoll(roll) {
-                console.log('[DiceRoller] handleRemoteRoll:', roll.phase, roll.player, roll.notation);
+                console.log('[DiceRoller] handleRemoteRoll:', roll.phase || 'no-phase', roll.player, roll.notation);
                 
                 // PHASE 1: Wurf gestartet - zeige nur Indicator
                 if (roll.phase === 'start') {
@@ -3545,10 +3553,18 @@
                     return;
                 }
                 
-                // PHASE 2: Wurf komplett - Animation mit Ergebnissen
+                // PHASE 2 oder kein Phase (legacy): Wurf komplett - Animation mit Ergebnissen
+                // Ohne phase = complete (backward compatibility)
+                
                 // Entferne aus pending falls vorhanden
                 if (this.pendingRemoteRolls && roll.rollId) {
                     delete this.pendingRemoteRolls[roll.rollId];
+                }
+                
+                // Skip if no results (incomplete data)
+                if (!roll.results && !roll.total) {
+                    console.log('[DiceRoller] Skipping roll without results');
+                    return;
                 }
                 
                 // Add to history
@@ -3735,7 +3751,11 @@
             },
             
             syncRollStart(rollData) {
-                if (!this.diceRef) return;
+                console.log('[DiceRoller] syncRollStart called, diceRef:', !!this.diceRef);
+                if (!this.diceRef) {
+                    console.warn('[DiceRoller] No diceRef - multiplayer not initialized!');
+                    return;
+                }
                 
                 const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
                 if (rollData.secret && !userData.isGM) {
@@ -3743,6 +3763,7 @@
                 }
                 
                 try {
+                    console.log('[DiceRoller] Pushing roll start to Firebase:', rollData.player, rollData.notation);
                     this.diceRef.push(rollData);
                 } catch (e) {
                     console.error('[DiceRoller] Sync start failed:', e);
@@ -3750,7 +3771,11 @@
             },
             
             syncRoll(rollData) {
-                if (!this.diceRef) return;
+                console.log('[DiceRoller] syncRoll called, diceRef:', !!this.diceRef, 'phase:', rollData.phase);
+                if (!this.diceRef) {
+                    console.warn('[DiceRoller] No diceRef - multiplayer not initialized!');
+                    return;
+                }
                 
                 // Don't sync if secret and not GM
                 const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
@@ -3760,6 +3785,7 @@
                 
                 try {
                     // 1. Push to Realtime Database (for live feed)
+                    console.log('[DiceRoller] Pushing roll complete to Firebase:', rollData.player, rollData.total);
                     this.diceRef.push(rollData);
                     
                     // 2. Also write to Firestore (for GM logs) - nur bei complete
