@@ -1000,17 +1000,18 @@
                     }
                     
                     const db = firebase.firestore();
-                    const snapshot = await db.collection('sheet_slides')
-                        .where('active', '==', true)
-                        .orderBy('order', 'asc')
-                        .get();
+                    // Load all slides, filter/sort client-side (avoids composite index requirement)
+                    const snapshot = await db.collection('sheet_slides').get();
                     
                     if (!snapshot.empty) {
-                        this.slides = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        this.slides = snapshot.docs
+                            .map(doc => ({ id: doc.id, ...doc.data() }))
+                            .filter(s => s.active !== false)
+                            .sort((a, b) => (a.order || 0) - (b.order || 0));
                         console.log('[SheetCarousel] Loaded', this.slides.length, 'slides');
                     }
                 } catch (e) {
-                    console.log('[SheetCarousel] Could not load slides:', e.message);
+                    console.error('[SheetCarousel] Could not load slides:', e);
                 }
             },
             
