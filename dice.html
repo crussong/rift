@@ -3527,9 +3527,11 @@
                 const arena = document.getElementById('diceArena');
                 
                 if (roll.phase === 'start') {
-                    // Phase 1: Zeige "würfelt..." Indikator sofort
+                    // Phase 1: Zeige Silhouetten-Animation sofort
                     arena.classList.remove('empty');
+                    this.clearDiceLabels();
                     
+                    // Indicator
                     let indicator = document.getElementById('remotePlayerIndicator');
                     if (!indicator) {
                         indicator = document.createElement('div');
@@ -3540,15 +3542,30 @@
                     indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
                     indicator.classList.add('visible');
                     
-                    // Speichere für phase 2
+                    // Silhouetten-Würfel zeigen
+                    this.showDiceSilhouettes(roll.diceConfig?.notation || '1d20');
+                    
+                    // Speichere Startzeit für phase 2
                     this.pendingRemoteRolls = this.pendingRemoteRolls || {};
-                    this.pendingRemoteRolls[roll.playerId] = roll;
+                    this.pendingRemoteRolls[roll.playerId] = { ...roll, startTime: Date.now() };
                     return;
                 }
                 
                 if (roll.phase === 'complete') {
-                    // Phase 2: Animation mit echten beforeRollValues
-                    this.executeRemoteRoll(roll);
+                    // Phase 2: Echte Animation mit beforeRollValues
+                    const pending = this.pendingRemoteRolls?.[roll.playerId];
+                    const startTime = pending?.startTime || Date.now();
+                    
+                    // Silhouetten entfernen
+                    this.hideDiceSilhouettes();
+                    
+                    // Animation starten
+                    this.executeRemoteRoll(roll, startTime);
+                    
+                    // Cleanup
+                    if (this.pendingRemoteRolls) {
+                        delete this.pendingRemoteRolls[roll.playerId];
+                    }
                     return;
                 }
                 
@@ -3557,11 +3574,50 @@
                     console.log('[DiceRoller] Skipping roll without results');
                     return;
                 }
-                this.executeRemoteRoll(roll);
+                this.executeRemoteRoll(roll, Date.now());
+            },
+            
+            // Zeige Silhouetten-Würfel während des Wartens
+            showDiceSilhouettes(notation) {
+                let container = document.getElementById('diceSilhouettes');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'diceSilhouettes';
+                    container.className = 'dice-silhouettes';
+                    document.getElementById('diceArena').appendChild(container);
+                }
+                container.innerHTML = '';
+                
+                // Parse notation um Anzahl zu bestimmen
+                let diceCount = 0;
+                const matches = notation.matchAll(/(\d*)d(\d+)/gi);
+                for (const match of matches) {
+                    diceCount += parseInt(match[1]) || 1;
+                }
+                diceCount = Math.min(diceCount, 6); // Max 6 Silhouetten
+                
+                for (let i = 0; i < diceCount; i++) {
+                    const silhouette = document.createElement('div');
+                    silhouette.className = 'dice-silhouette';
+                    silhouette.style.animationDelay = `${i * 0.15}s`;
+                    silhouette.style.left = `${20 + Math.random() * 60}%`;
+                    container.appendChild(silhouette);
+                }
+                
+                container.classList.add('visible');
+            },
+            
+            // Silhouetten ausblenden
+            hideDiceSilhouettes() {
+                const container = document.getElementById('diceSilhouettes');
+                if (container) {
+                    container.classList.remove('visible');
+                    setTimeout(() => container.innerHTML = '', 300);
+                }
             },
             
             // Execute 3D animation for a remote roll
-            executeRemoteRoll(roll) {
+            executeRemoteRoll(roll, animationStartTime) {
                 console.log('[DiceRoller] 🎲 executeRemoteRoll:', roll.player, roll.total);
                 
                 if (this.resultTimeout) {
@@ -3578,20 +3634,14 @@
                 arena.classList.remove('empty');
                 
                 let indicator = document.getElementById('remotePlayerIndicator');
-                if (!indicator) {
-                    indicator = document.createElement('div');
-                    indicator.id = 'remotePlayerIndicator';
-                    indicator.className = 'dice-remote-indicator';
-                    arena.appendChild(indicator);
+                if (indicator) {
+                    indicator.classList.add('visible');
                 }
-                indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
-                indicator.classList.add('visible');
                 
                 resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
                 arena.classList.add('throwing');
                 
-                const animationStartTime = Date.now();
-                const MIN_ANIMATION_TIME = 2500;
+                const MIN_ANIMATION_TIME = 2000; // Etwas kürzer für Remote
                 
                 const myDiceColor = this.currentDiceColor;
                 const myDiceGradient = this.currentDiceGradient;
@@ -3606,7 +3656,7 @@
                     
                     setTimeout(() => {
                         arena.classList.remove('throwing');
-                        indicator.classList.remove('visible');
+                        if (indicator) indicator.classList.remove('visible');
                         
                         if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             DICE.setDiceColor(myDiceColor, myDiceGradient);
