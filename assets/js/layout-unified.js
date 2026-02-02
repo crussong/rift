@@ -5,6 +5,78 @@
  */
 
 // ============================================================
+// USER DATA & ROOM CODE HELPERS
+// ============================================================
+
+// User data - loads from Firebase/RIFT.user and localStorage, merging both
+function getUserData() {
+    // Get data from localStorage first (this is where settings are saved)
+    let localData = {};
+    const stored = localStorage.getItem('rift_user');
+    if (stored) {
+        try {
+            localData = JSON.parse(stored);
+        } catch (e) {
+            console.error('[Layout] Failed to parse rift_user from localStorage:', e);
+        }
+    }
+    
+    // If window.currentUser exists, merge with localStorage (localStorage takes priority for avatar, color, isGM)
+    if (window.currentUser) {
+        const data = {
+            name: localData.name || localData.displayName || window.currentUser.displayName || window.currentUser.name || 'Spieler',
+            initial: localData.initial || (localData.name || localData.displayName || window.currentUser.displayName || window.currentUser.name || 'S').charAt(0).toUpperCase(),
+            color: localData.color || window.currentUser.color || '#FF4655',
+            avatar: localData.avatar || localData.photoURL || window.currentUser.photoURL || window.currentUser.avatar || null,
+            isGM: localData.isGM !== undefined ? localData.isGM : (window.currentUser.isGM || false),
+            isCogm: localData.isCogm !== undefined ? localData.isCogm : (window.currentUser.isCogm || false),
+            uid: window.currentUser.uid || localData.uid
+        };
+        return data;
+    }
+    
+    // Fallback to localStorage only
+    if (stored) {
+        const data = {
+            name: localData.name || localData.displayName || 'Spieler',
+            initial: localData.initial || (localData.name || localData.displayName || 'S').charAt(0).toUpperCase(),
+            color: localData.color || '#FF4655',
+            avatar: localData.avatar || localData.photoURL || null,
+            isGM: localData.isGM || false,
+            isCogm: localData.isCogm || false,
+            uid: localData.uid
+        };
+        return data;
+    }
+    
+    return {
+        name: 'Gast',
+        initial: 'G',
+        color: '#FF4655',
+        avatar: null,
+        isGM: false,
+        isCogm: false
+    };
+}
+
+// Current room code (formatted with dash)
+function getRoomCode() {
+    const code = localStorage.getItem('rift_current_room');
+    return code ? code.slice(0, 3) + '-' + code.slice(3) : null;
+}
+
+// Get current page name from URL
+function getCurrentPage() {
+    const path = window.location.pathname;
+    let page = path.substring(path.lastIndexOf('/') + 1).replace('.html', '');
+    // Handle root path and empty page
+    if (!page || page === '' || page === '/') {
+        page = 'index';
+    }
+    return page;
+}
+
+// ============================================================
 // UNIFIED TOPNAV (Header with Logo, Search, Party, User)
 // ============================================================
 function createUnifiedTopnav() {
