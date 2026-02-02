@@ -717,6 +717,7 @@
             secretRoll: false,
             currentTheme: null,
             currentDiceColor: '#2a2a2a',
+            currentLabelColor: 'auto', // 'auto' oder Hex-Farbe
             
             // Theme colors for 3D dice
             themeColors: {
@@ -1929,6 +1930,9 @@
                 // Load saved theme (no toast on initial load)
                 const saved = localStorage.getItem('rift_dice_theme') || 'classic';
                 this.setTheme(saved, false);
+                
+                // Load saved label color
+                this.loadLabelColor();
             },
             
             setTheme(theme, showNotification = false) {
@@ -2181,6 +2185,79 @@
                 const countEl = document.getElementById('themeCount');
                 if (countEl) {
                     countEl.textContent = `(${visibleCount})`;
+                }
+            },
+            
+            // ========================================
+            // SETTINGS TABS
+            // ========================================
+            
+            switchSettingsTab(tabName) {
+                // Update tab buttons
+                document.querySelectorAll('.dice-settings-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tab === tabName);
+                });
+                
+                // Update tab content
+                document.querySelectorAll('.dice-settings-tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                const targetContent = document.getElementById(tabName === 'diceColor' ? 'tabDiceColor' : 'tabLabelColor');
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
+            },
+            
+            // ========================================
+            // LABEL COLOR (Zahlenfarbe)
+            // ========================================
+            
+            setLabelColor(color, showNotification = true) {
+                this.currentLabelColor = color;
+                
+                // Update DICE library
+                if (typeof DICE !== 'undefined' && DICE.setLabelColor) {
+                    DICE.setLabelColor(color === 'auto' ? null : color);
+                }
+                
+                // Update preview dice
+                if (typeof DicePreview !== 'undefined' && DicePreview.updateColors) {
+                    DicePreview.updateColors();
+                }
+                
+                // Update UI buttons
+                document.querySelectorAll('.dice-label-color-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.color === color);
+                });
+                
+                // Save to localStorage
+                localStorage.setItem('rift_dice_label_color', color);
+                
+                // Show toast
+                if (showNotification && window.RIFT?.ui?.Toast) {
+                    const colorNames = {
+                        'auto': 'Automatisch',
+                        '#ffffff': 'Weiß',
+                        '#1a1a1a': 'Schwarz',
+                        '#ff4444': 'Rot',
+                        '#ff9800': 'Orange',
+                        '#ffeb3b': 'Gelb',
+                        '#4caf50': 'Grün',
+                        '#00bcd4': 'Cyan',
+                        '#2196f3': 'Blau',
+                        '#9c27b0': 'Lila',
+                        '#e91e63': 'Pink',
+                        '#ffd700': 'Gold'
+                    };
+                    RIFT.ui.Toast.show(`Zahlenfarbe: ${colorNames[color] || color}`, 'success');
+                }
+            },
+            
+            loadLabelColor() {
+                const saved = localStorage.getItem('rift_dice_label_color');
+                if (saved) {
+                    this.setLabelColor(saved, false);
                 }
             },
             
@@ -2586,6 +2663,7 @@
                     playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
                     color: userData.color || '#FF4655',
                     diceTheme: this.currentTheme || 'classic',
+                    labelColor: this.currentLabelColor || 'auto',
                     total: finalTotal,
                     notation: histNotation,
                     results: precomputed.displayRolls,
@@ -3156,6 +3234,7 @@
                     playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
                     color: userData.color || '#FF4655',
                     diceTheme: this.currentTheme || 'classic',
+                    labelColor: this.currentLabelColor || 'auto',
                     total: finalTotal,
                     notation: histNotation,
                     results: displayRolls,
@@ -3310,9 +3389,10 @@
                 const animationStartTime = Date.now();
                 const MIN_ANIMATION_TIME = 2500; // Mindestens 2.5 Sekunden
                 
-                // Speichere EIGENE Würfelfarben
+                // Speichere EIGENE Würfelfarben und Zahlenfarbe
                 const myDiceColor = this.currentDiceColor;
                 const myDiceGradient = this.currentDiceGradient;
+                const myLabelColor = this.currentLabelColor;
                 
                 const showResult = () => {
                     const elapsed = Date.now() - animationStartTime;
@@ -3322,9 +3402,12 @@
                         arena.classList.remove('throwing');
                         indicator.classList.remove('visible');
                         
-                        // Stelle EIGENE Würfelfarben wieder her (für Card Previews)
+                        // Stelle EIGENE Würfelfarben und Zahlenfarbe wieder her (für Card Previews)
                         if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             DICE.setDiceColor(myDiceColor, myDiceGradient);
+                        }
+                        if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
+                            DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
                         }
                         
                         // Use displayRollResult with remote player's data
@@ -3343,10 +3426,13 @@
                 // Try 3D animation with the SAME results
                 if (this.box && roll.diceConfig && roll.diceConfig.notation && roll.diceConfig.rawResults) {
                     try {
-                        // Setze temporär die Würfelfarbe des ANDEREN Spielers (NUR für diesen Wurf)
+                        // Setze temporär die Würfelfarbe und Zahlenfarbe des ANDEREN Spielers (NUR für diesen Wurf)
                         if (roll.diceTheme && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             const remoteColors = this.themeColors[roll.diceTheme] || this.themeColors.classic;
                             DICE.setDiceColor(remoteColors.accent, remoteColors.gradient || null);
+                        }
+                        if (roll.labelColor && typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
+                            DICE.setLabelColor(roll.labelColor === 'auto' ? null : roll.labelColor);
                         }
                         
                         this.box.setDice(roll.diceConfig.notation);
@@ -3366,9 +3452,12 @@
                         return;
                     } catch (e) {
                         console.error('[DiceRoller] Remote 3D failed:', e);
-                        // Bei Fehler: Eigene Farben wiederherstellen
+                        // Bei Fehler: Eigene Farben und Zahlenfarbe wiederherstellen
                         if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                             DICE.setDiceColor(myDiceColor, myDiceGradient);
+                        }
+                        if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
+                            DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
                         }
                     }
                 }
@@ -4758,6 +4847,19 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
+        
+        <!-- TABS -->
+        <div class="dice-settings-tabs">
+            <button class="dice-settings-tab active" data-tab="diceColor" onclick="DiceRoller.switchSettingsTab('diceColor')">
+                🎲 Würfelfarbe
+            </button>
+            <button class="dice-settings-tab" data-tab="labelColor" onclick="DiceRoller.switchSettingsTab('labelColor')">
+                🔢 Zahlenfarbe
+            </button>
+        </div>
+        
+        <!-- TAB CONTENT: Würfelfarbe -->
+        <div class="dice-settings-tab-content active" id="tabDiceColor">
     
     <div class="dice-settings-popup__section dice-settings-popup__section--themes">
         <span class="dice-settings-popup__label">Würfelfarbe <span id="themeCount">(137)</span></span>
@@ -5348,6 +5450,65 @@
             </button>
         </div>
     </div>
+    </div><!-- Ende Tab Würfelfarbe -->
+    
+    <!-- TAB CONTENT: Zahlenfarbe -->
+    <div class="dice-settings-tab-content" id="tabLabelColor">
+        <div class="dice-settings-popup__section">
+            <span class="dice-settings-popup__label">Zahlenfarbe</span>
+            <p class="dice-settings-popup__hint">Wähle die Farbe der Zahlen auf deinen Würfeln. "Auto" passt sich automatisch an die Würfelfarbe an.</p>
+            <div class="dice-label-color-grid">
+                <button class="dice-label-color-btn active" data-color="auto" onclick="DiceRoller.setLabelColor('auto')">
+                    <div class="dice-label-color-preview dice-label-color-preview--auto"></div>
+                    <span>Auto</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#ffffff" onclick="DiceRoller.setLabelColor('#ffffff')">
+                    <div class="dice-label-color-preview" style="background: #ffffff;"></div>
+                    <span>Weiß</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#1a1a1a" onclick="DiceRoller.setLabelColor('#1a1a1a')">
+                    <div class="dice-label-color-preview" style="background: #1a1a1a;"></div>
+                    <span>Schwarz</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#ff4444" onclick="DiceRoller.setLabelColor('#ff4444')">
+                    <div class="dice-label-color-preview" style="background: #ff4444;"></div>
+                    <span>Rot</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#ff9800" onclick="DiceRoller.setLabelColor('#ff9800')">
+                    <div class="dice-label-color-preview" style="background: #ff9800;"></div>
+                    <span>Orange</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#ffeb3b" onclick="DiceRoller.setLabelColor('#ffeb3b')">
+                    <div class="dice-label-color-preview" style="background: #ffeb3b;"></div>
+                    <span>Gelb</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#4caf50" onclick="DiceRoller.setLabelColor('#4caf50')">
+                    <div class="dice-label-color-preview" style="background: #4caf50;"></div>
+                    <span>Grün</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#00bcd4" onclick="DiceRoller.setLabelColor('#00bcd4')">
+                    <div class="dice-label-color-preview" style="background: #00bcd4;"></div>
+                    <span>Cyan</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#2196f3" onclick="DiceRoller.setLabelColor('#2196f3')">
+                    <div class="dice-label-color-preview" style="background: #2196f3;"></div>
+                    <span>Blau</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#9c27b0" onclick="DiceRoller.setLabelColor('#9c27b0')">
+                    <div class="dice-label-color-preview" style="background: #9c27b0;"></div>
+                    <span>Lila</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#e91e63" onclick="DiceRoller.setLabelColor('#e91e63')">
+                    <div class="dice-label-color-preview" style="background: #e91e63;"></div>
+                    <span>Pink</span>
+                </button>
+                <button class="dice-label-color-btn" data-color="#ffd700" onclick="DiceRoller.setLabelColor('#ffd700')">
+                    <div class="dice-label-color-preview" style="background: #ffd700;"></div>
+                    <span>Gold</span>
+                </button>
+            </div>
+        </div>
+    </div><!-- Ende Tab Zahlenfarbe -->
     
     <div class="dice-settings-popup__section">
         <span class="dice-settings-popup__label">Optionen</span>

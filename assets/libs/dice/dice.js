@@ -598,14 +598,19 @@ const DICE = (function() {
         return new THREE.Mesh(this.d10_geometry, this.d100_material);
     }
     
+    // RIFT: Flag ob Label-Farbe manuell gesetzt wurde
+    var manualLabelColor = null;
+    
     // RIFT: Methode um Würfelfarbe zu ändern
     that.setDiceColor = function(color, gradient) {
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
         
-        // RIFT: Automatisch Label-Farbe basierend auf Hintergrund-Helligkeit wählen
-        var brightness = getColorBrightness(gradient ? gradient.colors[0] : color);
-        vars.label_color = brightness > 160 ? vars.label_color_dark : '#ffffff';
+        // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
+        if (!manualLabelColor) {
+            var brightness = getColorBrightness(gradient ? gradient.colors[0] : color);
+            vars.label_color = brightness > 160 ? vars.label_color_dark : '#ffffff';
+        }
         
         // Cache löschen damit neue Materialien erstellt werden
         threeD_dice.d4_material = null;
@@ -616,6 +621,40 @@ const DICE = (function() {
         threeD_dice.d10_material = null;
         threeD_dice.d12_material = null;
         threeD_dice.d20_material = null;
+    };
+    
+    // RIFT: Methode um Zahlenfarbe manuell zu setzen
+    that.setLabelColor = function(color) {
+        if (color === 'auto' || color === null) {
+            // Zurück zu automatischer Berechnung
+            manualLabelColor = null;
+            var brightness = getColorBrightness(vars.dice_gradient ? vars.dice_gradient.colors[0] : vars.dice_color);
+            vars.label_color = brightness > 160 ? vars.label_color_dark : '#ffffff';
+        } else {
+            // Manuelle Farbe setzen
+            manualLabelColor = color;
+            vars.label_color = color;
+        }
+        
+        // Cache löschen damit neue Materialien erstellt werden
+        threeD_dice.d4_material = null;
+        threeD_dice.dice_material = null;
+        threeD_dice.d100_material = null;
+        threeD_dice.d6_material = null;
+        threeD_dice.d8_material = null;
+        threeD_dice.d10_material = null;
+        threeD_dice.d12_material = null;
+        threeD_dice.d20_material = null;
+    };
+    
+    // RIFT: Getter für aktuelle Label-Farbe
+    that.getLabelColor = function() {
+        return manualLabelColor || vars.label_color;
+    };
+    
+    // RIFT: Prüfen ob Label-Farbe manuell ist
+    that.isLabelColorManual = function() {
+        return manualLabelColor !== null;
     };
     
     // RIFT: Berechne Helligkeit einer Farbe (0-255)
