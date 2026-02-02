@@ -2854,33 +2854,35 @@
                 // Handle D100 specially - generate our own values
                 if (d100Count > 0) {
                     for (let i = 0; i < d100Count; i++) {
-                        // Zehnerwürfel: 0-9 → zeigt 00, 10, 20... 90
-                        const tensRoll = Math.floor(Math.random() * 10); // 0-9
-                        // Einerwürfel: 0-9 → zeigt 0, 1, 2... 9
-                        const onesRoll = Math.floor(Math.random() * 10); // 0-9
+                        // LIBRARY CONVENTION für d100 (Zehnerwürfel):
+                        // rawValue 1 → zeigt "00" auf dem Würfel
+                        // rawValue 2 → zeigt "10" auf dem Würfel
+                        // rawValue 3 → zeigt "20" auf dem Würfel
+                        // ...
+                        // rawValue 10 → zeigt "90" auf dem Würfel
+                        const tensRaw = Math.floor(Math.random() * 10) + 1; // 1-10
+                        const tensDisplay = (tensRaw - 1) * 10; // 0, 10, 20, 30, 40, 50, 60, 70, 80, 90
                         
-                        // Display values
-                        const tensDisplay = tensRoll * 10;  // 0, 10, 20, 30, 40, 50, 60, 70, 80, 90
-                        const onesDisplay = onesRoll;       // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+                        // LIBRARY CONVENTION für d10 (Einerwürfel):
+                        // rawValue 1 → zeigt "1" auf dem Würfel
+                        // rawValue 2 → zeigt "2" auf dem Würfel
+                        // ...
+                        // rawValue 9 → zeigt "9" auf dem Würfel
+                        // rawValue 10 → zeigt "0" auf dem Würfel
+                        const onesRaw = Math.floor(Math.random() * 10) + 1; // 1-10
+                        const onesDisplay = onesRaw === 10 ? 0 : onesRaw; // 1-9 oder 0
                         
-                        // Calculate result according to exact rules
+                        // Calculate result according to exact rules:
+                        // Zehnerwürfel + Einerwürfel, wobei 00+0 = 100
                         let result = tensDisplay + onesDisplay;
-                        // Special rule: 00 + 0 = 100
                         if (result === 0) result = 100;
                         
-                        console.log(`[DiceRoller] D100 #${i+1}: tens=${tensDisplay}, ones=${onesDisplay}, result=${result}`);
-                        
-                        // For library: convert back to 1-10 format
-                        // Library d100: 1=00, 2=10, 3=20... 10=90
-                        const tensRaw = tensRoll + 1; // 1-10
-                        // Library d10: 1=0, 2=1, 3=2... 10=9 (different mapping!)
-                        // Actually standard d10: 1-9 shows 1-9, 10 shows 0
-                        const onesRaw = onesRoll === 0 ? 10 : onesRoll; // 0→10, 1-9→1-9
+                        console.log(`[DiceRoller] D100 #${i+1}: tensRaw=${tensRaw}→${tensDisplay}, onesRaw=${onesRaw}→${onesDisplay}, result=${result}`);
                         
                         rawResults.push(tensRaw);  // For d100 die
                         rawResults.push(onesRaw);  // For d10 die
                         
-                        // Store label values (what to show on screen)
+                        // Store label values (what to show on screen - MUST match Library display!)
                         labelValues.push(tensDisplay);  // 0, 10, 20... 90
                         labelValues.push(onesDisplay);  // 0-9
                         
