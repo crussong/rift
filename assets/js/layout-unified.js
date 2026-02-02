@@ -697,42 +697,52 @@ function initPartyDisplay() {
         }
     };
     
-    // Try to subscribe to Firebase for real-time updates
-    const roomCode = localStorage.getItem('rift_current_room');
-    
-    if (roomCode && typeof RIFT !== 'undefined' && RIFT.rooms && RIFT.rooms.subscribeToMembers) {
+    // Retry pattern for subscribing to party
+    function subscribeToParty() {
+        const roomCode = localStorage.getItem('rift_current_room');
+        
+        if (!roomCode) {
+            console.log('[Layout] No room code, skipping party subscription');
+            return;
+        }
+        
+        // Wait for Firebase and RIFT.rooms to be ready
+        if (typeof RIFT === 'undefined' || !RIFT.rooms || !RIFT.rooms.subscribeToMembers) {
+            console.log('[Layout] RIFT.rooms not ready, retrying in 500ms...');
+            setTimeout(subscribeToParty, 500);
+            return;
+        }
+        
         console.log('[Layout] Subscribing to party members for room:', roomCode);
         
-        // Small delay to ensure Firebase is ready
-        setTimeout(() => {
-            try {
-                RIFT.rooms.subscribeToMembers(roomCode, (members) => {
-                    console.log('[Layout] Received members update:', members);
-                    updatePartyUI(members);
-                    
-                    // Also store in localStorage for other components
-                    localStorage.setItem('rift_party_members', JSON.stringify(members.map(m => ({
-                        name: m.displayName || m.name,
-                        color: m.color,
-                        avatar: m.photoURL,
-                        isOnline: m.online === true
-                    }))));
-                });
-            } catch (e) {
-                console.error('[Layout] Failed to subscribe to party:', e);
-            }
-        }, 1000);
-    } else {
-        // Fallback: read from localStorage
-        const stored = localStorage.getItem('rift_party_members');
-        if (stored) {
-            try {
-                const members = JSON.parse(stored);
-                updatePartyUI(members.map(m => ({ ...m, online: m.isOnline })));
-            } catch (e) {
-                console.error('[Layout] Failed to parse party from localStorage:', e);
-            }
+        try {
+            RIFT.rooms.subscribeToMembers(roomCode, (members) => {
+                console.log('[Layout] Received members update:', members);
+                updatePartyUI(members);
+                
+                // Also store in localStorage for other components
+                localStorage.setItem('rift_party_members', JSON.stringify(members.map(m => ({
+                    name: m.displayName || m.name,
+                    color: m.color,
+                    avatar: m.photoURL,
+                    isOnline: m.online === true
+                }))));
+            });
+        } catch (e) {
+            console.error('[Layout] Failed to subscribe to party:', e);
         }
+    }
+    
+    // Start subscription after a delay to ensure Firebase is ready
+    setTimeout(subscribeToParty, 1000);
+    
+    // Also try to load from localStorage immediately for faster initial display
+    const stored = localStorage.getItem('rift_party_members');
+    if (stored) {
+        try {
+            const members = JSON.parse(stored);
+            updatePartyUI(members.map(m => ({ ...m, online: m.isOnline })));
+        } catch (e) {}
     }
     
     // Listen for localStorage changes from other tabs/pages
