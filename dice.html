@@ -2843,31 +2843,33 @@
             // Vorberechnung der Würfelergebnisse
             // Generiert beforeRollValues (für Library) und displayRolls/labelValues (für Anzeige)
             precomputeRoll(libraryNotation, d100Count) {
-                const beforeRollValues = []; // Werte die Library erwartet (0-9 für d10/d100)
+                const beforeRollValues = []; // Werte die Library erwartet
                 const displayRolls = [];     // Kombinierte Ergebnisse für History
                 const labelValues = [];      // Einzelne Würfel-Labels
                 let total = 0;
                 
+                // Library dice_face_range:
+                // d4, d6, d8, d12, d20: [1, N] - 1-basiert
+                // d10, d100: [0, 9] - 0-basiert
+                
                 if (d100Count > 0) {
                     for (let i = 0; i < d100Count; i++) {
-                        // Library beforeRoll erwartet 0-9 für d100 und d10
+                        // d100 (tens): 0-9 → zeigt "00", "10", "20"..."90"
                         const tensInput = Math.floor(Math.random() * 10); // 0-9
+                        // d10 (ones): 0-9 → zeigt "0", "1", "2"..."9"
                         const onesInput = Math.floor(Math.random() * 10); // 0-9
                         
-                        // Was die Library ZURÜCKGIBT (und anzeigt):
-                        // d100: tensInput * 10 (0, 10, 20...90)
-                        // d10: onesInput (aber 0 wird als "0" angezeigt, 1-9 als "1"-"9")
                         const tensDisplay = tensInput * 10;  // 0, 10, 20...90
                         const onesDisplay = onesInput;       // 0-9
                         
-                        // Ergebnis berechnen
+                        // Ergebnis: tens + ones, aber 00+0 = 100
                         let result = tensDisplay + onesDisplay;
-                        if (result === 0) result = 100; // 00 + 0 = 100
+                        if (result === 0) result = 100;
                         
-                        console.log(`[DiceRoller] D100 precompute: tensInput=${tensInput}→${tensDisplay}, onesInput=${onesInput}→${onesDisplay}, result=${result}`);
+                        console.log(`[DiceRoller] D100 precompute: tens=${tensInput}→"${tensDisplay}", ones=${onesInput}→"${onesDisplay}", result=${result}`);
                         
-                        beforeRollValues.push(tensInput); // 0-9 für d100
-                        beforeRollValues.push(onesInput); // 0-9 für d10
+                        beforeRollValues.push(tensInput); // 0-9
+                        beforeRollValues.push(onesInput); // 0-9
                         
                         labelValues.push(tensDisplay);  // 0, 10, 20...90
                         labelValues.push(onesDisplay);  // 0-9
@@ -2876,31 +2878,44 @@
                         total += result;
                     }
                     
-                    // Remaining non-d100 dice
+                    // Remaining non-d100 dice (nach d100+d10 pairs)
                     const remaining = libraryNotation.replace(/\d*d100\+\d*d10/gi, '').replace(/^\+|\+$/g, '');
                     if (remaining) {
-                        const diceRegex = /(\d*)d(\d+)/gi;
-                        let match;
-                        while ((match = diceRegex.exec(remaining)) !== null) {
-                            const count = parseInt(match[1]) || 1;
-                            const sides = parseInt(match[2]);
-                            for (let j = 0; j < count; j++) {
-                                const roll = Math.floor(Math.random() * sides) + 1;
-                                beforeRollValues.push(roll);
-                                labelValues.push(roll);
-                                displayRolls.push(roll);
-                                total += roll;
-                            }
-                        }
+                        total += this.parseAndAddDice(remaining, beforeRollValues, labelValues, displayRolls);
                     }
                 } else {
-                    // Keine D100 - standard dice
-                    const diceRegex = /(\d*)d(\d+)/gi;
-                    let match;
-                    while ((match = diceRegex.exec(libraryNotation)) !== null) {
-                        const count = parseInt(match[1]) || 1;
-                        const sides = parseInt(match[2]);
-                        for (let j = 0; j < count; j++) {
+                    // Keine D100 - parse all dice
+                    total = this.parseAndAddDice(libraryNotation, beforeRollValues, labelValues, displayRolls);
+                }
+                
+                return { beforeRollValues, displayRolls, labelValues, total };
+            },
+            
+            // Parse dice notation and add to arrays, returns total
+            parseAndAddDice(notation, beforeRollValues, labelValues, displayRolls) {
+                let total = 0;
+                const diceRegex = /(\d*)d(\d+)/gi;
+                let match;
+                
+                while ((match = diceRegex.exec(notation)) !== null) {
+                    const count = parseInt(match[1]) || 1;
+                    const sides = parseInt(match[2]);
+                    
+                    for (let j = 0; j < count; j++) {
+                        if (sides === 10) {
+                            // d10: Library erwartet 0-9, zeigt "0"-"9"
+                            // Wert: "0" = 10, "1"-"9" = 1-9
+                            const face = Math.floor(Math.random() * 10); // 0-9
+                            const value = face === 0 ? 10 : face;
+                            
+                            beforeRollValues.push(face); // 0-9 für Library
+                            labelValues.push(face);      // 0-9 für Label
+                            displayRolls.push(value);    // 10 oder 1-9 für Berechnung
+                            total += value;
+                            
+                            console.log(`[DiceRoller] D10 precompute: face=${face}, value=${value}`);
+                        } else {
+                            // d4, d6, d8, d12, d20: Library erwartet 1-N
                             const roll = Math.floor(Math.random() * sides) + 1;
                             beforeRollValues.push(roll);
                             labelValues.push(roll);
@@ -2910,7 +2925,7 @@
                     }
                 }
                 
-                return { beforeRollValues, displayRolls, labelValues, total };
+                return total;
             },
             
             // Check critical from display results
