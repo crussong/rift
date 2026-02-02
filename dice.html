@@ -3527,7 +3527,7 @@
                 const arena = document.getElementById('diceArena');
                 
                 if (roll.phase === 'start') {
-                    // Phase 1: Zeige echte 3D-Würfel rotierend
+                    // Phase 1: Zeige rotierende 3D-Würfel in der Mitte
                     arena.classList.remove('empty');
                     this.clearDiceLabels();
                     
@@ -3562,10 +3562,10 @@
                     console.log('[DiceRoller] Skipping roll without results');
                     return;
                 }
-                this.executeRemoteRoll(roll);
+                this.showRemoteResult(roll);
             },
             
-            // Starte 3D-Würfel die auf der Stelle rotieren
+            // Starte 3D-Würfel die in der Mitte rotieren
             startSpinningDice(roll) {
                 if (!this.box) return;
                 
@@ -3580,57 +3580,77 @@
                     DICE.setLabelColor(roll.labelColor === 'auto' ? null : roll.labelColor);
                 }
                 
-                // Spawn die Würfel
+                // Erstelle die Würfel
                 this.box.setDice(notation);
                 
-                // Würfel in die Mitte setzen und rotieren
+                // Positioniere in der Mitte
                 if (this.box.dices && this.box.dices.length > 0) {
                     const spacing = 80;
                     const total = this.box.dices.length;
                     const startX = -((total - 1) * spacing) / 2;
                     
                     this.box.dices.forEach((dice, i) => {
-                        // Position: Mitte der Arena, leicht erhöht
-                        dice.body.position.set(startX + i * spacing, 30, 0);
+                        dice.body.position.set(startX + i * spacing, 40, 0);
                         dice.body.velocity.set(0, 0, 0);
                         dice.body.angularVelocity.set(0, 0, 0);
-                        dice.body.type = 2; // KINEMATIC - keine Physik
+                        dice.body.type = 2; // KINEMATIC
                     });
                     
-                    // Starte Rotation-Animation
-                    this.spinningAnimation = true;
-                    this.spinDice();
+                    // Starte Rotation Loop
+                    this.spinningRemote = true;
+                    this.spinRemoteDice();
                 }
             },
             
-            // Rotations-Animation Loop
-            spinDice() {
-                if (!this.spinningAnimation || !this.box || !this.box.dices) return;
+            // Manuelle Rotation der Würfel
+            spinRemoteDice() {
+                if (!this.spinningRemote || !this.box || !this.box.dices) return;
                 
-                const speed = 0.15; // Rotation speed
+                const speed = 0.15;
                 
                 this.box.dices.forEach((dice) => {
-                    if (dice.body) {
-                        // Rotiere um alle Achsen
-                        dice.body.quaternion.x += speed * 0.7;
-                        dice.body.quaternion.y += speed;
-                        dice.body.quaternion.z += speed * 0.5;
-                        dice.body.quaternion.normalize();
+                    if (dice.body && dice.body.quaternion) {
+                        // Einfache Quaternion Rotation
+                        const q = dice.body.quaternion;
+                        
+                        // Rotation um Y und X Achse
+                        const angleY = speed;
+                        const angleX = speed * 0.7;
+                        
+                        // Rotate around Y
+                        const cy = Math.cos(angleY / 2);
+                        const sy = Math.sin(angleY / 2);
+                        const qw = q.w * cy - q.y * sy;
+                        const qx = q.x * cy + q.z * sy;
+                        const qy = q.y * cy + q.w * sy;
+                        const qz = q.z * cy - q.x * sy;
+                        
+                        // Rotate around X
+                        const cx = Math.cos(angleX / 2);
+                        const sx = Math.sin(angleX / 2);
+                        q.w = qw * cx - qx * sx;
+                        q.x = qx * cx + qw * sx;
+                        q.y = qy * cx + qz * sx;
+                        q.z = qz * cx - qy * sx;
+                        
+                        // Normalize
+                        const len = Math.sqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+                        q.w /= len;
+                        q.x /= len;
+                        q.y /= len;
+                        q.z /= len;
                     }
                 });
                 
-                requestAnimationFrame(() => this.spinDice());
+                requestAnimationFrame(() => this.spinRemoteDice());
             },
             
-            // Stoppe Rotation und zeige Ergebnis
+            // Stoppe Rotation und zeige Ergebnis - KEIN WURF!
             stopSpinningDice(roll) {
-                this.spinningAnimation = false;
+                this.spinningRemote = false;
                 
-                const arena = document.getElementById('diceArena');
-                const resultEl = document.getElementById('diceResult');
                 let indicator = document.getElementById('remotePlayerIndicator');
                 
-                // Speichere eigene Farben
                 const myDiceColor = this.currentDiceColor;
                 const myDiceGradient = this.currentDiceGradient;
                 const myLabelColor = this.currentLabelColor;
@@ -3638,123 +3658,32 @@
                 const labelValues = roll.diceConfig?.labelValues || roll.labelValues || [];
                 const remoteD100Count = roll.diceConfig?.d100Count || 0;
                 
-                // Würfel auf richtige Werte setzen und "fallen" lassen
-                if (this.box && this.box.dices && roll.diceConfig?.beforeRollValues) {
-                    const values = roll.diceConfig.beforeRollValues;
-                    
-                    this.box.dices.forEach((dice, i) => {
-                        if (dice.body && values[i] !== undefined) {
-                            // Wieder dynamisch machen
-                            dice.body.type = 1; // DYNAMIC
-                            // Kleine Geschwindigkeit nach unten
-                            dice.body.velocity.set(
-                                (Math.random() - 0.5) * 50,
-                                -100,
-                                (Math.random() - 0.5) * 50
-                            );
+                // Stoppe Würfel-Rotation
+                if (this.box && this.box.dices) {
+                    this.box.dices.forEach((dice) => {
+                        if (dice.body) {
+                            dice.body.angularVelocity.set(0, 0, 0);
+                            dice.body.velocity.set(0, 0, 0);
                         }
                     });
-                    
-                    // Nutze beforeRoll für korrekte Werte
-                    const beforeRoll = () => values;
-                    
-                    // Kurz warten bis Würfel gelandet sind
-                    setTimeout(() => {
-                        // shift_dice_faces wird von der Library aufgerufen
-                        // Wir müssen nur sicherstellen dass die Werte stimmen
-                        
-                        setTimeout(() => {
-                            arena.classList.remove('throwing');
-                            if (indicator) indicator.classList.remove('visible');
-                            
-                            // Eigene Farben wiederherstellen
-                            if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                                DICE.setDiceColor(myDiceColor, myDiceGradient);
-                            }
-                            if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
-                                DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
-                            }
-                            
-                            this.showDiceLabels(labelValues, remoteD100Count);
-                            this.displayRollResult(
-                                roll.results || [],
-                                roll.total,
-                                roll.modifier || 0,
-                                roll.critical,
-                                roll.special,
-                                roll.player,
-                                roll.color,
-                                remoteD100Count,
-                                labelValues
-                            );
-                            
-                            this.addToHistory({
-                                player: roll.player || 'Spieler',
-                                color: roll.color || '#8b5cf6',
-                                total: roll.total,
-                                notation: roll.notation,
-                                rolls: roll.results || [],
-                                critical: roll.critical,
-                                secret: roll.secret,
-                                timestamp: roll.timestamp || Date.now(),
-                                isRemote: true
-                            });
-                        }, 800);
-                    }, 100);
-                } else {
-                    // Fallback ohne 3D
-                    setTimeout(() => {
-                        arena.classList.remove('throwing');
-                        if (indicator) indicator.classList.remove('visible');
-                        
-                        if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                            DICE.setDiceColor(myDiceColor, myDiceGradient);
-                        }
-                        
-                        this.showDiceLabels(labelValues, remoteD100Count);
-                        this.displayRollResult(
-                            roll.results || [],
-                            roll.total,
-                            roll.modifier || 0,
-                            roll.critical,
-                            roll.special,
-                            roll.player,
-                            roll.color,
-                            remoteD100Count,
-                            labelValues
-                        );
-                        
-                        this.addToHistory({
-                            player: roll.player || 'Spieler',
-                            color: roll.color || '#8b5cf6',
-                            total: roll.total,
-                            notation: roll.notation,
-                            rolls: roll.results || [],
-                            critical: roll.critical,
-                            secret: roll.secret,
-                            timestamp: roll.timestamp || Date.now(),
-                            isRemote: true
-                        });
-                    }, 500);
                 }
-            },
-            
-            // Legacy executeRemoteRoll für alte Rolls ohne phases
-            executeRemoteRoll(roll) {
-                console.log('[DiceRoller] 🎲 executeRemoteRoll (legacy):', roll.player, roll.total);
                 
-                const arena = document.getElementById('diceArena');
-                const resultEl = document.getElementById('diceResult');
-                
-                if (!arena || !resultEl) return;
-                
-                this.clearDiceLabels();
-                
-                const labelValues = roll.diceConfig?.labelValues || roll.labelValues || [];
-                const remoteD100Count = roll.diceConfig?.d100Count || 0;
-                
+                // Kurze Pause, dann Ergebnis zeigen
                 setTimeout(() => {
+                    if (indicator) indicator.classList.remove('visible');
+                    
+                    // Eigene Farben wiederherstellen
+                    if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
+                        DICE.setDiceColor(myDiceColor, myDiceGradient);
+                    }
+                    if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
+                        DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
+                    }
+                    
+                    // Zeige Labels über den Würfeln
                     this.showDiceLabels(labelValues, remoteD100Count);
+                    
+                    // Zeige Ergebnis-Card
                     this.displayRollResult(
                         roll.results || [],
                         roll.total,
@@ -3778,7 +3707,49 @@
                         timestamp: roll.timestamp || Date.now(),
                         isRemote: true
                     });
-                }, 500);
+                }, 300);
+            },
+            
+            // Zeige Remote Ergebnis ohne Animation
+            showRemoteResult(roll) {
+                const labelValues = roll.diceConfig?.labelValues || roll.labelValues || [];
+                const remoteD100Count = roll.diceConfig?.d100Count || 0;
+                
+                let indicator = document.getElementById('remotePlayerIndicator');
+                if (indicator) indicator.classList.remove('visible');
+                
+                // Eigene Farben wiederherstellen
+                if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
+                    DICE.setDiceColor(this.currentDiceColor, this.currentDiceGradient);
+                }
+                if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
+                    DICE.setLabelColor(this.currentLabelColor === 'auto' ? null : this.currentLabelColor);
+                }
+                
+                this.showDiceLabels(labelValues, remoteD100Count);
+                this.displayRollResult(
+                    roll.results || [],
+                    roll.total,
+                    roll.modifier || 0,
+                    roll.critical,
+                    roll.special,
+                    roll.player,
+                    roll.color,
+                    remoteD100Count,
+                    labelValues
+                );
+                
+                this.addToHistory({
+                    player: roll.player || 'Spieler',
+                    color: roll.color || '#8b5cf6',
+                    total: roll.total,
+                    notation: roll.notation,
+                    rolls: roll.results || [],
+                    critical: roll.critical,
+                    secret: roll.secret,
+                    timestamp: roll.timestamp || Date.now(),
+                    isRemote: true
+                });
             },
             
             syncRoll(rollData) {
