@@ -2914,7 +2914,7 @@
                 // Sync to multiplayer
                 this.syncRoll({
                     player: playerName,
-                    playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || null,
+                    playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
                     color: userData.color || '#FF4655',
                     diceTheme: this.currentTheme || 'classic',
                     total: finalTotal,
@@ -2986,29 +2986,42 @@
                 // Store normalized room code for Firestore
                 this.roomCode = roomCode.replace(/-/g, '').toUpperCase();
                 
-                // Get current user for filtering
+                // Get current user for filtering - use name as fallback ID
                 const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-                this.currentPlayerId = userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || null;
+                this.currentPlayerName = userData.name || 'Spieler';
+                this.currentPlayerId = userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || userData.name || 'unknown_' + Date.now();
+                
+                console.log('[DiceRoller] Current player:', this.currentPlayerName, 'ID:', this.currentPlayerId);
                 
                 try {
                     this.roomRef = firebase.database().ref(`rooms/${roomCode}`);
                     this.diceRef = this.roomRef.child('dice_rolls');
                     
                     // Listen for new rolls from ALL players
-                    this.diceRef.orderByChild('timestamp').limitToLast(10).on('child_added', (snapshot) => {
+                    this.diceRef.orderByChild('timestamp').limitToLast(20).on('child_added', (snapshot) => {
                         const roll = snapshot.val();
-                        if (!roll || Date.now() - roll.timestamp > 30000) return;
+                        if (!roll) return;
                         
-                        // Check if this is from another player
-                        const isRemoteRoll = roll.playerId !== this.currentPlayerId;
+                        // Skip old rolls (more than 30 seconds)
+                        const rollAge = Date.now() - roll.timestamp;
+                        if (rollAge > 30000) {
+                            console.log('[DiceRoller] Skipping old roll:', rollAge, 'ms old');
+                            return;
+                        }
                         
-                        if (isRemoteRoll) {
-                            console.log('[DiceRoller] Remote roll received:', roll.player, roll.notation);
+                        // Check if this is from another player (compare ID first, then name)
+                        const isOwnRoll = (roll.playerId && roll.playerId === this.currentPlayerId) || 
+                                          (!roll.playerId && roll.player === this.currentPlayerName);
+                        
+                        console.log('[DiceRoller] Roll received:', roll.player, '| Own:', isOwnRoll, '| ID match:', roll.playerId === this.currentPlayerId);
+                        
+                        if (!isOwnRoll) {
+                            console.log('[DiceRoller] 🎲 REMOTE ROLL from', roll.player, ':', roll.notation, '=', roll.total);
                             this.handleRemoteRoll(roll);
                         }
                     });
                     
-                    console.log('[DiceRoller] Multiplayer connected with live rolls');
+                    console.log('[DiceRoller] ✅ Multiplayer connected - listening for live rolls');
                 } catch (e) {
                     console.error('[DiceRoller] Multiplayer init failed:', e);
                 }
@@ -3016,6 +3029,8 @@
             
             // Handle incoming roll from another player - show 3D animation + add to history
             handleRemoteRoll(roll) {
+                console.log('[DiceRoller] handleRemoteRoll called:', roll);
+                
                 // Add to history first
                 this.addToHistory({
                     player: roll.player || 'Spieler',
@@ -3029,104 +3044,133 @@
                     isRemote: true
                 });
                 
-                // Show feed item for quick notification
-                this.showFeedItem(roll);
-                
-                // Execute 3D animation if we have the dice info
-                if (roll.diceConfig && this.box) {
-                    this.executeRemoteRoll(roll);
-                }
+                // Execute 3D animation
+                this.executeRemoteRoll(roll);
             },
             
             // Execute 3D animation for a remote roll
             executeRemoteRoll(roll) {
-                if (!this.box || !roll.diceConfig) return;
+                console.log('[DiceRoller] executeRemoteRoll:', roll);
                 
                 const arena = document.getElementById('diceArena');
                 const resultEl = document.getElementById('diceResult');
                 const totalEl = document.getElementById('diceTotal');
                 const breakdownEl = document.getElementById('diceBreakdown');
-                const playerIndicator = document.getElementById('remotePlayerIndicator');
                 
-                // Show who is rolling
-                if (!playerIndicator) {
-                    const indicator = document.createElement('div');
+                if (!arena || !resultEl) {
+                    console.error('[DiceRoller] Missing DOM elements for remote roll');
+                    return;
+                }
+                
+                // Create or get remote player indicator
+                let indicator = document.getElementById('remotePlayerIndicator');
+                if (!indicator) {
+                    indicator = document.createElement('div');
                     indicator.id = 'remotePlayerIndicator';
                     indicator.className = 'dice-remote-indicator';
                     arena.appendChild(indicator);
                 }
-                const indEl = document.getElementById('remotePlayerIndicator');
-                if (indEl) {
-                    indEl.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
-                    indEl.classList.add('visible');
-                }
                 
-                // Set theme temporarily if different
-                const originalTheme = this.currentTheme;
-                if (roll.diceTheme && roll.diceTheme !== this.currentTheme) {
-                    this.box.updateOptions({ themeColor: roll.diceTheme });
-                }
+                // Show who is rolling
+                indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
+                indicator.classList.add('visible');
                 
                 // Clear previous result
                 resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
                 
-                // Set dice and throw
+                // Set theme temporarily if different and we have box
+                const originalTheme = this.currentTheme;
+                
+                // Throwing animation on arena
                 arena.classList.add('throwing');
                 
-                try {
-                    this.box.setDice(roll.diceConfig.notation);
-                    
-                    // Use predetermined results for the roll
-                    this.box.start_throw(roll.diceConfig.results, () => {
-                        arena.classList.remove('throwing');
+                // If we have 3D box and dice config, animate it
+                if (this.box && roll.diceConfig && roll.diceConfig.notation) {
+                    try {
+                        // Set the dice
+                        this.box.setDice(roll.diceConfig.notation);
                         
-                        // Hide player indicator
-                        if (indEl) indEl.classList.remove('visible');
-                        
-                        // Show result
-                        totalEl.textContent = roll.total;
-                        
-                        // Build breakdown
-                        let modStr = '';
-                        if (roll.modifier && roll.modifier !== 0) {
-                            const modClass = roll.modifier > 0 ? 'positive' : 'negative';
-                            const modSign = roll.modifier > 0 ? '+' : '';
-                            modStr = ` <span class="dice-result__mod dice-result__mod--${modClass}">${modSign}${roll.modifier}</span>`;
-                        }
-                        breakdownEl.innerHTML = `[${(roll.results || []).join(', ')}]${modStr} = ${roll.total}`;
-                        
-                        // Critical styling
-                        if (roll.critical === 'success') {
-                            resultEl.classList.add('critical');
-                            arena.classList.add('shake');
-                            this.spawnParticles(30);
-                            setTimeout(() => arena.classList.remove('shake'), 500);
-                        } else if (roll.critical === 'failure') {
-                            resultEl.classList.add('fumble');
-                            arena.classList.add('shake');
-                            this.spawnParticles(30);
-                            setTimeout(() => arena.classList.remove('shake'), 500);
-                        }
-                        
-                        resultEl.classList.add('visible');
-                        
-                        // Restore original theme
+                        // Change theme if needed
                         if (roll.diceTheme && roll.diceTheme !== originalTheme) {
-                            setTimeout(() => {
-                                this.box.updateOptions({ themeColor: originalTheme });
-                            }, 2000);
+                            this.setTheme(roll.diceTheme);
                         }
                         
-                        // Auto-hide
-                        setTimeout(() => {
-                            resultEl.classList.remove('visible', 'critical', 'fumble');
-                        }, 6000);
-                    });
-                } catch (e) {
-                    console.error('[DiceRoller] Remote roll animation failed:', e);
-                    arena.classList.remove('throwing');
-                    if (indEl) indEl.classList.remove('visible');
+                        // Start the throw animation
+                        this.box.start_throw(null, (notation) => {
+                            console.log('[DiceRoller] Remote roll animation complete');
+                            this.showRemoteResult(roll, indicator, originalTheme);
+                        });
+                        
+                        return; // Result will be shown in callback
+                    } catch (e) {
+                        console.error('[DiceRoller] 3D animation failed:', e);
+                    }
                 }
+                
+                // Fallback: Just show result after delay (no 3D)
+                setTimeout(() => {
+                    this.showRemoteResult(roll, indicator, originalTheme);
+                }, 1500);
+            },
+            
+            // Show the result of a remote roll
+            showRemoteResult(roll, indicator, originalTheme) {
+                const arena = document.getElementById('diceArena');
+                const resultEl = document.getElementById('diceResult');
+                const totalEl = document.getElementById('diceTotal');
+                const breakdownEl = document.getElementById('diceBreakdown');
+                
+                arena.classList.remove('throwing');
+                
+                // Hide indicator
+                if (indicator) indicator.classList.remove('visible');
+                
+                // Show result
+                totalEl.textContent = roll.total;
+                
+                // Build breakdown
+                const results = roll.results || roll.rolls || [];
+                let modStr = '';
+                if (roll.modifier && roll.modifier !== 0) {
+                    const modClass = roll.modifier > 0 ? 'positive' : 'negative';
+                    const modSign = roll.modifier > 0 ? '+' : '';
+                    modStr = ` <span class="dice-result__mod dice-result__mod--${modClass}">${modSign}${roll.modifier}</span>`;
+                }
+                
+                if (results.length > 0) {
+                    breakdownEl.innerHTML = `[${results.join(', ')}]${modStr} = ${roll.total}`;
+                } else {
+                    breakdownEl.innerHTML = `${roll.notation} = ${roll.total}`;
+                }
+                
+                // Critical/fumble styling
+                if (roll.critical === 'success') {
+                    resultEl.classList.add('critical');
+                    arena.classList.add('shake');
+                    this.spawnParticles(30);
+                    this.showCritFlash('success');
+                    setTimeout(() => arena.classList.remove('shake'), 500);
+                } else if (roll.critical === 'failure') {
+                    resultEl.classList.add('fumble');
+                    arena.classList.add('shake');
+                    this.spawnParticles(30);
+                    this.showCritFlash('failure');
+                    setTimeout(() => arena.classList.remove('shake'), 500);
+                }
+                
+                resultEl.classList.add('visible');
+                
+                // Restore theme if changed
+                if (roll.diceTheme && roll.diceTheme !== originalTheme && this.box) {
+                    setTimeout(() => {
+                        this.setTheme(originalTheme);
+                    }, 2000);
+                }
+                
+                // Auto-hide after 6 seconds
+                setTimeout(() => {
+                    resultEl.classList.remove('visible', 'critical', 'fumble');
+                }, 6000);
             },
             
             syncRoll(rollData) {
