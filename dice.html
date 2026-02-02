@@ -426,13 +426,14 @@
                                             </button>
                                             
                                             <!-- Stats Popup -->
-                                            <div class="dice-settings-popup" id="statsPopup">
+                                            <div class="dice-settings-popup dice-stats-popup" id="statsPopup">
                                                 <div class="dice-settings-popup__header">
                                                     <span>Statistiken</span>
                                                     <button class="dice-settings-popup__close" onclick="DiceRoller.toggleStatsPopup()">
                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                                     </button>
                                                 </div>
+                                                <p class="dice-stats-hint">Statistiken für alle Spieler im Raum</p>
                                                 <div class="dice-stats-grid">
                                                     <div class="dice-stats-card">
                                                         <span class="dice-stats-card__value" id="statTotal">0</span>
@@ -459,6 +460,13 @@
                                                         <span class="dice-stats-card__label">Minimum</span>
                                                     </div>
                                                 </div>
+                                                <button class="dice-stats-reset" onclick="DiceRoller.resetStats()">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                                        <path d="M3 3v5h5"/>
+                                                    </svg>
+                                                    Statistiken zurücksetzen
+                                                </button>
                                             </div>
                                         </div>
                                         
@@ -3475,6 +3483,30 @@
                 try {
                     this.roomRef = firebase.database().ref(`rooms/${roomCode}`);
                     this.diceRef = this.roomRef.child('dice_rolls');
+                    this.statsRef = this.roomRef.child('dice_stats');
+                    
+                    // Initialize stats structure if not exists
+                    this.statsRef.once('value', (snapshot) => {
+                        if (!snapshot.exists()) {
+                            this.statsRef.set({
+                                totalRolls: 0,
+                                criticalSuccesses: 0,
+                                criticalFailures: 0,
+                                sumOfTotals: 0,
+                                maxRoll: null,
+                                minRoll: null
+                            });
+                        }
+                    });
+                    
+                    // Subscribe to stats changes
+                    this.statsRef.on('value', (snapshot) => {
+                        const stats = snapshot.val();
+                        if (stats) {
+                            this.roomStats = stats;
+                            this.updateStatsDisplay(stats);
+                        }
+                    });
                     
                     // Listen for new rolls from ALL players
                     this.diceRef.orderByChild('timestamp').limitToLast(20).on('child_added', (snapshot) => {
@@ -4040,7 +4072,109 @@
                 if (this.history.length > 50) this.history = this.history.slice(0, 50);
                 this.saveHistory();
                 this.renderHistory();
-                this.updateStats();
+                
+                // Update Firebase stats if connected (only for own rolls, not remote)
+                if (this.statsRef && !roll.isRemote) {
+                    this.updateFirebaseStats(roll);
+                } else {
+                    this.updateStats();
+                }
+            },
+            
+            // Update room-wide stats in Firebase
+            updateFirebaseStats(roll) {
+                if (!this.statsRef) return;
+                
+                this.statsRef.transaction((currentStats) => {
+                    if (!currentStats) {
+                        currentStats = {
+                            totalRolls: 0,
+                            criticalSuccesses: 0,
+                            criticalFailures: 0,
+                            sumOfTotals: 0,
+                            maxRoll: null,
+                            minRoll: null
+                        };
+                    }
+                    
+                    currentStats.totalRolls = (currentStats.totalRolls || 0) + 1;
+                    currentStats.sumOfTotals = (currentStats.sumOfTotals || 0) + roll.total;
+                    
+                    if (roll.critical === 'success') {
+                        currentStats.criticalSuccesses = (currentStats.criticalSuccesses || 0) + 1;
+                    }
+                    if (roll.critical === 'failure') {
+                        currentStats.criticalFailures = (currentStats.criticalFailures || 0) + 1;
+                    }
+                    
+                    if (currentStats.maxRoll === null || roll.total > currentStats.maxRoll) {
+                        currentStats.maxRoll = roll.total;
+                    }
+                    if (currentStats.minRoll === null || roll.total < currentStats.minRoll) {
+                        currentStats.minRoll = roll.total;
+                    }
+                    
+                    return currentStats;
+                });
+            },
+            
+            // Update UI with room stats
+            updateStatsDisplay(stats) {
+                const totalEl = document.getElementById('statTotal');
+                const avgEl = document.getElementById('statAvg');
+                const critsEl = document.getElementById('statCrits');
+                const fumblesEl = document.getElementById('statFumbles');
+                const maxEl = document.getElementById('statMax');
+                const minEl = document.getElementById('statMin');
+                
+                if (!totalEl) return;
+                
+                totalEl.textContent = stats.totalRolls || 0;
+                
+                if (stats.totalRolls === 0) {
+                    avgEl.textContent = '-';
+                    critsEl.textContent = '0';
+                    fumblesEl.textContent = '0';
+                    maxEl.textContent = '-';
+                    minEl.textContent = '-';
+                    return;
+                }
+                
+                const avg = (stats.sumOfTotals / stats.totalRolls).toFixed(1);
+                avgEl.textContent = avg;
+                critsEl.textContent = stats.criticalSuccesses || 0;
+                fumblesEl.textContent = stats.criticalFailures || 0;
+                maxEl.textContent = stats.maxRoll !== null ? stats.maxRoll : '-';
+                minEl.textContent = stats.minRoll !== null ? stats.minRoll : '-';
+            },
+            
+            // Reset room stats
+            resetStats() {
+                if (this.statsRef) {
+                    // Reset Firebase stats
+                    this.statsRef.set({
+                        totalRolls: 0,
+                        criticalSuccesses: 0,
+                        criticalFailures: 0,
+                        sumOfTotals: 0,
+                        maxRoll: null,
+                        minRoll: null
+                    });
+                    
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.show('Statistiken zurückgesetzt', 'success');
+                    }
+                } else {
+                    // Reset local stats
+                    this.history = [];
+                    this.saveHistory();
+                    this.renderHistory();
+                    this.updateStats();
+                    
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.show('Lokale Statistiken zurückgesetzt', 'success');
+                    }
+                }
             },
             
             renderHistory() {
@@ -4120,6 +4254,7 @@
                 this.statsPopupOpen = !this.statsPopupOpen;
                 const popup = document.getElementById('statsPopup');
                 const btn = document.getElementById('statsBtn');
+                const overlay = document.getElementById('diceSettingsOverlay');
                 
                 // Close other popups
                 if (this.statsPopupOpen) {
@@ -4129,10 +4264,12 @@
                 if (this.statsPopupOpen) {
                     popup?.classList.add('open');
                     btn?.classList.add('active');
+                    overlay?.classList.add('open');
                     this.updateStats();
                 } else {
                     popup?.classList.remove('open');
                     btn?.classList.remove('active');
+                    overlay?.classList.remove('open');
                 }
             },
             
@@ -4140,6 +4277,7 @@
                 this.hotkeysPopupOpen = !this.hotkeysPopupOpen;
                 const popup = document.getElementById('hotkeysPopup');
                 const btn = document.getElementById('hotkeysBtn');
+                const overlay = document.getElementById('diceSettingsOverlay');
                 
                 // Close other popups
                 if (this.hotkeysPopupOpen) {
@@ -4149,9 +4287,11 @@
                 if (this.hotkeysPopupOpen) {
                     popup?.classList.add('open');
                     btn?.classList.add('active');
+                    overlay?.classList.add('open');
                 } else {
                     popup?.classList.remove('open');
                     btn?.classList.remove('active');
+                    overlay?.classList.remove('open');
                 }
             },
             
@@ -4169,12 +4309,21 @@
                 if (except !== 'settings') {
                     document.getElementById('settingsPopup')?.classList.remove('open');
                     document.getElementById('settingsBtn')?.classList.remove('active');
-                    // Close overlay when settings closes
+                }
+                // Only close overlay if ALL popups are closed
+                if (!except) {
                     document.getElementById('diceSettingsOverlay')?.classList.remove('open');
                 }
             },
             
             updateStats() {
+                // If we have room stats from Firebase, use those instead
+                if (this.roomStats) {
+                    this.updateStatsDisplay(this.roomStats);
+                    return;
+                }
+                
+                // Fallback to local history stats
                 const totalEl = document.getElementById('statTotal');
                 const avgEl = document.getElementById('statAvg');
                 const critsEl = document.getElementById('statCrits');
