@@ -46,8 +46,8 @@ window.RIFTToast = {
         
         const page = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
         const isChat = page === 'chat';
-        const bottom = isChat ? 100 : 24;
-        const bottomMobile = isChat ? 80 : 16;
+        const bottom = isChat ? 100 : 90; // Above dock (72px + padding)
+        const bottomMobile = isChat ? 80 : 80;
         
         const el = document.createElement('div');
         el.id = 'rift-toast-container';
@@ -82,9 +82,16 @@ window.RIFTToast = {
     show(toast) {
         this.createContainer();
         
+        // If this is a dice result, dismiss any rolling toasts first
+        if (['dice', 'diceSuccess', 'diceFail'].includes(toast.type)) {
+            const rollingToasts = this.container.querySelectorAll('.rift-toast[data-type="diceRolling"]');
+            rollingToasts.forEach(t => this.dismiss(t));
+        }
+        
         const typeConfig = this.types[toast.type] || this.types.dice;
         const el = document.createElement('div');
         el.className = 'rift-toast';
+        el.dataset.type = toast.type; // Store type for later reference
         
         let resultHtml = '';
         if (toast.result !== undefined) {
@@ -108,7 +115,9 @@ window.RIFTToast = {
         const toasts = this.container.querySelectorAll('.rift-toast:not(.hiding)');
         if (toasts.length > this.MAX_TOASTS) this.dismiss(toasts[0]);
         
-        setTimeout(() => this.dismiss(el), this.TOAST_DURATION);
+        // Shorter duration for rolling toasts (will be replaced by result anyway)
+        const duration = toast.type === 'diceRolling' ? 3000 : this.TOAST_DURATION;
+        setTimeout(() => this.dismiss(el), duration);
     },
     
     dismiss(el) {
