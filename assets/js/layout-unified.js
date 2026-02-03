@@ -894,73 +894,75 @@ async function initDockCharacterCard() {
         return;
     }
     
-    // Wait for CharacterStorage to be ready
-    if (typeof CharacterStorage === 'undefined') {
-        console.log('[DockChar] CharacterStorage not ready, retrying in 500ms...');
-        setTimeout(initDockCharacterCard, 500);
-        return;
-    }
-    
     const roomCode = localStorage.getItem('rift_current_room');
     console.log('[DockChar] Room code:', roomCode || 'none');
     
-    // Get main character (or first available)
-    let character = null;
+    // Try multiple sources for character data (same as Hub CharPanel)
+    let charData = null;
+    let charId = null;
     
-    // Try to get session ruleset first
-    let ruleset = null;
-    const activeSessionData = localStorage.getItem('rift_active_session');
-    const sessionsData = localStorage.getItem('rift_sessions');
+    // Source 1: worldsapart_character_v5 (most reliable for local characters)
+    try {
+        const localData = localStorage.getItem('worldsapart_character_v5');
+        if (localData) {
+            charData = JSON.parse(localData);
+            charId = charData.id || 'local';
+            console.log('[DockChar] Loaded from worldsapart_character_v5:', charData.name);
+        }
+    } catch (e) {
+        console.warn('[DockChar] worldsapart_character_v5 error:', e);
+    }
     
-    if (activeSessionData && sessionsData) {
-        try {
-            const activeSession = JSON.parse(activeSessionData);
-            const sessions = JSON.parse(sessionsData);
-            const fullSession = sessions.find(s => s.id === activeSession.id);
-            if (fullSession) {
-                ruleset = fullSession.ruleset;
-                console.log('[DockChar] Session ruleset:', ruleset);
+    // Source 2: CharacterStorage as fallback
+    if (!charData && typeof CharacterStorage !== 'undefined') {
+        // Get session ruleset
+        let ruleset = 'worldsapart';
+        const activeSessionData = localStorage.getItem('rift_active_session');
+        const sessionsData = localStorage.getItem('rift_sessions');
+        
+        if (activeSessionData && sessionsData) {
+            try {
+                const activeSession = JSON.parse(activeSessionData);
+                const sessions = JSON.parse(sessionsData);
+                const fullSession = sessions.find(s => s.id === activeSession.id);
+                if (fullSession?.ruleset) {
+                    ruleset = fullSession.ruleset;
+                }
+            } catch (e) {}
+        }
+        
+        // Try main character
+        const mainChar = CharacterStorage.getMainCharacter(ruleset);
+        if (mainChar) {
+            charData = mainChar;
+            charId = mainChar.id;
+            console.log('[DockChar] Loaded from CharacterStorage:', charData.name);
+        }
+        
+        // Fallback: first character
+        if (!charData) {
+            const all = CharacterStorage.getAll();
+            const chars = Object.values(all);
+            if (chars.length > 0) {
+                charData = chars[0];
+                charId = charData.id;
+                console.log('[DockChar] Loaded first character:', charData.name);
             }
-        } catch (e) {}
-    }
-    
-    // Try main character for ruleset
-    if (ruleset) {
-        character = CharacterStorage.getMainCharacter(ruleset);
-        console.log('[DockChar] Main character for', ruleset + ':', character?.name || 'none');
-    }
-    
-    // Fallback: any main character
-    if (!character) {
-        const mains = CharacterStorage.getMainCharacters();
-        if (mains.length > 0) {
-            character = mains[0];
-            console.log('[DockChar] Fallback main character:', character?.name);
         }
     }
     
-    // Fallback: first character
-    if (!character) {
-        const all = CharacterStorage.getAll();
-        const chars = Object.values(all);
-        if (chars.length > 0) {
-            character = chars[0];
-            console.log('[DockChar] Fallback first character:', character?.name);
-        }
-    }
-    
-    if (!character) {
+    if (!charData) {
         console.log('[DockChar] No character found, hiding card');
         card.classList.add('hidden');
         return;
     }
     
-    console.log('[DockChar] Displaying character:', character.name);
-    updateDockCharacterCard(character, character.id, roomCode);
+    console.log('[DockChar] Displaying character:', charData.name);
+    updateDockCharacterCard(charData, charId, roomCode);
     
     // Subscribe to localStorage changes for real-time updates
     window.addEventListener('storage', (e) => {
-        if (e.key === 'rift_characters') {
+        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5') {
             console.log('[DockChar] Characters updated, refreshing...');
             initDockCharacterCard();
         }
@@ -1056,6 +1058,14 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     
     // Store character data for tooltip
     const attrs = charData.attributes || {};
+    console.log('[DockChar] Character data:', {
+        name: charData.name,
+        attributes: charData.attributes,
+        fokus: charData.fokus,
+        schwaeche: charData.schwaeche,
+        secondChance: charData.secondChance
+    });
+    
     card.dataset.charName = charData.name || 'Unbenannt';
     card.dataset.charPower = attrs.power ?? 0;
     card.dataset.charAgility = attrs.agility ?? 0;
@@ -1078,7 +1088,7 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     
     // Show card
     card.classList.remove('hidden');
-    console.log('[DockChar] Card updated:', charData.name);
+    console.log('[DockChar] Card updated:', charData.name, '- Attrs:', attrs);
 }
 
 // ============================================================
@@ -1110,16 +1120,17 @@ async function initDockSessionCard() {
     try {
         const sessions = await RIFT.rooms.getSessions(roomCode);
         console.log('[DockSession] Loaded sessions:', sessions.length);
+        console.log('[DockSession] Sessions:', sessions.map(s => ({ id: s.id, name: s.name, status: s.status })));
         
         // Find active session (live or paused)
         let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
         
         // Fallback: first planned/scheduled session
         if (!session) {
-            session = sessions.find(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming');
+            session = sessions.find(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming' || s.status === 'draft');
         }
         
-        // Fallback: first session that's not ended
+        // Fallback: first session without ended status (including undefined status)
         if (!session) {
             session = sessions.find(s => s.status !== 'ended');
         }
