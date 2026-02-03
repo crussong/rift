@@ -964,9 +964,19 @@ const DICE = (function() {
             return texture;
         }
         var materials = [];
-        for (var i = 0; i < face_labels.length; ++i)
-            materials.push(new THREE.MeshPhongMaterial($t.copyto(vars.material_options,
-                        { map: create_text_texture(face_labels[i], vars.label_color, vars.dice_color) })));
+        for (var i = 0; i < face_labels.length; ++i) {
+            // RIFT FIX: Make empty label faces invisible (d10 triangular edge faces)
+            if (face_labels[i] === ' ' || face_labels[i] === '') {
+                materials.push(new THREE.MeshPhongMaterial({
+                    transparent: true,
+                    opacity: 0,
+                    visible: false
+                }));
+            } else {
+                materials.push(new THREE.MeshPhongMaterial($t.copyto(vars.material_options,
+                            { map: create_text_texture(face_labels[i], vars.label_color, vars.dice_color) })));
+            }
+        }
         return materials;
     }
 
@@ -1027,25 +1037,16 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        console.log('[DICE] Creating d10 geometry - WITHOUT triangular edge faces');
-        
-        // Original vertex structure (works correctly)
-        var a = Math.PI * 2 / 10, h = 0.105;
+        // Original d10 geometry - restored
+        var a = Math.PI * 2 / 10, k = Math.cos(a), h = 0.105, v = -1;
         var vertices = [];
         for (var i = 0, b = 0; i < 10; ++i, b += a)
             vertices.push([Math.cos(b), Math.sin(b), h * (i % 2 ? 1 : -1)]);
-        vertices.push([0, 0, -1]); // vertex 10: bottom apex
-        vertices.push([0, 0, 1]);  // vertex 11: top apex
-        
-        // ONLY the 10 kite-shaped faces - NO triangular edge faces!
-        var faces = [
-            [5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
-            [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9]
-        ];
-        // REMOVED the 10 triangular faces that were here:
-        // [1, 0, 2, v], [1, 2, 3, v], [3, 2, 4, v], [3, 4, 5, v], [5, 4, 6, v],
-        // [5, 6, 7, v], [7, 6, 8, v], [7, 8, 9, v], [9, 8, 0, v], [9, 0, 1, v]
-        
+        vertices.push([0, 0, -1]); vertices.push([0, 0, 1]);
+        var faces = [[5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
+                [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9],
+                [1, 0, 2, v], [1, 2, 3, v], [3, 2, 4, v], [3, 4, 5, v], [5, 4, 6, v],
+                [5, 6, 7, v], [7, 6, 8, v], [7, 8, 9, v], [9, 8, 0, v], [9, 0, 1, v]];
         return create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
     }
 
