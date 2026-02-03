@@ -881,33 +881,42 @@ async function initDockCharacterCard() {
         return;
     }
     
-    // Wait for Firebase
-    const waitForFirebase = () => {
+    // Wait for Firebase Auth to be ready
+    const waitForAuth = () => {
         return new Promise((resolve) => {
-            if (typeof firebase !== 'undefined' && firebase.firestore) {
-                resolve();
-            } else {
+            if (typeof firebase === 'undefined') {
+                console.log('[DockChar] Firebase not loaded, waiting...');
                 const check = setInterval(() => {
-                    if (typeof firebase !== 'undefined' && firebase.firestore) {
+                    if (typeof firebase !== 'undefined' && firebase.auth) {
                         clearInterval(check);
-                        resolve();
+                        // Now wait for auth state
+                        const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                            unsubscribe();
+                            resolve(user);
+                        });
                     }
-                }, 100);
-                setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+                }, 200);
+                setTimeout(() => { clearInterval(check); resolve(null); }, 10000);
+            } else if (firebase.auth) {
+                const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                    unsubscribe();
+                    resolve(user);
+                });
+            } else {
+                resolve(null);
             }
         });
     };
     
-    await waitForFirebase();
+    const user = await waitForAuth();
+    
+    if (!user) {
+        console.log('[DockChar] No user logged in');
+        return;
+    }
     
     try {
         const db = firebase.firestore();
-        const user = firebase.auth().currentUser;
-        
-        if (!user) {
-            console.log('[DockChar] No user logged in');
-            return;
-        }
         
         // Get user's display name for member lookup
         const storedUser = localStorage.getItem('rift_user');
