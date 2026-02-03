@@ -1027,60 +1027,52 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        // Mathematically correct Pentagonal Trapezohedron
-        // Like d8 but with 10 kite faces instead of 8 triangles
+        // TRUE Pentagonal Trapezohedron geometry
+        // 12 vertices: 2 apex + 2 rings of 5
+        // 10 kite faces (4 vertices each)
         
-        var a = Math.PI * 2 / 5; // 72° between pentagon vertices
+        var a = Math.PI * 2 / 5; // 72° between vertices in pentagon
+        var h = 0.85;  // apex height
+        var rh = 0.35; // ring height from center
+        var rr = 0.78; // ring radius
         
-        // Proportions for a proper trapezohedron
-        var h_apex = 1.0;
-        var h_ring = 0.38;
-        var r_ring = 0.82;
-        
-        var vertices = [];
-        
-        // Vertex 0: Top apex
-        vertices.push([0, 0, h_apex]);
-        
-        // Vertices 1-5: Upper pentagon ring
-        for (var i = 0; i < 5; i++) {
-            vertices.push([
-                r_ring * Math.cos(a * i),
-                r_ring * Math.sin(a * i),
-                h_ring
-            ]);
-        }
-        
-        // Vertices 6-10: Lower pentagon ring (rotated 36°)
-        for (var i = 0; i < 5; i++) {
-            vertices.push([
-                r_ring * Math.cos(a * i + Math.PI / 5),
-                r_ring * Math.sin(a * i + Math.PI / 5),
-                -h_ring
-            ]);
-        }
-        
-        // Vertex 11: Bottom apex
-        vertices.push([0, 0, -h_apex]);
-        
-        // 10 kite-shaped faces - forms a closed solid (no gaps!)
-        var faces = [
-            // Upper 5 kites (touching top apex) - numbers 0,2,4,6,8
-            [0, 1, 6, 2, 0],
-            [0, 2, 7, 3, 2],
-            [0, 3, 8, 4, 4],
-            [0, 4, 9, 5, 6],
-            [0, 5, 10, 1, 8],
-            
-            // Lower 5 kites (touching bottom apex) - numbers 1,3,5,7,9
-            [11, 7, 2, 6, 1],
-            [11, 8, 3, 7, 3],
-            [11, 9, 4, 8, 5],
-            [11, 10, 5, 9, 7],
-            [11, 6, 1, 10, 9]
+        var vertices = [
+            [0, 0, h],  // 0: top apex
         ];
         
-        return create_geom(vertices, faces, radius, 0, Math.PI / 5, 0.945);
+        // Upper ring (1-5) at z = +rh
+        for (var i = 0; i < 5; i++) {
+            vertices.push([rr * Math.cos(a * i - Math.PI/2), rr * Math.sin(a * i - Math.PI/2), rh]);
+        }
+        
+        // Lower ring (6-10) at z = -rh, rotated 36°
+        for (var i = 0; i < 5; i++) {
+            vertices.push([rr * Math.cos(a * i - Math.PI/2 + Math.PI/5), rr * Math.sin(a * i - Math.PI/2 + Math.PI/5), -rh]);
+        }
+        
+        vertices.push([0, 0, -h]); // 11: bottom apex
+        
+        // 10 kite faces - proper winding (CCW from outside)
+        // Each kite: apex, ring1[i], ring2[j], ring1[i+1]
+        var faces = [
+            // Upper 5 kites (top apex = 0)
+            // Connect: top -> upper[i] -> lower[i] -> upper[i+1]
+            [0, 1, 6, 2, 1],   // face showing "1"
+            [0, 2, 7, 3, 3],   // face showing "3"
+            [0, 3, 8, 4, 5],   // face showing "5"
+            [0, 4, 9, 5, 7],   // face showing "7"
+            [0, 5, 10, 1, 9],  // face showing "9"
+            
+            // Lower 5 kites (bottom apex = 11)
+            // Connect: bottom -> lower[i] -> upper[i+1] -> lower[i+1]
+            [11, 6, 2, 7, 2],  // face showing "2"
+            [11, 7, 3, 8, 4],  // face showing "4"
+            [11, 8, 4, 9, 6],  // face showing "6"
+            [11, 9, 5, 10, 8], // face showing "8"
+            [11, 10, 1, 6, 0]  // face showing "0"
+        ];
+        
+        return create_geom(vertices, faces, radius, 0, Math.PI / 5, 0.96);
     }
 
     function create_d12_geometry(radius) {
