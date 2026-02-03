@@ -505,6 +505,9 @@ const FeedbackAdmin = {
 // ========================================
 // ANNOUNCEMENTS ADMIN MODULE (Extended)
 // ========================================
+// Note: AnnouncementsAdmin is already defined in admin.html
+// This extended version is skipped to avoid duplicate declaration
+/*
 const AnnouncementsAdmin = {
     items: [],
     editingId: null,
@@ -1139,6 +1142,7 @@ const AnnouncementsAdmin = {
         }
     }
 };
+*/
 
 // ========================================
 // ANALYTICS ADMIN MODULE
