@@ -243,7 +243,7 @@
                             <div class="dice-result__target" id="resultTarget"></div>
                             <div class="dice-result__outcome" id="resultOutcome"></div>
                             <div class="dice-result__breakdown" id="resultBreakdown"></div>
-                            <button class="dice-result__back-btn" id="resultBackBtn" style="display: none;" onclick="goBackToSheet()">
+                            <button class="dice-result__back-btn" id="resultBackBtn" onclick="goBackToSheet()">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                     <polyline points="14 2 14 8 20 8"/>
@@ -3140,7 +3140,7 @@
                 // Skill Check Display (Worlds Apart D100)
                 if (this.skillCheckMode && this.skillCheckTarget > 0) {
                     // Show skill label
-                    skillLabelEl.textContent = this.skillCheckLabel;
+                    skillLabelEl.textContent = `Fähigkeit: ${this.skillCheckLabel}`;
                     skillLabelEl.classList.add('visible');
                     
                     // Determine success/failure (roll must be <= target)
@@ -3167,7 +3167,7 @@
                     
                     // Save result for passing back to sheet
                     this.lastCheckResult = {
-                        label: this.skillCheckLabel,
+                        label: `Fähigkeit: ${this.skillCheckLabel}`,
                         result: rollResult,
                         success: isSuccess,
                         outcome: isSuccess ? 'Erfolg' : 'Fehlschlag',
@@ -3223,8 +3223,8 @@
                 }
                 // Fokus Check Display (Worlds Apart D20)
                 else if (this.fokusCheckMode) {
-                    // Show fokus label
-                    skillLabelEl.textContent = 'Fokus-Fähigkeit';
+                    // Show fokus label with actual fokus name
+                    skillLabelEl.textContent = `Fokus: ${this.fokusCheckLabel}`;
                     skillLabelEl.classList.add('visible');
                     
                     // Show threshold info
@@ -3269,7 +3269,7 @@
                     if (isNat1) outcomeText = 'Patzer!';
                     
                     this.lastCheckResult = {
-                        label: 'Fokus-Fähigkeit',
+                        label: `Fokus: ${this.fokusCheckLabel}`,
                         result: finalTotal,
                         success: isSuccess,
                         outcome: outcomeText,
@@ -3388,6 +3388,10 @@
                     critical: isCritical,
                     secret: this.secretRoll,
                     timestamp: Date.now(),
+                    // Add label for skill/fokus/zweite chance rolls
+                    label: this.skillCheckLabel || this.fokusCheckLabel || (this.zweiteChanceMode ? 'Zweite Chance' : null),
+                    checkType: this.skillCheckMode ? 'skill' : (this.fokusCheckMode ? 'fokus' : (this.zweiteChanceMode ? 'zweitechance' : null)),
+                    success: this.lastCheckResult?.success || null,
                     diceConfig: {
                         notation: this.currentLibraryNotation,
                         results: displayRolls
@@ -3982,13 +3986,27 @@
                 const initial = roll.player.charAt(0).toUpperCase();
                 const critIndicator = roll.critical === 'success' ? '!' : (roll.critical === 'failure' ? '💀' : '');
                 
+                // Build roll info line - include label if present
+                let rollInfo = roll.notation;
+                if (roll.label) {
+                    rollInfo = `<span class="dice-feed__label">${roll.label}</span>`;
+                }
+                
+                // Success/failure indicator for skill checks
+                let successIndicator = '';
+                if (roll.checkType && roll.success !== null && roll.success !== undefined) {
+                    successIndicator = roll.success 
+                        ? '<span class="dice-feed__success">✓</span>' 
+                        : '<span class="dice-feed__failure">✗</span>';
+                }
+                
                 item.innerHTML = `
                     <div class="dice-feed__avatar" style="background: ${roll.color}">${initial}</div>
                     <div class="dice-feed__info">
                         <div class="dice-feed__name" style="color: ${roll.color}">${roll.player}</div>
-                        <div class="dice-feed__roll">${roll.notation} <span class="dice-feed__dice-color" style="background: ${diceColor}"></span></div>
+                        <div class="dice-feed__roll">${rollInfo} <span class="dice-feed__dice-color" style="background: ${diceColor}"></span></div>
                     </div>
-                    <div class="dice-feed__result">${roll.secret ? '?' : roll.total}${critIndicator}</div>
+                    <div class="dice-feed__result">${roll.secret ? '?' : roll.total}${successIndicator}${critIndicator}</div>
                 `;
                 
                 feed.insertBefore(item, feed.firstChild);
