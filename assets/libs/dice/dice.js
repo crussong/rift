@@ -1084,6 +1084,16 @@ const DICE = (function() {
     function make_geom(vertices, faces, radius, tab, af) {
         var geom = new THREE.Geometry();
         
+        // DEBUG: Log face structure
+        console.log('[make_geom] Total faces:', faces.length);
+        var faceGroups = {};
+        faces.forEach(function(f, i) {
+            var matIdx = f[f.length - 1];
+            if (!faceGroups[matIdx]) faceGroups[matIdx] = 0;
+            faceGroups[matIdx]++;
+        });
+        console.log('[make_geom] Faces by materialIndex:', faceGroups);
+        
         // Scale all input vertices first (for reference)
         var scaledVertices = [];
         for (var i = 0; i < vertices.length; ++i) {
@@ -1093,6 +1103,7 @@ const DICE = (function() {
         for (var i = 0; i < faces.length; ++i) {
             var ii = faces[i], fl = ii.length - 1;
             var aa = Math.PI * 2 / fl;
+            var matIdx = ii[fl];
             
             // WICHTIG: Eigene Vertices pro Fläche erstellen (nicht teilen!)
             var faceVertexIndices = [];
@@ -1109,6 +1120,15 @@ const DICE = (function() {
             var edge2 = new THREE.Vector3().subVectors(v2, v0);
             var faceNormal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
             
+            // DEBUG: Check if face is planar (for quads/kites)
+            if (fl === 4) {
+                var v3 = geom.vertices[faceVertexIndices[3]];
+                var distToPlane = Math.abs(faceNormal.dot(new THREE.Vector3().subVectors(v3, v0)));
+                if (distToPlane > 0.001) {
+                    console.log('[make_geom] NON-PLANAR face #' + i + ' (matIdx=' + matIdx + '), dist=' + distToPlane.toFixed(6));
+                }
+            }
+            
             // Create triangles using our OWN vertices
             for (var j = 0; j < fl - 2; ++j) {
                 var face = new THREE.Face3(
@@ -1119,7 +1139,7 @@ const DICE = (function() {
                 // Same normal for all triangles of this polygon
                 face.normal = faceNormal.clone();
                 face.vertexNormals = [faceNormal.clone(), faceNormal.clone(), faceNormal.clone()];
-                face.materialIndex = ii[fl] + 1;
+                face.materialIndex = matIdx + 1;
                 geom.faces.push(face);
                 
                 geom.faceVertexUvs[0].push([
