@@ -6958,9 +6958,21 @@
         }
         
         function resetCharacter() {
-            if (confirm('Charakter wirklich zurücksetzen?')) {
+            if (confirm('Charakter wirklich zurücksetzen? Alle Daten werden gelöscht.')) {
+                // Delete from CharacterStorage if we have an ID
+                if (window.currentCharId && typeof CharacterStorage !== 'undefined') {
+                    CharacterStorage.delete(window.currentCharId);
+                    console.log('[WA-Sheet] Deleted from CharacterStorage:', window.currentCharId);
+                }
+                
+                // Clear legacy localStorage
                 localStorage.removeItem(STORAGE_KEY);
+                
+                // Reset character data
                 characterData = getDefaultCharacter();
+                window.currentCharId = null;
+                
+                // Update UI
                 populateFields();
                 initializeSkills();
                 updateAllCalculations();
@@ -6969,6 +6981,10 @@
                 document.getElementById('crew-flag-img').style.display = 'none';
                 document.getElementById('crew-flag-placeholder').style.display = 'block';
                 document.querySelectorAll('.dice-check-large').forEach(d => d.classList.remove('used'));
+                
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info('Charakter zurückgesetzt');
+                }
             }
         }
 
