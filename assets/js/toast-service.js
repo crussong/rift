@@ -27,6 +27,27 @@ window.RIFTToast = {
         map: { icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/></svg>`, color: '#8b5cf6' }
     },
     
+    // Fokus element name to icon filename mapping
+    fokusIconMap: {
+        'feuer': 'fire', 'fire': 'fire',
+        'wasser': 'water', 'water': 'water',
+        'erde': 'earth', 'earth': 'earth',
+        'blitz': 'lightning', 'lightning': 'lightning',
+        'gift': 'poison', 'poison': 'poison',
+        'illusion': 'illusion',
+        'schatten': 'shadow', 'shadow': 'shadow',
+        'schall': 'sound', 'sound': 'sound',
+        'zeit': 'time', 'time': 'time',
+        'raum': 'room', 'room': 'room',
+        'wind': 'wind', 'luft': 'wind'
+    },
+    
+    // Skill icon (Tabler book-filled)
+    skillIcon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0V2a.5.5 0 0 1 .5-.5zM5 4h.5a.5.5 0 0 0 0-1H5a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3h-.5a.5.5 0 0 0 0 1h.5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M6 7a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h5V7H6zm7 0v10h5a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-5z"/></svg>`,
+    
+    // D20 icon for Zweite Chance
+    d20Icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l6.9 3.45L12 11.27 5.1 7.63 12 4.18zM4 8.82l7 3.5v7.36l-7-3.5V8.82zm9 10.86v-7.36l7-3.5v7.36l-7 3.5z"/></svg>`,
+    
     getRoom() {
         const code = localStorage.getItem('rift_current_room');
         return code ? code.replace(/-/g, '').toUpperCase() : null;
@@ -93,6 +114,32 @@ window.RIFTToast = {
         el.className = 'rift-toast';
         el.dataset.type = toast.type; // Store type for later reference
         
+        // Determine icon based on rollType
+        let iconHtml = '';
+        let iconColor = typeConfig.color;
+        
+        if (toast.rollType === 'fokus' && toast.element) {
+            // Fokus: Use element icon (PNG)
+            const elementKey = toast.element.toLowerCase();
+            const iconFile = this.fokusIconMap[elementKey] || 'fire';
+            iconHtml = `<img src="assets/icons/icon_focus_${iconFile}.png" style="width:32px;height:32px;" alt="${toast.element}">`;
+            iconColor = '#8b5cf6'; // Purple for magic
+        } else if (toast.rollType === 'zweitechance') {
+            // Zweite Chance: D20 icon
+            iconHtml = this.d20Icon;
+            iconColor = '#f59e0b'; // Orange
+        } else if (toast.rollType === 'skill') {
+            // Fähigkeit: Book icon
+            iconHtml = this.skillIcon;
+            iconColor = '#3b82f6'; // Blue
+        } else {
+            iconHtml = typeConfig.icon;
+        }
+        
+        // Override color for success/fail states
+        if (toast.type === 'diceSuccess') iconColor = '#22c55e';
+        if (toast.type === 'diceFail') iconColor = '#ef4444';
+        
         let resultHtml = '';
         if (toast.result !== undefined) {
             const cls = toast.isSuccess === true ? 'success' : toast.isSuccess === false ? 'fail' : 'neutral';
@@ -100,7 +147,7 @@ window.RIFTToast = {
         }
         
         el.innerHTML = `
-            <div class="rift-toast__icon" style="background:${typeConfig.color}22;color:${typeConfig.color};">${typeConfig.icon}</div>
+            <div class="rift-toast__icon" style="background:${iconColor}22;color:${iconColor};">${iconHtml}</div>
             <div class="rift-toast__content">
                 <div class="rift-toast__title">${this.esc(toast.title || '')}</div>
                 ${toast.message ? `<div class="rift-toast__message">${this.esc(toast.message)}</div>` : ''}
@@ -242,14 +289,14 @@ window.RIFTToast = {
     },
     
     // ========== CONVENIENCE ==========
-    diceRolling(name, rollLabel = '') {
+    diceRolling(name, rollLabel = '', rollType = null, element = null) {
         const message = rollLabel ? `würfelt auf ${rollLabel}...` : 'würfelt...';
-        this.send('diceRolling', name, message);
+        this.send('diceRolling', name, message, { rollType, element });
     },
     
-    diceRoll(name, result, formula = '', isSuccess = null) {
+    diceRoll(name, result, formula = '', isSuccess = null, rollType = null, element = null) {
         const type = isSuccess === true ? 'diceSuccess' : isSuccess === false ? 'diceFail' : 'dice';
-        this.send(type, name, formula, { result: String(result), isSuccess });
+        this.send(type, name, formula, { result: String(result), isSuccess, rollType, element });
     },
     
     chatMention(sender, preview, targetUserId) {
