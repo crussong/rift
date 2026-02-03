@@ -34,7 +34,7 @@ const DICE = (function() {
             specular: 0x111111,
             color: 0xf0f0f0,
             shininess: 5,
-            flatShading: false,
+            shading: THREE.FlatShading,
         },
         label_color: '#ffffff',
         // RIFT: Dynamic label color based on background brightness
@@ -1090,9 +1090,28 @@ const DICE = (function() {
         for (var i = 0; i < faces.length; ++i) {
             var ii = faces[i], fl = ii.length - 1;
             var aa = Math.PI * 2 / fl;
+            
+            // Calculate single normal for entire face (not per-triangle)
+            var faceNormal = null;
+            if (fl >= 3) {
+                var v0 = geom.vertices[ii[0]];
+                var v1 = geom.vertices[ii[1]];
+                var v2 = geom.vertices[ii[2]];
+                var edge1 = new THREE.Vector3().subVectors(v1, v0);
+                var edge2 = new THREE.Vector3().subVectors(v2, v0);
+                faceNormal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+            }
+            
             for (var j = 0; j < fl - 2; ++j) {
-                geom.faces.push(new THREE.Face3(ii[0], ii[j + 1], ii[j + 2], [geom.vertices[ii[0]],
-                            geom.vertices[ii[j + 1]], geom.vertices[ii[j + 2]]], 0, ii[fl] + 1));
+                // Use same normal for all triangles of this face
+                var face = new THREE.Face3(ii[0], ii[j + 1], ii[j + 2]);
+                if (faceNormal) {
+                    face.normal = faceNormal.clone();
+                    face.vertexNormals = [faceNormal.clone(), faceNormal.clone(), faceNormal.clone()];
+                }
+                face.materialIndex = ii[fl] + 1;
+                geom.faces.push(face);
+                
                 geom.faceVertexUvs[0].push([
                         new THREE.Vector2((Math.cos(af) + 1 + tab) / 2 / (1 + tab),
                             (Math.sin(af) + 1 + tab) / 2 / (1 + tab)),
@@ -1102,8 +1121,8 @@ const DICE = (function() {
                             (Math.sin(aa * (j + 2) + af) + 1 + tab) / 2 / (1 + tab))]);
             }
         }
-        geom.computeFaceNormals();
-        geom.computeVertexNormals();
+        // Don't call computeFaceNormals() - we set normals manually above
+        // This ensures all triangles of a face share the same normal (no visible seam)
         geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), radius);
         return geom;
     }
