@@ -504,3 +504,11 @@ document.addEventListener('DOMContentLoaded', () => App.init());
 
 // Export for use in other scripts
 window.App = App;
+
+// Load Toast Service globally (for dice roll notifications etc.)
+(function loadToastService() {
+    if (window.RIFTToast || document.querySelector('script[src*="toast-service.js"]')) return;
+    const script = document.createElement('script');
+    script.src = 'assets/js/toast-service.js';
+    document.head.appendChild(script);
+})();

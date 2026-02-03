@@ -274,7 +274,16 @@ window.RIFTToast = {
     }
 };
 
-// Auto-init
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => RIFTToast.init(), 500);
-});
+// Auto-init - works even if loaded after DOMContentLoaded
+(function() {
+    function tryInit() {
+        setTimeout(() => RIFTToast.init(), 500);
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryInit);
+    } else {
+        // DOM already loaded, init immediately
+        tryInit();
+    }
+})();

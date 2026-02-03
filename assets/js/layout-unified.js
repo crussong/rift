@@ -1245,9 +1245,8 @@ window.initBannerSystem = initBannerSystem;
 
 // Load Toast Service globally (for dice roll notifications etc.)
 (function loadToastService() {
-    if (document.querySelector('script[src*="toast-service.js"]')) return;
+    if (window.RIFTToast || document.querySelector('script[src*="toast-service.js"]')) return;
     const script = document.createElement('script');
     script.src = 'assets/js/toast-service.js';
-    script.defer = true;
     document.head.appendChild(script);
 })();
