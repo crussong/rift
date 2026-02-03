@@ -881,30 +881,21 @@ async function initDockCharacterCard() {
         return;
     }
     
-    // Wait for Firebase Auth to be ready
+    // Wait for Firebase to be fully initialized
     const waitForAuth = () => {
         return new Promise((resolve) => {
-            if (typeof firebase === 'undefined') {
-                console.log('[DockChar] Firebase not loaded, waiting...');
-                const check = setInterval(() => {
-                    if (typeof firebase !== 'undefined' && firebase.auth) {
-                        clearInterval(check);
-                        // Now wait for auth state
-                        const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-                            unsubscribe();
-                            resolve(user);
-                        });
-                    }
-                }, 200);
-                setTimeout(() => { clearInterval(check); resolve(null); }, 10000);
-            } else if (firebase.auth) {
-                const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-                    unsubscribe();
-                    resolve(user);
-                });
-            } else {
-                resolve(null);
-            }
+            const check = setInterval(() => {
+                // Check if Firebase is loaded AND initialized
+                if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                    clearInterval(check);
+                    // Now wait for auth state
+                    const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                        unsubscribe();
+                        resolve(user);
+                    });
+                }
+            }, 200);
+            setTimeout(() => { clearInterval(check); resolve(null); }, 10000);
         });
     };
     
