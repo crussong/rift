@@ -1086,13 +1086,14 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Update Resonanz bar (Worlds Apart specific - calculated from attributes)
     const resonanzBar = document.getElementById('dockCharResonanzBar');
     if (resonanzBar) {
-        const attrs = charData.attributes || {};
-        const power = attrs.power || 0;
-        const presence = attrs.presence || 0;
+        // Use getVal helper for attribute fallbacks
+        const power = getVal(charData, 'attributes.power', 'power', 'kraft', 'str') ?? 0;
+        const presence = getVal(charData, 'attributes.presence', 'presence', 'praesenz', 'cha') ?? 0;
         // Resonanz = 10 + (KRF × PRÄ)
         const resonanz = 10 + (power * presence);
         // Display as percentage (max visual is 100)
         const resonanzPercent = Math.min(100, resonanz);
+        console.log('[DockChar] Resonanz calc:', { power, presence, resonanz, resonanzPercent });
         resonanzBar.style.width = resonanzPercent + '%';
         resonanzBar.style.background = 'linear-gradient(90deg, #7c3aed 0%, #a855f7 100%)';
     }
