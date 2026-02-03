@@ -1027,6 +1027,7 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
+        console.log('[DICE] Creating d10 geometry - NEW VERSION without chamfer!');
         // Correct Pentagonal Trapezohedron geometry - NO CHAMFER
         // A real d10 has ONLY 10 kite-shaped faces with sharp edges
         
