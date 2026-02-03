@@ -499,7 +499,10 @@ function createUnifiedDock() {
                 </div>
             </div>
             <div class="dock__char-info">
-                <div class="dock__char-name" id="dockCharName">Charakter</div>
+                <div class="dock__char-name-row">
+                    <div class="dock__char-name" id="dockCharName">Charakter</div>
+                    <div class="dock__char-level" id="dockCharLevel">1</div>
+                </div>
                 <div class="dock__char-bars">
                     <div class="dock__char-bar dock__char-bar--hp">
                         <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%; background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);"></div>
@@ -973,6 +976,24 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     const card = document.getElementById('dockCharacterCard');
     if (!card) return;
     
+    // Fokus Element Mapping
+    const FOKUS_NAMES = {
+        'fire': 'Feuer', 'water': 'Wasser', 'wind': 'Wind', 'earth': 'Erde',
+        'lightning': 'Blitz', 'shadow': 'Schatten', 'illusion': 'Illusion',
+        'room': 'Raum', 'time': 'Zeit', 'poison': 'Gift', 'sound': 'Schall'
+    };
+    
+    // Schwäche Mapping
+    const SCHWAECHE_NAMES = {
+        'platzangst': 'Platzangst', 'seekrank': 'Seekrank', 'schlechte-sicht': 'Schlechte Sicht',
+        'gleichgewicht': 'Schlechter Gleichgewichtssinn', 'ausdauer': 'Geringe Ausdauer',
+        'reaktion': 'Langsame Reaktion', 'feinmotorik': 'Ungeschickte Feinmotorik',
+        'zittrig': 'Zittrige Hände unter Stress', 'verletzungen': 'Anfällig für Verletzungen',
+        'hitze': 'Hitzeempfindlich', 'kaelte': 'Kälteempfindlich',
+        'reizueberflutung': 'Reizüberflutung', 'orientierung': 'Schlechte Orientierung',
+        'geraeusch': 'Geräuschempfindlich', 'griff': 'Schwacher Griff'
+    };
+    
     // Update link to character sheet
     const ruleset = charData.ruleset || 'worldsapart';
     const sheetMap = {
@@ -983,12 +1004,22 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     };
     const sheetUrl = sheetMap[ruleset] || 'sheet-worldsapart.html';
     
-    // Build URL with optional roomCode
-    let url = `${sheetUrl}?id=${charId}`;
-    if (roomCode) {
-        url += `&roomCode=${roomCode}`;
+    // Build URL - if we loaded from worldsapart_character_v5, don't pass ID (sheet loads from localStorage itself)
+    // Only pass ID if we got it from CharacterStorage
+    const actualId = charData.id; // Only use if explicitly present in data
+    let url = sheetUrl;
+    if (actualId && charId !== 'local') {
+        url += `?id=${actualId}`;
+        if (roomCode) {
+            url += `&roomCode=${roomCode}`;
+        }
+    } else if (roomCode) {
+        // No character ID but we have a room - just pass room
+        url += `?room=${roomCode}`;
     }
+    // If no ID and no room, just link to sheet.html - it will load from localStorage
     card.href = url;
+    console.log('[DockChar] URL:', url, '(charId:', charId, ', actualId:', actualId, ')');
     
     // Update portrait
     const portrait = document.getElementById('dockCharPortrait');
@@ -1007,6 +1038,13 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     const nameEl = document.getElementById('dockCharName');
     if (nameEl) {
         nameEl.textContent = charData.name || charData.characterName || 'Unbenannt';
+    }
+    
+    // Update level
+    const levelEl = document.getElementById('dockCharLevel');
+    if (levelEl) {
+        levelEl.textContent = charData.level ?? 1;
+    }
     }
     
     // Helper to get nested value
@@ -1063,28 +1101,49 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         attributes: charData.attributes,
         fokus: charData.fokus,
         schwaeche: charData.schwaeche,
-        secondChance: charData.secondChance
+        secondChance: charData.secondChance,
+        race: charData.race,
+        age: charData.age,
+        gender: charData.gender,
+        role: charData.role,
+        currency: charData.currency,
+        level: charData.level
     });
     
     card.dataset.charName = charData.name || 'Unbenannt';
+    card.dataset.charLevel = charData.level ?? 1;
     card.dataset.charPower = attrs.power ?? 0;
     card.dataset.charAgility = attrs.agility ?? 0;
     card.dataset.charEndurance = attrs.endurance ?? 0;
     card.dataset.charMind = attrs.mind ?? 0;
     card.dataset.charPresence = attrs.presence ?? 0;
     
-    // Fokus
+    // Fokus - with German name
     const fokus = charData.fokus || {};
-    card.dataset.charFokusElement = fokus.type || '';
+    const fokusType = fokus.type || '';
+    card.dataset.charFokusElement = fokusType;
+    card.dataset.charFokusName = FOKUS_NAMES[fokusType] || fokusType;
     const fokusAbilities = fokus.abilities || [];
     card.dataset.charFokus1 = fokusAbilities[0] || '';
     card.dataset.charFokus2 = fokusAbilities[1] || '';
     
-    // Schwäche & Zweite Chance
-    card.dataset.charSchwaeche = charData.schwaeche || '';
+    // Schwäche - with full name
+    const schwaeche = charData.schwaeche || '';
+    card.dataset.charSchwaecheId = schwaeche;
+    card.dataset.charSchwaeche = SCHWAECHE_NAMES[schwaeche] || schwaeche;
+    
+    // Zweite Chance
     const zc = charData.secondChance || [false, false, false];
     const zcAvailable = Array.isArray(zc) ? zc.filter(v => v === false).length : 3;
     card.dataset.charZweiteChance = zcAvailable.toString();
+    
+    // Additional info
+    card.dataset.charRace = charData.race || '';
+    card.dataset.charAge = charData.age || '';
+    card.dataset.charGender = charData.gender || '';
+    card.dataset.charRole = charData.role || '';
+    card.dataset.charCurrency = charData.currency || '';
+    card.dataset.charCurrencyType = charData.currencyType || 'dollar';
     
     // Show card
     card.classList.remove('hidden');
@@ -1204,25 +1263,51 @@ function initDockCardTooltips() {
         document.body.appendChild(tooltip);
     }
     
+    // Fokus Element Colors
+    const FOKUS_COLORS = {
+        'fire': '#ef4444', 'water': '#3b82f6', 'wind': '#06b6d4', 'earth': '#a16207',
+        'lightning': '#eab308', 'shadow': '#6b21a8', 'illusion': '#ec4899',
+        'room': '#8b5cf6', 'time': '#14b8a6', 'poison': '#22c55e', 'sound': '#f97316'
+    };
+    
     // Character Card Tooltip
     const charCard = document.getElementById('dockCharacterCard');
     if (charCard) {
         charCard.addEventListener('mouseenter', (e) => {
             const d = charCard.dataset;
             const fokusEl = d.charFokusElement || '';
+            const fokusName = d.charFokusName || fokusEl;
+            const fokusColor = FOKUS_COLORS[fokusEl] || '#8b5cf6';
             const zcCount = parseInt(d.charZweiteChance) || 0;
             
-            // Generate d20 icons for Zweite Chance
+            // Generate d20 icons for Zweite Chance (gray)
             let zcIcons = '';
             for (let i = 0; i < 3; i++) {
                 const isAvailable = i < zcCount;
                 zcIcons += `<img src="assets/icons/dice/d20.svg" class="dock-tooltip__d20 ${isAvailable ? '' : 'used'}" alt="D20">`;
             }
             
+            // Build info line (Race, Age, Gender)
+            const infoParts = [];
+            if (d.charRace) infoParts.push(d.charRace);
+            if (d.charAge) infoParts.push(d.charAge + ' Jahre');
+            if (d.charGender) infoParts.push(d.charGender);
+            const infoLine = infoParts.join(' · ');
+            
+            // Currency display
+            const currencySymbols = { 'dollar': '$', 'euro': '€', 'gold': 'G', 'credits': 'CR' };
+            const currencySymbol = currencySymbols[d.charCurrencyType] || '$';
+            
             tooltip.innerHTML = `
-                <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
+                <div class="dock-tooltip__header-row">
+                    <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
+                    <div class="dock-tooltip__level">Lv. ${d.charLevel || 1}</div>
+                </div>
+                ${infoLine ? `<div class="dock-tooltip__info-line">${infoLine}</div>` : ''}
+                ${d.charRole ? `<div class="dock-tooltip__role">${d.charRole}</div>` : ''}
+                
                 <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label">Attribute</div>
+                    <div class="dock-tooltip__label-bg">Attribute</div>
                     <div class="dock-tooltip__attrs">
                         <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charPower || 0}</span><span class="dock-tooltip__attr-label">KRF</span></span>
                         <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charAgility || 0}</span><span class="dock-tooltip__attr-label">GES</span></span>
@@ -1231,24 +1316,34 @@ function initDockCardTooltips() {
                         <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charPresence || 0}</span><span class="dock-tooltip__attr-label">PRÄ</span></span>
                     </div>
                 </div>
+                
                 ${fokusEl ? `
                 <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label">Fokus</div>
-                    <div class="dock-tooltip__focus">${fokusEl}</div>
+                    <div class="dock-tooltip__label-bg">Fokus</div>
+                    <div class="dock-tooltip__focus-row" style="background: ${fokusColor}20; border-left: 3px solid ${fokusColor};">
+                        <img src="assets/icons/icon_focus_${fokusEl}.png" class="dock-tooltip__focus-icon" alt="${fokusName}" onerror="this.style.display='none'">
+                        <span class="dock-tooltip__focus-name" style="color: ${fokusColor}">${fokusName}</span>
+                    </div>
                     ${d.charFokus1 ? `<div class="dock-tooltip__ability">${d.charFokus1}</div>` : ''}
                     ${d.charFokus2 ? `<div class="dock-tooltip__ability">${d.charFokus2}</div>` : ''}
                 </div>
                 ` : ''}
+                
                 ${d.charSchwaeche ? `
                 <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label">Schwäche</div>
+                    <div class="dock-tooltip__label-bg">Schwäche</div>
                     <div class="dock-tooltip__weakness">${d.charSchwaeche}</div>
                 </div>
                 ` : ''}
+                
                 <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label">Zweite Chance</div>
+                    <div class="dock-tooltip__label-bg">Zweite Chance</div>
                     <div class="dock-tooltip__chance-icons">${zcIcons}</div>
                 </div>
+                
+                ${d.charCurrency ? `
+                <div class="dock-tooltip__currency">${currencySymbol} ${d.charCurrency}</div>
+                ` : ''}
             `;
             showDockTooltip(tooltip, charCard);
         });
