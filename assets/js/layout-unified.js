@@ -482,15 +482,6 @@ function createUnifiedDock() {
         
         <div class="dock__divider"></div>
         
-        <!-- Session Card (loaded dynamically) -->
-        <a href="session.html" class="dock__session-card hidden" id="dockSessionCard">
-            <div class="dock__session-portrait" id="dockSessionPortrait">
-                <div class="dock__session-portrait-placeholder">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
-                </div>
-            </div>
-        </a>
-        
         <!-- Character Card (loaded dynamically) -->
         <a href="sheet.html" class="dock__character-card hidden" id="dockCharacterCard">
             <div class="dock__char-portrait" id="dockCharPortrait">
@@ -513,6 +504,15 @@ function createUnifiedDock() {
                     <div class="dock__char-bar dock__char-bar--resonanz">
                         <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%; background: linear-gradient(90deg, #7c3aed 0%, #a855f7 100%);"></div>
                     </div>
+                </div>
+            </div>
+        </a>
+        
+        <!-- Session Card (loaded dynamically) -->
+        <a href="session.html" class="dock__session-card hidden" id="dockSessionCard">
+            <div class="dock__session-portrait" id="dockSessionPortrait">
+                <div class="dock__session-portrait-placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
                 </div>
             </div>
         </a>
@@ -1264,11 +1264,18 @@ function updateDockSessionCard(session) {
     card.dataset.sessionSubtitle = session.subtitle || session.description || '';
     card.dataset.sessionRuleset = session.ruleset || 'worldsapart';
     card.dataset.sessionNumber = session.currentSession || session.sessionNumber || '1';
-    card.dataset.sessionCount = session.sessionCount || '';
+    card.dataset.sessionCount = session.sessionCount || session.totalSessions || '';
+    card.dataset.sessionStatus = session.status || 'planned';
+    card.dataset.sessionDate = session.date || '';
+    card.dataset.sessionTime = session.time || '';
+    card.dataset.sessionDuration = session.duration || '';
+    card.dataset.sessionTags = (session.tags || []).join(',');
+    card.dataset.sessionMaxPlayers = session.maxPlayers || '5';
+    card.dataset.sessionDiscord = session.discordUrl || '';
     
     // Show card
     card.classList.remove('hidden');
-    console.log('[DockSession] Card updated:', session.name);
+    console.log('[DockSession] Card updated:', session.name, session);
 }
 
 // ============================================================
@@ -1408,21 +1415,89 @@ function initDockCardTooltips() {
             const rulesetNames = {
                 'worldsapart': 'Worlds Apart',
                 'dnd5e': 'D&D 5e',
+                '5e2024': 'D&D 5e (2024)',
                 'htbah': 'How To Be A Hero',
-                'cyberpunkred': 'Cyberpunk RED'
+                'cyberpunkred': 'Cyberpunk RED',
+                'cyberpunk': 'Cyberpunk RED'
+            };
+            
+            const statusLabels = {
+                'planned': 'Geplant',
+                'scheduled': 'Geplant',
+                'upcoming': 'Bevorstehend',
+                'draft': 'Entwurf',
+                'live': 'Live',
+                'paused': 'Pausiert',
+                'ended': 'Beendet'
+            };
+            
+            const statusColors = {
+                'planned': '#f59e0b',
+                'scheduled': '#f59e0b',
+                'upcoming': '#3b82f6',
+                'draft': '#6b7280',
+                'live': '#22c55e',
+                'paused': '#f59e0b',
+                'ended': '#6b7280'
             };
             
             const sessionNumText = d.sessionCount 
                 ? `Session ${d.sessionNumber || '1'}/${d.sessionCount}`
                 : `Session ${d.sessionNumber || '1'}`;
             
+            // Format date
+            let dateText = '';
+            if (d.sessionDate) {
+                const date = new Date(d.sessionDate);
+                const options = { weekday: 'short', day: 'numeric', month: 'short' };
+                dateText = date.toLocaleDateString('de-DE', options);
+                if (d.sessionTime) {
+                    dateText += ` · ${d.sessionTime} Uhr`;
+                }
+            }
+            
+            // Format duration
+            let durationText = '';
+            if (d.sessionDuration) {
+                durationText = `~${d.sessionDuration}`;
+            }
+            
+            // Tags
+            const tags = d.sessionTags ? d.sessionTags.split(',').filter(t => t) : [];
+            const tagsHtml = tags.length > 0 
+                ? `<div class="dock-tooltip__tags">${tags.map(t => `<span class="dock-tooltip__tag">${t}</span>`).join('')}</div>` 
+                : '';
+            
+            // SVG Icons
+            const calendarIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2a1 1 0 0 1 1 1v1h2a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-14a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h2v-1a1 1 0 0 1 2 0v1h6v-1a1 1 0 0 1 1 -1m3 8h-14v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1 -1z"/></svg>`;
+            const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336m-5 2.66a1 1 0 0 0 -1 1v5l.007 .117a1 1 0 0 0 .466 .724l3.5 2.5l.088 .058a1 1 0 0 0 1.146 -1.623l-3.207 -2.291v-4.485l-.007 -.117a1 1 0 0 0 -.993 -.883"/></svg>`;
+            const usersIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 7a4 4 0 1 1 -4 4l.005 -.217a4 4 0 0 1 3.995 -3.783"/><path d="M15 7a4 4 0 1 1 -4 4l.005 -.217a4 4 0 0 1 3.995 -3.783"/><path d="M5 16c0 -2.21 2.686 -4 6 -4s6 1.79 6 4c0 1.105 -2.686 2 -6 2s-6 -.895 -6 -2"/></svg>`;
+            
+            const statusLabel = statusLabels[d.sessionStatus] || d.sessionStatus;
+            const statusColor = statusColors[d.sessionStatus] || '#6b7280';
+            
             tooltip.innerHTML = `
-                <div class="dock-tooltip__header">${d.sessionName || 'Session'}</div>
+                <div class="dock-tooltip__header-row">
+                    <div class="dock-tooltip__header">${d.sessionName || 'Session'}</div>
+                    <span class="dock-tooltip__status-badge" style="background: ${statusColor}20; color: ${statusColor};">${statusLabel}</span>
+                </div>
                 ${d.sessionSubtitle ? `<div class="dock-tooltip__subtitle">${d.sessionSubtitle}</div>` : ''}
-                <div class="dock-tooltip__meta">
+                
+                <div class="dock-tooltip__session-meta">
                     <span class="dock-tooltip__ruleset">${rulesetNames[d.sessionRuleset] || d.sessionRuleset}</span>
                     <span class="dock-tooltip__session-num">${sessionNumText}</span>
                 </div>
+                
+                ${dateText || durationText ? `
+                <div class="dock-tooltip__divider"></div>
+                <div class="dock-tooltip__session-info">
+                    ${dateText ? `<div class="dock-tooltip__info-row">${calendarIcon} ${dateText}</div>` : ''}
+                    ${durationText ? `<div class="dock-tooltip__info-row">${clockIcon} ${durationText}</div>` : ''}
+                    ${d.sessionMaxPlayers ? `<div class="dock-tooltip__info-row">${usersIcon} Max. ${d.sessionMaxPlayers} Spieler</div>` : ''}
+                </div>
+                ` : ''}
+                
+                ${tagsHtml}
             `;
             showDockTooltip(tooltip, sessionCard);
         });
