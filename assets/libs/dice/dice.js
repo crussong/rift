@@ -1027,64 +1027,60 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        // Custom d10 geometry - bypasses chamfer_geom completely
-        // Creates a proper pentagonal trapezohedron with only 10 kite faces
+        // Mathematically correct Pentagonal Trapezohedron
+        // Like d8 but with 10 kite faces instead of 8 triangles
         
-        var a = Math.PI * 2 / 10, h = 0.105;
+        var a = Math.PI * 2 / 5; // 72° between pentagon vertices
+        
+        // Proportions for a proper trapezohedron
+        var h_apex = 1.0;
+        var h_ring = 0.38;
+        var r_ring = 0.82;
+        
         var vertices = [];
-        for (var i = 0, b = 0; i < 10; ++i, b += a)
-            vertices.push([Math.cos(b), Math.sin(b), h * (i % 2 ? 1 : -1)]);
-        vertices.push([0, 0, -1]); // bottom apex (10)
-        vertices.push([0, 0, 1]);  // top apex (11)
         
-        // Only 10 kite-shaped faces
+        // Vertex 0: Top apex
+        vertices.push([0, 0, h_apex]);
+        
+        // Vertices 1-5: Upper pentagon ring
+        for (var i = 0; i < 5; i++) {
+            vertices.push([
+                r_ring * Math.cos(a * i),
+                r_ring * Math.sin(a * i),
+                h_ring
+            ]);
+        }
+        
+        // Vertices 6-10: Lower pentagon ring (rotated 36°)
+        for (var i = 0; i < 5; i++) {
+            vertices.push([
+                r_ring * Math.cos(a * i + Math.PI / 5),
+                r_ring * Math.sin(a * i + Math.PI / 5),
+                -h_ring
+            ]);
+        }
+        
+        // Vertex 11: Bottom apex
+        vertices.push([0, 0, -h_apex]);
+        
+        // 10 kite-shaped faces - forms a closed solid (no gaps!)
         var faces = [
-            [5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
-            [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9]
+            // Upper 5 kites (touching top apex) - numbers 0,2,4,6,8
+            [0, 1, 6, 2, 0],
+            [0, 2, 7, 3, 2],
+            [0, 3, 8, 4, 4],
+            [0, 4, 9, 5, 6],
+            [0, 5, 10, 1, 8],
+            
+            // Lower 5 kites (touching bottom apex) - numbers 1,3,5,7,9
+            [11, 7, 2, 6, 1],
+            [11, 8, 3, 7, 3],
+            [11, 9, 4, 8, 5],
+            [11, 10, 5, 9, 7],
+            [11, 6, 1, 10, 9]
         ];
         
-        // Normalize vertices
-        var vectors = [];
-        for (var i = 0; i < vertices.length; ++i) {
-            vectors.push((new THREE.Vector3).fromArray(vertices[i]).normalize());
-        }
-        
-        // Build geometry directly (no chamfer)
-        var geom = new THREE.Geometry();
-        for (var i = 0; i < vectors.length; ++i) {
-            var vertex = vectors[i].clone().multiplyScalar(radius);
-            vertex.index = geom.vertices.push(vertex) - 1;
-        }
-        
-        var af = Math.PI * 6 / 5;
-        for (var i = 0; i < faces.length; ++i) {
-            var ii = faces[i], fl = ii.length - 1;
-            var aa = Math.PI * 2 / fl;
-            for (var j = 0; j < fl - 2; ++j) {
-                geom.faces.push(new THREE.Face3(ii[0], ii[j + 1], ii[j + 2], 
-                    [geom.vertices[ii[0]], geom.vertices[ii[j + 1]], geom.vertices[ii[j + 2]]], 
-                    0, ii[fl] + 1));
-                geom.faceVertexUvs[0].push([
-                    new THREE.Vector2((Math.cos(af) + 1) / 2, (Math.sin(af) + 1) / 2),
-                    new THREE.Vector2((Math.cos(aa * (j + 1) + af) + 1) / 2, (Math.sin(aa * (j + 1) + af) + 1) / 2),
-                    new THREE.Vector2((Math.cos(aa * (j + 2) + af) + 1) / 2, (Math.sin(aa * (j + 2) + af) + 1) / 2)
-                ]);
-            }
-        }
-        geom.computeFaceNormals();
-        geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), radius);
-        
-        // Physics shape (same faces, no triangles)
-        var cv = [], cf = [];
-        for (var i = 0; i < vectors.length; ++i) {
-            cv.push(new CANNON.Vec3(vectors[i].x * radius, vectors[i].y * radius, vectors[i].z * radius));
-        }
-        for (var i = 0; i < faces.length; ++i) {
-            cf.push(faces[i].slice(0, faces[i].length - 1));
-        }
-        geom.cannon_shape = new CANNON.ConvexPolyhedron(cv, cf);
-        
-        return geom;
+        return create_geom(vertices, faces, radius, 0, Math.PI / 5, 0.945);
     }
 
     function create_d12_geometry(radius) {
