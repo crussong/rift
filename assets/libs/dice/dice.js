@@ -1027,16 +1027,74 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        var a = Math.PI * 2 / 10, k = Math.cos(a), h = 0.105, v = -1;
+        console.log('[DICE] Creating d10 geometry - NEW VERSION without chamfer!');
+        // Correct Pentagonal Trapezohedron geometry - NO CHAMFER
+        // A real d10 has ONLY 10 kite-shaped faces with sharp edges
+        
+        var a = Math.PI * 2 / 5;  // 72° between vertices in each ring
+        
+        // Proportions for a proper d10
+        var h_apex = 0.95;        // Height of apex points
+        var h_ring = 0.25;        // Height of middle rings from center
+        var r_ring = 0.85;        // Radius of middle rings
+        
         var vertices = [];
-        for (var i = 0, b = 0; i < 10; ++i, b += a)
-            vertices.push([Math.cos(b), Math.sin(b), h * (i % 2 ? 1 : -1)]);
-        vertices.push([0, 0, -1]); vertices.push([0, 0, 1]);
-        var faces = [[5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
-                [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9],
-                [1, 0, 2, v], [1, 2, 3, v], [3, 2, 4, v], [3, 4, 5, v], [5, 4, 6, v],
-                [5, 6, 7, v], [7, 6, 8, v], [7, 8, 9, v], [9, 8, 0, v], [9, 0, 1, v]];
-        return create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
+        
+        // Vertex 0: Top apex
+        vertices.push([0, 0, h_apex]);
+        
+        // Vertices 1-5: Upper ring (at +h_ring)
+        for (var i = 0; i < 5; i++) {
+            vertices.push([
+                r_ring * Math.cos(a * i),
+                r_ring * Math.sin(a * i),
+                h_ring
+            ]);
+        }
+        
+        // Vertices 6-10: Lower ring (at -h_ring), offset by 36°
+        for (var i = 0; i < 5; i++) {
+            vertices.push([
+                r_ring * Math.cos(a * i + a / 2),
+                r_ring * Math.sin(a * i + a / 2),
+                -h_ring
+            ]);
+        }
+        
+        // Vertex 11: Bottom apex
+        vertices.push([0, 0, -h_apex]);
+        
+        // 10 kite-shaped faces
+        var faces = [
+            // Upper 5 kites (touching top apex)
+            [0, 2, 6, 1, 0],
+            [0, 3, 7, 2, 2],
+            [0, 4, 8, 3, 4],
+            [0, 5, 9, 4, 6],
+            [0, 1, 10, 5, 8],
+            
+            // Lower 5 kites (touching bottom apex)
+            [11, 6, 2, 7, 1],
+            [11, 7, 3, 8, 3],
+            [11, 8, 4, 9, 5],
+            [11, 9, 5, 10, 7],
+            [11, 10, 1, 6, 9]
+        ];
+        
+        // Create geometry WITHOUT chamfer (sharp edges like a real d10)
+        return create_geom_no_chamfer(vertices, faces, radius, 0, Math.PI / 5);
+    }
+    
+    // Special geometry creator without chamfer edges
+    function create_geom_no_chamfer(vertices, faces, radius, tab, af) {
+        var vectors = new Array(vertices.length);
+        for (var i = 0; i < vertices.length; ++i) {
+            vectors[i] = (new THREE.Vector3).fromArray(vertices[i]).normalize();
+        }
+        // Use original vertices/faces directly - no chamfer_geom call!
+        var geom = make_geom(vectors, faces, radius, tab, af);
+        geom.cannon_shape = create_shape(vectors, faces, radius);
+        return geom;
     }
 
     function create_d12_geometry(radius) {
