@@ -12,7 +12,7 @@ const PageTransitions = {
         animationDuration: 350,
         easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
         // Pages that need full reload due to complex script initialization
-        fullReloadPages: ['dice.html', 'sessions.html', 'sheet.html', 'gm.html', 'session.html', 'index.html', 'roadmap.html', 'broadcast.html', 'chat.html', 'whiteboard.html', 'worldsapart.html', 'dnd5e.html', 'htbah.html', 'cyberpunkred.html']
+        fullReloadPages: ['dice.html', 'sessions.html', 'sheet.html', 'gm.html', 'session.html', 'index.html', 'roadmap.html', 'broadcast.html', 'chat.html', 'whiteboard.html', 'worldsapart.html', 'dnd5e.html', 'htbah.html', 'cyberpunkred.html', 'sheet-worldsapart.html', 'sheet-5e.html', 'sheet-htbah.html', 'sheet-cyberpunkred.html']
     },
     
     // State
