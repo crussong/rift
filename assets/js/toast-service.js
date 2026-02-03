@@ -73,27 +73,30 @@ window.RIFTToast = {
         const el = document.createElement('div');
         el.id = 'rift-toast-container';
         el.innerHTML = `<style>
-            #rift-toast-container { position: fixed; bottom: ${bottom}px; right: 100px; display: flex; flex-direction: column-reverse; gap: 10px; z-index: 9999; pointer-events: none; max-width: 340px; }
-            .rift-toast { display: flex; align-items: center; gap: 14px; padding: 16px 20px; min-height: 124px; background: rgba(17,17,17,0.95); backdrop-filter: blur(12px); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: toastIn 0.3s ease; pointer-events: auto; cursor: pointer; transition: transform 0.2s; box-sizing: border-box; }
+            #rift-toast-container { position: fixed; bottom: ${bottom}px; right: 100px; display: flex; flex-direction: column-reverse; gap: 8px; z-index: 9999; pointer-events: none; max-width: 320px; }
+            .rift-toast { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(17,17,17,0.95); backdrop-filter: blur(12px); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: toastIn 0.3s ease; pointer-events: auto; cursor: pointer; transition: transform 0.2s; box-sizing: border-box; }
             .rift-toast:hover { transform: translateX(-4px); }
             .rift-toast.hiding { animation: toastOut 0.3s ease forwards; }
             @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
             @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(20px); } }
-            .rift-toast__icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-            .rift-toast__icon svg { width: 24px; height: 24px; }
-            .rift-toast__content { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
-            .rift-toast__title { font-size: 15px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .rift-toast__message { font-size: 13px; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .rift-toast__result { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; padding-left: 12px; }
-            .rift-toast__result--success { color: #22c55e; }
-            .rift-toast__result--fail { color: #ef4444; }
+            .rift-toast__icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+            .rift-toast__icon svg { width: 20px; height: 20px; }
+            .rift-toast__icon img { width: 26px; height: 26px; }
+            .rift-toast__content { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+            .rift-toast__title { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .rift-toast__message { font-size: 12px; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .rift-toast__result-wrap { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; padding-left: 8px; gap: 2px; }
+            .rift-toast__result { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+            .rift-toast__outcome { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+            .rift-toast__result--success, .rift-toast__outcome--success { color: #22c55e; }
+            .rift-toast__result--fail, .rift-toast__outcome--fail { color: #ef4444; }
             .rift-toast__result--neutral { color: #8b5cf6; }
             @media (max-width: 768px) {
-                #rift-toast-container { bottom: ${bottomMobile}px; right: 80px; max-width: calc(100vw - 100px); }
-                .rift-toast { min-height: 106px; padding: 14px 16px; border-radius: 14px; }
-                .rift-toast__icon { width: 40px; height: 40px; }
-                .rift-toast__icon svg { width: 20px; height: 20px; }
-                .rift-toast__result { font-size: 22px; }
+                #rift-toast-container { bottom: ${bottomMobile}px; right: 16px; left: 16px; max-width: none; }
+                .rift-toast { padding: 10px 14px; border-radius: 10px; }
+                .rift-toast__icon { width: 36px; height: 36px; }
+                .rift-toast__icon svg { width: 18px; height: 18px; }
+                .rift-toast__result { font-size: 20px; }
             }
         </style>`;
         document.body.appendChild(el);
@@ -122,7 +125,7 @@ window.RIFTToast = {
             // Fokus: Use element icon (PNG)
             const elementKey = toast.element.toLowerCase();
             const iconFile = this.fokusIconMap[elementKey] || 'fire';
-            iconHtml = `<img src="assets/icons/icon_focus_${iconFile}.png" style="width:32px;height:32px;" alt="${toast.element}">`;
+            iconHtml = `<img src="assets/icons/icon_focus_${iconFile}.png" alt="${toast.element}">`;
             iconColor = '#8b5cf6'; // Purple for magic
         } else if (toast.rollType === 'zweitechance') {
             // Zweite Chance: D20 icon
@@ -143,7 +146,16 @@ window.RIFTToast = {
         let resultHtml = '';
         if (toast.result !== undefined) {
             const cls = toast.isSuccess === true ? 'success' : toast.isSuccess === false ? 'fail' : 'neutral';
-            resultHtml = `<div class="rift-toast__result rift-toast__result--${cls}">${toast.result}</div>`;
+            let outcomeText = '';
+            if (toast.isSuccess === true) {
+                outcomeText = `<div class="rift-toast__outcome rift-toast__outcome--success">Erfolg</div>`;
+            } else if (toast.isSuccess === false) {
+                outcomeText = `<div class="rift-toast__outcome rift-toast__outcome--fail">Fehlschlag</div>`;
+            }
+            resultHtml = `<div class="rift-toast__result-wrap">
+                <div class="rift-toast__result rift-toast__result--${cls}">${toast.result}</div>
+                ${outcomeText}
+            </div>`;
         }
         
         el.innerHTML = `
