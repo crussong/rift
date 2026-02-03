@@ -447,13 +447,13 @@ function createUnifiedDock() {
                 <div class="dock__char-name" id="dockCharName">Charakter</div>
                 <div class="dock__char-bars">
                     <div class="dock__char-bar dock__char-bar--hp">
-                        <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%"></div>
+                        <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%; background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);"></div>
                     </div>
                     <div class="dock__char-bar dock__char-bar--moral">
-                        <div class="dock__char-bar-fill" id="dockCharMoralBar" style="width: 100%"></div>
+                        <div class="dock__char-bar-fill" id="dockCharMoralBar" style="width: 100%; background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);"></div>
                     </div>
                     <div class="dock__char-bar dock__char-bar--resonanz">
-                        <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%"></div>
+                        <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%; background: linear-gradient(90deg, #7c3aed 0%, #a855f7 100%);"></div>
                     </div>
                 </div>
             </div>
@@ -1010,6 +1010,7 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         const maxHp = getVal(charData, 'health.max', 'status.maxHp', 'maxHp', 'hp_max', 'maxLebenspunkte') ?? 100;
         const hpPercent = maxHp > 0 ? Math.min(100, Math.max(0, (hp / maxHp) * 100)) : 100;
         hpBar.style.width = hpPercent + '%';
+        hpBar.style.background = 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)';
     }
     
     // Update Moral bar
@@ -1019,6 +1020,7 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         const maxMoral = getVal(charData, 'moral.max', 'status.maxMoral', 'maxMoral', 'moral_max') ?? 100;
         const moralPercent = maxMoral > 0 ? Math.min(100, Math.max(0, (moral / maxMoral) * 100)) : 100;
         moralBar.style.width = moralPercent + '%';
+        moralBar.style.background = 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)';
     }
     
     // Update Resonanz bar (Worlds Apart specific)
@@ -1028,6 +1030,7 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         const maxResonanz = getVal(charData, 'resonanz.max', 'status.maxResonanz', 'maxResonanz', 'resonanz_max') ?? 100;
         const resonanzPercent = maxResonanz > 0 ? Math.min(100, Math.max(0, (resonanz / maxResonanz) * 100)) : 0;
         resonanzBar.style.width = resonanzPercent + '%';
+        resonanzBar.style.background = 'linear-gradient(90deg, #7c3aed 0%, #a855f7 100%)';
     }
     
     // Show card
