@@ -874,6 +874,9 @@ function initPartyDisplay() {
     // Initialize Dock Character Card
     initDockCharacterCard();
     initDockSessionCard();
+    
+    // Initialize tooltips after cards are loaded
+    setTimeout(initDockCardTooltips, 1500);
 }
 
 // ============================================================
@@ -1049,6 +1052,28 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         resonanzBar.style.background = 'linear-gradient(90deg, #7c3aed 0%, #a855f7 100%)';
     }
     
+    // Store character data for tooltip
+    const attrs = charData.attributes || {};
+    card.dataset.charName = charData.name || 'Unbenannt';
+    card.dataset.charPower = attrs.power || attrs.macht || 0;
+    card.dataset.charAgility = attrs.agility || attrs.agilität || 0;
+    card.dataset.charEndurance = attrs.endurance || attrs.ausdauer || 0;
+    card.dataset.charMind = attrs.mind || attrs.verstand || 0;
+    card.dataset.charPresence = attrs.presence || attrs.präsenz || 0;
+    
+    // Fokus
+    const fokus = charData.fokus || {};
+    card.dataset.charFokusElement = fokus.type || fokus.element || '';
+    const fokusAbilities = fokus.abilities || [];
+    card.dataset.charFokus1 = fokusAbilities[0]?.name || fokusAbilities[0] || '';
+    card.dataset.charFokus2 = fokusAbilities[1]?.name || fokusAbilities[1] || '';
+    
+    // Schwäche & Zweite Chance
+    card.dataset.charSchwaeche = charData.schwaeche || charData.weakness || '';
+    const zc = charData.secondChance || charData.zweiteChance || [false, false, false];
+    const zcUsed = Array.isArray(zc) ? zc.filter(v => v === true).length : 0;
+    card.dataset.charZweiteChance = `${3 - zcUsed}/3`;
+    
     // Show card
     card.classList.remove('hidden');
     console.log('[DockChar] Card updated:', charData.name);
@@ -1067,65 +1092,62 @@ async function initDockSessionCard() {
         return;
     }
     
-    // Get active session ID
-    const activeSessionData = localStorage.getItem('rift_active_session');
-    let activeSession = null;
-    if (activeSessionData) {
-        try {
-            activeSession = JSON.parse(activeSessionData);
-        } catch (e) {}
-    }
-    
-    // Get full sessions list for portrait
-    const sessionsData = localStorage.getItem('rift_sessions');
-    let sessions = [];
-    if (sessionsData) {
-        try {
-            sessions = JSON.parse(sessionsData);
-        } catch (e) {}
-    }
-    
-    // Find the session with portrait data
-    let session = null;
-    
-    if (activeSession && activeSession.id) {
-        // Find full session data from sessions list
-        session = sessions.find(s => s.id === activeSession.id);
-        if (session) {
-            console.log('[DockSession] Found active session:', session.name);
-        }
-    }
-    
-    // Fallback: use first "live" or "paused" session
-    if (!session) {
-        session = sessions.find(s => s.status === 'live' || s.status === 'paused');
-        if (session) {
-            console.log('[DockSession] Using first active session:', session.name);
-        }
-    }
-    
-    // Fallback: use first session with a coverUrl
-    if (!session) {
-        session = sessions.find(s => s.coverUrl);
-        if (session) {
-            console.log('[DockSession] Using first session with cover:', session.name);
-        }
-    }
-    
-    if (!session) {
-        console.log('[DockSession] No session found');
+    const roomCode = localStorage.getItem('rift_current_room');
+    if (!roomCode) {
+        console.log('[DockSession] No room code');
         return;
     }
+    
+    // Wait for RIFT.rooms to be ready
+    if (typeof RIFT === 'undefined' || !RIFT.rooms || !RIFT.rooms.getSessions) {
+        console.log('[DockSession] RIFT.rooms not ready, retrying in 500ms...');
+        setTimeout(initDockSessionCard, 500);
+        return;
+    }
+    
+    try {
+        const sessions = await RIFT.rooms.getSessions(roomCode);
+        console.log('[DockSession] Loaded sessions:', sessions.length);
+        
+        // Find active session (live or paused)
+        let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
+        
+        // Fallback: first session with coverUrl
+        if (!session) {
+            session = sessions.find(s => s.coverUrl);
+        }
+        
+        // Fallback: first session
+        if (!session && sessions.length > 0) {
+            session = sessions[0];
+        }
+        
+        if (!session) {
+            console.log('[DockSession] No session found');
+            return;
+        }
+        
+        console.log('[DockSession] Using session:', session.name);
+        updateDockSessionCard(session);
+        
+    } catch (e) {
+        console.error('[DockSession] Error loading sessions:', e);
+    }
+}
+
+function updateDockSessionCard(session) {
+    const card = document.getElementById('dockSessionCard');
+    if (!card) return;
     
     // Update portrait
     const portrait = document.getElementById('dockSessionPortrait');
     if (portrait) {
-        const portraitUrl = session.coverUrl || session.portraitUrl || session.portrait || session.imageUrl || session.image;
+        const portraitUrl = session.coverUrl || session.portraitUrl || session.portrait || session.imageUrl;
         if (portraitUrl) {
             portrait.innerHTML = `<img src="${portraitUrl}" alt="Session">`;
         } else {
             portrait.innerHTML = `<div class="dock__session-portrait-placeholder">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11zm8.416 6.586l-2.916 2.916l-2.916 -2.916a1 1 0 0 0 -1.414 1.414l2.916 2.916l-2.916 2.916a1 1 0 0 0 1.414 1.414l2.916 -2.916l2.916 2.916a1 1 0 0 0 1.414 -1.414l-2.916 -2.916l2.916 -2.916a1 1 0 0 0 -1.414 -1.414z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
             </div>`;
         }
     }
@@ -1133,9 +1155,127 @@ async function initDockSessionCard() {
     // Update link
     card.href = `session.html?id=${session.id}`;
     
+    // Store session data for tooltip
+    card.dataset.sessionName = session.name || 'Session';
+    card.dataset.sessionSubtitle = session.subtitle || session.description || '';
+    card.dataset.sessionRuleset = session.ruleset || 'worldsapart';
+    card.dataset.sessionNumber = session.sessionNumber || session.number || '1';
+    
     // Show card
     card.classList.remove('hidden');
     console.log('[DockSession] Card updated:', session.name);
+}
+
+// ============================================================
+// DOCK CARD TOOLTIPS
+// ============================================================
+
+function initDockCardTooltips() {
+    // Create tooltip element if not exists
+    let tooltip = document.getElementById('dockCardTooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'dockCardTooltip';
+        tooltip.className = 'dock-card-tooltip';
+        document.body.appendChild(tooltip);
+    }
+    
+    // Character Card Tooltip
+    const charCard = document.getElementById('dockCharacterCard');
+    if (charCard) {
+        charCard.addEventListener('mouseenter', (e) => {
+            const d = charCard.dataset;
+            const rulesetNames = {
+                'worldsapart': 'Worlds Apart',
+                'dnd5e': 'D&D 5e',
+                'htbah': 'How To Be A Hero',
+                'cyberpunkred': 'Cyberpunk RED'
+            };
+            const elementIcons = {
+                'fire': '🔥', 'feuer': '🔥',
+                'water': '💧', 'wasser': '💧',
+                'wind': '💨', 'luft': '💨',
+                'earth': '🪨', 'erde': '🪨',
+                'lightning': '⚡', 'blitz': '⚡',
+                'room': '🌀', 'raum': '🌀',
+                'illusion': '✨'
+            };
+            const fokusEl = d.charFokusElement?.toLowerCase() || '';
+            const fokusIcon = elementIcons[fokusEl] || '✦';
+            
+            tooltip.innerHTML = `
+                <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
+                <div class="dock-tooltip__section">
+                    <div class="dock-tooltip__label">Attribute</div>
+                    <div class="dock-tooltip__attrs">
+                        <span title="Macht">⚔️ ${d.charPower || 0}</span>
+                        <span title="Agilität">🏃 ${d.charAgility || 0}</span>
+                        <span title="Ausdauer">🛡️ ${d.charEndurance || 0}</span>
+                        <span title="Verstand">🧠 ${d.charMind || 0}</span>
+                        <span title="Präsenz">👁️ ${d.charPresence || 0}</span>
+                    </div>
+                </div>
+                ${d.charFokusElement ? `
+                <div class="dock-tooltip__section">
+                    <div class="dock-tooltip__label">Fokus ${fokusIcon}</div>
+                    <div class="dock-tooltip__focus">${d.charFokusElement}</div>
+                    ${d.charFokus1 ? `<div class="dock-tooltip__ability">• ${d.charFokus1}</div>` : ''}
+                    ${d.charFokus2 ? `<div class="dock-tooltip__ability">• ${d.charFokus2}</div>` : ''}
+                </div>
+                ` : ''}
+                ${d.charSchwaeche ? `
+                <div class="dock-tooltip__section">
+                    <div class="dock-tooltip__label">Schwäche</div>
+                    <div class="dock-tooltip__weakness">${d.charSchwaeche}</div>
+                </div>
+                ` : ''}
+                <div class="dock-tooltip__section">
+                    <div class="dock-tooltip__label">Zweite Chance</div>
+                    <div class="dock-tooltip__chance">${d.charZweiteChance || '3/3'}</div>
+                </div>
+            `;
+            showDockTooltip(tooltip, charCard);
+        });
+        
+        charCard.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+    }
+    
+    // Session Card Tooltip
+    const sessionCard = document.getElementById('dockSessionCard');
+    if (sessionCard) {
+        sessionCard.addEventListener('mouseenter', (e) => {
+            const d = sessionCard.dataset;
+            const rulesetNames = {
+                'worldsapart': 'Worlds Apart',
+                'dnd5e': 'D&D 5e',
+                'htbah': 'How To Be A Hero',
+                'cyberpunkred': 'Cyberpunk RED'
+            };
+            
+            tooltip.innerHTML = `
+                <div class="dock-tooltip__header">${d.sessionName || 'Session'}</div>
+                ${d.sessionSubtitle ? `<div class="dock-tooltip__subtitle">${d.sessionSubtitle}</div>` : ''}
+                <div class="dock-tooltip__meta">
+                    <span class="dock-tooltip__ruleset">${rulesetNames[d.sessionRuleset] || d.sessionRuleset}</span>
+                    <span class="dock-tooltip__session-num">Session ${d.sessionNumber || '1'}</span>
+                </div>
+            `;
+            showDockTooltip(tooltip, sessionCard);
+        });
+        
+        sessionCard.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+    }
+}
+
+function showDockTooltip(tooltip, card) {
+    const rect = card.getBoundingClientRect();
+    tooltip.style.left = `${rect.left + rect.width / 2}px`;
+    tooltip.style.bottom = `${window.innerHeight - rect.top + 12}px`;
+    tooltip.classList.add('visible');
 }
 
 // ============================================================
