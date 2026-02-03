@@ -345,6 +345,15 @@ function createUnifiedMeganav() {
                         <a href="cyberpunkred.html" class="meganav__ruleset-btn" title="Cyberpunk RED">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066183/rs_cpred_ghwma4.png" alt="Cyberpunk RED">
                         </a>
+                        <a href="pathfinder.html" class="meganav__ruleset-btn" title="Pathfinder">
+                            <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770093089/iqjfvp876sy826b7hxji.png" alt="Pathfinder">
+                        </a>
+                        <a href="shadowrun.html" class="meganav__ruleset-btn" title="Shadowrun">
+                            <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770093089/yspjyyvodhbncs8wyiaz.png" alt="Shadowrun">
+                        </a>
+                        <a href="cthulhu.html" class="meganav__ruleset-btn" title="Call of Cthulhu">
+                            <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770093088/mjzfbekfz6a7wtikpwqx.png" alt="Call of Cthulhu">
+                        </a>
                     </div>
                 </div>
             </div>
