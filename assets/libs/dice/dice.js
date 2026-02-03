@@ -1027,52 +1027,16 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        // TRUE Pentagonal Trapezohedron geometry
-        // 12 vertices: 2 apex + 2 rings of 5
-        // 10 kite faces (4 vertices each)
-        
-        var a = Math.PI * 2 / 5; // 72° between vertices in pentagon
-        var h = 0.85;  // apex height
-        var rh = 0.35; // ring height from center
-        var rr = 0.78; // ring radius
-        
-        var vertices = [
-            [0, 0, h],  // 0: top apex
-        ];
-        
-        // Upper ring (1-5) at z = +rh
-        for (var i = 0; i < 5; i++) {
-            vertices.push([rr * Math.cos(a * i - Math.PI/2), rr * Math.sin(a * i - Math.PI/2), rh]);
-        }
-        
-        // Lower ring (6-10) at z = -rh, rotated 36°
-        for (var i = 0; i < 5; i++) {
-            vertices.push([rr * Math.cos(a * i - Math.PI/2 + Math.PI/5), rr * Math.sin(a * i - Math.PI/2 + Math.PI/5), -rh]);
-        }
-        
-        vertices.push([0, 0, -h]); // 11: bottom apex
-        
-        // 10 kite faces - proper winding (CCW from outside)
-        // Each kite: apex, ring1[i], ring2[j], ring1[i+1]
-        var faces = [
-            // Upper 5 kites (top apex = 0)
-            // Connect: top -> upper[i] -> lower[i] -> upper[i+1]
-            [0, 1, 6, 2, 1],   // face showing "1"
-            [0, 2, 7, 3, 3],   // face showing "3"
-            [0, 3, 8, 4, 5],   // face showing "5"
-            [0, 4, 9, 5, 7],   // face showing "7"
-            [0, 5, 10, 1, 9],  // face showing "9"
-            
-            // Lower 5 kites (bottom apex = 11)
-            // Connect: bottom -> lower[i] -> upper[i+1] -> lower[i+1]
-            [11, 6, 2, 7, 2],  // face showing "2"
-            [11, 7, 3, 8, 4],  // face showing "4"
-            [11, 8, 4, 9, 6],  // face showing "6"
-            [11, 9, 5, 10, 8], // face showing "8"
-            [11, 10, 1, 6, 0]  // face showing "0"
-        ];
-        
-        return create_geom(vertices, faces, radius, 0, Math.PI / 5, 0.96);
+        var a = Math.PI * 2 / 10, k = Math.cos(a), h = 0.105, v = -1;
+        var vertices = [];
+        for (var i = 0, b = 0; i < 10; ++i, b += a)
+            vertices.push([Math.cos(b), Math.sin(b), h * (i % 2 ? 1 : -1)]);
+        vertices.push([0, 0, -1]); vertices.push([0, 0, 1]);
+        var faces = [[5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
+                [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9],
+                [1, 0, 2, v], [1, 2, 3, v], [3, 2, 4, v], [3, 4, 5, v], [5, 4, 6, v],
+                [5, 6, 7, v], [7, 6, 8, v], [7, 8, 9, v], [9, 8, 0, v], [9, 0, 1, v]];
+        return create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
     }
 
     function create_d12_geometry(radius) {
