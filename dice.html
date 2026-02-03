@@ -2944,8 +2944,19 @@
                 const totalEl = document.getElementById('resultTotal');
                 const breakdownEl = document.getElementById('resultBreakdown');
                 const playerEl = document.getElementById('resultPlayer');
+                const skillLabelEl = document.getElementById('resultSkillLabel');
+                const targetEl = document.getElementById('resultTarget');
+                const outcomeEl = document.getElementById('resultOutcome');
+                const backBtnEl = document.getElementById('resultBackBtn');
                 
                 arena.classList.remove('throwing');
+                
+                // Reset skill check display classes
+                resultEl.classList.remove('skill-success', 'skill-failure');
+                skillLabelEl.classList.remove('visible');
+                targetEl.classList.remove('visible');
+                outcomeEl.classList.remove('visible', 'success', 'failure');
+                backBtnEl.classList.remove('visible');
                 
                 if (playerEl) {
                     playerEl.textContent = playerName;
@@ -2983,23 +2994,139 @@
                     breakdownParts = rolls.map(r => r.toString());
                 }
                 
-                if (special === 'advantage') {
-                    breakdownEl.innerHTML = `[${breakdownParts.join(', ')}] → höchste: ${Math.max(...rolls)}${modStr}`;
-                } else if (special === 'disadvantage') {
-                    breakdownEl.innerHTML = `[${breakdownParts.join(', ')}] → niedrigste: ${Math.min(...rolls)}${modStr}`;
-                } else {
-                    breakdownEl.innerHTML = `[${breakdownParts.join(', ')}]${modStr} = ${total}`;
+                // ========================================
+                // SKILL CHECK DISPLAY (Fähigkeiten D100)
+                // ========================================
+                if (this.skillCheckMode && this.skillCheckTarget > 0) {
+                    skillLabelEl.textContent = `Fähigkeit: ${this.skillCheckLabel}`;
+                    skillLabelEl.classList.add('visible');
+                    
+                    const rollResult = rolls[0];
+                    const isSuccess = rollResult <= this.skillCheckTarget;
+                    
+                    targetEl.textContent = `Zielwert: ${this.skillCheckTarget}`;
+                    targetEl.classList.add('visible');
+                    
+                    outcomeEl.textContent = isSuccess ? 'ERFOLG!' : 'FEHLSCHLAG!';
+                    outcomeEl.classList.add('visible', isSuccess ? 'success' : 'failure');
+                    resultEl.classList.add(isSuccess ? 'skill-success' : 'skill-failure');
+                    
+                    breakdownEl.innerHTML = `Gewürfelt: ${rollResult} | Zielwert: ${this.skillCheckTarget}`;
+                    
+                    if (this.returnUrl) {
+                        backBtnEl.classList.add('visible');
+                    }
+                    
+                    this.lastCheckResult = {
+                        label: `Fähigkeit: ${this.skillCheckLabel}`,
+                        result: rollResult,
+                        success: isSuccess,
+                        outcome: isSuccess ? 'Erfolg' : 'Fehlschlag',
+                        critical: false
+                    };
+                }
+                // ========================================
+                // ZWEITE CHANCE DISPLAY (D20)
+                // ========================================
+                else if (this.zweiteChanceMode) {
+                    skillLabelEl.textContent = 'Zweite Chance';
+                    skillLabelEl.classList.add('visible');
+                    
+                    targetEl.textContent = '1–5 = Fehlschlag | 6–20 = Wiederholen';
+                    targetEl.classList.add('visible');
+                    
+                    const rollValue = rolls[0];
+                    const isSuccess = rollValue >= 6;
+                    
+                    outcomeEl.textContent = isSuccess ? 'WIEDERHOLEN ERLAUBT!' : 'FEHLSCHLAG BLEIBT!';
+                    outcomeEl.classList.add('visible', isSuccess ? 'success' : 'failure');
+                    resultEl.classList.add(isSuccess ? 'skill-success' : 'skill-failure');
+                    
+                    breakdownEl.innerHTML = `Gewürfelt: ${rollValue}`;
+                    
+                    if (this.returnUrl) {
+                        backBtnEl.classList.add('visible');
+                    }
+                    
+                    this.lastCheckResult = {
+                        label: 'Zweite Chance',
+                        result: rollValue,
+                        success: isSuccess,
+                        outcome: isSuccess ? 'Wiederholen!' : 'Fehlschlag!',
+                        critical: false,
+                        zweiteChance: true,
+                        diceIndex: this.zweiteChanceDiceIndex
+                    };
+                }
+                // ========================================
+                // FOKUS CHECK DISPLAY (D20)
+                // ========================================
+                else if (this.fokusCheckMode) {
+                    skillLabelEl.textContent = `Fokus: ${this.fokusCheckLabel}`;
+                    skillLabelEl.classList.add('visible');
+                    
+                    targetEl.textContent = `≥11 Erfolg | ≤10 Fehlschlag`;
+                    targetEl.classList.add('visible');
+                    
+                    const rollValue = rolls[0];
+                    const isNat20 = rollValue === 20;
+                    const isNat1 = rollValue === 1;
+                    const isSuccess = isNat20 || (!isNat1 && total >= 11);
+                    const isCrit = isNat20 || isNat1;
+                    
+                    if (isNat20) {
+                        outcomeEl.textContent = 'KRITISCHER ERFOLG!';
+                        resultEl.classList.add('critical');
+                    } else if (isNat1) {
+                        outcomeEl.textContent = 'PATZER!';
+                        resultEl.classList.add('fumble');
+                    } else {
+                        outcomeEl.textContent = isSuccess ? 'ERFOLG!' : 'FEHLSCHLAG!';
+                    }
+                    outcomeEl.classList.add('visible', isSuccess ? 'success' : 'failure');
+                    resultEl.classList.add(isSuccess ? 'skill-success' : 'skill-failure');
+                    
+                    const modSign = mod >= 0 ? '+' : '';
+                    breakdownEl.innerHTML = `${rollValue} ${modSign} ${mod} = ${total}`;
+                    
+                    if (this.returnUrl) {
+                        backBtnEl.classList.add('visible');
+                    }
+                    
+                    let outcomeText = isSuccess ? 'Erfolg' : 'Fehlschlag';
+                    if (isNat20) outcomeText = 'Kritisch!';
+                    if (isNat1) outcomeText = 'Patzer!';
+                    
+                    this.lastCheckResult = {
+                        label: `Fokus: ${this.fokusCheckLabel}`,
+                        result: total,
+                        success: isSuccess,
+                        outcome: outcomeText,
+                        critical: isCrit
+                    };
+                }
+                // ========================================
+                // NORMAL ROLL DISPLAY
+                // ========================================
+                else {
+                    if (special === 'advantage') {
+                        breakdownEl.innerHTML = `[${breakdownParts.join(', ')}] → höchste: ${Math.max(...rolls)}${modStr}`;
+                    } else if (special === 'disadvantage') {
+                        breakdownEl.innerHTML = `[${breakdownParts.join(', ')}] → niedrigste: ${Math.min(...rolls)}${modStr}`;
+                    } else {
+                        breakdownEl.innerHTML = `[${breakdownParts.join(', ')}]${modStr} = ${total}`;
+                    }
                 }
                 
                 if (this.secretRoll) resultEl.classList.add('secret');
                 
-                if (isCritical === 'success') {
+                if (isCritical === 'success' && !this.fokusCheckMode) {
                     resultEl.classList.add('critical');
                     arena.classList.add('shake');
                     this.spawnParticles(30);
                     this.showCritFlash('success');
                     setTimeout(() => arena.classList.remove('shake'), 500);
-                } else if (isCritical === 'failure') {
+                } else if (isCritical === 'failure' && !this.fokusCheckMode) {
                     resultEl.classList.add('fumble');
                     arena.classList.add('shake');
                     this.spawnParticles(30);
@@ -3010,8 +3137,22 @@
                 resultEl.classList.add('visible');
                 
                 this.resultTimeout = setTimeout(() => {
-                    resultEl.classList.remove('visible', 'critical', 'fumble', 'secret');
+                    resultEl.classList.remove('visible', 'critical', 'fumble', 'secret', 'skill-success', 'skill-failure');
+                    skillLabelEl.classList.remove('visible');
+                    targetEl.classList.remove('visible');
+                    outcomeEl.classList.remove('visible', 'success', 'failure');
+                    backBtnEl.classList.remove('visible');
                     this.clearDiceLabels();
+                    
+                    // Reset check modes
+                    this.skillCheckMode = false;
+                    this.skillCheckTarget = 0;
+                    this.skillCheckLabel = '';
+                    this.fokusCheckMode = false;
+                    this.fokusCheckLabel = '';
+                    this.fokusCheckMod = 0;
+                    this.zweiteChanceMode = false;
+                    this.zweiteChanceDiceIndex = -1;
                 }, 8000);
             },
             
