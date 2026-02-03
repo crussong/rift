@@ -459,6 +459,15 @@ function createUnifiedDock() {
             </div>
         </a>
         
+        <!-- Session Card (loaded dynamically) -->
+        <a href="session.html" class="dock__session-card hidden" id="dockSessionCard">
+            <div class="dock__session-portrait" id="dockSessionPortrait">
+                <div class="dock__session-portrait-placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11zm8.416 6.586l-2.916 2.916l-2.916 -2.916a1 1 0 0 0 -1.414 1.414l2.916 2.916l-2.916 2.916a1 1 0 0 0 1.414 1.414l2.916 -2.916l2.916 2.916a1 1 0 0 0 1.414 -1.414l-2.916 -2.916l2.916 -2.916a1 1 0 0 0 -1.414 -1.414z"/></svg>
+                </div>
+            </div>
+        </a>
+        
         <a href="index.html" class="dock__item ${isHub ? 'active' : ''}" data-tooltip="Hub">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.707 2.293l9 9c.63 .63 .184 1.707 -.707 1.707h-1v6a3 3 0 0 1 -3 3h-1v-7a3 3 0 0 0 -2.824 -2.995l-.176 -.005h-2a3 3 0 0 0 -3 3v7h-1a3 3 0 0 1 -3 -3v-6h-1c-.89 0 -1.337 -1.077 -.707 -1.707l9 -9a1 1 0 0 1 1.414 0m.293 11.707a1 1 0 0 1 1 1v7h-4v-7a1 1 0 0 1 .883 -.993l.117 -.007z"/>
@@ -864,6 +873,7 @@ function initPartyDisplay() {
     
     // Initialize Dock Character Card
     initDockCharacterCard();
+    initDockSessionCard();
 }
 
 // ============================================================
@@ -893,13 +903,19 @@ async function initDockCharacterCard() {
     let character = null;
     
     // Try to get session ruleset first
-    const sessionData = localStorage.getItem('rift_current_session');
     let ruleset = null;
-    if (sessionData) {
+    const activeSessionData = localStorage.getItem('rift_active_session');
+    const sessionsData = localStorage.getItem('rift_sessions');
+    
+    if (activeSessionData && sessionsData) {
         try {
-            const session = JSON.parse(sessionData);
-            ruleset = session.ruleset;
-            console.log('[DockChar] Session ruleset:', ruleset);
+            const activeSession = JSON.parse(activeSessionData);
+            const sessions = JSON.parse(sessionsData);
+            const fullSession = sessions.find(s => s.id === activeSession.id);
+            if (fullSession) {
+                ruleset = fullSession.ruleset;
+                console.log('[DockChar] Session ruleset:', ruleset);
+            }
         } catch (e) {}
     }
     
@@ -1036,6 +1052,90 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Show card
     card.classList.remove('hidden');
     console.log('[DockChar] Card updated:', charData.name);
+}
+
+// ============================================================
+// DOCK SESSION CARD
+// ============================================================
+
+async function initDockSessionCard() {
+    console.log('[DockSession] Initializing...');
+    
+    const card = document.getElementById('dockSessionCard');
+    if (!card) {
+        console.log('[DockSession] Card element not found in DOM');
+        return;
+    }
+    
+    // Get active session ID
+    const activeSessionData = localStorage.getItem('rift_active_session');
+    let activeSession = null;
+    if (activeSessionData) {
+        try {
+            activeSession = JSON.parse(activeSessionData);
+        } catch (e) {}
+    }
+    
+    // Get full sessions list for portrait
+    const sessionsData = localStorage.getItem('rift_sessions');
+    let sessions = [];
+    if (sessionsData) {
+        try {
+            sessions = JSON.parse(sessionsData);
+        } catch (e) {}
+    }
+    
+    // Find the session with portrait data
+    let session = null;
+    
+    if (activeSession && activeSession.id) {
+        // Find full session data from sessions list
+        session = sessions.find(s => s.id === activeSession.id);
+        if (session) {
+            console.log('[DockSession] Found active session:', session.name);
+        }
+    }
+    
+    // Fallback: use first "live" or "paused" session
+    if (!session) {
+        session = sessions.find(s => s.status === 'live' || s.status === 'paused');
+        if (session) {
+            console.log('[DockSession] Using first active session:', session.name);
+        }
+    }
+    
+    // Fallback: use first session with a coverUrl
+    if (!session) {
+        session = sessions.find(s => s.coverUrl);
+        if (session) {
+            console.log('[DockSession] Using first session with cover:', session.name);
+        }
+    }
+    
+    if (!session) {
+        console.log('[DockSession] No session found');
+        return;
+    }
+    
+    // Update portrait
+    const portrait = document.getElementById('dockSessionPortrait');
+    if (portrait) {
+        const portraitUrl = session.coverUrl || session.portraitUrl || session.portrait || session.imageUrl || session.image;
+        if (portraitUrl) {
+            portrait.innerHTML = `<img src="${portraitUrl}" alt="Session">`;
+        } else {
+            portrait.innerHTML = `<div class="dock__session-portrait-placeholder">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11zm8.416 6.586l-2.916 2.916l-2.916 -2.916a1 1 0 0 0 -1.414 1.414l2.916 2.916l-2.916 2.916a1 1 0 0 0 1.414 1.414l2.916 -2.916l2.916 2.916a1 1 0 0 0 1.414 -1.414l-2.916 -2.916l2.916 -2.916a1 1 0 0 0 -1.414 -1.414z"/></svg>
+            </div>`;
+        }
+    }
+    
+    // Update link
+    card.href = `session.html?id=${session.id}`;
+    
+    // Show card
+    card.classList.remove('hidden');
+    console.log('[DockSession] Card updated:', session.name);
 }
 
 // ============================================================
