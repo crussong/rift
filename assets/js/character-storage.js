@@ -397,10 +397,27 @@ const CharacterStorage = {
             }
             
             const charName = all[charId].name;
+            const charRuleset = all[charId].ruleset;
             delete all[charId];
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
             
             console.log('[CharacterStorage] Deleted from localStorage:', charId, charName);
+            
+            // Also clear legacy storage if this was the active character
+            // Check worldsapart_character_v5
+            try {
+                const v5Data = localStorage.getItem('worldsapart_character_v5');
+                if (v5Data) {
+                    const v5Char = JSON.parse(v5Data);
+                    // Match by name or _charId
+                    if (v5Char.name === charName || v5Char._charId === charId) {
+                        localStorage.removeItem('worldsapart_character_v5');
+                        console.log('[CharacterStorage] Also removed worldsapart_character_v5');
+                    }
+                }
+            } catch (e) {
+                console.warn('[CharacterStorage] Error checking v5 storage:', e);
+            }
             
             // Also delete from Firebase (async, don't wait)
             if (this.isOnline()) {
