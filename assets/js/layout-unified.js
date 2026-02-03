@@ -1185,80 +1185,58 @@ async function initDockSessionCard() {
     }
     
     const roomCode = localStorage.getItem('rift_current_room');
-    const normalizedCode = roomCode ? roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) : null;
-    console.log('[DockSession] Room code from localStorage:', roomCode);
-    console.log('[DockSession] Normalized room code:', normalizedCode);
-    console.log('[DockSession] All rift_ keys:', Object.keys(localStorage).filter(k => k.startsWith('rift_')));
+    console.log('[DockSession] Room code:', roomCode);
     
-    if (!roomCode) {
-        console.log('[DockSession] No room code');
+    // Load sessions from localStorage (same as sessions.html)
+    const allSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+    console.log('[DockSession] Total sessions in localStorage:', allSessions.length);
+    
+    // Filter for current room
+    const sessions = allSessions.filter(s => {
+        if (roomCode && s.roomCode === roomCode) return true;
+        return false;
+    });
+    
+    console.log('[DockSession] Filtered sessions for room:', sessions.length);
+    if (sessions.length > 0) {
+        console.log('[DockSession] Sessions:', sessions.map(s => ({ 
+            id: s.id, 
+            name: s.name, 
+            status: s.status,
+            coverUrl: s.coverUrl ? 'yes' : 'no'
+        })));
+    }
+    
+    // Find active session (live or paused)
+    let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
+    
+    // Fallback: first planned/scheduled session
+    if (!session) {
+        session = sessions.find(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming' || s.status === 'draft');
+    }
+    
+    // Fallback: first session without ended status (including undefined status)
+    if (!session) {
+        session = sessions.find(s => s.status !== 'ended');
+    }
+    
+    // Fallback: first session with coverUrl
+    if (!session) {
+        session = sessions.find(s => s.coverUrl);
+    }
+    
+    // Fallback: first session
+    if (!session && sessions.length > 0) {
+        session = sessions[0];
+    }
+    
+    if (!session) {
+        console.log('[DockSession] No session found');
         return;
     }
     
-    // Wait for RIFT.rooms to be ready (max 10 retries)
-    let retries = 0;
-    const maxRetries = 10;
-    
-    while ((!RIFT?.rooms?.getSessions) && retries < maxRetries) {
-        console.log(`[DockSession] RIFT.rooms not ready, retry ${retries + 1}/${maxRetries}...`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        retries++;
-    }
-    
-    if (!RIFT?.rooms?.getSessions) {
-        console.error('[DockSession] RIFT.rooms.getSessions not available after retries');
-        return;
-    }
-    
-    try {
-        console.log('[DockSession] Fetching sessions for room:', roomCode);
-        const sessions = await RIFT.rooms.getSessions(roomCode);
-        console.log('[DockSession] Loaded sessions:', sessions.length);
-        console.log('[DockSession] Sessions:', sessions);
-        
-        if (sessions.length > 0) {
-            console.log('[DockSession] Session details:', sessions.map(s => ({ 
-                id: s.id, 
-                name: s.name, 
-                status: s.status,
-                coverUrl: s.coverUrl ? 'yes' : 'no'
-            })));
-        }
-        
-        // Find active session (live or paused)
-        let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
-        
-        // Fallback: first planned/scheduled session
-        if (!session) {
-            session = sessions.find(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming' || s.status === 'draft');
-        }
-        
-        // Fallback: first session without ended status (including undefined status)
-        if (!session) {
-            session = sessions.find(s => s.status !== 'ended');
-        }
-        
-        // Fallback: first session with coverUrl
-        if (!session) {
-            session = sessions.find(s => s.coverUrl);
-        }
-        
-        // Fallback: first session
-        if (!session && sessions.length > 0) {
-            session = sessions[0];
-        }
-        
-        if (!session) {
-            console.log('[DockSession] No session found');
-            return;
-        }
-        
-        console.log('[DockSession] Using session:', session.name, '- status:', session.status);
-        updateDockSessionCard(session);
-        
-    } catch (e) {
-        console.error('[DockSession] Error loading sessions:', e);
-    }
+    console.log('[DockSession] Using session:', session.name, '- status:', session.status);
+    updateDockSessionCard(session);
 }
 
 function updateDockSessionCard(session) {
