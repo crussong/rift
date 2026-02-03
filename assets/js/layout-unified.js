@@ -5,6 +5,78 @@
  */
 
 // ============================================================
+// PAGE TITLE MANAGEMENT
+// ============================================================
+
+function setPageTitle() {
+    const pageTitles = {
+        'hub': 'Hub',
+        'dice': 'Würfel',
+        'sheet-worldsapart': 'Charakterbogen',
+        'sheet-5e': 'Charakterbogen',
+        'sheet-5e-de': 'Charakterbogen',
+        'sheet-5e-en': 'Charakterbogen',
+        'sheet': 'Charakterbogen',
+        'sheet-new': 'Charakterbogen',
+        'sheet-v2': 'Charakterbogen',
+        'sessions': 'Sessions',
+        'session': 'Session',
+        'chat': 'Chat',
+        'map': 'Karte',
+        'whiteboard': 'Whiteboard',
+        'notes': 'Notizen',
+        'gm': 'GM Optionen',
+        'admin': 'Admin',
+        'profile': 'Profil',
+        'settings': 'Einstellungen',
+        'login': 'Anmelden',
+        'register': 'Registrieren',
+        'worldsapart': 'Worlds Apart',
+        'dnd5e': 'D&D 5e',
+        'htbah': 'How To Be A Hero',
+        'cyberpunkred': 'Cyberpunk RED',
+        'pathfinder': 'Pathfinder',
+        'shadowrun': 'Shadowrun',
+        'cthulhu': 'Call of Cthulhu',
+        'changelog': 'Changelog',
+        'impressum': 'Impressum',
+        'datenschutz': 'Datenschutz',
+        'agb': 'AGB',
+        'kontakt': 'Kontakt',
+        'faq': 'FAQ',
+        'hilfe': 'Hilfe'
+    };
+    
+    // Get current page from URL
+    const path = window.location.pathname;
+    const filename = path.split('/').pop().replace('.html', '') || 'index';
+    
+    // Index/Home page just shows "RIFT"
+    if (filename === 'index' || filename === '' || path === '/') {
+        document.title = 'RIFT';
+        console.log('[Layout] Page title set:', document.title);
+        return;
+    }
+    
+    // Find matching title
+    const pageTitle = pageTitles[filename];
+    
+    // Set document title
+    if (pageTitle) {
+        document.title = `RIFT - ${pageTitle}`;
+    } else {
+        // Fallback: Capitalize filename
+        const fallbackTitle = filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-/g, ' ');
+        document.title = `RIFT - ${fallbackTitle}`;
+    }
+    
+    console.log('[Layout] Page title set:', document.title);
+}
+
+// Set title immediately
+setPageTitle();
+
+// ============================================================
 // USER DATA & ROOM CODE HELPERS
 // ============================================================
 
@@ -1695,21 +1767,10 @@ const QuickDiceSystem = {
                 </svg>
             `;
         } else {
-            // Configured slot - use actual dice icons
+            // Configured slot - use actual dice icons (clean, no badges)
             slot.classList.remove('dock__dice-slot--empty');
             slot.classList.add('dock__dice-slot--configured');
             iconContainer.innerHTML = `<img src="assets/icons/dice/${config.type}.svg" alt="${config.type}" class="dock__dice-img">`;
-            
-            // Add modifier badge if exists
-            if (config.mod && config.mod !== 0) {
-                const modSign = config.mod > 0 ? '+' : '';
-                iconContainer.innerHTML += `<span class="dock__dice-mod">${modSign}${config.mod}</span>`;
-            }
-            
-            // Add count badge if > 1
-            if (config.count && config.count > 1) {
-                iconContainer.innerHTML += `<span class="dock__dice-count">${config.count}</span>`;
-            }
         }
     },
     
@@ -1834,13 +1895,27 @@ const QuickDiceSystem = {
             return;
         }
         
-        const diceText = config.count > 1 ? `${config.count}${config.type}` : config.type;
-        const modText = config.mod ? (config.mod > 0 ? `+${config.mod}` : config.mod) : '';
+        // Build dice formula display
+        const count = config.count || 1;
+        const type = config.type || 'd20';
+        const mod = config.mod || 0;
+        const modText = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : '';
         const labelText = config.label || '';
         
+        // Format: "2d20+5" or "d100-10"
+        const formula = `${count > 1 ? count : ''}${type}${modText}`;
+        
         this.tooltip.innerHTML = `
-            <div class="quick-dice-tooltip__header">${diceText}${modText}</div>
-            ${labelText ? `<div class="quick-dice-tooltip__label">${labelText}</div>` : ''}
+            ${labelText ? `<div class="quick-dice-tooltip__label-top">${labelText}</div>` : ''}
+            <div class="quick-dice-tooltip__formula">
+                <img src="assets/icons/dice/${type}.svg" alt="${type}" class="quick-dice-tooltip__dice-icon">
+                <span class="quick-dice-tooltip__formula-text">${formula}</span>
+            </div>
+            <div class="quick-dice-tooltip__details">
+                <span class="quick-dice-tooltip__detail">Anzahl: ${count}</span>
+                <span class="quick-dice-tooltip__detail">Würfel: ${type.toUpperCase()}</span>
+                ${mod !== 0 ? `<span class="quick-dice-tooltip__detail">Modifier: ${modText}</span>` : ''}
+            </div>
             <div class="quick-dice-tooltip__actions">
                 <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--roll" data-action="roll" data-index="${index}">
                     ${diceIcon} Würfeln
