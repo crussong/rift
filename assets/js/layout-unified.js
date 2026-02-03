@@ -1055,24 +1055,24 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Store character data for tooltip
     const attrs = charData.attributes || {};
     card.dataset.charName = charData.name || 'Unbenannt';
-    card.dataset.charPower = attrs.power || attrs.macht || 0;
-    card.dataset.charAgility = attrs.agility || attrs.agilität || 0;
-    card.dataset.charEndurance = attrs.endurance || attrs.ausdauer || 0;
-    card.dataset.charMind = attrs.mind || attrs.verstand || 0;
-    card.dataset.charPresence = attrs.presence || attrs.präsenz || 0;
+    card.dataset.charPower = attrs.power ?? 0;
+    card.dataset.charAgility = attrs.agility ?? 0;
+    card.dataset.charEndurance = attrs.endurance ?? 0;
+    card.dataset.charMind = attrs.mind ?? 0;
+    card.dataset.charPresence = attrs.presence ?? 0;
     
     // Fokus
     const fokus = charData.fokus || {};
-    card.dataset.charFokusElement = fokus.type || fokus.element || '';
+    card.dataset.charFokusElement = fokus.type || '';
     const fokusAbilities = fokus.abilities || [];
-    card.dataset.charFokus1 = fokusAbilities[0]?.name || fokusAbilities[0] || '';
-    card.dataset.charFokus2 = fokusAbilities[1]?.name || fokusAbilities[1] || '';
+    card.dataset.charFokus1 = fokusAbilities[0] || '';
+    card.dataset.charFokus2 = fokusAbilities[1] || '';
     
     // Schwäche & Zweite Chance
-    card.dataset.charSchwaeche = charData.schwaeche || charData.weakness || '';
-    const zc = charData.secondChance || charData.zweiteChance || [false, false, false];
-    const zcUsed = Array.isArray(zc) ? zc.filter(v => v === true).length : 0;
-    card.dataset.charZweiteChance = `${3 - zcUsed}/3`;
+    card.dataset.charSchwaeche = charData.schwaeche || '';
+    const zc = charData.secondChance || [false, false, false];
+    const zcAvailable = Array.isArray(zc) ? zc.filter(v => v === false).length : 3;
+    card.dataset.charZweiteChance = zcAvailable.toString();
     
     // Show card
     card.classList.remove('hidden');
@@ -1112,6 +1112,16 @@ async function initDockSessionCard() {
         // Find active session (live or paused)
         let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
         
+        // Fallback: first planned/scheduled session
+        if (!session) {
+            session = sessions.find(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming');
+        }
+        
+        // Fallback: first session that's not ended
+        if (!session) {
+            session = sessions.find(s => s.status !== 'ended');
+        }
+        
         // Fallback: first session with coverUrl
         if (!session) {
             session = sessions.find(s => s.coverUrl);
@@ -1127,7 +1137,7 @@ async function initDockSessionCard() {
             return;
         }
         
-        console.log('[DockSession] Using session:', session.name);
+        console.log('[DockSession] Using session:', session.name, '- status:', session.status);
         updateDockSessionCard(session);
         
     } catch (e) {
@@ -1159,7 +1169,8 @@ function updateDockSessionCard(session) {
     card.dataset.sessionName = session.name || 'Session';
     card.dataset.sessionSubtitle = session.subtitle || session.description || '';
     card.dataset.sessionRuleset = session.ruleset || 'worldsapart';
-    card.dataset.sessionNumber = session.sessionNumber || session.number || '1';
+    card.dataset.sessionNumber = session.currentSession || session.sessionNumber || '1';
+    card.dataset.sessionCount = session.sessionCount || '';
     
     // Show card
     card.classList.remove('hidden');
@@ -1185,42 +1196,34 @@ function initDockCardTooltips() {
     if (charCard) {
         charCard.addEventListener('mouseenter', (e) => {
             const d = charCard.dataset;
-            const rulesetNames = {
-                'worldsapart': 'Worlds Apart',
-                'dnd5e': 'D&D 5e',
-                'htbah': 'How To Be A Hero',
-                'cyberpunkred': 'Cyberpunk RED'
-            };
-            const elementIcons = {
-                'fire': '🔥', 'feuer': '🔥',
-                'water': '💧', 'wasser': '💧',
-                'wind': '💨', 'luft': '💨',
-                'earth': '🪨', 'erde': '🪨',
-                'lightning': '⚡', 'blitz': '⚡',
-                'room': '🌀', 'raum': '🌀',
-                'illusion': '✨'
-            };
-            const fokusEl = d.charFokusElement?.toLowerCase() || '';
-            const fokusIcon = elementIcons[fokusEl] || '✦';
+            const fokusEl = d.charFokusElement || '';
+            const zcCount = parseInt(d.charZweiteChance) || 0;
+            
+            // Generate d20 icons for Zweite Chance
+            let zcIcons = '';
+            for (let i = 0; i < 3; i++) {
+                const isAvailable = i < zcCount;
+                zcIcons += `<img src="assets/icons/dice/d20.svg" class="dock-tooltip__d20 ${isAvailable ? '' : 'used'}" alt="D20">`;
+            }
             
             tooltip.innerHTML = `
                 <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
                 <div class="dock-tooltip__section">
                     <div class="dock-tooltip__label">Attribute</div>
                     <div class="dock-tooltip__attrs">
-                        <span title="Macht">⚔️ ${d.charPower || 0}</span>
-                        <span title="Agilität">🏃 ${d.charAgility || 0}</span>
-                        <span title="Ausdauer">🛡️ ${d.charEndurance || 0}</span>
-                        <span title="Verstand">🧠 ${d.charMind || 0}</span>
-                        <span title="Präsenz">👁️ ${d.charPresence || 0}</span>
+                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charPower || 0}</span><span class="dock-tooltip__attr-label">KRF</span></span>
+                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charAgility || 0}</span><span class="dock-tooltip__attr-label">GES</span></span>
+                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charEndurance || 0}</span><span class="dock-tooltip__attr-label">ZÄH</span></span>
+                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charMind || 0}</span><span class="dock-tooltip__attr-label">VER</span></span>
+                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charPresence || 0}</span><span class="dock-tooltip__attr-label">PRÄ</span></span>
                     </div>
                 </div>
-                ${d.charFokusElement ? `
+                ${fokusEl ? `
                 <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label">Fokus ${fokusIcon}</div>
-                    <div class="dock-tooltip__focus">${d.charFokusElement}</div>
-                    ${d.charFokus1 ? `<div class="dock-tooltip__ability">• ${d.charFokus1}</div>` : ''}
-                    ${d.charFokus2 ? `<div class="dock-tooltip__ability">• ${d.charFokus2}</div>` : ''}
+                    <div class="dock-tooltip__label">Fokus</div>
+                    <div class="dock-tooltip__focus">${fokusEl}</div>
+                    ${d.charFokus1 ? `<div class="dock-tooltip__ability">${d.charFokus1}</div>` : ''}
+                    ${d.charFokus2 ? `<div class="dock-tooltip__ability">${d.charFokus2}</div>` : ''}
                 </div>
                 ` : ''}
                 ${d.charSchwaeche ? `
@@ -1231,7 +1234,7 @@ function initDockCardTooltips() {
                 ` : ''}
                 <div class="dock-tooltip__section">
                     <div class="dock-tooltip__label">Zweite Chance</div>
-                    <div class="dock-tooltip__chance">${d.charZweiteChance || '3/3'}</div>
+                    <div class="dock-tooltip__chance-icons">${zcIcons}</div>
                 </div>
             `;
             showDockTooltip(tooltip, charCard);
@@ -1254,12 +1257,16 @@ function initDockCardTooltips() {
                 'cyberpunkred': 'Cyberpunk RED'
             };
             
+            const sessionNumText = d.sessionCount 
+                ? `Session ${d.sessionNumber || '1'}/${d.sessionCount}`
+                : `Session ${d.sessionNumber || '1'}`;
+            
             tooltip.innerHTML = `
                 <div class="dock-tooltip__header">${d.sessionName || 'Session'}</div>
                 ${d.sessionSubtitle ? `<div class="dock-tooltip__subtitle">${d.sessionSubtitle}</div>` : ''}
                 <div class="dock-tooltip__meta">
                     <span class="dock-tooltip__ruleset">${rulesetNames[d.sessionRuleset] || d.sessionRuleset}</span>
-                    <span class="dock-tooltip__session-num">Session ${d.sessionNumber || '1'}</span>
+                    <span class="dock-tooltip__session-num">${sessionNumText}</span>
                 </div>
             `;
             showDockTooltip(tooltip, sessionCard);
