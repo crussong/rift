@@ -1190,17 +1190,34 @@ async function initDockSessionCard() {
         return;
     }
     
-    // Wait for RIFT.rooms to be ready
-    if (typeof RIFT === 'undefined' || !RIFT.rooms || !RIFT.rooms.getSessions) {
-        console.log('[DockSession] RIFT.rooms not ready, retrying in 500ms...');
-        setTimeout(initDockSessionCard, 500);
+    // Wait for RIFT.rooms to be ready (max 10 retries)
+    let retries = 0;
+    const maxRetries = 10;
+    
+    while ((!RIFT?.rooms?.getSessions) && retries < maxRetries) {
+        console.log(`[DockSession] RIFT.rooms not ready, retry ${retries + 1}/${maxRetries}...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retries++;
+    }
+    
+    if (!RIFT?.rooms?.getSessions) {
+        console.error('[DockSession] RIFT.rooms.getSessions not available after retries');
         return;
     }
     
     try {
+        console.log('[DockSession] Fetching sessions for room:', roomCode);
         const sessions = await RIFT.rooms.getSessions(roomCode);
         console.log('[DockSession] Loaded sessions:', sessions.length);
-        console.log('[DockSession] Sessions:', sessions.map(s => ({ id: s.id, name: s.name, status: s.status })));
+        
+        if (sessions.length > 0) {
+            console.log('[DockSession] Sessions:', sessions.map(s => ({ 
+                id: s.id, 
+                name: s.name, 
+                status: s.status,
+                coverUrl: s.coverUrl ? 'yes' : 'no'
+            })));
+        }
         
         // Find active session (live or paused)
         let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
