@@ -1146,8 +1146,25 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     card.dataset.charAge = charData.age || '';
     card.dataset.charGender = charData.gender || '';
     card.dataset.charRole = charData.role || '';
+    card.dataset.charCrew = charData.crew || '';
+    card.dataset.charWeapon = charData.weapon || '';
     card.dataset.charCurrency = charData.currency || '';
     card.dataset.charCurrencyType = charData.currencyType || 'dollar';
+    
+    // Stats for tooltip
+    const hp = charData.health?.current ?? 100;
+    const maxHp = charData.health?.max ?? 100;
+    const moral = charData.moral?.current ?? 100;
+    const maxMoral = charData.moral?.max ?? 100;
+    const power = attrs.power || 0;
+    const presence = attrs.presence || 0;
+    const resonanz = 10 + (power * presence);
+    
+    card.dataset.charHp = hp;
+    card.dataset.charMaxHp = maxHp;
+    card.dataset.charMoral = moral;
+    card.dataset.charMaxMoral = maxMoral;
+    card.dataset.charResonanz = resonanz;
     
     // Show card
     card.classList.remove('hidden');
@@ -1298,10 +1315,6 @@ function initDockCardTooltips() {
             if (d.charGender) infoParts.push(d.charGender);
             const infoLine = infoParts.join(' · ');
             
-            // Currency display
-            const currencySymbols = { 'dollar': '$', 'euro': '€', 'gold': 'G', 'credits': 'CR' };
-            const currencySymbol = currencySymbols[d.charCurrencyType] || '$';
-            
             tooltip.innerHTML = `
                 <div class="dock-tooltip__header-row">
                     <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
@@ -1309,6 +1322,15 @@ function initDockCardTooltips() {
                 </div>
                 ${infoLine ? `<div class="dock-tooltip__info-line">${infoLine}</div>` : ''}
                 ${d.charRole ? `<div class="dock-tooltip__role">${d.charRole}</div>` : ''}
+                ${d.charCrew ? `<div class="dock-tooltip__crew">${d.charCrew}</div>` : ''}
+                
+                <div class="dock-tooltip__divider"></div>
+                
+                <div class="dock-tooltip__stats-row">
+                    <span class="dock-tooltip__stat dock-tooltip__stat--hp">❤️ ${d.charHp || 100}/${d.charMaxHp || 100}</span>
+                    <span class="dock-tooltip__stat dock-tooltip__stat--moral">🛡️ ${d.charMoral || 100}/${d.charMaxMoral || 100}</span>
+                    <span class="dock-tooltip__stat dock-tooltip__stat--resonanz">⚡ ${d.charResonanz || 10}</span>
+                </div>
                 
                 <div class="dock-tooltip__section">
                     <div class="dock-tooltip__label-bg">Attribute</div>
@@ -1345,8 +1367,15 @@ function initDockCardTooltips() {
                     <div class="dock-tooltip__chance-icons">${zcIcons}</div>
                 </div>
                 
+                ${d.charWeapon ? `
+                <div class="dock-tooltip__section">
+                    <div class="dock-tooltip__label-bg">Waffe</div>
+                    <div class="dock-tooltip__weapon">${d.charWeapon}</div>
+                </div>
+                ` : ''}
+                
                 ${d.charCurrency ? `
-                <div class="dock-tooltip__currency">${currencySymbol} ${d.charCurrency}</div>
+                <div class="dock-tooltip__currency">¤ ${d.charCurrency}</div>
                 ` : ''}
             `;
             showDockTooltip(tooltip, charCard);
