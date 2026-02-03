@@ -2733,6 +2733,20 @@
                 const animationStartTime = Date.now();
                 const MIN_ANIMATION_TIME = 2500;
                 
+                // Build roll label for other players
+                let rollLabel = null;
+                let rollTarget = null;
+                if (this.skillCheckMode) {
+                    rollLabel = `Fähigkeit: ${this.skillCheckLabel}`;
+                    rollTarget = this.skillCheckTarget;
+                } else if (this.fokusCheckMode) {
+                    rollLabel = `Fokus: ${this.fokusCheckLabel}`;
+                    rollTarget = `≥11`;
+                } else if (this.zweiteChanceMode) {
+                    rollLabel = 'Zweite Chance';
+                    rollTarget = '6-20';
+                }
+                
                 // SOFORT SYNC starten - andere Spieler sehen "würfelt..."
                 this.syncRollStart({
                     player: playerName,
@@ -2744,6 +2758,9 @@
                     secret: this.secretRoll,
                     special: special,
                     timestamp: Date.now(),
+                    // Add skill/fokus info for other players
+                    rollLabel: rollLabel,
+                    rollTarget: rollTarget,
                     diceConfig: {
                         notation: libraryNotation,
                         d100Count: d100Count
@@ -3690,7 +3707,17 @@
                         indicator.className = 'dice-remote-indicator';
                         arena.appendChild(indicator);
                     }
-                    indicator.innerHTML = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt...`;
+                    
+                    // Build indicator text with optional label and target
+                    let indicatorText = `<span style="color: ${roll.color || '#8b5cf6'}">${roll.player}</span> würfelt`;
+                    if (roll.rollLabel) {
+                        indicatorText += ` auf <strong>${roll.rollLabel}</strong>`;
+                        if (roll.rollTarget) {
+                            indicatorText += ` <span style="opacity: 0.7">(Ziel: ${roll.rollTarget})</span>`;
+                        }
+                    }
+                    indicatorText += '...';
+                    indicator.innerHTML = indicatorText;
                     indicator.classList.add('visible');
                     
                     // Starte rotierende 3D-Würfel
