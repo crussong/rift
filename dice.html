@@ -1361,16 +1361,18 @@
                 // Check for auto-roll parameters
                 const diceType = params.get('dice'); // e.g., "d20" or "d100"
                 const modifier = parseInt(params.get('mod')) || 0;
+                const diceCount = parseInt(params.get('count')) || 1; // For multi-dice rolls (e.g., 2d6)
                 const label = params.get('label') ? decodeURIComponent(params.get('label')) : '';
                 const autoRoll = params.get('roll') === '1';
                 const checkType = params.get('check'); // 'fokus' for D20 fokus checks, 'zweitechance' for second chance
                 const diceIndex = params.get('diceIndex'); // For Zweite Chance
+                const isQuickDice = params.get('quickdice') === 'true'; // From dock quick dice
                 
                 // Valid dice types
                 const validDice = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'];
                 
                 if (diceType && autoRoll && validDice.includes(diceType)) {
-                    console.log('[DiceRoller] Auto-roll from URL:', { diceType, modifier, label, checkType });
+                    console.log('[DiceRoller] Auto-roll from URL:', { diceType, diceCount, modifier, label, checkType, isQuickDice });
                     
                     // Reset all check modes
                     this.skillCheckMode = false;
@@ -1405,7 +1407,7 @@
                     
                     // Clear current dice and set the requested one
                     this.currentDice = {};
-                    this.currentDice[diceType] = 1;
+                    this.currentDice[diceType] = diceCount;
                     
                     // Set modifier
                     if (this.skillCheckMode) {
@@ -1422,13 +1424,18 @@
                     this.updateUI();
                     
                     // Show label as toast
-                    if (label && window.RIFT?.ui?.Toast) {
-                        if (this.skillCheckMode) {
+                    if (window.RIFT?.ui?.Toast) {
+                        if (this.skillCheckMode && label) {
                             RIFT.ui.Toast.info(`${label} – Zielwert: ${modifier}`);
-                        } else if (this.fokusCheckMode) {
+                        } else if (this.fokusCheckMode && label) {
                             RIFT.ui.Toast.info(`${label} – W20${modifier >= 0 ? '+' : ''}${modifier}`);
-                        } else {
-                            RIFT.ui.Toast.info(`${label}: W${diceType.replace('d', '')} ${modifier >= 0 ? '+' : ''}${modifier}`);
+                        } else if (label) {
+                            const modStr = modifier !== 0 ? (modifier >= 0 ? `+${modifier}` : modifier) : '';
+                            RIFT.ui.Toast.info(`${label}: ${diceCount > 1 ? diceCount : ''}W${diceType.replace('d', '')}${modStr}`);
+                        } else if (isQuickDice) {
+                            // Quick dice without label - show dice formula
+                            const modStr = modifier !== 0 ? (modifier >= 0 ? `+${modifier}` : modifier) : '';
+                            RIFT.ui.Toast.info(`${diceCount > 1 ? diceCount : ''}W${diceType.replace('d', '')}${modStr}`);
                         }
                     }
                     
