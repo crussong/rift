@@ -3965,7 +3965,17 @@
                     // Zeige Labels über den Würfeln
                     this.showDiceLabels(labelValues, remoteD100Count);
                     
-                    // Setze Check-Modi für Remote-Roll (damit displayRollResult richtig anzeigt)
+                    // Save current local check modes (in case player was setting up their own roll)
+                    const savedModes = {
+                        skillCheckMode: this.skillCheckMode,
+                        skillCheckLabel: this.skillCheckLabel,
+                        skillCheckTarget: this.skillCheckTarget,
+                        fokusCheckMode: this.fokusCheckMode,
+                        fokusCheckLabel: this.fokusCheckLabel,
+                        zweiteChanceMode: this.zweiteChanceMode
+                    };
+                    
+                    // Temporarily set Check-Modi for Remote-Roll display
                     if (roll.checkInfo) {
                         this.skillCheckMode = roll.checkInfo.skillCheckMode || false;
                         this.skillCheckLabel = roll.checkInfo.skillCheckLabel || '';
@@ -3987,6 +3997,15 @@
                         remoteD100Count,
                         labelValues
                     );
+                    
+                    // IMMEDIATELY reset check modes after display (don't inherit remote player's roll type)
+                    this.skillCheckMode = false;
+                    this.skillCheckLabel = '';
+                    this.skillCheckTarget = 0;
+                    this.fokusCheckMode = false;
+                    this.fokusCheckLabel = '';
+                    this.zweiteChanceMode = false;
+                    this.zweiteChanceDiceIndex = -1;
                     
                     this.addToHistory({
                         player: roll.player || 'Spieler',
