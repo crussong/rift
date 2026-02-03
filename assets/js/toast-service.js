@@ -12,6 +12,7 @@ window.RIFTToast = {
     // Toast types
     types: {
         dice: { icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/></svg>`, color: '#8b5cf6' },
+        diceRolling: { icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/></svg>`, color: '#f59e0b' },
         diceSuccess: { icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/></svg>`, color: '#22c55e' },
         diceFail: { icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.47 6.62L12.57 2.18C12.41 2.06 12.21 2 12 2S11.59 2.06 11.43 2.18L3.53 6.62C3.21 6.79 3 7.12 3 7.5V16.5C3 16.88 3.21 17.21 3.53 17.38L11.43 21.82C11.59 21.94 11.79 22 12 22S12.41 21.94 12.57 21.82L20.47 17.38C20.79 17.21 21 16.88 21 16.5V7.5C21 7.12 20.79 6.79 20.47 6.62Z"/></svg>`, color: '#ef4444' },
         mention: { icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C13.5 22 14.92 21.68 16.22 21.12L17.07 22.76C15.53 23.55 13.82 24 12 24C5.37 24 0 18.63 0 12C0 5.37 5.37 0 12 0C18.63 0 24 5.37 24 12V13.5C24 15.43 22.43 17 20.5 17C19.24 17 18.13 16.33 17.5 15.34C16.5 16.35 15.09 17 13.5 17C10.46 17 8 14.54 8 11.5C8 8.46 10.46 6 13.5 6C14.78 6 15.95 6.45 16.88 7.18L17.5 6.5H19V13.5C19 14.33 19.67 15 20.5 15C21.33 15 22 14.33 22 13.5V12C22 6.48 17.52 2 12 2Z"/></svg>`, color: '#f59e0b' },
@@ -169,11 +170,11 @@ window.RIFTToast = {
             
             // Skip own toasts for certain types
             if (toast.oderId === userId) {
-                if (['dice', 'diceSuccess', 'diceFail', 'hpGain', 'hpLoss', 'levelUp'].includes(toast.type)) return;
+                if (['dice', 'diceSuccess', 'diceFail', 'diceRolling', 'hpGain', 'hpLoss', 'levelUp'].includes(toast.type)) return;
             }
             
             // Skip page-specific toasts
-            if (['dice', 'diceSuccess', 'diceFail'].includes(toast.type) && page === 'dice') return;
+            if (['dice', 'diceSuccess', 'diceFail', 'diceRolling'].includes(toast.type) && page === 'dice') return;
             if (['hpGain', 'hpLoss', 'levelUp'].includes(toast.type) && page.startsWith('sheet-')) return;
             if (['mention', 'whisper'].includes(toast.type) && page === 'chat') return;
             
@@ -232,6 +233,11 @@ window.RIFTToast = {
     },
     
     // ========== CONVENIENCE ==========
+    diceRolling(name, rollLabel = '') {
+        const message = rollLabel ? `würfelt auf ${rollLabel}...` : 'würfelt...';
+        this.send('diceRolling', name, message);
+    },
+    
     diceRoll(name, result, formula = '', isSuccess = null) {
         const type = isSuccess === true ? 'diceSuccess' : isSuccess === false ? 'diceFail' : 'dice';
         this.send(type, name, formula, { result: String(result), isSuccess });

@@ -1242,3 +1242,12 @@ window.createUnifiedDock = createUnifiedDock;
 window.createUnifiedFooter = createUnifiedFooter;
 window.BannerSystem = BannerSystem;
 window.initBannerSystem = initBannerSystem;
+
+// Load Toast Service globally (for dice roll notifications etc.)
+(function loadToastService() {
+    if (document.querySelector('script[src*="toast-service.js"]')) return;
+    const script = document.createElement('script');
+    script.src = 'assets/js/toast-service.js';
+    script.defer = true;
+    document.head.appendChild(script);
+})();
