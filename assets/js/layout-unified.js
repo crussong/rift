@@ -519,6 +519,21 @@ function createUnifiedDock() {
                 </div>
             </div>
         </a>
+        
+        <div class="dock__divider"></div>
+        
+        <!-- Quick Dice Slots -->
+        <div class="dock__quick-dice" id="dockQuickDice">
+            <button class="dock__dice-slot" id="dockDiceSlot1" data-slot="0">
+                <div class="dock__dice-icon"></div>
+            </button>
+            <button class="dock__dice-slot" id="dockDiceSlot2" data-slot="1">
+                <div class="dock__dice-icon"></div>
+            </button>
+            <button class="dock__dice-slot" id="dockDiceSlot3" data-slot="2">
+                <div class="dock__dice-icon"></div>
+            </button>
+        </div>
     </div>
     `;
 }
@@ -1621,6 +1636,417 @@ function showDockTooltip(tooltip, card) {
     tooltip.style.left = `${rect.left + rect.width / 2}px`;
     tooltip.style.bottom = `${window.innerHeight - rect.top + 12}px`;
     tooltip.classList.add('visible');
+}
+
+// ============================================================
+// QUICK DICE SYSTEM
+// ============================================================
+const QuickDiceSystem = {
+    STORAGE_KEY: 'rift_quick_dice',
+    slots: [null, null, null],
+    editMode: false,
+    activeTooltipSlot: null,
+    
+    // Dice SVG Icons
+    DICE_ICONS: {
+        'd4': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.112l9.262 18.557a1 1 0 0 1 -.894 1.447h-16.736a1 1 0 0 1 -.894 -1.447l9.262 -18.557z"/></svg>`,
+        'd6': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z"/></svg>`,
+        'd8': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l9 6v8l-9 6l-9 -6v-8z"/></svg>`,
+        'd10': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 4v6l-8 10l-8 -10v-6z"/></svg>`,
+        'd12': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l6.5 3l2.5 6l-2.5 6l-6.5 3l-6.5 -3l-2.5 -6l2.5 -6z"/></svg>`,
+        'd20': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l9.5 6.5v7l-9.5 6.5l-9.5 -6.5v-7z"/></svg>`,
+        'd100': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10 -10 10s-10 -4.477 -10 -10s4.477 -10 10 -10z"/></svg>`
+    },
+    
+    init() {
+        console.log('[QuickDice] Initializing...');
+        this.load();
+        this.renderSlots();
+        this.initTooltip();
+        this.bindEvents();
+    },
+    
+    load() {
+        try {
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            if (saved) {
+                this.slots = JSON.parse(saved);
+            }
+        } catch (e) {
+            console.warn('[QuickDice] Load error:', e);
+        }
+    },
+    
+    save() {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.slots));
+    },
+    
+    renderSlots() {
+        for (let i = 0; i < 3; i++) {
+            this.renderSlot(i);
+        }
+    },
+    
+    renderSlot(index) {
+        const slot = document.getElementById(`dockDiceSlot${index + 1}`);
+        if (!slot) return;
+        
+        const config = this.slots[index];
+        const iconContainer = slot.querySelector('.dock__dice-icon');
+        
+        if (!config) {
+            // Empty slot
+            slot.classList.add('dock__dice-slot--empty');
+            slot.classList.remove('dock__dice-slot--configured');
+            iconContainer.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+            `;
+        } else {
+            // Configured slot
+            slot.classList.remove('dock__dice-slot--empty');
+            slot.classList.add('dock__dice-slot--configured');
+            iconContainer.innerHTML = this.DICE_ICONS[config.type] || this.DICE_ICONS['d20'];
+            
+            // Add modifier badge if exists
+            if (config.mod && config.mod !== 0) {
+                const modSign = config.mod > 0 ? '+' : '';
+                iconContainer.innerHTML += `<span class="dock__dice-mod">${modSign}${config.mod}</span>`;
+            }
+            
+            // Add count badge if > 1
+            if (config.count && config.count > 1) {
+                iconContainer.innerHTML += `<span class="dock__dice-count">${config.count}</span>`;
+            }
+        }
+    },
+    
+    initTooltip() {
+        // Create tooltip element
+        let tooltip = document.getElementById('quickDiceTooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'quickDiceTooltip';
+            tooltip.className = 'quick-dice-tooltip';
+            document.body.appendChild(tooltip);
+        }
+        this.tooltip = tooltip;
+    },
+    
+    bindEvents() {
+        const slots = document.querySelectorAll('.dock__dice-slot');
+        
+        slots.forEach((slot, index) => {
+            // Click to roll
+            slot.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const config = this.slots[index];
+                if (config) {
+                    this.rollDice(config, index);
+                } else {
+                    // Empty slot - show config in edit mode
+                    this.showTooltip(slot, index, true);
+                }
+            });
+            
+            // Hover for tooltip
+            slot.addEventListener('mouseenter', () => {
+                if (!this.editMode) {
+                    this.showTooltip(slot, index, false);
+                }
+            });
+            
+            slot.addEventListener('mouseleave', (e) => {
+                // Don't hide if moving to tooltip
+                const related = e.relatedTarget;
+                if (related && (related.closest('.quick-dice-tooltip') || related.closest('.dock__dice-slot'))) {
+                    return;
+                }
+                if (!this.editMode) {
+                    this.hideTooltip();
+                }
+            });
+        });
+        
+        // Tooltip mouse events
+        this.tooltip.addEventListener('mouseleave', (e) => {
+            const related = e.relatedTarget;
+            if (related && related.closest('.dock__dice-slot')) {
+                return;
+            }
+            if (!this.editMode) {
+                this.hideTooltip();
+            }
+        });
+        
+        // Close edit mode on click outside
+        document.addEventListener('click', (e) => {
+            if (this.editMode && !e.target.closest('.quick-dice-tooltip') && !e.target.closest('.dock__dice-slot')) {
+                this.closeEditMode();
+            }
+        });
+    },
+    
+    showTooltip(slot, index, forceEdit = false) {
+        this.activeTooltipSlot = index;
+        const config = this.slots[index];
+        const rect = slot.getBoundingClientRect();
+        
+        if (forceEdit || this.editMode) {
+            this.editMode = true;
+            this.renderEditMode(index, config);
+        } else {
+            this.renderViewMode(index, config);
+        }
+        
+        this.tooltip.style.left = `${rect.left + rect.width / 2}px`;
+        this.tooltip.style.bottom = `${window.innerHeight - rect.top + 12}px`;
+        this.tooltip.classList.add('visible');
+    },
+    
+    hideTooltip() {
+        this.tooltip.classList.remove('visible');
+        this.activeTooltipSlot = null;
+    },
+    
+    closeEditMode() {
+        this.editMode = false;
+        this.hideTooltip();
+    },
+    
+    renderViewMode(index, config) {
+        if (!config) {
+            this.tooltip.innerHTML = `
+                <div class="quick-dice-tooltip__header">Leerer Slot</div>
+                <div class="quick-dice-tooltip__hint">Klicken zum Konfigurieren</div>
+            `;
+            return;
+        }
+        
+        const diceText = config.count > 1 ? `${config.count}${config.type}` : config.type;
+        const modText = config.mod ? (config.mod > 0 ? `+${config.mod}` : config.mod) : '';
+        const labelText = config.label || '';
+        
+        this.tooltip.innerHTML = `
+            <div class="quick-dice-tooltip__header">${diceText}${modText}</div>
+            ${labelText ? `<div class="quick-dice-tooltip__label">${labelText}</div>` : ''}
+            <div class="quick-dice-tooltip__actions">
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--roll" onclick="QuickDiceSystem.rollDice(QuickDiceSystem.slots[${index}], ${index})">
+                    🎲 Würfeln
+                </button>
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--edit" onclick="QuickDiceSystem.enterEditMode(${index})">
+                    ✏️ Bearbeiten
+                </button>
+            </div>
+        `;
+    },
+    
+    renderEditMode(index, config) {
+        const currentType = config?.type || 'd20';
+        const currentCount = config?.count || 1;
+        const currentMod = config?.mod || 0;
+        const currentLabel = config?.label || '';
+        
+        const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'];
+        const diceOptions = diceTypes.map(d => 
+            `<button class="quick-dice-tooltip__dice-btn ${d === currentType ? 'active' : ''}" data-type="${d}">${d}</button>`
+        ).join('');
+        
+        this.tooltip.innerHTML = `
+            <div class="quick-dice-tooltip__header">Würfel konfigurieren</div>
+            
+            <div class="quick-dice-tooltip__section">
+                <label>Würfeltyp</label>
+                <div class="quick-dice-tooltip__dice-grid">${diceOptions}</div>
+            </div>
+            
+            <div class="quick-dice-tooltip__row">
+                <div class="quick-dice-tooltip__field">
+                    <label>Anzahl</label>
+                    <input type="number" id="qdCount" min="1" max="10" value="${currentCount}">
+                </div>
+                <div class="quick-dice-tooltip__field">
+                    <label>Modifier</label>
+                    <input type="number" id="qdMod" min="-99" max="99" value="${currentMod}">
+                </div>
+            </div>
+            
+            <div class="quick-dice-tooltip__section">
+                <label>Label (optional)</label>
+                <input type="text" id="qdLabel" placeholder="z.B. Angriff, Schaden..." value="${currentLabel}" maxlength="20">
+            </div>
+            
+            <div class="quick-dice-tooltip__actions">
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--save" onclick="QuickDiceSystem.saveSlot(${index})">
+                    ✓ Speichern
+                </button>
+                ${config ? `
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--delete" onclick="QuickDiceSystem.clearSlot(${index})">
+                    🗑️ Löschen
+                </button>
+                ` : ''}
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--cancel" onclick="QuickDiceSystem.closeEditMode()">
+                    ✕ Abbrechen
+                </button>
+            </div>
+        `;
+        
+        // Bind dice type buttons
+        this.tooltip.querySelectorAll('.quick-dice-tooltip__dice-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.tooltip.querySelectorAll('.quick-dice-tooltip__dice-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+    },
+    
+    enterEditMode(index) {
+        this.editMode = true;
+        const slot = document.getElementById(`dockDiceSlot${index + 1}`);
+        this.showTooltip(slot, index, true);
+    },
+    
+    saveSlot(index) {
+        const typeBtn = this.tooltip.querySelector('.quick-dice-tooltip__dice-btn.active');
+        const type = typeBtn ? typeBtn.dataset.type : 'd20';
+        const count = parseInt(document.getElementById('qdCount')?.value) || 1;
+        const mod = parseInt(document.getElementById('qdMod')?.value) || 0;
+        const label = document.getElementById('qdLabel')?.value?.trim() || '';
+        
+        this.slots[index] = { type, count, mod, label };
+        this.save();
+        this.renderSlot(index);
+        this.closeEditMode();
+        
+        if (window.RIFT?.ui?.Toast) {
+            RIFT.ui.Toast.success('Würfel gespeichert');
+        }
+    },
+    
+    clearSlot(index) {
+        this.slots[index] = null;
+        this.save();
+        this.renderSlot(index);
+        this.closeEditMode();
+        
+        if (window.RIFT?.ui?.Toast) {
+            RIFT.ui.Toast.info('Würfel entfernt');
+        }
+    },
+    
+    rollDice(config, slotIndex) {
+        if (!config) return;
+        
+        const { type, count, mod, label } = config;
+        const sides = parseInt(type.replace('d', ''));
+        
+        // Roll the dice
+        let results = [];
+        let total = 0;
+        for (let i = 0; i < count; i++) {
+            const roll = Math.floor(Math.random() * sides) + 1;
+            results.push(roll);
+            total += roll;
+        }
+        total += mod;
+        
+        // Format result text
+        const diceText = count > 1 ? `${count}${type}` : type;
+        const modText = mod ? (mod > 0 ? `+${mod}` : mod) : '';
+        const rollLabel = label || diceText + modText;
+        const resultsText = count > 1 ? `(${results.join('+')})${modText ? modText : ''} = ` : '';
+        
+        console.log('[QuickDice] Roll:', diceText + modText, '=', total, results);
+        
+        // Show toast
+        if (window.RIFT?.ui?.Toast) {
+            const isMax = count === 1 && results[0] === sides;
+            const isMin = count === 1 && results[0] === 1;
+            
+            RIFT.ui.Toast.show({
+                title: `${rollLabel}`,
+                message: `${resultsText}${total}`,
+                type: isMax ? 'success' : (isMin ? 'error' : 'info'),
+                duration: 4000
+            });
+        }
+        
+        // Sync to multiplayer if available
+        this.syncRollToMultiplayer(config, results, total);
+        
+        // Visual feedback on slot
+        const slot = document.getElementById(`dockDiceSlot${slotIndex + 1}`);
+        if (slot) {
+            slot.classList.add('dock__dice-slot--rolling');
+            setTimeout(() => slot.classList.remove('dock__dice-slot--rolling'), 300);
+        }
+        
+        // Hide tooltip
+        this.hideTooltip();
+    },
+    
+    syncRollToMultiplayer(config, results, total) {
+        const roomCode = localStorage.getItem('rift_current_room');
+        if (!roomCode) return;
+        
+        // Get character name
+        let charName = 'Unbekannt';
+        try {
+            const v5 = localStorage.getItem('worldsapart_character_v5');
+            if (v5) {
+                const char = JSON.parse(v5);
+                charName = char.name || 'Unbekannt';
+            }
+        } catch (e) {}
+        
+        const { type, count, mod, label } = config;
+        const diceText = count > 1 ? `${count}${type}` : type;
+        const modText = mod ? (mod > 0 ? `+${mod}` : `${mod}`) : '';
+        
+        const rollData = {
+            odName: charName,
+            odRoom: roomCode,
+            diceType: type,
+            diceCount: count,
+            modifier: mod,
+            label: label || diceText + modText,
+            results: results,
+            total: total,
+            timestamp: Date.now(),
+            type: 'quickDice'
+        };
+        
+        // Use existing sync if available
+        if (typeof syncRoll === 'function') {
+            syncRoll(rollData);
+        } else if (window.RIFT?.dice?.syncRoll) {
+            RIFT.dice.syncRoll(rollData);
+        } else {
+            // Fallback: Write to Firebase directly
+            try {
+                if (typeof firebase !== 'undefined' && firebase.apps?.length) {
+                    const db = firebase.firestore();
+                    db.collection('rooms').doc(roomCode).collection('diceRolls').add({
+                        ...rollData,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } catch (e) {
+                console.warn('[QuickDice] Sync failed:', e);
+            }
+        }
+    }
+};
+
+// Initialize Quick Dice after DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(() => QuickDiceSystem.init(), 500));
+} else {
+    setTimeout(() => QuickDiceSystem.init(), 500);
 }
 
 // ============================================================
