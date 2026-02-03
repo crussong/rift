@@ -872,37 +872,51 @@ function initPartyDisplay() {
 let dockCharacterUnsubscribe = null;
 
 async function initDockCharacterCard() {
+    console.log('[DockChar] Initializing...');
+    
     const card = document.getElementById('dockCharacterCard');
-    if (!card) return;
+    if (!card) {
+        console.log('[DockChar] Card element not found in DOM');
+        return;
+    }
+    console.log('[DockChar] Card element found');
     
     const roomCode = localStorage.getItem('rift_current_room');
     if (!roomCode) {
-        console.log('[DockChar] No room code, hiding card');
+        console.log('[DockChar] No room code in localStorage');
         return;
     }
+    console.log('[DockChar] Room code:', roomCode);
     
     // Wait for Firebase to be fully initialized
     const waitForAuth = () => {
         return new Promise((resolve) => {
+            console.log('[DockChar] Waiting for Firebase...');
             const check = setInterval(() => {
                 // Check if Firebase is loaded AND initialized
                 if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                    console.log('[DockChar] Firebase ready, apps:', firebase.apps.length);
                     clearInterval(check);
                     // Now wait for auth state
                     const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
                         unsubscribe();
+                        console.log('[DockChar] Auth state:', user ? user.email : 'no user');
                         resolve(user);
                     });
                 }
             }, 200);
-            setTimeout(() => { clearInterval(check); resolve(null); }, 10000);
+            setTimeout(() => { 
+                clearInterval(check); 
+                console.log('[DockChar] Timeout waiting for Firebase');
+                resolve(null); 
+            }, 10000);
         });
     };
     
     const user = await waitForAuth();
     
     if (!user) {
-        console.log('[DockChar] No user logged in');
+        console.log('[DockChar] No user logged in, hiding card');
         return;
     }
     
