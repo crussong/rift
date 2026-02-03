@@ -904,13 +904,26 @@ async function initDockCharacterCard() {
     let charData = null;
     let charId = null;
     
+    // Helper function to validate character data
+    const isValidCharacter = (data) => {
+        if (!data) return false;
+        // Must have a name that's not empty or default
+        if (!data.name || data.name === 'Unbenannt' || data.name.trim() === '') return false;
+        return true;
+    };
+    
     // Source 1: worldsapart_character_v5 (most reliable for local characters)
     try {
         const localData = localStorage.getItem('worldsapart_character_v5');
         if (localData) {
-            charData = JSON.parse(localData);
-            charId = charData.id || 'local';
-            console.log('[DockChar] Loaded from worldsapart_character_v5:', charData.name);
+            const parsed = JSON.parse(localData);
+            if (isValidCharacter(parsed)) {
+                charData = parsed;
+                charId = charData.id || 'local';
+                console.log('[DockChar] Loaded from worldsapart_character_v5:', charData.name);
+            } else {
+                console.log('[DockChar] worldsapart_character_v5 exists but is invalid/empty');
+            }
         }
     } catch (e) {
         console.warn('[DockChar] worldsapart_character_v5 error:', e);
@@ -936,26 +949,26 @@ async function initDockCharacterCard() {
         
         // Try main character
         const mainChar = CharacterStorage.getMainCharacter(ruleset);
-        if (mainChar) {
+        if (isValidCharacter(mainChar)) {
             charData = mainChar;
             charId = mainChar.id;
             console.log('[DockChar] Loaded from CharacterStorage:', charData.name);
         }
         
-        // Fallback: first character
+        // Fallback: first valid character
         if (!charData) {
             const all = CharacterStorage.getAll();
-            const chars = Object.values(all);
+            const chars = Object.values(all).filter(isValidCharacter);
             if (chars.length > 0) {
                 charData = chars[0];
                 charId = charData.id;
-                console.log('[DockChar] Loaded first character:', charData.name);
+                console.log('[DockChar] Loaded first valid character:', charData.name);
             }
         }
     }
     
     if (!charData) {
-        console.log('[DockChar] No character found, showing empty state');
+        console.log('[DockChar] No valid character found, showing empty state');
         showEmptyCharacterCard(card);
         return;
     }
