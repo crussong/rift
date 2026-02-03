@@ -1767,6 +1767,11 @@ const QuickDiceSystem = {
             }
         });
         
+        // Stop clicks inside tooltip from bubbling to document
+        this.tooltip.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
         // Close edit mode on click outside
         document.addEventListener('click', (e) => {
             if (this.editMode && !e.target.closest('.quick-dice-tooltip') && !e.target.closest('.dock__dice-slot')) {
@@ -1817,6 +1822,10 @@ const QuickDiceSystem = {
     },
     
     renderViewMode(index, config) {
+        // SVG Icons (Tabler Filled)
+        const diceIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 2a2.5 2.5 0 0 1 2.5 2.5v15a2.5 2.5 0 0 1 -2.5 2.5h-13a2.5 2.5 0 0 1 -2.5 -2.5v-15a2.5 2.5 0 0 1 2.5 -2.5zm-5.5 12a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2m4 -4a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2m-8 0a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2m4 -4a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2"/></svg>`;
+        const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.586 2a2 2 0 0 1 1.284 .467l.13 .119l.12 .13c.528 .595 .6 1.455 .221 2.118l-.1 .153l-11.612 14.7a2 2 0 0 1 -.725 .574l-.156 .07l-5.173 1.993a1 1 0 0 1 -1.3 -1.2l.047 -.14l2.06 -5.204a2 2 0 0 1 .5 -.736l.128 -.117l14.7 -11.612a2 2 0 0 1 1.276 -.475z"/></svg>`;
+        
         if (!config) {
             this.tooltip.innerHTML = `
                 <div class="quick-dice-tooltip__header">Leerer Slot</div>
@@ -1833,17 +1842,32 @@ const QuickDiceSystem = {
             <div class="quick-dice-tooltip__header">${diceText}${modText}</div>
             ${labelText ? `<div class="quick-dice-tooltip__label">${labelText}</div>` : ''}
             <div class="quick-dice-tooltip__actions">
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--roll" onclick="QuickDiceSystem.rollDice(QuickDiceSystem.slots[${index}], ${index})">
-                    🎲 Würfeln
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--roll" data-action="roll" data-index="${index}">
+                    ${diceIcon} Würfeln
                 </button>
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--edit" onclick="QuickDiceSystem.enterEditMode(${index})">
-                    ✏️ Bearbeiten
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--edit" data-action="edit" data-index="${index}">
+                    ${editIcon} Bearbeiten
                 </button>
             </div>
         `;
+        
+        // Bind buttons with event.stopPropagation
+        this.tooltip.querySelector('[data-action="roll"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.rollDice(this.slots[index], index);
+        });
+        this.tooltip.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.enterEditMode(index);
+        });
     },
     
     renderEditMode(index, config) {
+        // SVG Icons (Tabler Filled)
+        const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-1.293 5.953a1 1 0 0 0 -1.32 -.083l-.094 .083l-3.293 3.292l-1.293 -1.292l-.094 -.083a1 1 0 0 0 -1.403 1.403l.083 .094l2 2l.094 .083a1 1 0 0 0 1.226 0l.094 -.083l4 -4l.083 -.094a1 1 0 0 0 -.083 -1.32z"/></svg>`;
+        const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6a1 1 0 0 1 .117 1.993l-.117 .007h-.081l-.919 11a3 3 0 0 1 -2.824 2.995l-.176 .005h-8c-1.598 0 -2.904 -1.249 -2.992 -2.75l-.005 -.167l-.923 -11.083h-.08a1 1 0 0 1 -.117 -1.993l.117 -.007h16zm-9.489 5.14a1 1 0 0 0 -1.218 1.567l1.292 1.293l-1.292 1.293l-.083 .094a1 1 0 0 0 1.497 1.32l1.293 -1.292l1.293 1.292l.094 .083a1 1 0 0 0 1.32 -1.497l-1.292 -1.293l1.292 -1.293l.083 -.094a1 1 0 0 0 -1.497 -1.32l-1.293 1.292l-1.293 -1.292l-.094 -.083z"/><path d="M14 2a2 2 0 0 1 2 2a1 1 0 0 1 -1.993 .117l-.007 -.117h-4l-.007 .117a1 1 0 0 1 -1.993 -.117a2 2 0 0 1 1.85 -1.995l.15 -.005h4z"/></svg>`;
+        const xIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-6.489 5.8a1 1 0 0 0 -1.218 1.567l1.292 1.293l-1.292 1.293l-.083 .094a1 1 0 0 0 1.497 1.32l1.293 -1.292l1.293 1.292l.094 .083a1 1 0 0 0 1.32 -1.497l-1.292 -1.293l1.292 -1.293l.083 -.094a1 1 0 0 0 -1.497 -1.32l-1.293 1.292l-1.293 -1.292l-.094 -.083z"/></svg>`;
+        
         const currentType = config?.type || 'd20';
         const currentCount = config?.count || 1;
         const currentMod = config?.mod || 0;
@@ -1879,26 +1903,46 @@ const QuickDiceSystem = {
             </div>
             
             <div class="quick-dice-tooltip__actions">
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--save" onclick="QuickDiceSystem.saveSlot(${index})">
-                    ✓ Speichern
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--save" data-action="save">
+                    ${checkIcon} Speichern
                 </button>
                 ${config ? `
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--delete" onclick="QuickDiceSystem.clearSlot(${index})">
-                    🗑️ Löschen
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--delete" data-action="delete">
+                    ${trashIcon} Löschen
                 </button>
                 ` : ''}
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--cancel" onclick="QuickDiceSystem.closeEditMode()">
-                    ✕ Abbrechen
+                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--cancel" data-action="cancel">
+                    ${xIcon} Abbrechen
                 </button>
             </div>
         `;
         
         // Bind dice type buttons
         this.tooltip.querySelectorAll('.quick-dice-tooltip__dice-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 this.tooltip.querySelectorAll('.quick-dice-tooltip__dice-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             });
+        });
+        
+        // Bind action buttons with stopPropagation
+        this.tooltip.querySelector('[data-action="save"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.saveSlot(index);
+        });
+        this.tooltip.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.clearSlot(index);
+        });
+        this.tooltip.querySelector('[data-action="cancel"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.closeEditMode();
+        });
+        
+        // Stop propagation on inputs
+        this.tooltip.querySelectorAll('input').forEach(input => {
+            input.addEventListener('click', (e) => e.stopPropagation());
         });
     },
     
