@@ -1083,26 +1083,40 @@ const DICE = (function() {
 
     function make_geom(vertices, faces, radius, tab, af) {
         var geom = new THREE.Geometry();
+        
+        // Scale all input vertices first (for reference)
+        var scaledVertices = [];
         for (var i = 0; i < vertices.length; ++i) {
-            var vertex = vertices[i].multiplyScalar(radius);
-            vertex.index = geom.vertices.push(vertex) - 1;
+            scaledVertices.push(vertices[i].clone().multiplyScalar(radius));
         }
+        
         for (var i = 0; i < faces.length; ++i) {
             var ii = faces[i], fl = ii.length - 1;
             var aa = Math.PI * 2 / fl;
             
-            // Calculate ONE normal for the entire polygon (not per triangle)
-            // Use cross product of first two edges
-            var v0 = geom.vertices[ii[0]];
-            var v1 = geom.vertices[ii[1]];
-            var v2 = geom.vertices[ii[2]];
+            // WICHTIG: Eigene Vertices pro Fläche erstellen (nicht teilen!)
+            var faceVertexIndices = [];
+            for (var k = 0; k < fl; k++) {
+                var v = scaledVertices[ii[k]].clone(); // Clone = eigener Vertex!
+                faceVertexIndices.push(geom.vertices.push(v) - 1);
+            }
+            
+            // Calculate ONE normal for the entire polygon
+            var v0 = geom.vertices[faceVertexIndices[0]];
+            var v1 = geom.vertices[faceVertexIndices[1]];
+            var v2 = geom.vertices[faceVertexIndices[2]];
             var edge1 = new THREE.Vector3().subVectors(v1, v0);
             var edge2 = new THREE.Vector3().subVectors(v2, v0);
             var faceNormal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
             
+            // Create triangles using our OWN vertices
             for (var j = 0; j < fl - 2; ++j) {
-                // Create face with shared normal for all triangles of this polygon
-                var face = new THREE.Face3(ii[0], ii[j + 1], ii[j + 2]);
+                var face = new THREE.Face3(
+                    faceVertexIndices[0], 
+                    faceVertexIndices[j + 1], 
+                    faceVertexIndices[j + 2]
+                );
+                // Same normal for all triangles of this polygon
                 face.normal = faceNormal.clone();
                 face.vertexNormals = [faceNormal.clone(), faceNormal.clone(), faceNormal.clone()];
                 face.materialIndex = ii[fl] + 1;
@@ -1117,7 +1131,7 @@ const DICE = (function() {
                             (Math.sin(aa * (j + 2) + af) + 1 + tab) / 2 / (1 + tab))]);
             }
         }
-        // Don't call computeFaceNormals() - we set normals manually above
+        // Don't call computeFaceNormals() - we set normals manually
         geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), radius);
         return geom;
     }
