@@ -869,7 +869,6 @@ function initPartyDisplay() {
 // ============================================================
 // DOCK CHARACTER CARD
 // ============================================================
-let dockCharacterUnsubscribe = null;
 
 async function initDockCharacterCard() {
     console.log('[DockChar] Initializing...');
@@ -879,107 +878,72 @@ async function initDockCharacterCard() {
         console.log('[DockChar] Card element not found in DOM');
         return;
     }
-    console.log('[DockChar] Card element found');
+    
+    // Wait for CharacterStorage to be ready
+    if (typeof CharacterStorage === 'undefined') {
+        console.log('[DockChar] CharacterStorage not ready, retrying in 500ms...');
+        setTimeout(initDockCharacterCard, 500);
+        return;
+    }
     
     const roomCode = localStorage.getItem('rift_current_room');
-    if (!roomCode) {
-        console.log('[DockChar] No room code in localStorage');
-        return;
-    }
-    console.log('[DockChar] Room code:', roomCode);
+    console.log('[DockChar] Room code:', roomCode || 'none');
     
-    // Wait for Firebase to be fully initialized
-    const waitForAuth = () => {
-        return new Promise((resolve) => {
-            console.log('[DockChar] Waiting for Firebase...');
-            const check = setInterval(() => {
-                // Check if Firebase is loaded AND initialized
-                if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
-                    console.log('[DockChar] Firebase ready, apps:', firebase.apps.length);
-                    clearInterval(check);
-                    // Now wait for auth state
-                    const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-                        unsubscribe();
-                        console.log('[DockChar] Auth state:', user ? user.email : 'no user');
-                        resolve(user);
-                    });
-                }
-            }, 200);
-            setTimeout(() => { 
-                clearInterval(check); 
-                console.log('[DockChar] Timeout waiting for Firebase');
-                resolve(null); 
-            }, 10000);
-        });
-    };
+    // Get main character (or first available)
+    let character = null;
     
-    const user = await waitForAuth();
-    
-    if (!user) {
-        console.log('[DockChar] No user logged in, hiding card');
-        return;
+    // Try to get session ruleset first
+    const sessionData = localStorage.getItem('rift_current_session');
+    let ruleset = null;
+    if (sessionData) {
+        try {
+            const session = JSON.parse(sessionData);
+            ruleset = session.ruleset;
+            console.log('[DockChar] Session ruleset:', ruleset);
+        } catch (e) {}
     }
     
-    try {
-        const db = firebase.firestore();
-        
-        // Get user's display name for member lookup
-        const storedUser = localStorage.getItem('rift_user');
-        let odName = user.displayName || user.email?.split('@')[0] || 'Unknown';
-        if (storedUser) {
-            try {
-                const parsed = JSON.parse(storedUser);
-                odName = parsed.odName || parsed.displayName || odName;
-            } catch (e) {}
+    // Try main character for ruleset
+    if (ruleset) {
+        character = CharacterStorage.getMainCharacter(ruleset);
+        console.log('[DockChar] Main character for', ruleset + ':', character?.name || 'none');
+    }
+    
+    // Fallback: any main character
+    if (!character) {
+        const mains = CharacterStorage.getMainCharacters();
+        if (mains.length > 0) {
+            character = mains[0];
+            console.log('[DockChar] Fallback main character:', character?.name);
         }
-        
-        console.log('[DockChar] Looking up member:', odName, 'in room:', roomCode);
-        
-        // Subscribe to member document to get assignedCharacterId
-        const memberRef = db.collection('rooms').doc(roomCode).collection('members').doc(odName);
-        
-        dockCharacterUnsubscribe = memberRef.onSnapshot(async (memberDoc) => {
-            if (!memberDoc.exists) {
-                console.log('[DockChar] Member doc not found');
-                card.classList.add('hidden');
-                return;
-            }
-            
-            const memberData = memberDoc.data();
-            const charId = memberData.assignedCharacterId;
-            
-            if (!charId) {
-                console.log('[DockChar] No character assigned');
-                card.classList.add('hidden');
-                return;
-            }
-            
-            console.log('[DockChar] Loading character:', charId);
-            
-            // Load character data
-            const charRef = db.collection('rooms').doc(roomCode).collection('characters').doc(charId);
-            const charDoc = await charRef.get();
-            
-            if (!charDoc.exists) {
-                console.log('[DockChar] Character doc not found');
-                card.classList.add('hidden');
-                return;
-            }
-            
-            const charData = charDoc.data();
-            updateDockCharacterCard(charData, charId, roomCode);
-            
-            // Subscribe to character updates
-            charRef.onSnapshot((doc) => {
-                if (doc.exists) {
-                    updateDockCharacterCard(doc.data(), charId, roomCode);
-                }
-            });
-        });
-        
-    } catch (e) {
-        console.error('[DockChar] Error:', e);
     }
+    
+    // Fallback: first character
+    if (!character) {
+        const all = CharacterStorage.getAll();
+        const chars = Object.values(all);
+        if (chars.length > 0) {
+            character = chars[0];
+            console.log('[DockChar] Fallback first character:', character?.name);
+        }
+    }
+    
+    if (!character) {
+        console.log('[DockChar] No character found, hiding card');
+        card.classList.add('hidden');
+        return;
+    }
+    
+    console.log('[DockChar] Displaying character:', character.name);
+    updateDockCharacterCard(character, character.id, roomCode);
+    
+    // Subscribe to localStorage changes for real-time updates
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'rift_characters') {
+            console.log('[DockChar] Characters updated, refreshing...');
+            initDockCharacterCard();
+        }
+    });
 }
 
 function updateDockCharacterCard(charData, charId, roomCode) {
@@ -995,7 +959,13 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         'cyberpunkred': 'sheet-cyberpunkred.html'
     };
     const sheetUrl = sheetMap[ruleset] || 'sheet-worldsapart.html';
-    card.href = `${sheetUrl}?charId=${charId}&roomCode=${roomCode}`;
+    
+    // Build URL with optional roomCode
+    let url = `${sheetUrl}?id=${charId}`;
+    if (roomCode) {
+        url += `&roomCode=${roomCode}`;
+    }
+    card.href = url;
     
     // Update portrait
     const portrait = document.getElementById('dockCharPortrait');
@@ -1036,8 +1006,8 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Update HP bar
     const hpBar = document.getElementById('dockCharHpBar');
     if (hpBar) {
-        const hp = getVal(charData, 'status.hp', 'hp', 'currentHp', 'lebenspunkte') ?? 100;
-        const maxHp = getVal(charData, 'status.maxHp', 'maxHp', 'hp_max', 'maxLebenspunkte') ?? 100;
+        const hp = getVal(charData, 'health.current', 'status.hp', 'hp', 'currentHp', 'lebenspunkte') ?? 100;
+        const maxHp = getVal(charData, 'health.max', 'status.maxHp', 'maxHp', 'hp_max', 'maxLebenspunkte') ?? 100;
         const hpPercent = maxHp > 0 ? Math.min(100, Math.max(0, (hp / maxHp) * 100)) : 100;
         hpBar.style.width = hpPercent + '%';
     }
@@ -1045,18 +1015,18 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Update Moral bar
     const moralBar = document.getElementById('dockCharMoralBar');
     if (moralBar) {
-        const moral = getVal(charData, 'status.moral', 'moral', 'currentMoral') ?? 100;
-        const maxMoral = getVal(charData, 'status.maxMoral', 'maxMoral', 'moral_max') ?? 100;
+        const moral = getVal(charData, 'moral.current', 'status.moral', 'moral', 'currentMoral') ?? 100;
+        const maxMoral = getVal(charData, 'moral.max', 'status.maxMoral', 'maxMoral', 'moral_max') ?? 100;
         const moralPercent = maxMoral > 0 ? Math.min(100, Math.max(0, (moral / maxMoral) * 100)) : 100;
         moralBar.style.width = moralPercent + '%';
     }
     
-    // Update Resonanz bar
+    // Update Resonanz bar (Worlds Apart specific)
     const resonanzBar = document.getElementById('dockCharResonanzBar');
     if (resonanzBar) {
-        const resonanz = getVal(charData, 'status.resonanz', 'resonanz', 'currentResonanz') ?? 100;
-        const maxResonanz = getVal(charData, 'status.maxResonanz', 'maxResonanz', 'resonanz_max') ?? 100;
-        const resonanzPercent = maxResonanz > 0 ? Math.min(100, Math.max(0, (resonanz / maxResonanz) * 100)) : 100;
+        const resonanz = getVal(charData, 'resonanz.current', 'status.resonanz', 'resonanz', 'currentResonanz') ?? 0;
+        const maxResonanz = getVal(charData, 'resonanz.max', 'status.maxResonanz', 'maxResonanz', 'resonanz_max') ?? 100;
+        const resonanzPercent = maxResonanz > 0 ? Math.min(100, Math.max(0, (resonanz / maxResonanz) * 100)) : 0;
         resonanzBar.style.width = resonanzPercent + '%';
     }
     
