@@ -34,7 +34,7 @@ const DICE = (function() {
             specular: 0x111111,
             color: 0xf0f0f0,
             shininess: 5,
-            shading: THREE.FlatShading,
+            flatShading: false,
         },
         label_color: '#ffffff',
         // RIFT: Dynamic label color based on background brightness
@@ -1103,6 +1103,7 @@ const DICE = (function() {
             }
         }
         geom.computeFaceNormals();
+        geom.computeVertexNormals();
         geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), radius);
         return geom;
     }
