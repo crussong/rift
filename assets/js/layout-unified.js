@@ -1646,17 +1646,7 @@ const QuickDiceSystem = {
     slots: [null, null, null],
     editMode: false,
     activeTooltipSlot: null,
-    
-    // Dice SVG Icons
-    DICE_ICONS: {
-        'd4': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.112l9.262 18.557a1 1 0 0 1 -.894 1.447h-16.736a1 1 0 0 1 -.894 -1.447l9.262 -18.557z"/></svg>`,
-        'd6': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z"/></svg>`,
-        'd8': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l9 6v8l-9 6l-9 -6v-8z"/></svg>`,
-        'd10': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 4v6l-8 10l-8 -10v-6z"/></svg>`,
-        'd12': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l6.5 3l2.5 6l-2.5 6l-6.5 3l-6.5 -3l-2.5 -6l2.5 -6z"/></svg>`,
-        'd20': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l9.5 6.5v7l-9.5 6.5l-9.5 -6.5v-7z"/></svg>`,
-        'd100': `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10 -10 10s-10 -4.477 -10 -10s4.477 -10 10 -10z"/></svg>`
-    },
+    hideTimeout: null,
     
     init() {
         console.log('[QuickDice] Initializing...');
@@ -1705,10 +1695,10 @@ const QuickDiceSystem = {
                 </svg>
             `;
         } else {
-            // Configured slot
+            // Configured slot - use actual dice icons
             slot.classList.remove('dock__dice-slot--empty');
             slot.classList.add('dock__dice-slot--configured');
-            iconContainer.innerHTML = this.DICE_ICONS[config.type] || this.DICE_ICONS['d20'];
+            iconContainer.innerHTML = `<img src="assets/icons/dice/${config.type}.svg" alt="${config.type}" class="dock__dice-img">`;
             
             // Add modifier badge if exists
             if (config.mod && config.mod !== 0) {
@@ -1739,15 +1729,15 @@ const QuickDiceSystem = {
         const slots = document.querySelectorAll('.dock__dice-slot');
         
         slots.forEach((slot, index) => {
-            // Click to roll
+            // Click to roll (navigates to dice.html)
             slot.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
                 const config = this.slots[index];
-                if (config) {
+                if (config && !this.editMode) {
                     this.rollDice(config, index);
-                } else {
+                } else if (!config) {
                     // Empty slot - show config in edit mode
                     this.showTooltip(slot, index, true);
                 }
@@ -1755,31 +1745,25 @@ const QuickDiceSystem = {
             
             // Hover for tooltip
             slot.addEventListener('mouseenter', () => {
-                if (!this.editMode) {
-                    this.showTooltip(slot, index, false);
-                }
+                this.clearHideTimeout();
+                this.showTooltip(slot, index, false);
             });
             
-            slot.addEventListener('mouseleave', (e) => {
-                // Don't hide if moving to tooltip
-                const related = e.relatedTarget;
-                if (related && (related.closest('.quick-dice-tooltip') || related.closest('.dock__dice-slot'))) {
-                    return;
-                }
+            slot.addEventListener('mouseleave', () => {
                 if (!this.editMode) {
-                    this.hideTooltip();
+                    this.scheduleHide();
                 }
             });
         });
         
-        // Tooltip mouse events
-        this.tooltip.addEventListener('mouseleave', (e) => {
-            const related = e.relatedTarget;
-            if (related && related.closest('.dock__dice-slot')) {
-                return;
-            }
+        // Tooltip mouse events - keep open when hovering tooltip
+        this.tooltip.addEventListener('mouseenter', () => {
+            this.clearHideTimeout();
+        });
+        
+        this.tooltip.addEventListener('mouseleave', () => {
             if (!this.editMode) {
-                this.hideTooltip();
+                this.scheduleHide();
             }
         });
         
@@ -1789,6 +1773,20 @@ const QuickDiceSystem = {
                 this.closeEditMode();
             }
         });
+    },
+    
+    clearHideTimeout() {
+        if (this.hideTimeout) {
+            clearTimeout(this.hideTimeout);
+            this.hideTimeout = null;
+        }
+    },
+    
+    scheduleHide() {
+        this.clearHideTimeout();
+        this.hideTimeout = setTimeout(() => {
+            this.hideTooltip();
+        }, 300); // 300ms delay for easier tooltip access
     },
     
     showTooltip(slot, index, forceEdit = false) {
@@ -1942,41 +1940,19 @@ const QuickDiceSystem = {
         if (!config) return;
         
         const { type, count, mod, label } = config;
-        const sides = parseInt(type.replace('d', ''));
         
-        // Roll the dice
-        let results = [];
-        let total = 0;
-        for (let i = 0; i < count; i++) {
-            const roll = Math.floor(Math.random() * sides) + 1;
-            results.push(roll);
-            total += roll;
-        }
-        total += mod;
+        // Build URL params for dice.html (compatible with existing system)
+        const params = new URLSearchParams();
+        params.set('dice', type);           // e.g., "d20"
+        params.set('roll', '1');            // Auto-roll flag
+        if (count > 1) params.set('count', count.toString());
+        if (mod) params.set('mod', mod.toString());
+        if (label) params.set('label', encodeURIComponent(label));
+        params.set('quickdice', 'true');    // Mark as quick dice roll
         
-        // Format result text
-        const diceText = count > 1 ? `${count}${type}` : type;
-        const modText = mod ? (mod > 0 ? `+${mod}` : mod) : '';
-        const rollLabel = label || diceText + modText;
-        const resultsText = count > 1 ? `(${results.join('+')})${modText ? modText : ''} = ` : '';
-        
-        console.log('[QuickDice] Roll:', diceText + modText, '=', total, results);
-        
-        // Show toast
-        if (window.RIFT?.ui?.Toast) {
-            const isMax = count === 1 && results[0] === sides;
-            const isMin = count === 1 && results[0] === 1;
-            
-            RIFT.ui.Toast.show({
-                title: `${rollLabel}`,
-                message: `${resultsText}${total}`,
-                type: isMax ? 'success' : (isMin ? 'error' : 'info'),
-                duration: 4000
-            });
-        }
-        
-        // Sync to multiplayer if available
-        this.syncRollToMultiplayer(config, results, total);
+        // Navigate to dice.html with auto-roll params
+        const url = `dice.html?${params.toString()}`;
+        console.log('[QuickDice] Navigating to:', url);
         
         // Visual feedback on slot
         const slot = document.getElementById(`dockDiceSlot${slotIndex + 1}`);
@@ -1985,60 +1961,9 @@ const QuickDiceSystem = {
             setTimeout(() => slot.classList.remove('dock__dice-slot--rolling'), 300);
         }
         
-        // Hide tooltip
+        // Hide tooltip and navigate
         this.hideTooltip();
-    },
-    
-    syncRollToMultiplayer(config, results, total) {
-        const roomCode = localStorage.getItem('rift_current_room');
-        if (!roomCode) return;
-        
-        // Get character name
-        let charName = 'Unbekannt';
-        try {
-            const v5 = localStorage.getItem('worldsapart_character_v5');
-            if (v5) {
-                const char = JSON.parse(v5);
-                charName = char.name || 'Unbekannt';
-            }
-        } catch (e) {}
-        
-        const { type, count, mod, label } = config;
-        const diceText = count > 1 ? `${count}${type}` : type;
-        const modText = mod ? (mod > 0 ? `+${mod}` : `${mod}`) : '';
-        
-        const rollData = {
-            odName: charName,
-            odRoom: roomCode,
-            diceType: type,
-            diceCount: count,
-            modifier: mod,
-            label: label || diceText + modText,
-            results: results,
-            total: total,
-            timestamp: Date.now(),
-            type: 'quickDice'
-        };
-        
-        // Use existing sync if available
-        if (typeof syncRoll === 'function') {
-            syncRoll(rollData);
-        } else if (window.RIFT?.dice?.syncRoll) {
-            RIFT.dice.syncRoll(rollData);
-        } else {
-            // Fallback: Write to Firebase directly
-            try {
-                if (typeof firebase !== 'undefined' && firebase.apps?.length) {
-                    const db = firebase.firestore();
-                    db.collection('rooms').doc(roomCode).collection('diceRolls').add({
-                        ...rollData,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-            } catch (e) {
-                console.warn('[QuickDice] Sync failed:', e);
-            }
-        }
+        window.location.href = url;
     }
 };
 
