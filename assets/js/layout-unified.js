@@ -1185,6 +1185,11 @@ async function initDockSessionCard() {
     }
     
     const roomCode = localStorage.getItem('rift_current_room');
+    const normalizedCode = roomCode ? roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) : null;
+    console.log('[DockSession] Room code from localStorage:', roomCode);
+    console.log('[DockSession] Normalized room code:', normalizedCode);
+    console.log('[DockSession] All rift_ keys:', Object.keys(localStorage).filter(k => k.startsWith('rift_')));
+    
     if (!roomCode) {
         console.log('[DockSession] No room code');
         return;
@@ -1209,9 +1214,10 @@ async function initDockSessionCard() {
         console.log('[DockSession] Fetching sessions for room:', roomCode);
         const sessions = await RIFT.rooms.getSessions(roomCode);
         console.log('[DockSession] Loaded sessions:', sessions.length);
+        console.log('[DockSession] Sessions:', sessions);
         
         if (sessions.length > 0) {
-            console.log('[DockSession] Sessions:', sessions.map(s => ({ 
+            console.log('[DockSession] Session details:', sessions.map(s => ({ 
                 id: s.id, 
                 name: s.name, 
                 status: s.status,
