@@ -1083,12 +1083,16 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         moralBar.style.background = 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)';
     }
     
-    // Update Resonanz bar (Worlds Apart specific)
+    // Update Resonanz bar (Worlds Apart specific - calculated from attributes)
     const resonanzBar = document.getElementById('dockCharResonanzBar');
     if (resonanzBar) {
-        const resonanz = getVal(charData, 'resonanz.current', 'status.resonanz', 'resonanz', 'currentResonanz') ?? 0;
-        const maxResonanz = getVal(charData, 'resonanz.max', 'status.maxResonanz', 'maxResonanz', 'resonanz_max') ?? 100;
-        const resonanzPercent = maxResonanz > 0 ? Math.min(100, Math.max(0, (resonanz / maxResonanz) * 100)) : 0;
+        const attrs = charData.attributes || {};
+        const power = attrs.power || 0;
+        const presence = attrs.presence || 0;
+        // Resonanz = 10 + (KRF × PRÄ)
+        const resonanz = 10 + (power * presence);
+        // Display as percentage (max visual is 100)
+        const resonanzPercent = Math.min(100, resonanz);
         resonanzBar.style.width = resonanzPercent + '%';
         resonanzBar.style.background = 'linear-gradient(90deg, #7c3aed 0%, #a855f7 100%)';
     }
