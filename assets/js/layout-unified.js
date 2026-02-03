@@ -955,8 +955,8 @@ async function initDockCharacterCard() {
     }
     
     if (!charData) {
-        console.log('[DockChar] No character found, hiding card');
-        card.classList.add('hidden');
+        console.log('[DockChar] No character found, showing empty state');
+        showEmptyCharacterCard(card);
         return;
     }
     
@@ -972,9 +972,73 @@ async function initDockCharacterCard() {
     });
 }
 
+function showEmptyCharacterCard(card) {
+    card.href = 'sheet.html?new=true';
+    card.innerHTML = `
+        <div class="dock__card-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </div>
+        <div class="dock__char-info">
+            <div class="dock__char-name dock__char-name--empty">Charakter erstellen</div>
+        </div>
+    `;
+    card.classList.remove('hidden');
+    card.classList.add('dock__card--empty');
+    card.dataset.isEmpty = 'true';
+}
+
+function showEmptySessionCard(card) {
+    card.href = 'sessions.html';
+    card.innerHTML = `
+        <div class="dock__card-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </div>
+    `;
+    card.classList.remove('hidden');
+    card.classList.add('dock__card--empty');
+    card.dataset.isEmpty = 'true';
+}
+
 function updateDockCharacterCard(charData, charId, roomCode) {
     const card = document.getElementById('dockCharacterCard');
     if (!card) return;
+    
+    // Reset empty state if was empty before
+    if (card.dataset.isEmpty === 'true') {
+        card.classList.remove('dock__card--empty');
+        card.dataset.isEmpty = 'false';
+        // Restore original HTML structure
+        card.innerHTML = `
+            <div class="dock__char-portrait" id="dockCharPortrait">
+                <div class="dock__char-portrait-placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
+                </div>
+            </div>
+            <div class="dock__char-info">
+                <div class="dock__char-name-row">
+                    <div class="dock__char-name" id="dockCharName">Charakter</div>
+                    <div class="dock__char-level" id="dockCharLevel">1</div>
+                </div>
+                <div class="dock__char-bars">
+                    <div class="dock__char-bar dock__char-bar--hp">
+                        <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%; background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);"></div>
+                    </div>
+                    <div class="dock__char-bar dock__char-bar--moral">
+                        <div class="dock__char-bar-fill" id="dockCharMoralBar" style="width: 100%; background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);"></div>
+                    </div>
+                    <div class="dock__char-bar dock__char-bar--resonanz">
+                        <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%; background: linear-gradient(90deg, #7c3aed 0%, #a855f7 100%);"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
     
     // Fokus Element Mapping
     const FOKUS_NAMES = {
@@ -1231,7 +1295,8 @@ async function initDockSessionCard() {
     }
     
     if (!session) {
-        console.log('[DockSession] No session found');
+        console.log('[DockSession] No session found, showing empty state');
+        showEmptySessionCard(card);
         return;
     }
     
@@ -1242,6 +1307,20 @@ async function initDockSessionCard() {
 function updateDockSessionCard(session) {
     const card = document.getElementById('dockSessionCard');
     if (!card) return;
+    
+    // Reset empty state if was empty before
+    if (card.dataset.isEmpty === 'true') {
+        card.classList.remove('dock__card--empty');
+        card.dataset.isEmpty = 'false';
+        // Restore original HTML structure
+        card.innerHTML = `
+            <div class="dock__session-portrait" id="dockSessionPortrait">
+                <div class="dock__session-portrait-placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
+                </div>
+            </div>
+        `;
+    }
     
     // Update portrait
     const portrait = document.getElementById('dockSessionPortrait');
@@ -1304,6 +1383,17 @@ function initDockCardTooltips() {
     if (charCard) {
         charCard.addEventListener('mouseenter', (e) => {
             const d = charCard.dataset;
+            
+            // Empty state tooltip
+            if (d.isEmpty === 'true') {
+                tooltip.innerHTML = `
+                    <div class="dock-tooltip__header">Charakter erstellen</div>
+                    <div class="dock-tooltip__subtitle">Klicke um einen neuen Charakter anzulegen</div>
+                `;
+                showDockTooltip(tooltip, charCard);
+                return;
+            }
+            
             const fokusEl = d.charFokusElement || '';
             const fokusName = d.charFokusName || fokusEl;
             const fokusColor = FOKUS_COLORS[fokusEl] || '#8b5cf6';
@@ -1412,6 +1502,17 @@ function initDockCardTooltips() {
     if (sessionCard) {
         sessionCard.addEventListener('mouseenter', (e) => {
             const d = sessionCard.dataset;
+            
+            // Empty state tooltip
+            if (d.isEmpty === 'true') {
+                tooltip.innerHTML = `
+                    <div class="dock-tooltip__header">Session erstellen</div>
+                    <div class="dock-tooltip__subtitle">Klicke um eine neue Session zu planen</div>
+                `;
+                showDockTooltip(tooltip, sessionCard);
+                return;
+            }
+            
             const rulesetNames = {
                 'worldsapart': 'Worlds Apart',
                 'dnd5e': 'D&D 5e',
