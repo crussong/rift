@@ -2736,15 +2736,21 @@
                 // Build roll label for other players
                 let rollLabel = null;
                 let rollTarget = null;
+                let rollType = null;
+                let rollElement = null;
                 if (this.skillCheckMode) {
                     rollLabel = `Fähigkeit: ${this.skillCheckLabel}`;
                     rollTarget = this.skillCheckTarget;
+                    rollType = 'skill';
                 } else if (this.fokusCheckMode) {
                     rollLabel = `Fokus: ${this.fokusCheckLabel}`;
                     rollTarget = `≥11`;
+                    rollType = 'fokus';
+                    rollElement = this.fokusCheckLabel; // Element name (e.g. "Schall", "Gift")
                 } else if (this.zweiteChanceMode) {
                     rollLabel = 'Zweite Chance';
                     rollTarget = '6-20';
+                    rollType = 'zweitechance';
                 }
                 
                 // SOFORT SYNC starten - andere Spieler sehen "würfelt..."
@@ -2761,6 +2767,8 @@
                     // Add skill/fokus info for other players
                     rollLabel: rollLabel,
                     rollTarget: rollTarget,
+                    rollType: rollType,
+                    rollElement: rollElement,
                     diceConfig: {
                         notation: libraryNotation,
                         d100Count: d100Count
@@ -2951,7 +2959,7 @@
                 
                 // Send toast notification for roll start (visible on all pages)
                 if (!data.secret && window.RIFTToast?.diceRolling) {
-                    RIFTToast.diceRolling(data.player, data.rollLabel || '');
+                    RIFTToast.diceRolling(data.player, data.rollLabel || '', data.rollType, data.rollElement);
                 }
             },
             
@@ -2960,6 +2968,45 @@
                 if (!this.diceRef || !this.multiplayerEnabled) return;
                 console.log('[DiceRoller] syncRollComplete');
                 this.diceRef.push({ ...data, phase: 'complete' });
+                
+                // Send toast notification for roll result (visible on all other pages)
+                if (!data.secret && window.RIFTToast?.diceRoll) {
+                    let rollInfo = data.notation;
+                    let rollType = null;
+                    let rollElement = null;
+                    
+                    if (data.checkInfo?.skillCheckMode) {
+                        rollInfo = `Fähigkeit: ${data.checkInfo.skillCheckLabel}`;
+                        rollType = 'skill';
+                    } else if (data.checkInfo?.fokusCheckMode) {
+                        rollInfo = `Fokus: ${data.checkInfo.fokusCheckLabel}`;
+                        rollType = 'fokus';
+                        rollElement = data.checkInfo.fokusCheckLabel;
+                    } else if (data.checkInfo?.zweiteChanceMode) {
+                        rollInfo = 'Zweite Chance';
+                        rollType = 'zweitechance';
+                    }
+                    
+                    // Determine success
+                    let isSuccess = null;
+                    if (data.checkInfo?.skillCheckMode && data.results?.[0] !== undefined) {
+                        isSuccess = data.results[0] <= data.checkInfo.skillCheckTarget;
+                    } else if (data.checkInfo?.fokusCheckMode) {
+                        const rollValue = data.results?.[0];
+                        isSuccess = rollValue === 20 || (rollValue !== 1 && data.total >= 11);
+                    } else if (data.checkInfo?.zweiteChanceMode) {
+                        isSuccess = data.results?.[0] >= 6;
+                    } else if (data.critical === 'success') {
+                        isSuccess = true;
+                    } else if (data.critical === 'failure') {
+                        isSuccess = false;
+                    }
+                    
+                    RIFTToast.diceRoll(data.player, data.total, rollInfo, isSuccess, rollType, rollElement);
+                }
+                
+                // Also log to Firestore
+                this.logRollToFirestore(data);
             },
             
             // Zeige Ergebnis an
@@ -4083,6 +4130,25 @@
                     
                     // 2. Also write to Firestore (for GM logs)
                     this.logRollToFirestore(rollData);
+                    
+                    // 3. Send toast notification
+                    if (!rollData.secret && window.RIFTToast?.diceRoll) {
+                        const rollInfo = rollData.label || rollData.notation;
+                        let rollType = null;
+                        let rollElement = null;
+                        if (rollData.checkType === 'skill') {
+                            rollType = 'skill';
+                        } else if (rollData.checkType === 'fokus') {
+                            rollType = 'fokus';
+                            // Extract element from label "Fokus: Element"
+                            if (rollData.label?.startsWith('Fokus: ')) {
+                                rollElement = rollData.label.replace('Fokus: ', '');
+                            }
+                        } else if (rollData.checkType === 'zweitechance') {
+                            rollType = 'zweitechance';
+                        }
+                        RIFTToast.diceRoll(rollData.player, rollData.total, rollInfo, rollData.success, rollType, rollElement);
+                    }
                 } catch (e) {
                     console.error('[DiceRoller] Sync failed:', e);
                 }
@@ -4120,22 +4186,6 @@
                     
                     await diceCollection.add(logEntry);
                     console.log('[DiceRoller] Roll logged to Firestore');
-                    
-                    // Send toast notification (only for non-secret rolls)
-                    if (!logEntry.secret && window.RIFTToast?.send) {
-                        // Use label if available, otherwise notation
-                        const rollInfo = logEntry.label || logEntry.notation;
-                        // Determine success: use explicit success for skill checks, or critical for normal rolls
-                        let isSuccess = null;
-                        if (logEntry.success !== null && logEntry.success !== undefined) {
-                            isSuccess = logEntry.success;
-                        } else if (logEntry.critical === 'success') {
-                            isSuccess = true;
-                        } else if (logEntry.critical === 'failure') {
-                            isSuccess = false;
-                        }
-                        RIFTToast.diceRoll(logEntry.player, logEntry.total, rollInfo, isSuccess);
-                    }
                     
                 } catch (e) {
                     console.warn('[DiceRoller] Firestore log failed:', e);
