@@ -31,9 +31,9 @@ const DICE = (function() {
         scale: 100, //dice size
         
         material_options: {
-            specular: 0x111111,
+            specular: 0x172022,
             color: 0xf0f0f0,
-            shininess: 5,
+            shininess: 40,
             shading: THREE.FlatShading,
         },
         label_color: '#ffffff',
@@ -42,8 +42,8 @@ const DICE = (function() {
         dice_color: '#2a2a2a', // RIFT: Dunkelgrau als Basis
         // RIFT: Gradient Support
         dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
-        ambient_light_color: 0xffffff,
-        spot_light_color: 0xdddddd,
+        ambient_light_color: 0xf0f0f0,
+        spot_light_color: 0xefefef,
         desk_color: '#101010', //canvas background
         desk_opacity: 0, //RIFT: transparent background
         use_shadows: true,
@@ -160,7 +160,7 @@ const DICE = (function() {
 
         var mw = Math.max(this.w, this.h);
         if (this.light) this.scene.remove(this.light);
-        this.light = new THREE.SpotLight(vars.spot_light_color, 1.2); // RIFT: softer light
+        this.light = new THREE.SpotLight(vars.spot_light_color, 2.0);
         this.light.position.set(-mw / 2, mw / 2, mw * 2);
         this.light.target.position.set(0, 0, 0);
         this.light.distance = mw * 5;
@@ -1090,21 +1090,9 @@ const DICE = (function() {
         for (var i = 0; i < faces.length; ++i) {
             var ii = faces[i], fl = ii.length - 1;
             var aa = Math.PI * 2 / fl;
-            
-            // Calculate the TRUE face normal from the polygon center
-            // This ensures all triangles of the same face have identical normals
-            var center = new THREE.Vector3();
-            for (var k = 0; k < fl; k++) {
-                center.add(geom.vertices[ii[k]]);
-            }
-            center.divideScalar(fl);
-            var faceNormal = center.clone().normalize();
-            
             for (var j = 0; j < fl - 2; ++j) {
-                // Use the same face normal for all triangles of this polygon
-                geom.faces.push(new THREE.Face3(ii[0], ii[j + 1], ii[j + 2], 
-                            [faceNormal.clone(), faceNormal.clone(), faceNormal.clone()], 
-                            0, ii[fl] + 1));
+                geom.faces.push(new THREE.Face3(ii[0], ii[j + 1], ii[j + 2], [geom.vertices[ii[0]],
+                            geom.vertices[ii[j + 1]], geom.vertices[ii[j + 2]]], 0, ii[fl] + 1));
                 geom.faceVertexUvs[0].push([
                         new THREE.Vector2((Math.cos(af) + 1 + tab) / 2 / (1 + tab),
                             (Math.sin(af) + 1 + tab) / 2 / (1 + tab)),
