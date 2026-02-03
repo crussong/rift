@@ -1315,21 +1315,31 @@ function initDockCardTooltips() {
             if (d.charGender) infoParts.push(d.charGender);
             const infoLine = infoParts.join(' · ');
             
+            // SVG Icons (Tabler Icons Filled)
+            const heartIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.979 3.074a6 6 0 0 1 4.988 1.425l.037 .033l.034 -.03a6 6 0 0 1 4.733 -1.44l.246 .036a6 6 0 0 1 3.364 10.008l-.18 .185l-.048 .041l-7.45 7.379a1 1 0 0 1 -1.313 .082l-.094 -.082l-7.493 -7.422a6 6 0 0 1 3.176 -10.215z"/></svg>`;
+            const boltIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13.378 3.077a1 1 0 0 1 1.126 .607l.042 .125l1.931 7.191h2.523a1 1 0 0 1 .932 .638l.032 .104a1 1 0 0 1 -.371 1.067l-.095 .066l-8.5 5a1 1 0 0 1 -1.502 -.703l-.018 -.12l.012 -5.052h-2.49a1 1 0 0 1 -.933 -.639l-.032 -.103a1 1 0 0 1 .372 -1.068l.094 -.066l7.498 -6.17a1 1 0 0 1 .38 -.177z"/></svg>`;
+            const flameIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-4.97 0-9-3.582-9-8c0-2.92 1.247-5.214 3-6.931c-.007.155-.007.31 0 .465c.08 1.794 1.147 3.354 2.832 4.065a.5.5 0 0 0 .676-.476v-.517a4.6 4.6 0 0 1 .953-2.809l.078-.103l2.022-2.494a.5.5 0 0 1 .878.32v2.48c0 .296.131.578.357.769l.065.049l.063.039l.138.077l.053.027a.6.6 0 0 0 .163.053l.06.01h.087l.058-.007l.056-.012l.054-.015l.053-.02l.05-.023l.048-.028l.045-.031l.042-.035l.039-.038l.036-.042l.033-.046l.029-.05l.024-.053l.02-.057l.015-.061l.01-.064l.004-.068v-.034l-.003-.066a3.2 3.2 0 0 0-.322-1.194l-.116-.22a.4.4 0 0 1 .47-.564c3.008.938 5.043 3.618 5.043 6.792c0 4.418-4.03 8-9 8z"/></svg>`;
+            
             tooltip.innerHTML = `
                 <div class="dock-tooltip__header-row">
                     <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
                     <div class="dock-tooltip__level">Lv. ${d.charLevel || 1}</div>
                 </div>
                 ${infoLine ? `<div class="dock-tooltip__info-line">${infoLine}</div>` : ''}
-                ${d.charRole ? `<div class="dock-tooltip__role">${d.charRole}</div>` : ''}
-                ${d.charCrew ? `<div class="dock-tooltip__crew">${d.charCrew}</div>` : ''}
+                
+                ${(d.charRole || d.charCrew) ? `
+                <div class="dock-tooltip__role-crew-row">
+                    ${d.charRole ? `<div class="dock-tooltip__role-item"><span class="dock-tooltip__role-label">Rolle</span><span class="dock-tooltip__role-value">${d.charRole}</span></div>` : ''}
+                    ${d.charCrew ? `<div class="dock-tooltip__role-item"><span class="dock-tooltip__role-label">Zugehörigkeit</span><span class="dock-tooltip__role-value">${d.charCrew}</span></div>` : ''}
+                </div>
+                ` : ''}
                 
                 <div class="dock-tooltip__divider"></div>
                 
                 <div class="dock-tooltip__stats-row">
-                    <span class="dock-tooltip__stat dock-tooltip__stat--hp">❤️ ${d.charHp || 100}/${d.charMaxHp || 100}</span>
-                    <span class="dock-tooltip__stat dock-tooltip__stat--moral">🛡️ ${d.charMoral || 100}/${d.charMaxMoral || 100}</span>
-                    <span class="dock-tooltip__stat dock-tooltip__stat--resonanz">⚡ ${d.charResonanz || 10}</span>
+                    <span class="dock-tooltip__stat dock-tooltip__stat--hp">${heartIcon} ${d.charHp || 100}/${d.charMaxHp || 100}</span>
+                    <span class="dock-tooltip__stat dock-tooltip__stat--moral">${boltIcon} ${d.charMoral || 100}/${d.charMaxMoral || 100}</span>
+                    <span class="dock-tooltip__stat dock-tooltip__stat--resonanz">${flameIcon} ${d.charResonanz || 10}</span>
                 </div>
                 
                 <div class="dock-tooltip__section">
@@ -1375,7 +1385,10 @@ function initDockCardTooltips() {
                 ` : ''}
                 
                 ${d.charCurrency ? `
-                <div class="dock-tooltip__currency">¤ ${d.charCurrency}</div>
+                <div class="dock-tooltip__section">
+                    <div class="dock-tooltip__label-bg">Währung</div>
+                    <div class="dock-tooltip__currency-value">¤ ${d.charCurrency}</div>
+                </div>
                 ` : ''}
             `;
             showDockTooltip(tooltip, charCard);
