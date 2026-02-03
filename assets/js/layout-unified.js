@@ -1045,7 +1045,6 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     if (levelEl) {
         levelEl.textContent = charData.level ?? 1;
     }
-    }
     
     // Helper to get nested value
     const getVal = (obj, ...keys) => {
