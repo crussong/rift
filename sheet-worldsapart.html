@@ -5343,6 +5343,30 @@
             const saved = localStorage.getItem(STORAGE_KEY);
             characterData = saved ? { ...getDefaultCharacter(), ...JSON.parse(saved) } : getDefaultCharacter();
             
+            // Try to find/set character ID for consistency with CharacterStorage
+            if (typeof CharacterStorage !== 'undefined' && characterData.name) {
+                // First check if we have a stored ID in the legacy data
+                if (characterData._charId) {
+                    window.currentCharId = characterData._charId;
+                    console.log('[WA-Sheet] Using stored legacy char ID:', window.currentCharId);
+                } else {
+                    // Try to find existing character by name in CharacterStorage
+                    const all = CharacterStorage.getAll();
+                    const existing = Object.values(all).find(c => 
+                        c.name === characterData.name && c.ruleset === 'worldsapart'
+                    );
+                    if (existing) {
+                        window.currentCharId = existing.id;
+                        // Store ID in legacy data for future loads
+                        characterData._charId = existing.id;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(characterData));
+                        console.log('[WA-Sheet] Found existing char in storage:', window.currentCharId);
+                    } else {
+                        console.log('[WA-Sheet] No existing char found, will create new on save');
+                    }
+                }
+            }
+            
             // Ensure minimum skills exist
             ['handeln', 'wissen', 'soziales'].forEach(cat => {
                 if (!characterData.skills[cat]) characterData.skills[cat] = [];
