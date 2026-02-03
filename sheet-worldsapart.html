@@ -5993,40 +5993,29 @@
         // Check for returning dice result
         function checkForDiceResult() {
             const params = new URLSearchParams(window.location.search);
-            const result = params.get('result');
-            const label = params.get('label');
-            const success = params.get('success');
-            const outcome = params.get('outcome');
-            const critical = params.get('critical');
             const zweiteChance = params.get('zweiteChance');
             const diceIndex = params.get('diceIndex');
+            const success = params.get('success');
             
-            if (result && label) {
-                // Handle Zweite Chance result
-                if (zweiteChance === 'true' && diceIndex !== null) {
-                    const idx = parseInt(diceIndex);
-                    markDiceAsUsed(idx);
-                    
-                    // Show toast with result
-                    if (window.RIFT?.ui?.Toast) {
-                        if (success === 'true') {
-                            RIFT.ui.Toast.success(`Zweite Chance: ${result} - Wiederholen erlaubt!`);
-                        } else {
-                            RIFT.ui.Toast.error(`Zweite Chance: ${result} - Fehlschlag bleibt!`);
-                        }
+            // Handle Zweite Chance result - mark dice as used
+            if (zweiteChance === 'true' && diceIndex !== null) {
+                const idx = parseInt(diceIndex);
+                markDiceAsUsed(idx);
+                
+                // Show toast with result
+                if (window.RIFT?.ui?.Toast) {
+                    if (success === 'true') {
+                        RIFT.ui.Toast.success('Zweite Chance: Wiederholen erlaubt!');
+                    } else {
+                        RIFT.ui.Toast.error('Zweite Chance: Fehlschlag bleibt!');
                     }
                 }
                 
-                addDiceHistoryEntry({
-                    label: decodeURIComponent(label),
-                    result: parseInt(result),
-                    success: success === 'true',
-                    outcome: decodeURIComponent(outcome || (success === 'true' ? 'Erfolg' : 'Fehlschlag')),
-                    critical: critical === 'true'
-                });
-                
-                // Clean URL
-                const cleanUrl = window.location.pathname + (window.currentCharId ? `?id=${window.currentCharId}` : '');
+                // Clean URL - keep only essential params
+                const cleanParams = new URLSearchParams();
+                if (params.get('roomCode')) cleanParams.set('roomCode', params.get('roomCode'));
+                if (params.get('id')) cleanParams.set('id', params.get('id'));
+                const cleanUrl = window.location.pathname + (cleanParams.toString() ? '?' + cleanParams.toString() : '');
                 window.history.replaceState({}, document.title, cleanUrl);
             }
         }
@@ -6241,6 +6230,15 @@
             `).join('');
         }
         
+        // Helper: Build clean return URL for dice page
+        function buildReturnUrl() {
+            const currentParams = new URLSearchParams(window.location.search);
+            const returnParams = new URLSearchParams();
+            if (currentParams.get('roomCode')) returnParams.set('roomCode', currentParams.get('roomCode'));
+            if (currentParams.get('id')) returnParams.set('id', currentParams.get('id'));
+            return 'sheet-worldsapart.html' + (returnParams.toString() ? '?' + returnParams.toString() : '');
+        }
+        
         function rollSkill(category, index) {
             const skill = characterData.skills[category][index];
             const bonus = calculateClassBonus(category);
@@ -6253,7 +6251,7 @@
                 mod: totalValue,
                 label: skillName,
                 roll: '1',
-                return: window.location.pathname.split('/').pop() + window.location.search
+                return: buildReturnUrl()
             });
             
             window.location.href = `dice.html?${params.toString()}`;
@@ -6286,7 +6284,7 @@
                 check: 'zweitechance',
                 diceIndex: diceIndex,
                 roll: '1',
-                return: window.location.pathname.split('/').pop() + window.location.search
+                return: buildReturnUrl()
             });
             
             window.location.href = `dice.html?${params.toString()}`;
@@ -6320,7 +6318,7 @@
                 label: fokusName,
                 check: 'fokus',
                 roll: '1',
-                return: window.location.pathname.split('/').pop() + window.location.search
+                return: buildReturnUrl()
             });
             
             window.location.href = `dice.html?${params.toString()}`;
