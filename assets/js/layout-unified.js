@@ -436,6 +436,29 @@ function createUnifiedDock() {
     
     return `
     <div class="dock" id="bottomDock">
+        <!-- Character Card (loaded dynamically) -->
+        <a href="sheet.html" class="dock__character-card hidden" id="dockCharacterCard">
+            <div class="dock__char-portrait" id="dockCharPortrait">
+                <div class="dock__char-portrait-placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
+                </div>
+            </div>
+            <div class="dock__char-info">
+                <div class="dock__char-name" id="dockCharName">Charakter</div>
+                <div class="dock__char-bars">
+                    <div class="dock__char-bar dock__char-bar--hp">
+                        <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%"></div>
+                    </div>
+                    <div class="dock__char-bar dock__char-bar--moral">
+                        <div class="dock__char-bar-fill" id="dockCharMoralBar" style="width: 100%"></div>
+                    </div>
+                    <div class="dock__char-bar dock__char-bar--resonanz">
+                        <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </a>
+        
         <a href="index.html" class="dock__item ${isHub ? 'active' : ''}" data-tooltip="Hub">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.707 2.293l9 9c.63 .63 .184 1.707 -.707 1.707h-1v6a3 3 0 0 1 -3 3h-1v-7a3 3 0 0 0 -2.824 -2.995l-.176 -.005h-2a3 3 0 0 0 -3 3v7h-1a3 3 0 0 1 -3 -3v-6h-1c-.89 0 -1.337 -1.077 -.707 -1.707l9 -9a1 1 0 0 1 1.414 0m.293 11.707a1 1 0 0 1 1 1v7h-4v-7a1 1 0 0 1 .883 -.993l.117 -.007z"/>
@@ -838,6 +861,194 @@ function initPartyDisplay() {
             }
         }
     });
+    
+    // Initialize Dock Character Card
+    initDockCharacterCard();
+}
+
+// ============================================================
+// DOCK CHARACTER CARD
+// ============================================================
+let dockCharacterUnsubscribe = null;
+
+async function initDockCharacterCard() {
+    const card = document.getElementById('dockCharacterCard');
+    if (!card) return;
+    
+    const roomCode = localStorage.getItem('rift_current_room');
+    if (!roomCode) {
+        console.log('[DockChar] No room code, hiding card');
+        return;
+    }
+    
+    // Wait for Firebase
+    const waitForFirebase = () => {
+        return new Promise((resolve) => {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                resolve();
+            } else {
+                const check = setInterval(() => {
+                    if (typeof firebase !== 'undefined' && firebase.firestore) {
+                        clearInterval(check);
+                        resolve();
+                    }
+                }, 100);
+                setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+            }
+        });
+    };
+    
+    await waitForFirebase();
+    
+    try {
+        const db = firebase.firestore();
+        const user = firebase.auth().currentUser;
+        
+        if (!user) {
+            console.log('[DockChar] No user logged in');
+            return;
+        }
+        
+        // Get user's display name for member lookup
+        const storedUser = localStorage.getItem('rift_user');
+        let odName = user.displayName || user.email?.split('@')[0] || 'Unknown';
+        if (storedUser) {
+            try {
+                const parsed = JSON.parse(storedUser);
+                odName = parsed.odName || parsed.displayName || odName;
+            } catch (e) {}
+        }
+        
+        console.log('[DockChar] Looking up member:', odName, 'in room:', roomCode);
+        
+        // Subscribe to member document to get assignedCharacterId
+        const memberRef = db.collection('rooms').doc(roomCode).collection('members').doc(odName);
+        
+        dockCharacterUnsubscribe = memberRef.onSnapshot(async (memberDoc) => {
+            if (!memberDoc.exists) {
+                console.log('[DockChar] Member doc not found');
+                card.classList.add('hidden');
+                return;
+            }
+            
+            const memberData = memberDoc.data();
+            const charId = memberData.assignedCharacterId;
+            
+            if (!charId) {
+                console.log('[DockChar] No character assigned');
+                card.classList.add('hidden');
+                return;
+            }
+            
+            console.log('[DockChar] Loading character:', charId);
+            
+            // Load character data
+            const charRef = db.collection('rooms').doc(roomCode).collection('characters').doc(charId);
+            const charDoc = await charRef.get();
+            
+            if (!charDoc.exists) {
+                console.log('[DockChar] Character doc not found');
+                card.classList.add('hidden');
+                return;
+            }
+            
+            const charData = charDoc.data();
+            updateDockCharacterCard(charData, charId, roomCode);
+            
+            // Subscribe to character updates
+            charRef.onSnapshot((doc) => {
+                if (doc.exists) {
+                    updateDockCharacterCard(doc.data(), charId, roomCode);
+                }
+            });
+        });
+        
+    } catch (e) {
+        console.error('[DockChar] Error:', e);
+    }
+}
+
+function updateDockCharacterCard(charData, charId, roomCode) {
+    const card = document.getElementById('dockCharacterCard');
+    if (!card) return;
+    
+    // Update link to character sheet
+    const ruleset = charData.ruleset || 'worldsapart';
+    const sheetMap = {
+        'worldsapart': 'sheet-worldsapart.html',
+        'dnd5e': 'sheet-5e.html',
+        'htbah': 'sheet-htbah.html',
+        'cyberpunkred': 'sheet-cyberpunkred.html'
+    };
+    const sheetUrl = sheetMap[ruleset] || 'sheet-worldsapart.html';
+    card.href = `${sheetUrl}?charId=${charId}&roomCode=${roomCode}`;
+    
+    // Update portrait
+    const portrait = document.getElementById('dockCharPortrait');
+    if (portrait) {
+        const portraitUrl = charData.portraitUrl || charData.portrait || charData.imageUrl;
+        if (portraitUrl) {
+            portrait.innerHTML = `<img src="${portraitUrl}" alt="Portrait">`;
+        } else {
+            portrait.innerHTML = `<div class="dock__char-portrait-placeholder">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
+            </div>`;
+        }
+    }
+    
+    // Update name
+    const nameEl = document.getElementById('dockCharName');
+    if (nameEl) {
+        nameEl.textContent = charData.name || charData.characterName || 'Unbenannt';
+    }
+    
+    // Helper to get nested value
+    const getVal = (obj, ...keys) => {
+        for (const key of keys) {
+            if (key.includes('.')) {
+                const parts = key.split('.');
+                let val = obj;
+                for (const p of parts) {
+                    val = val?.[p];
+                }
+                if (val !== undefined) return val;
+            } else if (obj?.[key] !== undefined) {
+                return obj[key];
+            }
+        }
+        return null;
+    };
+    
+    // Update HP bar
+    const hpBar = document.getElementById('dockCharHpBar');
+    if (hpBar) {
+        const hp = getVal(charData, 'status.hp', 'hp', 'currentHp', 'lebenspunkte') ?? 100;
+        const maxHp = getVal(charData, 'status.maxHp', 'maxHp', 'hp_max', 'maxLebenspunkte') ?? 100;
+        const hpPercent = maxHp > 0 ? Math.min(100, Math.max(0, (hp / maxHp) * 100)) : 100;
+        hpBar.style.width = hpPercent + '%';
+    }
+    
+    // Update Moral bar
+    const moralBar = document.getElementById('dockCharMoralBar');
+    if (moralBar) {
+        const moral = getVal(charData, 'status.moral', 'moral', 'currentMoral') ?? 100;
+        const maxMoral = getVal(charData, 'status.maxMoral', 'maxMoral', 'moral_max') ?? 100;
+        const moralPercent = maxMoral > 0 ? Math.min(100, Math.max(0, (moral / maxMoral) * 100)) : 100;
+        moralBar.style.width = moralPercent + '%';
+    }
+    
+    // Update Resonanz bar
+    const resonanzBar = document.getElementById('dockCharResonanzBar');
+    if (resonanzBar) {
+        const resonanz = getVal(charData, 'status.resonanz', 'resonanz', 'currentResonanz') ?? 100;
+        const maxResonanz = getVal(charData, 'status.maxResonanz', 'maxResonanz', 'resonanz_max') ?? 100;
+        const resonanzPercent = maxResonanz > 0 ? Math.min(100, Math.max(0, (resonanz / maxResonanz) * 100)) : 100;
+        resonanzBar.style.width = resonanzPercent + '%';
+    }
+    
+    // Show card
+    card.classList.remove('hidden');
+    console.log('[DockChar] Card updated:', charData.name);
 }
 
 // ============================================================
