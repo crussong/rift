@@ -2834,6 +2834,15 @@
                         secret: this.secretRoll,
                         special: special,
                         timestamp: Date.now(),
+                        // Check-Infos für Remote-Spieler
+                        checkInfo: {
+                            skillCheckMode: this.skillCheckMode,
+                            skillCheckLabel: this.skillCheckLabel,
+                            skillCheckTarget: this.skillCheckTarget,
+                            fokusCheckMode: this.fokusCheckMode,
+                            fokusCheckLabel: this.fokusCheckLabel,
+                            zweiteChanceMode: this.zweiteChanceMode
+                        },
                         diceConfig: {
                             notation: libraryNotation,
                             beforeRollValues: libraryResults, // ECHTE Werte für Remote
@@ -2939,6 +2948,11 @@
                 if (!this.diceRef || !this.multiplayerEnabled) return;
                 console.log('[DiceRoller] syncRollStart');
                 this.diceRef.push({ ...data, phase: 'start' });
+                
+                // Send toast notification for roll start (visible on all pages)
+                if (!data.secret && window.RIFTToast?.diceRolling) {
+                    RIFTToast.diceRolling(data.player, data.rollLabel || '');
+                }
             },
             
             // Sync: Complete - echte Ergebnisse
@@ -3533,6 +3547,23 @@
                 });
                 
                 // Sync to multiplayer
+                // Calculate success for skill checks
+                let rollSuccess = null;
+                let rollLabel = null;
+                if (this.skillCheckMode && this.skillCheckTarget > 0) {
+                    rollLabel = `Fähigkeit: ${this.skillCheckLabel}`;
+                    rollSuccess = displayRolls[0] <= this.skillCheckTarget;
+                } else if (this.fokusCheckMode) {
+                    rollLabel = `Fokus: ${this.fokusCheckLabel}`;
+                    const rollValue = displayRolls[0];
+                    const isNat20 = rollValue === 20;
+                    const isNat1 = rollValue === 1;
+                    rollSuccess = isNat20 || (!isNat1 && finalTotal >= 11);
+                } else if (this.zweiteChanceMode) {
+                    rollLabel = 'Zweite Chance';
+                    rollSuccess = displayRolls[0] >= 6;
+                }
+                
                 this.syncRoll({
                     player: playerName,
                     playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
@@ -3547,9 +3578,9 @@
                     secret: this.secretRoll,
                     timestamp: Date.now(),
                     // Add label for skill/fokus/zweite chance rolls
-                    label: this.skillCheckLabel || this.fokusCheckLabel || (this.zweiteChanceMode ? 'Zweite Chance' : null),
+                    label: rollLabel,
                     checkType: this.skillCheckMode ? 'skill' : (this.fokusCheckMode ? 'fokus' : (this.zweiteChanceMode ? 'zweitechance' : null)),
-                    success: this.lastCheckResult?.success || null,
+                    success: rollSuccess,
                     diceConfig: {
                         notation: this.currentLibraryNotation,
                         results: displayRolls
@@ -3934,6 +3965,16 @@
                     // Zeige Labels über den Würfeln
                     this.showDiceLabels(labelValues, remoteD100Count);
                     
+                    // Setze Check-Modi für Remote-Roll (damit displayRollResult richtig anzeigt)
+                    if (roll.checkInfo) {
+                        this.skillCheckMode = roll.checkInfo.skillCheckMode || false;
+                        this.skillCheckLabel = roll.checkInfo.skillCheckLabel || '';
+                        this.skillCheckTarget = roll.checkInfo.skillCheckTarget || 0;
+                        this.fokusCheckMode = roll.checkInfo.fokusCheckMode || false;
+                        this.fokusCheckLabel = roll.checkInfo.fokusCheckLabel || '';
+                        this.zweiteChanceMode = roll.checkInfo.zweiteChanceMode || false;
+                    }
+                    
                     // Zeige Ergebnis-Card
                     this.displayRollResult(
                         roll.results || [],
@@ -4063,8 +4104,18 @@
                     
                     // Send toast notification (only for non-secret rolls)
                     if (!logEntry.secret && window.RIFTToast?.send) {
-                        const isSuccess = logEntry.critical === 'success' ? true : logEntry.critical === 'failure' ? false : null;
-                        RIFTToast.diceRoll(logEntry.player, logEntry.total, logEntry.notation, isSuccess);
+                        // Use label if available, otherwise notation
+                        const rollInfo = logEntry.label || logEntry.notation;
+                        // Determine success: use explicit success for skill checks, or critical for normal rolls
+                        let isSuccess = null;
+                        if (logEntry.success !== null && logEntry.success !== undefined) {
+                            isSuccess = logEntry.success;
+                        } else if (logEntry.critical === 'success') {
+                            isSuccess = true;
+                        } else if (logEntry.critical === 'failure') {
+                            isSuccess = false;
+                        }
+                        RIFTToast.diceRoll(logEntry.player, logEntry.total, rollInfo, isSuccess);
                     }
                     
                 } catch (e) {
