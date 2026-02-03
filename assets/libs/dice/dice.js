@@ -1090,9 +1090,24 @@ const DICE = (function() {
         for (var i = 0; i < faces.length; ++i) {
             var ii = faces[i], fl = ii.length - 1;
             var aa = Math.PI * 2 / fl;
+            
+            // Calculate ONE normal for the entire polygon (not per triangle)
+            // Use cross product of first two edges
+            var v0 = geom.vertices[ii[0]];
+            var v1 = geom.vertices[ii[1]];
+            var v2 = geom.vertices[ii[2]];
+            var edge1 = new THREE.Vector3().subVectors(v1, v0);
+            var edge2 = new THREE.Vector3().subVectors(v2, v0);
+            var faceNormal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+            
             for (var j = 0; j < fl - 2; ++j) {
-                geom.faces.push(new THREE.Face3(ii[0], ii[j + 1], ii[j + 2], [geom.vertices[ii[0]],
-                            geom.vertices[ii[j + 1]], geom.vertices[ii[j + 2]]], 0, ii[fl] + 1));
+                // Create face with shared normal for all triangles of this polygon
+                var face = new THREE.Face3(ii[0], ii[j + 1], ii[j + 2]);
+                face.normal = faceNormal.clone();
+                face.vertexNormals = [faceNormal.clone(), faceNormal.clone(), faceNormal.clone()];
+                face.materialIndex = ii[fl] + 1;
+                geom.faces.push(face);
+                
                 geom.faceVertexUvs[0].push([
                         new THREE.Vector2((Math.cos(af) + 1 + tab) / 2 / (1 + tab),
                             (Math.sin(af) + 1 + tab) / 2 / (1 + tab)),
@@ -1102,7 +1117,7 @@ const DICE = (function() {
                             (Math.sin(aa * (j + 2) + af) + 1 + tab) / 2 / (1 + tab))]);
             }
         }
-        geom.computeFaceNormals();
+        // Don't call computeFaceNormals() - we set normals manually above
         geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), radius);
         return geom;
     }
