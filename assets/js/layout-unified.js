@@ -580,8 +580,8 @@ function createUnifiedDock() {
             </div>
         </a>
         
-        <!-- Spacer between Character and Session Card -->
-        <div class="dock__card-spacer"></div>
+        <!-- Divider between Character and Session Card -->
+        <div class="dock__divider"></div>
         
         <!-- Session Card (loaded dynamically) -->
         <a href="session.html" class="dock__session-card hidden" id="dockSessionCard">
