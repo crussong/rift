@@ -1064,6 +1064,12 @@ async function initDockCharacterCard() {
             initDockCharacterCard();
         }
     });
+    
+    // Subscribe to same-tab character saves (custom event)
+    window.addEventListener('rift-character-saved', (e) => {
+        console.log('[DockChar] Character saved in same tab, refreshing...');
+        initDockCharacterCard();
+    });
 }
 
 function showEmptyCharacterCard(card) {
@@ -1182,8 +1188,8 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Update portrait
     const portrait = document.getElementById('dockCharPortrait');
     if (portrait) {
-        const portraitUrl = charData.portraitUrl || charData.portrait || charData.imageUrl;
-        if (portraitUrl) {
+        const portraitUrl = charData.portraitUrl || charData.portrait || charData.imageUrl || charData.data?.portrait;
+        if (portraitUrl && portraitUrl.length > 10) {
             portrait.innerHTML = `<img src="${portraitUrl}" alt="Portrait">`;
         } else {
             portrait.innerHTML = `<div class="dock__char-portrait-placeholder">

@@ -234,13 +234,15 @@ const HubController = {
     async loadCharacters() {
         try {
             if (typeof CharacterStorage !== 'undefined') {
-                const result = await CharacterStorage.getAll();
-                this.characters = Array.isArray(result) ? result : [];
+                const result = CharacterStorage.getAll();
+                // getAll() returns an object, convert to array
+                this.characters = result ? Object.values(result) : [];
             } else {
                 const stored = localStorage.getItem('rift_characters');
                 if (stored) {
                     const parsed = JSON.parse(stored);
-                    this.characters = Array.isArray(parsed) ? parsed : [];
+                    // Could be object or array depending on version
+                    this.characters = Array.isArray(parsed) ? parsed : Object.values(parsed);
                 }
             }
         } catch (e) {
@@ -467,8 +469,9 @@ const HubController = {
         const cls = card.querySelector('.qa-character__class');
         
         if (avatar) {
-            const portraitUrl = char.image || char.portrait || char.portraitUrl;
-            if (portraitUrl) {
+            // Portrait can be in multiple locations
+            const portraitUrl = char.image || char.portrait || char.portraitUrl || char.data?.portrait;
+            if (portraitUrl && portraitUrl.length > 10) {
                 avatar.style.background = 'var(--bg-elevated)';
                 avatar.innerHTML = `<img src="${portraitUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
             } else {
