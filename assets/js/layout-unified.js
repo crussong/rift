@@ -1189,7 +1189,8 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     const portrait = document.getElementById('dockCharPortrait');
     if (portrait) {
         const portraitUrl = charData.portraitUrl || charData.portrait || charData.imageUrl || charData.data?.portrait;
-        if (portraitUrl && portraitUrl.length > 10) {
+        // Only use if it's a valid URL (starts with http) or base64 data
+        if (portraitUrl && (portraitUrl.startsWith('http') || portraitUrl.startsWith('data:'))) {
             portrait.innerHTML = `<img src="${portraitUrl}" alt="Portrait">`;
         } else {
             portrait.innerHTML = `<div class="dock__char-portrait-placeholder">

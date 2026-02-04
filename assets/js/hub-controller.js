@@ -471,7 +471,8 @@ const HubController = {
         if (avatar) {
             // Portrait can be in multiple locations
             const portraitUrl = char.image || char.portrait || char.portraitUrl || char.data?.portrait;
-            if (portraitUrl && portraitUrl.length > 10) {
+            // Only use if it's a valid URL (starts with http) or base64 data
+            if (portraitUrl && (portraitUrl.startsWith('http') || portraitUrl.startsWith('data:'))) {
                 avatar.style.background = 'var(--bg-elevated)';
                 avatar.innerHTML = `<img src="${portraitUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
             } else {
