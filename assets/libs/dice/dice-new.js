@@ -42,6 +42,8 @@ const DICE = (function() {
         dice_color: '#2a2a2a', // RIFT: Dunkelgrau als Basis
         // RIFT: Gradient Support
         dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
+        // RIFT: Texture Support
+        dice_texture: null, // { type: 'marble'|'wood'|'stone', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         ambient_light_color: 0xf0f0f0,
         spot_light_color: 0xefefef,
         desk_color: '#101010', //canvas background
@@ -602,13 +604,15 @@ const DICE = (function() {
     var manualLabelColor = null;
     
     // RIFT: Methode um Würfelfarbe zu ändern
-    that.setDiceColor = function(color, gradient) {
+    that.setDiceColor = function(color, gradient, texture) {
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
+        vars.dice_texture = texture || null;
         
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
-            var brightness = getColorBrightness(gradient ? gradient.colors[0] : color);
+            var baseColor = texture ? texture.baseColor : (gradient ? gradient.colors[0] : color);
+            var brightness = getColorBrightness(baseColor || color);
             vars.label_color = brightness > 160 ? vars.label_color_dark : '#ffffff';
         }
         
@@ -667,6 +671,90 @@ const DICE = (function() {
         return (r * 299 + g * 587 + b * 114) / 1000;
     }
     
+    // RIFT: Texture generation functions
+    function generateMarbleTexture(ctx, width, height, baseColor, veinColor) {
+        // Fill with base color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Generate marble veins using random curves
+        ctx.strokeStyle = veinColor;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.3;
+        
+        for (var i = 0; i < 8; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            
+            for (var j = 0; j < 5; j++) {
+                var cp1x = x + (Math.random() - 0.5) * width * 0.5;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.5;
+                var cp2x = x + (Math.random() - 0.5) * width * 0.5;
+                var cp2y = y + (Math.random() - 0.5) * height * 0.5;
+                x = Math.random() * width;
+                y = Math.random() * height;
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Add some noise/speckles
+        ctx.globalAlpha = 0.1;
+        for (var i = 0; i < 100; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? veinColor : baseColor;
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateWoodTexture(ctx, width, height, baseColor, grainColor) {
+        // Fill with base color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Wood grain lines
+        ctx.strokeStyle = grainColor;
+        ctx.globalAlpha = 0.2;
+        
+        for (var i = 0; i < 20; i++) {
+            ctx.lineWidth = 1 + Math.random() * 2;
+            ctx.beginPath();
+            var y = (i / 20) * height + (Math.random() - 0.5) * 10;
+            ctx.moveTo(0, y);
+            
+            for (var x = 0; x < width; x += 10) {
+                y += (Math.random() - 0.5) * 4;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateStoneTexture(ctx, width, height, baseColor, speckleColor) {
+        // Fill with base color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Add random speckles
+        for (var i = 0; i < 200; i++) {
+            ctx.globalAlpha = 0.1 + Math.random() * 0.2;
+            ctx.fillStyle = Math.random() > 0.5 ? speckleColor : baseColor;
+            var size = 1 + Math.random() * 4;
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
     function create_dice_materials(face_labels, size, margin, useGradient) {
         // Default: use gradient if available (but can be disabled for d10)
         if (useGradient === undefined) useGradient = true;
@@ -687,8 +775,26 @@ const DICE = (function() {
             canvas.width = canvas.height = ts;
             context.font = ts / (1 + 2 * margin) + "pt Arial";
             
+            // RIFT: Texture Support
+            if (vars.dice_texture && vars.dice_texture.type) {
+                var tex = vars.dice_texture;
+                switch(tex.type) {
+                    case 'marble':
+                        generateMarbleTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'wood':
+                        generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
+                        break;
+                    case 'stone':
+                        generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
+                        break;
+                    default:
+                        context.fillStyle = back_color;
+                        context.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            }
             // RIFT: Gradient Support (can be disabled for d10 to avoid seam visibility)
-            if (useGradient && vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
+            else if (useGradient && vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
                 var gradient;
                 var colors = vars.dice_gradient.colors;
                 
@@ -712,11 +818,12 @@ const DICE = (function() {
                 }
                 
                 context.fillStyle = gradient;
+                context.fillRect(0, 0, canvas.width, canvas.height);
             } else {
                 context.fillStyle = back_color;
+                context.fillRect(0, 0, canvas.width, canvas.height);
             }
             
-            context.fillRect(0, 0, canvas.width, canvas.height);
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillStyle = color;
