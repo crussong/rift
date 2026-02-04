@@ -1572,7 +1572,7 @@ const AssetsAdmin = {
     updateStats() {
         document.getElementById('statAssetsTotal').textContent = this.items.length;
         document.getElementById('statAssetsImages').textContent = this.items.filter(i => i.type === 'image').length;
-        document.getElementById('statAssetsTokens').textContent = this.items.filter(i => i.type === 'token').length;
+        document.getElementById('statAssetsPortraits').textContent = this.items.filter(i => (i.type || '').startsWith('portrait-')).length;
         document.getElementById('statAssetsStorage').textContent = this.formatSize(this.items.reduce((s,i) => s + (i.size||0), 0));
     },
     
@@ -1604,7 +1604,20 @@ const AssetsAdmin = {
             '<div id="uploadPreview" style="margin-top:16px;display:none;"></div>' +
             '<div class="form-row" style="margin-top:16px;">' +
             '<div class="form-group"><label class="form-label">Typ</label>' +
-            '<select class="form-select" id="uploadAssetType"><option value="image">Bild</option><option value="token">Token</option><option value="map">Map</option><option value="icon">Icon</option></select></div>' +
+            '<select class="form-select" id="uploadAssetType">' +
+            '<optgroup label="Allgemein">' +
+            '<option value="image">Bild</option>' +
+            '<option value="token">Token</option>' +
+            '<option value="map">Map</option>' +
+            '<option value="icon">Icon</option>' +
+            '</optgroup>' +
+            '<optgroup label="Portraits">' +
+            '<option value="portrait-worldsapart">Portrait (Worlds Apart)</option>' +
+            '<option value="portrait-dnd5e">Portrait (D&amp;D 5e)</option>' +
+            '<option value="portrait-htbah">Portrait (HTBAH)</option>' +
+            '<option value="portrait-cyberpunk">Portrait (Cyberpunk)</option>' +
+            '</optgroup>' +
+            '</select></div>' +
             '</div>' +
             '</div>' +
             '<div class="modal__footer"><button class="btn btn--secondary" onclick="AssetsAdmin.closeUpload()">Abbrechen</button>' +
