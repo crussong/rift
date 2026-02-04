@@ -35,8 +35,7 @@ const DICE = (function() {
             color: 0xf0f0f0,
             shininess: 40,
             shading: THREE.FlatShading,
-            emissive: 0x000000,
-            emissiveIntensity: 0
+            emissive: 0x000000
         },
         label_color: '#ffffff', //RIFT: white labels
         // RIFT: Dynamic label color based on background brightness
@@ -49,11 +48,11 @@ const DICE = (function() {
         // RIFT: Glow & Effects
         dice_glow: false,
         dice_glow_color: null, // null = use dice color
-        dice_glow_intensity: 0.3,
+        dice_glow_intensity: 0.4, // 0-1, wird auf die Farbe angewendet
         dice_pulse: false,
         dice_pulse_speed: 2, // pulses per second
-        dice_pulse_min: 0.1,
-        dice_pulse_max: 0.5,
+        dice_pulse_min: 0.15,
+        dice_pulse_max: 0.6,
         ambient_light_color: 0xf0f0f0,
         spot_light_color: 0xefefef,
         desk_color: '#101010', //canvas background
@@ -434,19 +433,23 @@ const DICE = (function() {
             }
         }
         
-        // RIFT: Pulse Animation
-        if (vars.dice_pulse && this.dices && this.dices.length > 0) {
+        // RIFT: Pulse Animation (kompatibel mit Three.js r73)
+        if (vars.dice_pulse && vars.dice_glow && this.dices && this.dices.length > 0) {
             var pulseTime = time * 0.001 * vars.dice_pulse_speed * Math.PI * 2;
             var pulseValue = (Math.sin(pulseTime) + 1) / 2; // 0 to 1
             var intensity = vars.dice_pulse_min + pulseValue * (vars.dice_pulse_max - vars.dice_pulse_min);
+            
+            // Basis-Glow-Farbe ermitteln
+            var glowColorHex = vars.dice_glow_color || vars.dice_color;
+            var scaledEmissive = scaleColorByIntensity(glowColorHex, intensity);
             
             for (var d = 0; d < this.dices.length; d++) {
                 var dice = this.dices[d];
                 if (dice.material && dice.material.materials) {
                     for (var m = 0; m < dice.material.materials.length; m++) {
                         var mat = dice.material.materials[m];
-                        if (mat.emissiveIntensity !== undefined) {
-                            mat.emissiveIntensity = intensity;
+                        if (mat.emissive) {
+                            mat.emissive.setHex(scaledEmissive);
                         }
                     }
                 }
@@ -744,6 +747,26 @@ const DICE = (function() {
         return (r * 299 + g * 587 + b * 114) / 1000;
     }
     
+    // RIFT: Skaliere Farbe mit Intensity (für Glow ohne emissiveIntensity)
+    function scaleColorByIntensity(hexColor, intensity) {
+        if (!hexColor) return 0x000000;
+        var hex = hexColor.replace('#', '');
+        var r = parseInt(hex.substr(0, 2), 16);
+        var g = parseInt(hex.substr(2, 2), 16);
+        var b = parseInt(hex.substr(4, 2), 16);
+        
+        // Skaliere RGB mit Intensity
+        r = Math.floor(r * intensity);
+        g = Math.floor(g * intensity);
+        b = Math.floor(b * intensity);
+        
+        // Zurück zu Hex-Zahl
+        return (r << 16) | (g << 8) | b;
+    }
+    
+    // RIFT: Speichere Basis-Glow-Farbe für Pulse
+    var baseGlowColor = null;
+    
     // RIFT: Texture generation functions
     function generateMarbleTexture(ctx, width, height, baseColor, veinColor) {
         // Fill with base color
@@ -913,15 +936,12 @@ const DICE = (function() {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) });
             
-            // RIFT: Glow Support
+            // RIFT: Glow Support (kompatibel mit Three.js r73)
             if (vars.dice_glow) {
                 var glowColor = vars.dice_glow_color || backgroundColor;
-                // Convert hex string to number if needed
-                if (typeof glowColor === 'string') {
-                    glowColor = parseInt(glowColor.replace('#', ''), 16);
-                }
-                matOptions.emissive = glowColor;
-                matOptions.emissiveIntensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
+                // Farbe mit Intensity skalieren
+                var scaledColor = scaleColorByIntensity(glowColor, vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity);
+                matOptions.emissive = scaledColor;
             }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
@@ -1002,14 +1022,11 @@ const DICE = (function() {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) });
             
-            // RIFT: Glow Support
+            // RIFT: Glow Support (kompatibel mit Three.js r73)
             if (vars.dice_glow) {
                 var glowColor = vars.dice_glow_color || vars.dice_color;
-                if (typeof glowColor === 'string') {
-                    glowColor = parseInt(glowColor.replace('#', ''), 16);
-                }
-                matOptions.emissive = glowColor;
-                matOptions.emissiveIntensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
+                var scaledColor = scaleColorByIntensity(glowColor, vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity);
+                matOptions.emissive = scaledColor;
             }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
