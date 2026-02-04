@@ -1890,8 +1890,8 @@
                 // Load saved label color
                 this.loadLabelColor();
                 
-                // Load saved arena theme
-                this.loadArenaTheme();
+                // Load arena themes from Firebase (async, will apply saved theme after load)
+                this.loadArenaThemesFromDB();
                 
                 // Load saved effects
                 this.loadEffects();
@@ -2353,6 +2353,158 @@
                 if (saved) {
                     this.setArenaTheme(saved, false);
                 }
+            },
+            
+            // ========================================
+            // DYNAMIC ARENA THEMES (from Firebase)
+            // ========================================
+            
+            arenaThemes: [],
+            arenaThemesLoaded: false,
+            
+            async loadArenaThemesFromDB() {
+                if (this.arenaThemesLoaded) return;
+                
+                try {
+                    // Check if Firebase is available
+                    if (typeof db === 'undefined') {
+                        console.warn('[DiceRoller] Firebase not available, using fallback');
+                        this.renderArenaThemesFallback();
+                        return;
+                    }
+                    
+                    const snapshot = await db.collection('arenaThemes').orderBy('order', 'asc').get();
+                    
+                    if (snapshot.empty) {
+                        console.warn('[DiceRoller] No arena themes in DB, using fallback');
+                        this.renderArenaThemesFallback();
+                        return;
+                    }
+                    
+                    this.arenaThemes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    console.log('[DiceRoller] Loaded', this.arenaThemes.length, 'arena themes from DB');
+                    
+                    // Inject dynamic CSS
+                    this.injectArenaThemeCSS();
+                    
+                    // Render the themes UI
+                    this.renderArenaThemesUI();
+                    
+                    this.arenaThemesLoaded = true;
+                    
+                    // Re-apply saved theme after themes are loaded
+                    this.loadArenaTheme();
+                    
+                } catch (error) {
+                    console.error('[DiceRoller] Error loading arena themes:', error);
+                    this.renderArenaThemesFallback();
+                }
+            },
+            
+            injectArenaThemeCSS() {
+                // Remove old dynamic styles if exist
+                const oldStyle = document.getElementById('rift-dynamic-arena-styles');
+                if (oldStyle) oldStyle.remove();
+                
+                // Generate CSS for all themes
+                let css = '/* RIFT Dynamic Arena Themes */\n';
+                
+                this.arenaThemes.forEach(t => {
+                    if (!t.imageUrl || !t.themeId) return;
+                    
+                    css += `
+.dice-arena[data-arena-theme="${t.themeId}"] {
+    background: url('${t.imageUrl}') center/cover !important;
+}
+.dice-arena[data-arena-theme="${t.themeId}"]::after {
+    background: none !important;
+}
+.dice-arena-theme-preview--${t.themeId} {
+    background: url('${t.imageUrl}') center/cover !important;
+}
+`;
+                });
+                
+                const style = document.createElement('style');
+                style.id = 'rift-dynamic-arena-styles';
+                style.textContent = css;
+                document.head.appendChild(style);
+                
+                console.log('[DiceRoller] Injected CSS for', this.arenaThemes.length, 'arena themes');
+            },
+            
+            renderArenaThemesUI() {
+                const container = document.getElementById('arenaThemesContent');
+                if (!container) return;
+                
+                // Group by tier
+                const tiers = {
+                    free: { label: 'RIFT Free', badge: 'tier-badge--free', themes: [] },
+                    silver: { label: 'RIFT Silver', badge: 'tier-badge--silver', themes: [] },
+                    gold: { label: 'RIFT Gold', badge: 'tier-badge--gold', themes: [] }
+                };
+                
+                this.arenaThemes.forEach(t => {
+                    const tier = t.tier || 'free';
+                    if (tiers[tier]) {
+                        tiers[tier].themes.push(t);
+                    }
+                });
+                
+                // Get current theme for active state
+                const currentTheme = this.currentArenaTheme || 'rift';
+                
+                // Build HTML
+                let html = '';
+                
+                ['free', 'silver', 'gold'].forEach(tierKey => {
+                    const tier = tiers[tierKey];
+                    if (tier.themes.length === 0) return;
+                    
+                    html += `
+                        <div class="tier-section">
+                            <div class="tier-header">
+                                <span class="tier-badge ${tier.badge}">${tier.label}</span>
+                                <span class="tier-count">${tier.themes.length} Theme${tier.themes.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div class="dice-arena-theme-grid">
+                    `;
+                    
+                    tier.themes.forEach(t => {
+                        const isActive = t.themeId === currentTheme ? ' active' : '';
+                        html += `
+                            <button class="dice-arena-theme-card${isActive}" data-arena-theme="${t.themeId}" onclick="DiceRoller.setArenaTheme('${t.themeId}')">
+                                <div class="dice-arena-theme-preview dice-arena-theme-preview--${t.themeId}"></div>
+                                <span>${t.name || t.themeId}</span>
+                            </button>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            },
+            
+            renderArenaThemesFallback() {
+                // Fallback with basic themes if DB fails
+                const container = document.getElementById('arenaThemesContent');
+                if (!container) return;
+                
+                container.innerHTML = `
+                    <div style="text-align:center;padding:30px;color:rgba(255,255,255,0.5);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:40px;height:40px;margin-bottom:12px;opacity:0.5;">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <p>Arena Themes konnten nicht geladen werden.</p>
+                        <p style="font-size:12px;margin-top:8px;">Bitte versuche es später erneut.</p>
+                    </div>
+                `;
             },
             
             // ========================================
@@ -6424,217 +6576,11 @@
             <span class="dice-settings-popup__label">Würfelareal</span>
             <p class="dice-settings-popup__hint">Wähle das Aussehen der Würfelfläche.</p>
             
-            <!-- RIFT Free -->
-            <div class="tier-section">
-                <div class="tier-header">
-                    <span class="tier-badge tier-badge--free">RIFT Free</span>
-                    <span class="tier-count">14 Themes</span>
-                </div>
-                <div class="dice-arena-theme-grid">
-                    <button class="dice-arena-theme-card active" data-arena-theme="rift" onclick="DiceRoller.setArenaTheme('rift')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift"></div>
-                        <span>THE RIFT</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-negative" onclick="DiceRoller.setArenaTheme('rift-negative')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-negative"></div>
-                        <span>THE RIFT (Neg)</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-tag" onclick="DiceRoller.setArenaTheme('rift-tag')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-tag"></div>
-                        <span>RIFT Tag</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-tag-negative" onclick="DiceRoller.setArenaTheme('rift-tag-negative')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-tag-negative"></div>
-                        <span>RIFT Tag (Neg)</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-rest-easy" onclick="DiceRoller.setArenaTheme('rift-rest-easy')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-rest-easy"></div>
-                        <span>Rest Easy</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-rest-easy-negative" onclick="DiceRoller.setArenaTheme('rift-rest-easy-negative')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-rest-easy-negative"></div>
-                        <span>Rest Easy (Neg)</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-punk" onclick="DiceRoller.setArenaTheme('rift-punk')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-punk"></div>
-                        <span>RIFT Punk</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-punk-alt" onclick="DiceRoller.setArenaTheme('rift-punk-alt')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-punk-alt"></div>
-                        <span>RIFT Punk (Alt)</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-leather" onclick="DiceRoller.setArenaTheme('rift-leather')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-leather"></div>
-                        <span>RIFT Leather</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-leather-negative" onclick="DiceRoller.setArenaTheme('rift-leather-negative')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-leather-negative"></div>
-                        <span>Leather (Neg)</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-the-dice" onclick="DiceRoller.setArenaTheme('rift-the-dice')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-the-dice"></div>
-                        <span>The Dice</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="rift-the-dice-alt" onclick="DiceRoller.setArenaTheme('rift-the-dice-alt')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--rift-the-dice-alt"></div>
-                        <span>The Dice (Alt)</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="tavern" onclick="DiceRoller.setArenaTheme('tavern')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--tavern"></div>
-                        <span>Taverne</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="casino" onclick="DiceRoller.setArenaTheme('casino')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--casino"></div>
-                        <span>Casino</span>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- RIFT Silver -->
-            <div class="tier-section">
-                <div class="tier-header">
-                    <span class="tier-badge tier-badge--silver">RIFT Silver</span>
-                    <span class="tier-count">10 Themes</span>
-                </div>
-                <div class="dice-arena-theme-grid">
-                    <button class="dice-arena-theme-card" data-arena-theme="grid" onclick="DiceRoller.setArenaTheme('grid')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--grid"></div>
-                        <span>Grid</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="dungeon" onclick="DiceRoller.setArenaTheme('dungeon')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--dungeon"></div>
-                        <span>Kerker</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="parchment" onclick="DiceRoller.setArenaTheme('parchment')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--parchment"></div>
-                        <span>Pergament</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="forest" onclick="DiceRoller.setArenaTheme('forest')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--forest"></div>
-                        <span>Wald</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="ocean" onclick="DiceRoller.setArenaTheme('ocean')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--ocean"></div>
-                        <span>Ozean</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="desert" onclick="DiceRoller.setArenaTheme('desert')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--desert"></div>
-                        <span>Wüste</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="frost" onclick="DiceRoller.setArenaTheme('frost')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--frost"></div>
-                        <span>Frostreich</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="marble" onclick="DiceRoller.setArenaTheme('marble')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--marble"></div>
-                        <span>Marmor</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="void" onclick="DiceRoller.setArenaTheme('void')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--void"></div>
-                        <span>Leere</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="gothic" onclick="DiceRoller.setArenaTheme('gothic')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--gothic"></div>
-                        <span>Gotik</span>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- RIFT Gold -->
-            <div class="tier-section">
-                <div class="tier-header">
-                    <span class="tier-badge tier-badge--gold">RIFT Gold</span>
-                    <span class="tier-count">Alle Themes</span>
-                </div>
-                <div class="dice-arena-theme-grid">
-                    <button class="dice-arena-theme-card" data-arena-theme="arcane" onclick="DiceRoller.setArenaTheme('arcane')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--arcane"></div>
-                        <span>Arkane Magie</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="cyber" onclick="DiceRoller.setArenaTheme('cyber')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--cyber"></div>
-                        <span>Cyber-Grid</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="nebula" onclick="DiceRoller.setArenaTheme('nebula')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--nebula"></div>
-                        <span>Nebula</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="lava" onclick="DiceRoller.setArenaTheme('lava')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--lava"></div>
-                        <span>Lavahöhle</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="bloodmoon" onclick="DiceRoller.setArenaTheme('bloodmoon')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--bloodmoon"></div>
-                        <span>Blutmond</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="steampunk" onclick="DiceRoller.setArenaTheme('steampunk')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--steampunk"></div>
-                        <span>Steampunk</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="neonpink" onclick="DiceRoller.setArenaTheme('neonpink')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--neonpink"></div>
-                        <span>Neon Pink</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="matrix" onclick="DiceRoller.setArenaTheme('matrix')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--matrix"></div>
-                        <span>Matrix</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="starfield" onclick="DiceRoller.setArenaTheme('starfield')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--starfield"></div>
-                        <span>Sternenhimmel</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="sakura" onclick="DiceRoller.setArenaTheme('sakura')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--sakura"></div>
-                        <span>Sakura</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="inferno" onclick="DiceRoller.setArenaTheme('inferno')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--inferno"></div>
-                        <span>Inferno</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="twilight" onclick="DiceRoller.setArenaTheme('twilight')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--twilight"></div>
-                        <span>Dämmerung</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="crystal" onclick="DiceRoller.setArenaTheme('crystal')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--crystal"></div>
-                        <span>Kristall</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="mossy" onclick="DiceRoller.setArenaTheme('mossy')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--mossy"></div>
-                        <span>Moosstein</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="royal" onclick="DiceRoller.setArenaTheme('royal')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--royal"></div>
-                        <span>Königlich</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="eclipse" onclick="DiceRoller.setArenaTheme('eclipse')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--eclipse"></div>
-                        <span>Finsternis</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="aurora" onclick="DiceRoller.setArenaTheme('aurora')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--aurora"></div>
-                        <span>Nordlicht</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="storm" onclick="DiceRoller.setArenaTheme('storm')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--storm"></div>
-                        <span>Gewitter</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="toxic" onclick="DiceRoller.setArenaTheme('toxic')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--toxic"></div>
-                        <span>Toxisch</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="copper" onclick="DiceRoller.setArenaTheme('copper')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--copper"></div>
-                        <span>Kupfer</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="dragonclaw-red" onclick="DiceRoller.setArenaTheme('dragonclaw-red')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--dragonclaw-red"></div>
-                        <span>Dragonclaw (Red)</span>
-                    </button>
-                    <button class="dice-arena-theme-card" data-arena-theme="dragonclaw-green" onclick="DiceRoller.setArenaTheme('dragonclaw-green')">
-                        <div class="dice-arena-theme-preview dice-arena-theme-preview--dragonclaw-green"></div>
-                        <span>Dragonclaw (Green)</span>
-                    </button>
+            <!-- Dynamic Arena Themes Container -->
+            <div id="arenaThemesContent">
+                <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.5);">
+                    <div class="loading-spinner" style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div>
+                    Lade Themes...
                 </div>
             </div>
         </div>
