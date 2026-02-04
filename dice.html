@@ -291,6 +291,63 @@
             gap: 12px;
         }
         
+        /* RIFT: Dauerhafter Glow-Effekt unter dem Würfel */
+        .dice-glow-effect {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            background: radial-gradient(circle, var(--glow-color, rgba(255,255,255,0.6)) 0%, transparent 70%);
+            filter: blur(8px);
+        }
+        
+        /* RIFT: Dauerhafter Pulse-Effekt (endlose Ringe) */
+        .dice-pulse-effect {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .dice-pulse-effect::before,
+        .dice-pulse-effect::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 20px;
+            height: 20px;
+            margin-left: -10px;
+            margin-top: -10px;
+            border-radius: 50%;
+            border: 2px solid var(--glow-color, rgba(255,255,255,0.6));
+            animation: pulseRingLoop 2.5s ease-out infinite;
+        }
+        .dice-pulse-effect::after {
+            animation-delay: 1.25s;
+        }
+        @keyframes pulseRingLoop {
+            0% {
+                width: 20px;
+                height: 20px;
+                margin-left: -10px;
+                margin-top: -10px;
+                opacity: 0.8;
+            }
+            100% {
+                width: 200px;
+                height: 200px;
+                margin-left: -100px;
+                margin-top: -100px;
+                opacity: 0;
+            }
+        }
+        
         /* RIFT: Body scroll lock when popup is open */
         body.popup-open {
             overflow: hidden !important;
@@ -306,19 +363,19 @@
             align-items: center;
             gap: 8px;
             padding: 16px;
-            background: rgba(20,20,25,0.95);
+            background: #1b1b1b;
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
             position: fixed;
             top: 50%;
             transform: translateY(-50%);
             z-index: 100000;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
         /* Links vom Popup auf Desktop */
         @media (min-width: 900px) {
             .dice-settings-preview {
-                right: calc(50% + 220px);
+                right: calc(50% + 320px);
             }
         }
         /* Unter dem Popup auf Mobile */
@@ -330,10 +387,78 @@
         .dice-settings-preview.open {
             display: flex;
         }
+        .dice-settings-preview__canvas-wrapper {
+            position: relative;
+            width: 140px;
+            height: 140px;
+        }
         .dice-settings-preview__canvas {
             width: 140px;
             height: 140px;
             border-radius: 8px;
+            position: relative;
+            z-index: 2;
+        }
+        .dice-settings-preview__effects {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 140px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        /* Preview Glow */
+        .dice-settings-preview__effects .preview-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--glow-color, #ffffff) 0%, transparent 70%);
+            filter: blur(10px);
+            opacity: 0.8;
+        }
+        /* Preview Pulse */
+        .dice-settings-preview__effects .preview-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+        .dice-settings-preview__effects .preview-pulse::before,
+        .dice-settings-preview__effects .preview-pulse::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--glow-color, #ffffff);
+            animation: previewPulseRing 2.5s ease-out infinite;
+        }
+        .dice-settings-preview__effects .preview-pulse::after {
+            animation-delay: 1.25s;
+        }
+        @keyframes previewPulseRing {
+            0% {
+                width: 20px;
+                height: 20px;
+                opacity: 0.8;
+            }
+            100% {
+                width: 120px;
+                height: 120px;
+                opacity: 0;
+            }
         }
         .dice-settings-preview__label {
             font-size: 11px;
@@ -1828,6 +1953,9 @@
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateColors) {
                     DicePreview.updateColors();
                 }
+                
+                // Update Preview-Effekte (Glow/Pulse Farbe)
+                this.updatePreviewEffects();
             },
             
             // ========================================
@@ -2074,6 +2202,9 @@
                     DICE.setGlow(enabled);
                 }
                 
+                // Update Settings Preview Effekte
+                this.updatePreviewEffects();
+                
                 // Update Settings Preview
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateSettingsPreview) {
                     DicePreview.updateSettingsPreview();
@@ -2101,6 +2232,9 @@
                     DICE.setPulse(enabled);
                 }
                 
+                // Update Settings Preview Effekte
+                this.updatePreviewEffects();
+                
                 // Update Settings Preview
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateSettingsPreview) {
                     DicePreview.updateSettingsPreview();
@@ -2117,6 +2251,33 @@
                 // Toast
                 if (showNotification && window.RIFT?.ui?.Toast) {
                     RIFT.ui.Toast.show(`Würfel-Pulsieren: ${enabled ? 'An' : 'Aus'}`, 'success');
+                }
+            },
+            
+            updatePreviewEffects() {
+                const container = document.getElementById('previewEffectsContainer');
+                if (!container) return;
+                
+                // Clear existing effects
+                container.innerHTML = '';
+                
+                // Theme-Farbe holen
+                const glowColor = this.themeColors[this.currentTheme] || '#ffffff';
+                
+                if (this.currentGlow && !this.currentPulse) {
+                    // Nur Glow: statischer Schein
+                    const glow = document.createElement('div');
+                    glow.className = 'preview-glow';
+                    glow.style.setProperty('--glow-color', glowColor);
+                    container.appendChild(glow);
+                }
+                
+                if (this.currentPulse) {
+                    // Pulse: expandierende Ringe
+                    const pulse = document.createElement('div');
+                    pulse.className = 'preview-pulse';
+                    pulse.style.setProperty('--glow-color', glowColor);
+                    container.appendChild(pulse);
                 }
             },
             
@@ -4240,8 +4401,34 @@
                     
                     if (value === undefined) continue;
                     
-                    // Create pulse effect in separate container (UNDER dice)
-                    if (pulseContainer) {
+                    // RIFT: Dauerhafter Glow/Pulse-Effekt wenn aktiviert
+                    if (pulseContainer && (this.currentGlow || this.currentPulse)) {
+                        // Theme-Farbe direkt nutzen (ist ein Hex-String)
+                        const glowColor = this.themeColors[this.currentTheme] || '#ffffff';
+                        
+                        if (this.currentGlow && !this.currentPulse) {
+                            // Nur Glow: statischer Schein
+                            const glow = document.createElement('div');
+                            glow.className = 'dice-glow-effect';
+                            glow.style.left = `${pos.x}px`;
+                            glow.style.top = `${pos.y + 20}px`;
+                            glow.style.setProperty('--glow-color', glowColor);
+                            pulseContainer.appendChild(glow);
+                        }
+                        
+                        if (this.currentPulse) {
+                            // Pulse: expandierende Ringe in Endlosschleife
+                            const pulseEffect = document.createElement('div');
+                            pulseEffect.className = 'dice-pulse-effect';
+                            pulseEffect.style.left = `${pos.x}px`;
+                            pulseEffect.style.top = `${pos.y + 20}px`;
+                            pulseEffect.style.setProperty('--glow-color', glowColor);
+                            pulseContainer.appendChild(pulseEffect);
+                        }
+                    }
+                    
+                    // Create pulse effect in separate container (UNDER dice) - einmaliger Landing-Effekt
+                    if (pulseContainer && !this.currentPulse) {
                         for (let r = 0; r < 4; r++) {
                             const pulse = document.createElement('div');
                             pulse.className = `dice-pulse dice-pulse--${pos.type}`;
@@ -5639,7 +5826,10 @@
     
     <!-- RIFT: D20 Preview - neben dem Popup -->
     <div class="dice-settings-preview" id="settingsPreviewContainer">
-        <canvas class="dice-settings-preview__canvas" id="settingsPreviewCanvas" data-type="d20"></canvas>
+        <div class="dice-settings-preview__canvas-wrapper">
+            <div class="dice-settings-preview__effects" id="previewEffectsContainer"></div>
+            <canvas class="dice-settings-preview__canvas" id="settingsPreviewCanvas" data-type="d20"></canvas>
+        </div>
         <span class="dice-settings-preview__label">Vorschau</span>
     </div>
     
