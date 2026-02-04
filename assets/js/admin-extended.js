@@ -2348,5 +2348,62 @@ const ArenaThemesAdmin = {
             names[t.themeId] = t.name;
         });
         return names;
+    },
+    
+    // Import default themes to Firebase
+    async importDefaultThemes() {
+        if (!confirm('Alle Standard-Arena-Themes importieren? Bestehende Themes werden NICHT überschrieben.')) return;
+        
+        const defaultThemes = [
+            // FREE TIER
+            { themeId: 'rift', name: 'THE RIFT', tier: 'free', order: 1, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770181215/rift-assets/cf0ew69drn3yd5max2jr.png' },
+            { themeId: 'rift-negative', name: 'THE RIFT (Neg)', tier: 'free', order: 2, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217425/rift-assets/ppyadxq8t37oj5nfytvb.png' },
+            { themeId: 'rift-tag', name: 'RIFT Tag', tier: 'free', order: 3, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217429/rift-assets/cqrjsukgmwlpwyezcbdl.png' },
+            { themeId: 'rift-tag-negative', name: 'RIFT Tag (Neg)', tier: 'free', order: 4, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217434/rift-assets/ee5vhoakgzxfsez5d5w9.png' },
+            { themeId: 'rift-rest-easy', name: 'Rest Easy', tier: 'free', order: 5, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217435/rift-assets/mjim6aws4nagnnxrxlae.png' },
+            { themeId: 'rift-rest-easy-negative', name: 'Rest Easy (Neg)', tier: 'free', order: 6, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217436/rift-assets/d3nh07m2gyxer7wdtvzv.png' },
+            { themeId: 'rift-punk', name: 'RIFT Punk', tier: 'free', order: 7, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217439/rift-assets/ttxtvwpvcicohknluxi5.png' },
+            { themeId: 'rift-punk-alt', name: 'RIFT Punk (Alt)', tier: 'free', order: 8, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217441/rift-assets/tgt9azhgs7sqkxbrdh0d.png' },
+            { themeId: 'rift-leather', name: 'RIFT Leather', tier: 'free', order: 9, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217443/rift-assets/mmt55vukt4tbbpek8hlw.png' },
+            { themeId: 'rift-leather-negative', name: 'Leather (Neg)', tier: 'free', order: 10, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217445/rift-assets/dlx8hdckjzuw6ijrtrjt.png' },
+            { themeId: 'rift-the-dice', name: 'The Dice', tier: 'free', order: 11, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217446/rift-assets/z3nrydaaqqwgbbkcuqa3.png' },
+            { themeId: 'rift-the-dice-alt', name: 'The Dice (Alt)', tier: 'free', order: 12, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770217447/rift-assets/tpd35lyqdlliyvqcrq4h.png' },
+            // Note: tavern and casino are gradient-based, no image URL - skip for now or add placeholders
+            
+            // SILVER TIER (gradient-based themes - would need image conversion or skip)
+            // These use CSS gradients, not images. For now we skip them or you can create images later.
+            
+            // GOLD TIER
+            { themeId: 'dragonclaw-red', name: 'Dragonclaw (Red)', tier: 'gold', order: 100, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770235663/rift-assets/mq1vanad7kzp4tg6vwfn.png' },
+            { themeId: 'dragonclaw-green', name: 'Dragonclaw (Green)', tier: 'gold', order: 101, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770235665/rift-assets/rflk7srpbglks52z43s0.png' },
+        ];
+        
+        let imported = 0;
+        let skipped = 0;
+        
+        showToast('Import läuft...');
+        
+        for (const theme of defaultThemes) {
+            try {
+                // Check if already exists
+                const existing = await db.collection('arenaThemes').where('themeId', '==', theme.themeId).get();
+                if (!existing.empty) {
+                    skipped++;
+                    continue;
+                }
+                
+                await db.collection('arenaThemes').add({
+                    ...theme,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                imported++;
+            } catch (e) {
+                console.error('Import error for', theme.themeId, e);
+            }
+        }
+        
+        showToast(`Import abgeschlossen: ${imported} neu, ${skipped} übersprungen`);
+        this.load();
     }
 };
