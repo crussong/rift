@@ -17,8 +17,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
     <style>
-        .footer { display: none !important; }
-        
         /* Mit unified layout: topnav ist 121px + dock ist 72px */
         .chat-page { 
             min-height: calc(100vh - var(--topnav-total-height, 121px) - var(--dock-height, 72px) - 40px); 
@@ -64,7 +62,8 @@
         
         .chat-header { padding: 18px 24px; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
         .chat-header__left { display: flex; align-items: center; gap: 14px; }
-        .chat-header__icon { width: 48px; height: 48px; border-radius: 14px; background: #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; overflow: hidden; }
+        .chat-header__icon { width: 48px; height: 48px; border-radius: 14px; background: #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; overflow: hidden; transition: all 0.2s; }
+        .chat-header__icon:hover { background: #3a3a3a; }
         .chat-header__icon img { width: 100%; height: 100%; object-fit: cover; }
         .chat-header__title { font-size: 20px; font-weight: 700; color: #fff; }
         .chat-header__sub { font-size: 13px; color: #666; margin-top: 3px; }
@@ -413,6 +412,7 @@
             messages: [], members: [], online: {}, typing: {}, unsubs: [], typingTimer: null,
             editingMsgId: null, pendingImage: null, pickerTab: 'emoji', replyingTo: null, whisperTarget: null,
             searchQuery: '', searchOpen: false, pinnedMsg: null, unreadCount: 0, lastReadTimestamp: 0, isAtBottom: true,
+            roomImage: null,
             
             async init() {
                 this.roomCode = localStorage.getItem('rift_current_room');
@@ -427,7 +427,7 @@
                 this.userName = stored.displayName || stored.name || user.displayName || 'Spieler';
                 this.userColor = stored.color || '#8b5cf6';
                 this.userAvatar = stored.avatar || null;
-                try { const doc = await firebase.firestore().collection('rooms').doc(this.roomCode).get(); this.isGM = doc.data()?.gm === this.oderId; this.pinnedMsg = doc.data()?.pinnedMessage || null; } catch(e) {}
+                try { const doc = await firebase.firestore().collection('rooms').doc(this.roomCode).get(); this.isGM = doc.data()?.gm === this.oderId; this.pinnedMsg = doc.data()?.pinnedMessage || null; this.roomImage = doc.data()?.chatImage || null; } catch(e) {}
                 this.render(); this.subMessages(); this.subMembers(); this.subPresence(); this.subTyping(); this.subPinned(); this.setPresence(true);
                 window.addEventListener('beforeunload', () => { this.setPresence(false); this.clearTyping(); });
                 document.addEventListener('click', (e) => {
@@ -441,7 +441,14 @@
             ref() { return firebase.firestore().collection('rooms').doc(this.roomCode); },
             
             render() {
+                const iconContent = this.roomImage 
+                    ? `<img src="${this.roomImage}" alt="">` 
+                    : `<i class="ti ti-message-circle-filled"></i>`;
+                const iconClick = this.isGM 
+                    ? `onclick="document.getElementById('roomImageInput').click()" style="cursor:pointer;" title="Bild ändern"` 
+                    : '';
                 document.getElementById('chatPage').innerHTML = `
+                    <input type="file" id="roomImageInput" accept="image/*" style="display:none" onchange="RIFTChat.uploadRoomImage(event)">
                     <div class="chat-container">
                         <div class="chat-users">
                             <div class="chat-users__header"><div class="chat-users__title"><i class="ti ti-users-group"></i> Teilnehmer <span class="chat-users__count" id="onlineCount">0 online</span></div></div>
@@ -450,7 +457,7 @@
                         <div class="chat-main">
                             <div class="chat-header">
                                 <div class="chat-header__left">
-                                    <div class="chat-header__icon"><i class="ti ti-message-circle-filled"></i></div>
+                                    <div class="chat-header__icon" ${iconClick}>${iconContent}</div>
                                     <div><div class="chat-header__title">Gruppen-Chat</div><div class="chat-header__sub">Raum ${this.roomCode.replace(/(.{3})(.{3})/, '$1-$2')}</div></div>
                                 </div>
                                 <div class="chat-header__actions">
@@ -598,6 +605,24 @@
             handleImageSelect(e) { const file = e.target.files[0]; if (!file) return; if (file.size > 8 * 1024 * 1024) { alert('Bild zu groß! Maximal 8MB erlaubt.'); return; } if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) { alert('Nur JPG, PNG, GIF und WebP erlaubt.'); return; } this.pendingImage = file; const reader = new FileReader(); reader.onload = (ev) => { document.getElementById('previewImg').src = ev.target.result; document.getElementById('imagePreview').classList.add('show'); }; reader.readAsDataURL(file); e.target.value = ''; },
             clearImage() { this.pendingImage = null; document.getElementById('imagePreview').classList.remove('show'); document.getElementById('previewImg').src = ''; },
             async uploadImage(file) { const formData = new FormData(); formData.append('file', file); formData.append('upload_preset', 'RIFTapp'); const response = await fetch('https://api.cloudinary.com/v1_1/dza4jgreq/image/upload', { method: 'POST', body: formData }); if (!response.ok) throw new Error('Upload failed'); const data = await response.json(); if (data.secure_url) return data.secure_url; throw new Error(data.error?.message || 'Upload failed'); },
+            async uploadRoomImage(e) { 
+                if (!this.isGM) return; 
+                const file = e.target.files[0]; 
+                if (!file) return; 
+                if (file.size > 2 * 1024 * 1024) { alert('Bild zu groß! Maximal 2MB erlaubt.'); return; } 
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { alert('Nur JPG, PNG und WebP erlaubt.'); return; } 
+                try { 
+                    const url = await this.uploadImage(file); 
+                    await this.ref().update({ chatImage: url }); 
+                    this.roomImage = url; 
+                    this.render(); 
+                    this.renderMessages();
+                } catch(err) { 
+                    console.error('[Chat] Room image upload failed:', err); 
+                    alert('Bild konnte nicht hochgeladen werden.'); 
+                } 
+                e.target.value = ''; 
+            },
             openLightbox(url) { document.getElementById('lightboxImg').src = url; document.getElementById('lightbox').classList.add('show'); },
             closeLightbox() { document.getElementById('lightbox').classList.remove('show'); },
             
