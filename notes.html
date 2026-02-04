@@ -9,56 +9,389 @@
     
     <link rel="stylesheet" href="assets/css/core.css">
     <link rel="stylesheet" href="assets/css/ui.css">
-    <link rel="stylesheet" href="assets/css/sidebar.css">
-    <link rel="stylesheet" href="assets/css/topbar.css">
-    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="assets/css/dock.css">
+    <link rel="stylesheet" href="assets/css/hub.css">
     <link rel="stylesheet" href="assets/css/settings.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
     <style>
-        .page {
-            padding: 40px 24px;
+        .notes-page {
+            padding: 30px 0;
         }
         
-        .page__title {
+        .notes-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        
+        .notes-header__title {
             font-family: 'Dharma Gothic', sans-serif;
-            font-size: 48px;
+            font-size: 42px;
             font-weight: 700;
-            color: var(--text-primary);
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        
+        .notes-header__actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .notes-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .notes-btn:hover {
+            background: #252525;
+            border-color: #333;
+        }
+        
+        .notes-btn--primary {
+            background: #333;
+            border-color: #444;
+        }
+        
+        .notes-btn--primary:hover {
+            background: #444;
+        }
+        
+        .notes-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            min-height: calc(100vh - 130px - 72px - 140px);
+        }
+        
+        /* Sidebar */
+        .notes-sidebar {
+            background: #111;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .notes-sidebar__header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .notes-search {
+            width: 100%;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .notes-search::placeholder {
+            color: #666;
+        }
+        
+        .notes-search:focus {
+            outline: none;
+            border-color: #444;
+        }
+        
+        .notes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        
+        .note-item {
+            padding: 14px 16px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+        
+        .note-item:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        
+        .note-item--active {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.1);
+        }
+        
+        .note-item__title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .note-item__preview {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .note-item__meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #555;
+        }
+        
+        .notes-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #555;
+        }
+        
+        .notes-empty__icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* Editor */
+        .notes-editor {
+            background: #111;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .notes-editor__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .notes-editor__title-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+            font-family: inherit;
+        }
+        
+        .notes-editor__title-input::placeholder {
+            color: #444;
+        }
+        
+        .notes-editor__title-input:focus {
+            outline: none;
+        }
+        
+        .notes-editor__actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .notes-editor__btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        
+        .notes-editor__btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        
+        .notes-editor__btn--danger:hover {
+            background: rgba(239,68,68,0.2);
+            color: #ef4444;
+        }
+        
+        .notes-editor__body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .notes-editor__textarea {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            background: transparent;
+            border: none;
+            color: #ddd;
+            font-size: 15px;
+            font-family: inherit;
+            line-height: 1.7;
+            resize: none;
+        }
+        
+        .notes-editor__textarea::placeholder {
+            color: #444;
+        }
+        
+        .notes-editor__textarea:focus {
+            outline: none;
+        }
+        
+        .notes-editor__footer {
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #555;
+        }
+        
+        .notes-editor__saved {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .notes-editor__saved--saving {
+            color: #f59e0b;
+        }
+        
+        .notes-editor__saved--saved {
+            color: #22c55e;
+        }
+        
+        /* Empty state */
+        .notes-editor--empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .notes-editor__empty {
+            text-align: center;
+            padding: 60px;
+        }
+        
+        .notes-editor__empty-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #444;
+            margin: 0 auto 20px;
+        }
+        
+        .notes-editor__empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
             margin-bottom: 8px;
         }
         
-        .page__subtitle {
-            color: var(--text-secondary);
-            font-size: 16px;
+        .notes-editor__empty-text {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* Mobile */
+        @media (max-width: 900px) {
+            .notes-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .notes-sidebar {
+                max-height: 300px;
+            }
         }
     </style>
 
-    <!-- Auth Guard: Hide until authenticated -->
+    <!-- Auth Guard -->
     <style>
         body:not(.auth-ready) .app { opacity: 0; pointer-events: none; }
-        body:not(.auth-ready) .sheet-container { opacity: 0; pointer-events: none; }
-        body:not(.auth-ready) main { opacity: 0; pointer-events: none; }
         body.auth-ready .app { opacity: 1; transition: opacity 0.15s ease; }
-        body.auth-ready .sheet-container { opacity: 1; transition: opacity 0.15s ease; }
-        body.auth-ready main { opacity: 1; transition: opacity 0.15s ease; }
     </style>
 </head>
 <body>
+    <!-- Unified Layout Placeholders -->
+    <div id="topnav-placeholder"></div>
+    <div id="meganav-placeholder"></div>
+    
     <div class="app">
-        <main class="main">
+        <main class="main main--hub">
             <div class="main__content">
-                
-                <div class="page">
-                    <h1 class="page__title">Notizen</h1>
-                    <p class="page__subtitle">Halte alles Wichtige fest.</p>
+                <div class="notes-page" id="notesPage">
+                    <div class="notes-header">
+                        <h1 class="notes-header__title">Notizen</h1>
+                        <div class="notes-header__actions">
+                            <button class="notes-btn notes-btn--primary" onclick="RIFTNotes.createNote()">
+                                <i class="ti ti-plus"></i> Neue Notiz
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="notes-container">
+                        <div class="notes-sidebar">
+                            <div class="notes-sidebar__header">
+                                <input type="text" class="notes-search" placeholder="Notizen durchsuchen..." oninput="RIFTNotes.search(event)">
+                            </div>
+                            <div class="notes-list" id="notesList">
+                                <div class="notes-empty">
+                                    <div class="notes-empty__icon"><i class="ti ti-note"></i></div>
+                                    <div>Keine Notizen vorhanden</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="notes-editor notes-editor--empty" id="notesEditor">
+                            <div class="notes-editor__empty">
+                                <div class="notes-editor__empty-icon"><i class="ti ti-note"></i></div>
+                                <div class="notes-editor__empty-title">Keine Notiz ausgewählt</div>
+                                <div class="notes-editor__empty-text">Wähle eine Notiz aus oder erstelle eine neue</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
             </div>
         </main>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <!-- Dock Placeholder -->
+    <div id="dock-placeholder"></div>
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -67,44 +400,286 @@
     
     <!-- RIFT Services -->
     <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/layout-unified.js"></script>
+    <script>initUnifiedLayout();</script>
+    
     <script>
-        // Auth Guard - redirect to login if not authenticated
+        const RIFTNotes = {
+            notes: [],
+            currentNote: null,
+            roomCode: null,
+            userId: null,
+            saveTimer: null,
+            
+            async init() {
+                this.roomCode = localStorage.getItem('rift_current_room');
+                if (!this.roomCode) {
+                    this.showNoRoom();
+                    return;
+                }
+                this.roomCode = this.roomCode.replace(/-/g, '').toUpperCase();
+                
+                await this.waitForAuth();
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    this.showNoRoom();
+                    return;
+                }
+                this.userId = user.uid;
+                
+                this.loadNotes();
+            },
+            
+            waitForAuth() {
+                return new Promise(resolve => {
+                    if (firebase.auth().currentUser) return resolve();
+                    const unsub = firebase.auth().onAuthStateChanged(() => { unsub(); resolve(); });
+                    setTimeout(resolve, 3000);
+                });
+            },
+            
+            ref() {
+                return firebase.firestore()
+                    .collection('rooms').doc(this.roomCode)
+                    .collection('notes');
+            },
+            
+            loadNotes() {
+                this.ref().orderBy('updatedAt', 'desc').onSnapshot(snap => {
+                    this.notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderList();
+                    
+                    // Re-select current note if it still exists
+                    if (this.currentNote) {
+                        const stillExists = this.notes.find(n => n.id === this.currentNote.id);
+                        if (stillExists) {
+                            this.currentNote = stillExists;
+                        } else {
+                            this.currentNote = null;
+                            this.renderEditor();
+                        }
+                    }
+                });
+            },
+            
+            renderList() {
+                const list = document.getElementById('notesList');
+                if (!list) return;
+                
+                const filtered = this.searchQuery 
+                    ? this.notes.filter(n => 
+                        (n.title || '').toLowerCase().includes(this.searchQuery) ||
+                        (n.content || '').toLowerCase().includes(this.searchQuery)
+                    )
+                    : this.notes;
+                
+                if (filtered.length === 0) {
+                    list.innerHTML = `
+                        <div class="notes-empty">
+                            <div class="notes-empty__icon"><i class="ti ti-note"></i></div>
+                            <div>${this.searchQuery ? 'Keine Treffer' : 'Keine Notizen vorhanden'}</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                list.innerHTML = filtered.map(note => {
+                    const isActive = this.currentNote?.id === note.id;
+                    const preview = (note.content || '').substring(0, 80).replace(/\n/g, ' ');
+                    const date = note.updatedAt?.toDate?.() || new Date();
+                    const dateStr = date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+                    
+                    return `
+                        <div class="note-item ${isActive ? 'note-item--active' : ''}" onclick="RIFTNotes.selectNote('${note.id}')">
+                            <div class="note-item__title">${this.esc(note.title || 'Unbenannt')}</div>
+                            <div class="note-item__preview">${this.esc(preview) || 'Keine Inhalte'}</div>
+                            <div class="note-item__meta">
+                                <span>${dateStr}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+            
+            selectNote(id) {
+                this.currentNote = this.notes.find(n => n.id === id);
+                this.renderList();
+                this.renderEditor();
+            },
+            
+            renderEditor() {
+                const editor = document.getElementById('notesEditor');
+                if (!editor) return;
+                
+                if (!this.currentNote) {
+                    editor.className = 'notes-editor notes-editor--empty';
+                    editor.innerHTML = `
+                        <div class="notes-editor__empty">
+                            <div class="notes-editor__empty-icon"><i class="ti ti-note"></i></div>
+                            <div class="notes-editor__empty-title">Keine Notiz ausgewählt</div>
+                            <div class="notes-editor__empty-text">Wähle eine Notiz aus oder erstelle eine neue</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                editor.className = 'notes-editor';
+                editor.innerHTML = `
+                    <div class="notes-editor__header">
+                        <input type="text" class="notes-editor__title-input" 
+                            placeholder="Titel der Notiz..." 
+                            value="${this.esc(this.currentNote.title || '')}"
+                            oninput="RIFTNotes.updateTitle(event)">
+                        <div class="notes-editor__actions">
+                            <button class="notes-editor__btn notes-editor__btn--danger" onclick="RIFTNotes.deleteNote()" title="Löschen">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="notes-editor__body">
+                        <textarea class="notes-editor__textarea" 
+                            placeholder="Schreibe deine Notiz..."
+                            oninput="RIFTNotes.updateContent(event)">${this.esc(this.currentNote.content || '')}</textarea>
+                    </div>
+                    <div class="notes-editor__footer">
+                        <div class="notes-editor__saved" id="saveStatus">
+                            <i class="ti ti-check"></i> Gespeichert
+                        </div>
+                        <div>Zuletzt bearbeitet: ${this.formatDate(this.currentNote.updatedAt)}</div>
+                    </div>
+                `;
+            },
+            
+            async createNote() {
+                const note = {
+                    title: 'Neue Notiz',
+                    content: '',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: this.userId
+                };
+                
+                try {
+                    const docRef = await this.ref().add(note);
+                    this.selectNote(docRef.id);
+                } catch (e) {
+                    console.error('[Notes] Create error:', e);
+                }
+            },
+            
+            updateTitle(e) {
+                if (!this.currentNote) return;
+                this.currentNote.title = e.target.value;
+                this.scheduleSave();
+            },
+            
+            updateContent(e) {
+                if (!this.currentNote) return;
+                this.currentNote.content = e.target.value;
+                this.scheduleSave();
+            },
+            
+            scheduleSave() {
+                const status = document.getElementById('saveStatus');
+                if (status) {
+                    status.innerHTML = '<i class="ti ti-loader-2"></i> Speichern...';
+                    status.className = 'notes-editor__saved notes-editor__saved--saving';
+                }
+                
+                clearTimeout(this.saveTimer);
+                this.saveTimer = setTimeout(() => this.save(), 1000);
+            },
+            
+            async save() {
+                if (!this.currentNote) return;
+                
+                try {
+                    await this.ref().doc(this.currentNote.id).update({
+                        title: this.currentNote.title || '',
+                        content: this.currentNote.content || '',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    const status = document.getElementById('saveStatus');
+                    if (status) {
+                        status.innerHTML = '<i class="ti ti-check"></i> Gespeichert';
+                        status.className = 'notes-editor__saved notes-editor__saved--saved';
+                    }
+                } catch (e) {
+                    console.error('[Notes] Save error:', e);
+                }
+            },
+            
+            async deleteNote() {
+                if (!this.currentNote) return;
+                if (!confirm('Notiz wirklich löschen?')) return;
+                
+                try {
+                    await this.ref().doc(this.currentNote.id).delete();
+                    this.currentNote = null;
+                    this.renderEditor();
+                } catch (e) {
+                    console.error('[Notes] Delete error:', e);
+                }
+            },
+            
+            searchQuery: '',
+            search(e) {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.renderList();
+            },
+            
+            showNoRoom() {
+                document.getElementById('notesPage').innerHTML = `
+                    <div style="text-align:center;padding:80px 40px;">
+                        <div style="width:100px;height:100px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+                            <i class="ti ti-note" style="font-size:42px;color:#444;"></i>
+                        </div>
+                        <h2 style="font-size:24px;margin-bottom:12px;">Kein Raum aktiv</h2>
+                        <p style="color:#666;margin-bottom:24px;">Tritt einem Raum bei, um Notizen zu nutzen.</p>
+                        <a href="login.html" style="display:inline-block;padding:14px 28px;background:#333;border-radius:12px;color:#fff;text-decoration:none;font-weight:600;">Raum beitreten</a>
+                    </div>
+                `;
+            },
+            
+            formatDate(timestamp) {
+                if (!timestamp) return 'Gerade eben';
+                const date = timestamp.toDate?.() || new Date(timestamp);
+                return date.toLocaleString('de-DE', { 
+                    day: '2-digit', 
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+            
+            esc(str) {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+        };
+        
+        // Auth Guard
         (function() {
             function waitForAuth() {
-                // Wait for Firebase SDK
                 if (typeof firebase === 'undefined' || !firebase.auth) {
                     return setTimeout(waitForAuth, 50);
                 }
-                // Wait for Firebase app initialization
-                try {
-                    var auth = firebase.auth();
-                    auth.onAuthStateChanged(function(user) {
-                        if (!user) {
-                            window.location.href = '/login';
-                        } else {
-                            document.body.classList.add('auth-ready');
-                        }
-                    });
-                } catch(e) {
-                    // Firebase not initialized yet, retry
-                    setTimeout(waitForAuth, 50);
-                }
+                firebase.auth().onAuthStateChanged(function(user) {
+                    if (user) {
+                        document.body.classList.add('auth-ready');
+                        RIFTNotes.init();
+                    } else {
+                        window.location.href = 'login.html';
+                    }
+                });
             }
             waitForAuth();
         })();
     </script>
-
-    <script src="assets/js/room-service.js"></script>
-    <script src="assets/js/user-service.js"></script>
-    
-    <script src="assets/js/auth.js"></script>
-    <script src="assets/js/ui.js"></script>
-    <script src="assets/js/layout.js"></script>
-    <script src="assets/js/settings.js"></script>
-    <script src="assets/js/admin.js"></script>
-    <script src="assets/js/transitions.js"></script>
-    <script src="assets/js/app.js"></script>
-    <script>initLayout();</script>
-    <script src="assets/js/broadcast.js"></script>
 </body>
 </html>

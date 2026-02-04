@@ -444,11 +444,11 @@
                 const iconContent = this.roomImage 
                     ? `<img src="${this.roomImage}" alt="">` 
                     : `<i class="ti ti-message-circle-filled"></i>`;
-                const iconAttr = this.isGM 
-                    ? `id="chatImageBtn" style="cursor:pointer;" title="Bild ändern (Klick)"` 
-                    : '';
+                // GM kann klicken zum Bild hochladen
+                const iconClick = this.isGM ? `onclick="RIFTChat.triggerImageUpload()"` : '';
+                const iconStyle = this.isGM ? `style="cursor:pointer;" title="Bild ändern (Klick)"` : '';
                 document.getElementById('chatPage').innerHTML = `
-                    <input type="file" id="roomImageInput" accept="image/*" style="display:none">
+                    <input type="file" id="roomImageInput" accept="image/*" style="display:none" onchange="RIFTChat.uploadRoomImage(event)">
                     <div class="chat-container">
                         <div class="chat-users">
                             <div class="chat-users__header"><div class="chat-users__title"><i class="ti ti-users-group"></i> Teilnehmer <span class="chat-users__count" id="onlineCount">0 online</span></div></div>
@@ -457,7 +457,7 @@
                         <div class="chat-main">
                             <div class="chat-header">
                                 <div class="chat-header__left">
-                                    <div class="chat-header__icon" ${iconAttr}>${iconContent}</div>
+                                    <div class="chat-header__icon" ${iconClick} ${iconStyle}>${iconContent}</div>
                                     <div><div class="chat-header__title">Gruppen-Chat</div><div class="chat-header__sub">Raum ${this.roomCode.replace(/(.{3})(.{3})/, '$1-$2')}</div></div>
                                 </div>
                                 <div class="chat-header__actions">
@@ -504,16 +504,12 @@
                             </div>
                         </div>
                     </div>`;
-                // Setup GM image upload click handler
-                if (this.isGM) {
-                    const imgBtn = document.getElementById('chatImageBtn');
-                    const imgInput = document.getElementById('roomImageInput');
-                    if (imgBtn && imgInput) {
-                        imgBtn.addEventListener('click', () => imgInput.click());
-                        imgInput.addEventListener('change', (e) => this.uploadRoomImage(e));
-                    }
-                }
                 this.renderPickerContent(); this.renderMessages(); this.renderUsers();
+            },
+            
+            triggerImageUpload() {
+                if (!this.isGM) return;
+                document.getElementById('roomImageInput')?.click();
             },
             
             showNoRoom() { document.getElementById('chatPage').innerHTML = `<div class="chat-noroom"><div class="chat-noroom__icon"><i class="ti ti-message-circle-filled"></i></div><div class="chat-noroom__title">Kein Raum aktiv</div><div class="chat-noroom__text">Tritt einem Raum bei, um den Chat zu nutzen.</div><a href="login.html" class="chat-noroom__btn">Raum beitreten</a></div>`; },
