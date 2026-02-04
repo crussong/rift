@@ -187,6 +187,41 @@ const DICE = (function() {
     that.dice_box.prototype.setDice = function(diceToRoll) {
         this.diceToRoll = diceToRoll;
     }
+    
+    // RIFT: Get screen positions of all dice for overlay labels
+    that.dice_box.prototype.getDiceScreenPositions = function() {
+        if (!this.dices || !this.camera || !this.container) return [];
+        
+        const positions = [];
+        const containerRect = this.container.getBoundingClientRect();
+        
+        for (let i = 0; i < this.dices.length; i++) {
+            const dice = this.dices[i];
+            if (!dice || !dice.position) continue;
+            
+            // Create a vector from dice position
+            const vector = new THREE.Vector3(
+                dice.position.x,
+                dice.position.y,
+                dice.position.z + 30 // Offset upward (above the dice)
+            );
+            
+            // Project to screen coordinates
+            vector.project(this.camera);
+            
+            // Convert to pixel coordinates relative to container
+            const x = (vector.x * 0.5 + 0.5) * containerRect.width;
+            const y = (-vector.y * 0.5 + 0.5) * containerRect.height;
+            
+            positions.push({
+                x: x,
+                y: y,
+                type: dice.dice_type
+            });
+        }
+        
+        return positions;
+    }
 
     //call this to roll dice programatically or from click
     that.dice_box.prototype.start_throw = function(before_roll, after_roll) {
