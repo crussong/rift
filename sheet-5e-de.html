@@ -10,10 +10,12 @@
     
     <!-- V2 Layout (variables + structure) -->
     <link rel="stylesheet" href="assets/css/sheet-layout.css">
-    <link rel="stylesheet" href="assets/css/sidebar.css">
-    <link rel="stylesheet" href="assets/css/topbar.css">
-    <link rel="stylesheet" href="assets/css/footer.css">
+    <link rel="stylesheet" href="assets/css/core.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/dock.css">
+    <link rel="stylesheet" href="assets/css/hub.css">
     <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
     <!-- External -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -84,7 +86,7 @@
 
         /* ===== SECTION STYLING (1:1 wie Worlds Apart) ===== */
         .section {
-            background: #2a2a2a;
+            background: #111;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.06);
             margin-bottom: 24px;
@@ -97,7 +99,7 @@
             justify-content: space-between;
             padding: 12px 16px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            background: #1e1e1e;
+            background: #0a0a0a;
             cursor: pointer;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -154,7 +156,7 @@
 
         /* ===== HEADER SECTION ===== */
         .header-section {
-            background: #2a2a2a;
+            background: #111;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.06);
             padding: 16px;
@@ -248,6 +250,109 @@
 
         .portrait-overlay-btn.delete {
             background: var(--md-error);
+        }
+        
+        .portrait-overlay-btn.gallery {
+            background: #444;
+        }
+        
+        .portrait-overlay-btn.gallery:hover {
+            background: #555;
+        }
+        
+        /* Portrait Gallery Modal */
+        .portrait-gallery-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        
+        .portrait-gallery-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .portrait-gallery-content {
+            background: #1a1a1a;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .portrait-gallery-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .portrait-gallery-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .portrait-gallery-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .portrait-gallery-close:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+        
+        .portrait-gallery-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .portrait-gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 12px;
+        }
+        
+        .portrait-gallery-item {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .portrait-gallery-item:hover {
+            border-color: var(--md-primary, #FF4655);
+            transform: scale(1.05);
+        }
+        
+        .portrait-gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .header-info {
@@ -2674,7 +2779,7 @@
             min-height: 36px;
             border-radius: 8px;
             border: 2px solid #666;
-            background: #2a2a2a;
+            background: #1a1a1a;
             cursor: pointer;
             transition: all 0.15s;
             display: inline-block;
@@ -3724,7 +3829,7 @@
         .action-btn {
             flex: 1;
             padding: 8px;
-            background: #1e1e1e;
+            background: #0a0a0a;
             border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 6px;
             color: rgba(255, 255, 255, 0.5);
@@ -4507,8 +4612,12 @@
     </style>
 </head>
 <body>
+    <!-- Unified Layout Placeholders -->
+    <div id="topnav-placeholder"></div>
+    <div id="meganav-placeholder"></div>
+    
     <div class="app">
-        <main class="main">
+        <main class="main main--hub">
             <div class="main__content">
     
     <!-- Crop Modal -->
@@ -4933,8 +5042,9 @@
                         <svg id="portraitPlaceholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 36px; height: 36px; color: var(--md-on-surface-variant); opacity: 0.3;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         <img id="portraitImage" src="" style="display:none;">
                         <div class="portrait-overlay" id="portraitOverlay">
-                            <button class="portrait-overlay-btn change" onclick="event.stopPropagation(); document.getElementById('portraitInput').click();" title="Ändern"><img src="assets/icons/icon_image.png" alt="Change"></button>
-                            <button class="portrait-overlay-btn delete" onclick="event.stopPropagation(); deletePortrait();" title="Löschen"><img src="assets/icons/icon_delete.png" alt="Delete"></button>
+                            <button class="portrait-overlay-btn change" onclick="event.stopPropagation(); document.getElementById('portraitInput').click();" title="Hochladen"><i class="ti ti-upload" style="font-size:16px;color:#fff;"></i></button>
+                            <button class="portrait-overlay-btn gallery" onclick="event.stopPropagation(); openPortraitGallery();" title="Galerie"><i class="ti ti-photo" style="font-size:16px;color:#fff;"></i></button>
+                            <button class="portrait-overlay-btn delete" onclick="event.stopPropagation(); deletePortrait();" title="Löschen"><i class="ti ti-trash" style="font-size:16px;color:#fff;"></i></button>
                         </div>
                         <input type="file" id="portraitInput" accept="image/*" style="display:none;" onchange="handlePortrait(event)">
                     </div>
@@ -5290,11 +5400,11 @@
                 <div class="spells-list" id="spellsList"></div>
                 <div class="weapon-add-buttons">
                     <button class="add-btn picker-btn" onclick="openSpellPicker()">
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z"/></svg>
+                        <i class="ti ti-wand" style="font-size: 16px;"></i>
                         <span>Zauber hinzufügen</span>
                     </button>
                     <button class="add-btn dashed compact" onclick="addSpell()">
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                        <i class="ti ti-plus" style="font-size: 14px;"></i>
                         <span>Eigener</span>
                     </button>
                 </div>
@@ -9551,6 +9661,112 @@
             document.getElementById('portraitBox').classList.remove('has-image');
             autoSave();
         }
+        
+        // Portrait Gallery from Asset Manager
+        async function openPortraitGallery() {
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('portrait-gallery-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'portrait-gallery-modal';
+                modal.className = 'portrait-gallery-modal';
+                modal.innerHTML = `
+                    <div class="portrait-gallery-content">
+                        <div class="portrait-gallery-header">
+                            <span class="portrait-gallery-title">Portrait-Galerie</span>
+                            <button class="portrait-gallery-close" onclick="closePortraitGallery()"><i class="ti ti-x"></i></button>
+                        </div>
+                        <div class="portrait-gallery-body">
+                            <div id="portrait-gallery-loading" style="text-align: center; padding: 40px; color: #666;">
+                                <i class="ti ti-loader-2" style="font-size: 32px; animation: spin 1s linear infinite;"></i>
+                                <div style="margin-top: 12px;">Lade Portraits...</div>
+                            </div>
+                            <div id="portrait-gallery-grid" class="portrait-gallery-grid" style="display: none;"></div>
+                            <div id="portrait-gallery-empty" style="display: none; text-align: center; padding: 40px; color: #666;">
+                                <i class="ti ti-photo-off" style="font-size: 48px; opacity: 0.5;"></i>
+                                <div style="margin-top: 12px;">Keine Portraits in der Galerie</div>
+                                <div style="font-size: 12px; margin-top: 8px;">Lade Portraits über den Asset Manager hoch</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                modal.onclick = (e) => { if (e.target === modal) closePortraitGallery(); };
+                document.body.appendChild(modal);
+            }
+            
+            // Show modal
+            setTimeout(() => modal.classList.add('active'), 10);
+            
+            // Load portraits from Asset Manager
+            try {
+                const loading = document.getElementById('portrait-gallery-loading');
+                const grid = document.getElementById('portrait-gallery-grid');
+                const empty = document.getElementById('portrait-gallery-empty');
+                
+                loading.style.display = 'block';
+                grid.style.display = 'none';
+                empty.style.display = 'none';
+                
+                // Get room code
+                const roomCode = localStorage.getItem('rift_current_room')?.replace(/-/g, '').toUpperCase();
+                if (!roomCode) {
+                    loading.style.display = 'none';
+                    empty.style.display = 'block';
+                    return;
+                }
+                
+                // Fetch portraits from Firestore
+                const snapshot = await firebase.firestore()
+                    .collection('rooms').doc(roomCode)
+                    .collection('assets')
+                    .where('type', '==', 'portrait')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                if (snapshot.empty) {
+                    loading.style.display = 'none';
+                    empty.style.display = 'block';
+                    return;
+                }
+                
+                // Build grid
+                grid.innerHTML = snapshot.docs.map(doc => {
+                    const p = doc.data();
+                    return `
+                        <div class="portrait-gallery-item" onclick="selectPortraitFromGallery('${p.url}')" title="${p.name || 'Portrait'}">
+                            <img src="${p.url}" alt="${p.name || 'Portrait'}">
+                        </div>
+                    `;
+                }).join('');
+                
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
+                
+            } catch (err) {
+                console.error('[Portrait Gallery] Error:', err);
+                document.getElementById('portrait-gallery-loading').innerHTML = `
+                    <i class="ti ti-alert-circle" style="font-size: 32px; color: #ef4444;"></i>
+                    <div style="margin-top: 12px; color: #ef4444;">Fehler beim Laden</div>
+                `;
+            }
+        }
+        
+        function closePortraitGallery() {
+            const modal = document.getElementById('portrait-gallery-modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+        
+        function selectPortraitFromGallery(url) {
+            char.narrative.portrait = url;
+            document.getElementById('portraitImage').src = url;
+            document.getElementById('portraitImage').style.display = 'block';
+            document.getElementById('portraitPlaceholder').style.display = 'none';
+            document.getElementById('portraitBox').classList.add('has-image');
+            closePortraitGallery();
+            autoSave();
+        }
 
         // Collect all data
         function collectData() {
@@ -11291,6 +11507,14 @@
             applyLanguage(); // Apply again after dynamic content loaded
         }, 800);
     </script>
+    
+    <!-- Dock Placeholder -->
+    <div id="dock-placeholder"></div>
+    
+    <!-- Unified Layout -->
+    <script src="assets/js/layout-unified.js"></script>
+    <script>initUnifiedLayout();</script>
+    
     <script src="assets/js/broadcast.js"></script>
 </body>
 </html>
