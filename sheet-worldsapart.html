@@ -592,6 +592,60 @@
             background: #dc2626;
         }
 
+        .img-control-btn.gallery:hover {
+            background: #2563eb;
+        }
+
+        /* Portrait Gallery Modal */
+        .portrait-gallery-item {
+            aspect-ratio: 1;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--bg-elevated);
+            border: 2px solid transparent;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .portrait-gallery-item:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.02);
+        }
+
+        .portrait-gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .portrait-gallery-item-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 4px 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            color: white;
+            font-size: 11px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .img-control-btn.small {
             width: 20px;
             height: 20px;
@@ -3667,8 +3721,11 @@
                                     <img id="portrait-img" style="display: none;">
                                     <div class="level-badge" id="level-badge" onclick="openLevelPopup()" title="Level">1</div>
                                     <div class="portrait-controls-row">
-                                        <button class="img-control-btn" onclick="document.getElementById('portrait-upload').click()" title="Bild ändern">
+                                        <button class="img-control-btn" onclick="document.getElementById('portrait-upload').click()" title="Eigenes Bild hochladen">
                                             <span class="card-title-icon">edit</span>
+                                        </button>
+                                        <button class="img-control-btn gallery" onclick="openPortraitGallery()" title="Aus Galerie wählen">
+                                            <span class="card-title-icon">collections</span>
                                         </button>
                                         <button class="img-control-btn delete" onclick="removePortrait()" title="Bild löschen">
                                             <span class="card-title-icon">delete</span>
@@ -6878,6 +6935,97 @@
             document.getElementById('crew-flag-img').style.display = 'none';
             document.getElementById('crew-flag-placeholder').style.display = 'block';
             autoSave();
+        }
+
+        // ===== PORTRAIT GALERIE =====
+        async function openPortraitGallery() {
+            // Modal erstellen
+            const modal = document.createElement('div');
+            modal.id = 'portrait-gallery-modal';
+            modal.className = 'popup-overlay active';
+            modal.onclick = (e) => { if (e.target === modal) closePortraitGallery(); };
+            
+            modal.innerHTML = `
+                <div class="popup" style="max-width: 700px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+                    <div class="popup-header">
+                        <h3>Portrait aus Galerie wählen</h3>
+                        <button class="popup-close" onclick="closePortraitGallery()">
+                            <span class="material-icons-outlined">close</span>
+                        </button>
+                    </div>
+                    <div class="popup-body" style="flex: 1; overflow-y: auto; padding: 16px;">
+                        <div id="portrait-gallery-loading" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <div class="loading-spinner" style="margin: 0 auto 16px;"></div>
+                            Lade Portraits...
+                        </div>
+                        <div id="portrait-gallery-grid" style="display: none; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px;"></div>
+                        <div id="portrait-gallery-empty" style="display: none; text-align: center; padding: 40px; color: var(--text-muted);">
+                            <span class="material-icons-outlined" style="font-size: 48px; margin-bottom: 16px; display: block;">collections</span>
+                            <p>Keine Portraits in der Galerie vorhanden.</p>
+                            <p style="font-size: 13px; margin-top: 8px;">Portraits können im Admin-Bereich hochgeladen werden.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Portraits laden
+            try {
+                const db = firebase.firestore();
+                const snapshot = await db.collection('assets')
+                    .where('type', '==', 'portrait-worldsapart')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                const portraits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                const loading = document.getElementById('portrait-gallery-loading');
+                const grid = document.getElementById('portrait-gallery-grid');
+                const empty = document.getElementById('portrait-gallery-empty');
+                
+                loading.style.display = 'none';
+                
+                if (portraits.length === 0) {
+                    empty.style.display = 'block';
+                    return;
+                }
+                
+                grid.style.display = 'grid';
+                grid.innerHTML = portraits.map(p => `
+                    <div class="portrait-gallery-item" onclick="selectPortraitFromGallery('${p.url}')" title="${p.name || 'Portrait'}">
+                        <img src="${p.url}" alt="${p.name || 'Portrait'}" loading="lazy">
+                        <div class="portrait-gallery-item-name">${p.name || 'Unbenannt'}</div>
+                    </div>
+                `).join('');
+                
+            } catch (err) {
+                console.error('[Portrait Gallery] Error loading:', err);
+                document.getElementById('portrait-gallery-loading').innerHTML = `
+                    <span class="material-icons-outlined" style="font-size: 48px; margin-bottom: 16px; display: block; color: #dc2626;">error</span>
+                    <p>Fehler beim Laden der Galerie</p>
+                    <p style="font-size: 13px; margin-top: 8px;">${err.message}</p>
+                `;
+            }
+        }
+        
+        function selectPortraitFromGallery(url) {
+            characterData.portrait = url;
+            document.getElementById('portrait-img').src = url;
+            document.getElementById('portrait-img').style.display = 'block';
+            document.getElementById('portrait-placeholder').style.display = 'none';
+            autoSave();
+            closePortraitGallery();
+            
+            // Toast wenn verfügbar
+            if (window.RIFT?.ui?.Toast) {
+                RIFT.ui.Toast.success('Portrait ausgewählt');
+            }
+        }
+        
+        function closePortraitGallery() {
+            const modal = document.getElementById('portrait-gallery-modal');
+            if (modal) modal.remove();
         }
 
         // ===== HAUPTCHARAKTER =====
