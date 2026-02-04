@@ -348,6 +348,7 @@ const DICE = (function() {
     }
 
     that.dice_box.prototype.create_dice = function(type, pos, velocity, angle, axis) {
+        console.log('[DICE] create_dice() for type:', type, 'vars.dice_texture:', vars.dice_texture);
         var dice = threeD_dice['create_' + type]();
         dice.castShadow = true;
         dice.dice_type = type;
@@ -854,8 +855,26 @@ const DICE = (function() {
             canvas.width = canvas.height = ts;
             context.font = (ts - margin) * 0.5 + "pt Arial";
             
+            // RIFT: Texture Support
+            if (vars.dice_texture && vars.dice_texture.type) {
+                var tex = vars.dice_texture;
+                switch(tex.type) {
+                    case 'marble':
+                        generateMarbleTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'wood':
+                        generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
+                        break;
+                    case 'stone':
+                        generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
+                        break;
+                    default:
+                        context.fillStyle = back_color;
+                        context.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            }
             // RIFT: Gradient Support
-            if (vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
+            else if (vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
                 var gradient;
                 var colors = vars.dice_gradient.colors;
                 
@@ -876,11 +895,12 @@ const DICE = (function() {
                 }
                 
                 context.fillStyle = gradient;
+                context.fillRect(0, 0, canvas.width, canvas.height);
             } else {
                 context.fillStyle = back_color;
+                context.fillRect(0, 0, canvas.width, canvas.height);
             }
             
-            context.fillRect(0, 0, canvas.width, canvas.height);
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillStyle = color;
