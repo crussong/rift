@@ -35,6 +35,8 @@ const DICE = (function() {
             color: 0xf0f0f0,
             shininess: 40,
             shading: THREE.FlatShading,
+            emissive: 0x000000,
+            emissiveIntensity: 0
         },
         label_color: '#ffffff', //RIFT: white labels
         // RIFT: Dynamic label color based on background brightness
@@ -44,6 +46,14 @@ const DICE = (function() {
         dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
         // RIFT: Texture Support
         dice_texture: null, // { type: 'marble'|'wood'|'stone', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
+        // RIFT: Glow & Effects
+        dice_glow: false,
+        dice_glow_color: null, // null = use dice color
+        dice_glow_intensity: 0.3,
+        dice_pulse: false,
+        dice_pulse_speed: 2, // pulses per second
+        dice_pulse_min: 0.1,
+        dice_pulse_max: 0.5,
         ambient_light_color: 0xf0f0f0,
         spot_light_color: 0xefefef,
         desk_color: '#101010', //canvas background
@@ -423,6 +433,26 @@ const DICE = (function() {
                 interact.quaternion.copy(interact.body.quaternion);
             }
         }
+        
+        // RIFT: Pulse Animation
+        if (vars.dice_pulse && this.dices && this.dices.length > 0) {
+            var pulseTime = time * 0.001 * vars.dice_pulse_speed * Math.PI * 2;
+            var pulseValue = (Math.sin(pulseTime) + 1) / 2; // 0 to 1
+            var intensity = vars.dice_pulse_min + pulseValue * (vars.dice_pulse_max - vars.dice_pulse_min);
+            
+            for (var d = 0; d < this.dices.length; d++) {
+                var dice = this.dices[d];
+                if (dice.material && dice.material.materials) {
+                    for (var m = 0; m < dice.material.materials.length; m++) {
+                        var mat = dice.material.materials[m];
+                        if (mat.emissiveIntensity !== undefined) {
+                            mat.emissiveIntensity = intensity;
+                        }
+                    }
+                }
+            }
+        }
+        
         this.renderer.render(this.scene, this.camera);
         this.last_time = this.last_time ? time : (new Date()).getTime();
         if (this.running == threadid && this.check_if_throw_finished()) {
@@ -642,6 +672,11 @@ const DICE = (function() {
         }
         
         // Cache löschen damit neue Materialien erstellt werden
+        clearMaterialCache();
+    };
+    
+    // RIFT: Helper um Material Cache zu löschen (muss vor setLabelColor definiert sein)
+    function clearMaterialCache() {
         threeD_dice.d4_material = null;
         threeD_dice.dice_material = null;
         threeD_dice.d100_material = null;
@@ -650,7 +685,7 @@ const DICE = (function() {
         threeD_dice.d10_material = null;
         threeD_dice.d12_material = null;
         threeD_dice.d20_material = null;
-    };
+    }
     
     // RIFT: Getter für aktuelle Label-Farbe
     that.getLabelColor = function() {
@@ -660,6 +695,43 @@ const DICE = (function() {
     // RIFT: Prüfen ob Label-Farbe manuell ist
     that.isLabelColorManual = function() {
         return manualLabelColor !== null;
+    };
+    
+    // RIFT: Glow Effect setzen
+    that.setGlow = function(enabled, color, intensity) {
+        vars.dice_glow = enabled;
+        if (color !== undefined) vars.dice_glow_color = color;
+        if (intensity !== undefined) vars.dice_glow_intensity = intensity;
+        
+        // Material Cache löschen
+        clearMaterialCache();
+    };
+    
+    // RIFT: Pulse Effect setzen
+    that.setPulse = function(enabled, speed, min, max) {
+        vars.dice_pulse = enabled;
+        if (speed !== undefined) vars.dice_pulse_speed = speed;
+        if (min !== undefined) vars.dice_pulse_min = min;
+        if (max !== undefined) vars.dice_pulse_max = max;
+        
+        // Glow muss an sein für Pulse
+        if (enabled && !vars.dice_glow) {
+            vars.dice_glow = true;
+        }
+        
+        // Material Cache löschen
+        clearMaterialCache();
+    };
+    
+    // RIFT: Getter für Effekt-Status
+    that.getEffects = function() {
+        return {
+            glow: vars.dice_glow,
+            glowColor: vars.dice_glow_color,
+            glowIntensity: vars.dice_glow_intensity,
+            pulse: vars.dice_pulse,
+            pulseSpeed: vars.dice_pulse_speed
+        };
     };
     
     // RIFT: Berechne Helligkeit einer Farbe (0-255)
@@ -837,9 +909,23 @@ const DICE = (function() {
             return texture;
         }
         var materials = [];
-        for (var i = 0; i < face_labels.length; ++i)
-            materials.push(new THREE.MeshPhongMaterial($t.copyto(vars.material_options,
-                        { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) })));
+        for (var i = 0; i < face_labels.length; ++i) {
+            var matOptions = $t.copyto(vars.material_options,
+                { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) });
+            
+            // RIFT: Glow Support
+            if (vars.dice_glow) {
+                var glowColor = vars.dice_glow_color || backgroundColor;
+                // Convert hex string to number if needed
+                if (typeof glowColor === 'string') {
+                    glowColor = parseInt(glowColor.replace('#', ''), 16);
+                }
+                matOptions.emissive = glowColor;
+                matOptions.emissiveIntensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
+            }
+            
+            materials.push(new THREE.MeshPhongMaterial(matOptions));
+        }
         return materials;
     }
 
@@ -912,9 +998,22 @@ const DICE = (function() {
             return texture;
         }
         var materials = [];
-        for (var i = 0; i < labels.length; ++i)
-            materials.push(new THREE.MeshPhongMaterial($t.copyto(vars.material_options,
-                        { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) })));
+        for (var i = 0; i < labels.length; ++i) {
+            var matOptions = $t.copyto(vars.material_options,
+                { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) });
+            
+            // RIFT: Glow Support
+            if (vars.dice_glow) {
+                var glowColor = vars.dice_glow_color || vars.dice_color;
+                if (typeof glowColor === 'string') {
+                    glowColor = parseInt(glowColor.replace('#', ''), 16);
+                }
+                matOptions.emissive = glowColor;
+                matOptions.emissiveIntensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
+            }
+            
+            materials.push(new THREE.MeshPhongMaterial(matOptions));
+        }
         return materials;
     }
 
