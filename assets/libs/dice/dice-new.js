@@ -47,12 +47,12 @@ const DICE = (function() {
         dice_texture: null, // { type: 'marble'|'wood'|'stone', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         // RIFT: Glow & Effects
         dice_glow: false,
-        dice_glow_color: null, // null = use dice color
-        dice_glow_intensity: 0.4, // 0-1, wird auf die Farbe angewendet
+        dice_glow_color: null, // null = use dice color, aber aufgehellt
+        dice_glow_intensity: 1.0, // Volle Stärke für sichtbaren Effekt
         dice_pulse: false,
         dice_pulse_speed: 2, // pulses per second
-        dice_pulse_min: 0.15,
-        dice_pulse_max: 0.6,
+        dice_pulse_min: 0.3,
+        dice_pulse_max: 1.0,
         ambient_light_color: 0xf0f0f0,
         spot_light_color: 0xefefef,
         desk_color: '#101010', //canvas background
@@ -439,9 +439,9 @@ const DICE = (function() {
             var pulseValue = (Math.sin(pulseTime) + 1) / 2; // 0 to 1
             var intensity = vars.dice_pulse_min + pulseValue * (vars.dice_pulse_max - vars.dice_pulse_min);
             
-            // Basis-Glow-Farbe ermitteln
-            var glowColorHex = vars.dice_glow_color || vars.dice_color;
-            var scaledEmissive = scaleColorByIntensity(glowColorHex, intensity);
+            // Glow-Farbe: aufgehellte Würfelfarbe
+            var glowHex = vars.dice_glow_color || lightenColor(vars.dice_color, 0.7);
+            var scaledEmissive = scaleColorByIntensity(glowHex, intensity);
             
             for (var d = 0; d < this.dices.length; d++) {
                 var dice = this.dices[d];
@@ -747,21 +747,36 @@ const DICE = (function() {
         return (r * 299 + g * 587 + b * 114) / 1000;
     }
     
-    // RIFT: Skaliere Farbe mit Intensity (für Glow ohne emissiveIntensity)
+    // RIFT: Skaliere und helle Farbe auf für Glow-Effekt
     function scaleColorByIntensity(hexColor, intensity) {
-        if (!hexColor) return 0x000000;
+        if (!hexColor) return 0x444444;
+        var hex = (typeof hexColor === 'string') ? hexColor.replace('#', '') : hexColor.toString(16).padStart(6, '0');
+        var r = parseInt(hex.substr(0, 2), 16);
+        var g = parseInt(hex.substr(2, 2), 16);
+        var b = parseInt(hex.substr(4, 2), 16);
+        
+        // Mit Intensity skalieren
+        r = Math.min(255, Math.floor(r * intensity));
+        g = Math.min(255, Math.floor(g * intensity));
+        b = Math.min(255, Math.floor(b * intensity));
+        
+        return (r << 16) | (g << 8) | b;
+    }
+    
+    // RIFT: Farbe aufhellen (amount 0-1, wobei 1 = weiß)
+    function lightenColor(hexColor, amount) {
+        if (!hexColor) return '#ffffff';
         var hex = hexColor.replace('#', '');
         var r = parseInt(hex.substr(0, 2), 16);
         var g = parseInt(hex.substr(2, 2), 16);
         var b = parseInt(hex.substr(4, 2), 16);
         
-        // Skaliere RGB mit Intensity
-        r = Math.floor(r * intensity);
-        g = Math.floor(g * intensity);
-        b = Math.floor(b * intensity);
+        // Aufhellen: Richtung Weiß verschieben
+        r = Math.floor(r + (255 - r) * amount);
+        g = Math.floor(g + (255 - g) * amount);
+        b = Math.floor(b + (255 - b) * amount);
         
-        // Zurück zu Hex-Zahl
-        return (r << 16) | (g << 8) | b;
+        return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
     }
     
     // RIFT: Speichere Basis-Glow-Farbe für Pulse
@@ -938,10 +953,25 @@ const DICE = (function() {
             
             // RIFT: Glow Support (kompatibel mit Three.js r73)
             if (vars.dice_glow) {
-                var glowColor = vars.dice_glow_color || backgroundColor;
-                // Farbe mit Intensity skalieren
-                var scaledColor = scaleColorByIntensity(glowColor, vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity);
+                // Glow-Farbe: Entweder explizit gesetzt, oder eine helle Version der Würfelfarbe
+                var glowHex;
+                if (vars.dice_glow_color) {
+                    glowHex = vars.dice_glow_color;
+                } else {
+                    // Würfelfarbe aufhellen für sichtbaren Glow
+                    glowHex = lightenColor(backgroundColor, 0.7);
+                }
+                var intensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
+                var scaledColor = scaleColorByIntensity(glowHex, intensity);
                 matOptions.emissive = scaledColor;
+                
+                // Debug
+                console.log('[DICE] Glow applied:', {
+                    baseColor: backgroundColor,
+                    glowHex: glowHex,
+                    intensity: intensity,
+                    finalEmissive: '0x' + scaledColor.toString(16)
+                });
             }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
@@ -1024,8 +1054,14 @@ const DICE = (function() {
             
             // RIFT: Glow Support (kompatibel mit Three.js r73)
             if (vars.dice_glow) {
-                var glowColor = vars.dice_glow_color || vars.dice_color;
-                var scaledColor = scaleColorByIntensity(glowColor, vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity);
+                var glowHex;
+                if (vars.dice_glow_color) {
+                    glowHex = vars.dice_glow_color;
+                } else {
+                    glowHex = lightenColor(vars.dice_color, 0.7);
+                }
+                var intensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
+                var scaledColor = scaleColorByIntensity(glowHex, intensity);
                 matOptions.emissive = scaledColor;
             }
             
