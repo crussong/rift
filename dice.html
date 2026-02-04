@@ -290,6 +290,35 @@
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
         }
+        
+        /* RIFT: Body scroll lock when popup is open */
+        body.popup-open {
+            overflow: hidden;
+        }
+        
+        /* RIFT: Settings Preview */
+        .dice-settings-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            margin: 0 16px 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .dice-settings-preview__canvas {
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+        }
+        .dice-settings-preview__label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
         .dice-effect-btn {
             display: flex;
             flex-direction: column;
@@ -1810,6 +1839,8 @@
                             // Open overlay behind popup
                             const overlay = document.getElementById('diceSettingsOverlay');
                             if (overlay) overlay.classList.add('open');
+                            // RIFT: Body scroll lock
+                            document.body.classList.add('popup-open');
                         }
                     });
                     
@@ -2016,6 +2047,11 @@
                     DICE.setGlow(enabled);
                 }
                 
+                // Update Settings Preview
+                if (typeof DicePreview !== 'undefined' && DicePreview.updateSettingsPreview) {
+                    DicePreview.updateSettingsPreview();
+                }
+                
                 // Update UI
                 document.querySelectorAll('.dice-effect-btn[data-effect="glow"]').forEach(btn => {
                     btn.classList.toggle('active', enabled);
@@ -2036,6 +2072,11 @@
                 // Update DICE library
                 if (typeof DICE !== 'undefined' && DICE.setPulse) {
                     DICE.setPulse(enabled);
+                }
+                
+                // Update Settings Preview
+                if (typeof DicePreview !== 'undefined' && DicePreview.updateSettingsPreview) {
+                    DicePreview.updateSettingsPreview();
                 }
                 
                 // Update UI
@@ -4584,6 +4625,8 @@
                 // Only close overlay if ALL popups are closed
                 if (!except) {
                     document.getElementById('diceSettingsOverlay')?.classList.remove('open');
+                    // RIFT: Body scroll lock entfernen
+                    document.body.classList.remove('popup-open');
                 }
             },
             
@@ -5340,6 +5383,9 @@
                         preview.mesh = newMesh;
                     }
                 });
+                
+                // RIFT: Update Settings Preview too
+                this.updateSettingsPreview();
             },
             
             animate() {
@@ -5362,21 +5408,149 @@
                     }
                     preview.renderer.render(preview.scene, preview.camera);
                 });
+                
+                // RIFT: Settings Preview Animation
+                if (this.settingsPreview) {
+                    const sp = this.settingsPreview;
+                    sp.mesh.rotation.x += sp.rotationSpeed.x;
+                    sp.mesh.rotation.y += sp.rotationSpeed.y;
+                    sp.mesh.rotation.z += sp.rotationSpeed.z;
+                    
+                    // Pulse animation for glow
+                    if (sp.mesh.glowLight && typeof DICE !== 'undefined') {
+                        const effects = DICE.getEffects ? DICE.getEffects() : {};
+                        if (effects.pulse) {
+                            const time = Date.now() * 0.001 * (effects.pulseSpeed || 2) * Math.PI * 2;
+                            const pulseValue = (Math.sin(time) + 1) / 2;
+                            const min = effects.pulseMin || 0.5;
+                            const max = effects.pulseMax || 2.5;
+                            sp.mesh.glowLight.intensity = min + pulseValue * (max - min);
+                        }
+                    }
+                    
+                    sp.renderer.render(sp.scene, sp.camera);
+                }
             },
             
             stop() {
                 if (this.animationId) {
                     cancelAnimationFrame(this.animationId);
                 }
+            },
+            
+            // RIFT: Settings Preview D20
+            settingsPreview: null,
+            
+            initSettingsPreview() {
+                const canvas = document.getElementById('settingsPreviewCanvas');
+                if (!canvas || typeof THREE === 'undefined') return;
+                
+                const size = 120;
+                canvas.width = size * 2;
+                canvas.height = size * 2;
+                canvas.style.width = size + 'px';
+                canvas.style.height = size + 'px';
+                
+                const renderer = new THREE.WebGLRenderer({
+                    canvas: canvas,
+                    antialias: true,
+                    alpha: true
+                });
+                renderer.setSize(size * 2, size * 2);
+                renderer.setClearColor(0x000000, 0);
+                
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(30, 1, 1, 1000);
+                camera.position.set(0, 0, 200);
+                camera.lookAt(0, 0, 0);
+                
+                // Lighting
+                const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambient);
+                const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+                directional.position.set(50, 50, 80);
+                scene.add(directional);
+                
+                // D20 Mesh - using DICE library if available
+                let mesh;
+                if (typeof DICE !== 'undefined' && DICE.createPreviewDice) {
+                    mesh = DICE.createPreviewDice('d20', 0.9);
+                }
+                
+                if (!mesh) {
+                    // Fallback: Simple icosahedron
+                    const geometry = new THREE.IcosahedronGeometry(50);
+                    const material = new THREE.MeshPhongMaterial({ color: 0x444444 });
+                    mesh = new THREE.Mesh(geometry, material);
+                }
+                
+                mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                scene.add(mesh);
+                
+                // Glow light for preview
+                const glowLight = new THREE.PointLight(0x888888, 0, 300);
+                mesh.add(glowLight);
+                
+                this.settingsPreview = {
+                    renderer,
+                    scene,
+                    camera,
+                    mesh,
+                    glowLight,
+                    rotationSpeed: { x: 0.008, y: 0.012, z: 0.004 }
+                };
+                
+                console.log('[DicePreview] Settings preview initialized');
+            },
+            
+            updateSettingsPreview() {
+                if (!this.settingsPreview) return;
+                
+                // Recreate mesh with current theme
+                const { scene, mesh } = this.settingsPreview;
+                scene.remove(mesh);
+                
+                let newMesh;
+                if (typeof DICE !== 'undefined' && DICE.createPreviewDice) {
+                    newMesh = DICE.createPreviewDice('d20', 0.9);
+                }
+                
+                if (newMesh) {
+                    newMesh.rotation.copy(mesh.rotation);
+                    
+                    // Add glow light if effects enabled
+                    if (typeof DICE !== 'undefined') {
+                        const effects = DICE.getEffects ? DICE.getEffects() : {};
+                        if (effects.glow) {
+                            const glowColor = DiceRoller.themeColors[DiceRoller.currentTheme]?.secondary || '#888888';
+                            const light = new THREE.PointLight(
+                                parseInt(glowColor.replace('#', ''), 16),
+                                effects.glowIntensity || 2,
+                                300
+                            );
+                            newMesh.add(light);
+                            newMesh.glowLight = light;
+                        }
+                    }
+                    
+                    scene.add(newMesh);
+                    this.settingsPreview.mesh = newMesh;
+                }
             }
         };
         
         // Initialize after everything is loaded
         if (document.readyState === 'complete') {
-            setTimeout(() => DicePreview.init(), 200);
+            setTimeout(() => {
+                DicePreview.init();
+                DicePreview.initSettingsPreview();
+            }, 200);
         } else {
             window.addEventListener('load', () => {
-                setTimeout(() => DicePreview.init(), 200);
+                setTimeout(() => {
+                    DicePreview.init();
+                    DicePreview.initSettingsPreview();
+                }, 200);
             });
         }
     </script>
@@ -5503,6 +5677,12 @@
             <button class="dice-settings-popup__close" id="settingsClose" onclick="DiceRoller.closeAllPopups()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
+        </div>
+        
+        <!-- RIFT: D20 Preview -->
+        <div class="dice-settings-preview">
+            <canvas class="dice-settings-preview__canvas" id="settingsPreviewCanvas" data-type="d20"></canvas>
+            <span class="dice-settings-preview__label">Vorschau</span>
         </div>
         
         <!-- TABS -->
