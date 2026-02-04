@@ -573,6 +573,7 @@ const DICE = (function() {
     }
 
     threeD_dice.create_d10 = function() {
+        console.log('[DICE] create_d10() called - material cached:', !!this.d10_material, 'texture:', vars.dice_texture);
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
                 create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
