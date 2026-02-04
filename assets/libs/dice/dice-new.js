@@ -198,6 +198,17 @@ const DICE = (function() {
         var boost = (rnd() + 3) * dist;
         throw_dices(box, vector, boost, dist, before_roll, after_roll);
     }
+    
+    // RIFT: Throw with specific vector and boost
+    that.dice_box.prototype.throw_with_vector = function(vector, boost, before_roll, after_roll) {
+        var dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+        if (dist < 10) {
+            // Fallback to random if vector too small
+            this.start_throw(before_roll, after_roll);
+            return;
+        }
+        throw_dices(this, vector, boost, dist, before_roll, after_roll);
+    }
 
     //call this to roll dice from swipe (will throw dice in direction swiped)
     that.dice_box.prototype.bind_swipe = function(container, before_roll, after_roll) {
