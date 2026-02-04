@@ -562,17 +562,18 @@ const DICE = (function() {
         return new THREE.Mesh(this.d8_geometry, this.d8_material);
     }
 
+    // D10-based dice: disable gradient to avoid visible seams on kite faces
     threeD_dice.create_d9 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
     threeD_dice.create_d10 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
@@ -593,7 +594,7 @@ const DICE = (function() {
     threeD_dice.create_d100 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d100_material) this.d100_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5));
+                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false));
         return new THREE.Mesh(this.d10_geometry, this.d100_material);
     }
 
@@ -666,7 +667,18 @@ const DICE = (function() {
         return (r * 299 + g * 587 + b * 114) / 1000;
     }
     
-    function create_dice_materials(face_labels, size, margin) {
+    function create_dice_materials(face_labels, size, margin, useGradient) {
+        // Default: use gradient if available (but can be disabled for d10)
+        if (useGradient === undefined) useGradient = true;
+        
+        // RIFT: Determine background color - use middle gradient color if gradient disabled but available
+        var backgroundColor = vars.dice_color;
+        if (!useGradient && vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
+            // Use middle color from gradient for better visual consistency
+            var midIndex = Math.floor(vars.dice_gradient.colors.length / 2);
+            backgroundColor = vars.dice_gradient.colors[midIndex];
+        }
+        
         function create_text_texture(text, color, back_color) {
             if (text == undefined) return null;
             var canvas = document.createElement("canvas");
@@ -675,8 +687,8 @@ const DICE = (function() {
             canvas.width = canvas.height = ts;
             context.font = ts / (1 + 2 * margin) + "pt Arial";
             
-            // RIFT: Gradient Support
-            if (vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
+            // RIFT: Gradient Support (can be disabled for d10 to avoid seam visibility)
+            if (useGradient && vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
                 var gradient;
                 var colors = vars.dice_gradient.colors;
                 
@@ -719,7 +731,7 @@ const DICE = (function() {
         var materials = [];
         for (var i = 0; i < face_labels.length; ++i)
             materials.push(new THREE.MeshPhongMaterial($t.copyto(vars.material_options,
-                        { map: create_text_texture(face_labels[i], vars.label_color, vars.dice_color) })));
+                        { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) })));
         return materials;
     }
 
@@ -1118,8 +1130,9 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.4);
                 break;
             case 'd10':
+                // D10: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false);
                 break;
             case 'd12':
                 geometry = create_d12_geometry(vars.scale * 0.9);
@@ -1130,8 +1143,9 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
                 break;
             case 'd100':
+                // D100: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5);
+                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false);
                 break;
             default:
                 vars.scale = originalScale;
