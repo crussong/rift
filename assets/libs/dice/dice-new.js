@@ -435,37 +435,7 @@ const DICE = (function() {
             }
         }
         
-        // RIFT: Pulse Animation - emissive Farbe pulsieren
-        if (vars.dice_pulse && vars.dice_glow && this.dices && this.dices.length > 0) {
-            var pulseTime = time * 0.001 * vars.dice_pulse_speed * Math.PI * 2;
-            var pulseValue = (Math.sin(pulseTime) + 1) / 2; // 0 to 1
-            
-            // Glow-Basis-Farbe
-            var glowHex = vars.dice_glow_color || lightenColor(vars.dice_color, 0.8);
-            // Zwischen gedimmt und voll pulsieren
-            var dimmedColor = scaleColorByIntensity(glowHex, 0.3);
-            var fullColor = scaleColorByIntensity(glowHex, 1.0);
-            
-            // Interpolieren
-            var r1 = (dimmedColor >> 16) & 255, g1 = (dimmedColor >> 8) & 255, b1 = dimmedColor & 255;
-            var r2 = (fullColor >> 16) & 255, g2 = (fullColor >> 8) & 255, b2 = fullColor & 255;
-            var r = Math.floor(r1 + (r2 - r1) * pulseValue);
-            var g = Math.floor(g1 + (g2 - g1) * pulseValue);
-            var b = Math.floor(b1 + (b2 - b1) * pulseValue);
-            var pulseColor = (r << 16) | (g << 8) | b;
-            
-            for (var d = 0; d < this.dices.length; d++) {
-                var dice = this.dices[d];
-                if (dice.material && dice.material.materials) {
-                    for (var m = 0; m < dice.material.materials.length; m++) {
-                        var mat = dice.material.materials[m];
-                        if (mat.emissive) {
-                            mat.emissive.setHex(pulseColor);
-                        }
-                    }
-                }
-            }
-        }
+        // RIFT: Glow/Pulse Effekte werden jetzt über CSS in dice.html gemacht
         
         this.renderer.render(this.scene, this.camera);
         this.last_time = this.last_time ? time : (new Date()).getTime();
@@ -473,10 +443,7 @@ const DICE = (function() {
             this.running = false;
             if (this.callback) this.callback.call(this, get_dice_values(this.dices));
             
-            // RIFT: Starte Idle-Animation für Glow/Pulse wenn Würfel liegen bleiben
-            if (vars.dice_glow && this.dices.length > 0) {
-                this.__startIdleAnimation();
-            }
+            // RIFT: Glow/Pulse Effekte werden über CSS in dice.html gemacht
         }
         if (this.running == threadid) {
             (function(t, tid, uat) {
@@ -489,54 +456,9 @@ const DICE = (function() {
         }
     }
     
-    // RIFT: Idle-Animation für Glow/Pulse wenn Würfel liegen
+    // RIFT: Idle-Animation (jetzt über CSS in dice.html)
     that.dice_box.prototype.__startIdleAnimation = function() {
-        if (this.idleAnimating) return;
-        this.idleAnimating = true;
-        var box = this;
-        
-        function idleLoop() {
-            if (!box.idleAnimating || box.running || !box.dices || box.dices.length === 0) {
-                box.idleAnimating = false;
-                return;
-            }
-            
-            var time = (new Date()).getTime();
-            
-            // Pulse Animation - emissive Farbe pulsieren
-            if (vars.dice_pulse && vars.dice_glow) {
-                var pulseTime = time * 0.001 * vars.dice_pulse_speed * Math.PI * 2;
-                var pulseValue = (Math.sin(pulseTime) + 1) / 2;
-                
-                var glowHex = vars.dice_glow_color || lightenColor(vars.dice_color, 0.8);
-                var dimmedColor = scaleColorByIntensity(glowHex, 0.3);
-                var fullColor = scaleColorByIntensity(glowHex, 1.0);
-                
-                var r1 = (dimmedColor >> 16) & 255, g1 = (dimmedColor >> 8) & 255, b1 = dimmedColor & 255;
-                var r2 = (fullColor >> 16) & 255, g2 = (fullColor >> 8) & 255, b2 = fullColor & 255;
-                var r = Math.floor(r1 + (r2 - r1) * pulseValue);
-                var g = Math.floor(g1 + (g2 - g1) * pulseValue);
-                var b = Math.floor(b1 + (b2 - b1) * pulseValue);
-                var pulseColor = (r << 16) | (g << 8) | b;
-                
-                for (var d = 0; d < box.dices.length; d++) {
-                    var dice = box.dices[d];
-                    if (dice.material && dice.material.materials) {
-                        for (var m = 0; m < dice.material.materials.length; m++) {
-                            var mat = dice.material.materials[m];
-                            if (mat.emissive) {
-                                mat.emissive.setHex(pulseColor);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            box.renderer.render(box.scene, box.camera);
-            requestAnimationFrame(idleLoop);
-        }
-        
-        idleLoop();
+        // CSS-basierte Effekte brauchen keine JS-Animation
     }
     
     // RIFT: Idle-Animation stoppen
@@ -1026,15 +948,6 @@ const DICE = (function() {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) });
             
-            // RIFT: Glow Support - Würfel leuchten von innen
-            if (vars.dice_glow) {
-                // Glow-Farbe: Entweder explizit gesetzt, oder helle Version der Würfelfarbe
-                var glowHex = vars.dice_glow_color || lightenColor(backgroundColor, 0.8);
-                var glowInt = parseInt(glowHex.replace('#', ''), 16);
-                matOptions.emissive = glowInt;
-                console.log('[DICE] Emissive set to:', glowHex);
-            }
-            
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
         return materials;
@@ -1112,13 +1025,6 @@ const DICE = (function() {
         for (var i = 0; i < labels.length; ++i) {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) });
-            
-            // RIFT: Glow Support
-            if (vars.dice_glow) {
-                var glowHex = vars.dice_glow_color || lightenColor(vars.dice_color, 0.8);
-                var glowInt = parseInt(glowHex.replace('#', ''), 16);
-                matOptions.emissive = glowInt;
-            }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
