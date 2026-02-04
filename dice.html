@@ -5780,30 +5780,22 @@
                 
                 let newMesh;
                 if (typeof DICE !== 'undefined' && DICE.createPreviewDice) {
-                    newMesh = DICE.createPreviewDice('d20', 0.9);
+                    newMesh = DICE.createPreviewDice('d20', 0.5);
                 }
                 
-                if (newMesh) {
-                    newMesh.rotation.copy(mesh.rotation);
-                    
-                    // Add glow light if effects enabled
-                    if (typeof DICE !== 'undefined') {
-                        const effects = DICE.getEffects ? DICE.getEffects() : {};
-                        if (effects.glow) {
-                            const glowColor = DiceRoller.themeColors[DiceRoller.currentTheme]?.secondary || '#888888';
-                            const light = new THREE.PointLight(
-                                parseInt(glowColor.replace('#', ''), 16),
-                                effects.glowIntensity || 2,
-                                300
-                            );
-                            newMesh.add(light);
-                            newMesh.glowLight = light;
-                        }
-                    }
-                    
-                    scene.add(newMesh);
-                    this.settingsPreview.mesh = newMesh;
+                if (!newMesh) {
+                    // Fallback
+                    const geometry = new THREE.IcosahedronGeometry(28);
+                    const material = new THREE.MeshPhongMaterial({ color: 0x444444 });
+                    newMesh = new THREE.Mesh(geometry, material);
                 }
+                
+                // FIXE Position und Rotation
+                newMesh.position.set(-45, 45, 0);
+                newMesh.rotation.copy(mesh.rotation);
+                
+                scene.add(newMesh);
+                this.settingsPreview.mesh = newMesh;
             }
         };
         
