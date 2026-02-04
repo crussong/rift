@@ -574,7 +574,6 @@ const DICE = (function() {
     }
 
     threeD_dice.create_d10 = function() {
-        console.log('[DICE] create_d10() called - material cached:', !!this.d10_material, 'texture:', vars.dice_texture);
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
                 create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
@@ -607,11 +606,9 @@ const DICE = (function() {
     
     // RIFT: Methode um Würfelfarbe zu ändern
     that.setDiceColor = function(color, gradient, texture) {
-        console.log('[DICE] setDiceColor called:', { color, gradient, texture });
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
         vars.dice_texture = texture || null;
-        console.log('[DICE] vars.dice_texture is now:', vars.dice_texture);
         
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
@@ -781,7 +778,6 @@ const DICE = (function() {
             
             // RIFT: Texture Support
             if (vars.dice_texture && vars.dice_texture.type) {
-                console.log('[DICE] Using texture:', vars.dice_texture.type, 'for face:', text);
                 var tex = vars.dice_texture;
                 switch(tex.type) {
                     case 'marble':
