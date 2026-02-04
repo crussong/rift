@@ -283,6 +283,76 @@
         .dice-arena-theme-preview--rift {
             background: url('https://res.cloudinary.com/dza4jgreq/image/upload/v1770181215/rift-assets/cf0ew69drn3yd5max2jr.png') center/cover;
         }
+        
+        /* Effects Grid & Buttons */
+        .dice-effects-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .dice-effect-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .dice-effect-btn:hover:not(:disabled) {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.15);
+        }
+        .dice-effect-btn.active {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.25);
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+        .dice-effect-btn.active .dice-effect-btn__icon {
+            color: #fff;
+            filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));
+        }
+        .dice-effect-btn--locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .dice-effect-btn__icon {
+            width: 32px;
+            height: 32px;
+            color: rgba(255,255,255,0.6);
+            transition: all 0.2s;
+        }
+        .dice-effect-btn__icon svg {
+            width: 100%;
+            height: 100%;
+        }
+        .dice-effect-btn__label {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.9);
+        }
+        .dice-effect-btn__desc {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            text-align: center;
+        }
+        .dice-effect-btn__badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(218,165,32,0.2));
+            color: #ffd700;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-radius: 4px;
+            border: 1px solid rgba(255,215,0,0.3);
+        }
     </style>
 </head>
 <body class="page-dice">
@@ -1607,6 +1677,9 @@
                 
                 // Load saved arena theme
                 this.loadArenaTheme();
+                
+                // Load saved effects
+                this.loadEffects();
             },
             
             setTheme(theme, showNotification = false) {
@@ -1866,6 +1939,7 @@
                 const tabMap = {
                     'diceColor': 'tabDiceColor',
                     'labelColor': 'tabLabelColor',
+                    'effects': 'tabEffects',
                     'arenaTheme': 'tabArenaTheme'
                 };
                 
@@ -1925,6 +1999,65 @@
                 if (saved) {
                     this.setLabelColor(saved, false);
                 }
+            },
+            
+            // ========================================
+            // DICE EFFECTS (GLOW & PULSE)
+            // ========================================
+            
+            currentGlow: false,
+            currentPulse: false,
+            
+            setGlow(enabled, showNotification = true) {
+                this.currentGlow = enabled;
+                
+                // Update DICE library
+                if (typeof DICE !== 'undefined' && DICE.setGlow) {
+                    DICE.setGlow(enabled);
+                }
+                
+                // Update UI
+                document.querySelectorAll('.dice-effect-btn[data-effect="glow"]').forEach(btn => {
+                    btn.classList.toggle('active', enabled);
+                });
+                
+                // Save preference
+                localStorage.setItem('rift_dice_glow', enabled ? 'true' : 'false');
+                
+                // Toast
+                if (showNotification && window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.show(`Würfel-Glow: ${enabled ? 'An' : 'Aus'}`, 'success');
+                }
+            },
+            
+            setPulse(enabled, showNotification = true) {
+                this.currentPulse = enabled;
+                
+                // Update DICE library
+                if (typeof DICE !== 'undefined' && DICE.setPulse) {
+                    DICE.setPulse(enabled);
+                }
+                
+                // Update UI
+                document.querySelectorAll('.dice-effect-btn[data-effect="pulse"]').forEach(btn => {
+                    btn.classList.toggle('active', enabled);
+                });
+                
+                // Save preference
+                localStorage.setItem('rift_dice_pulse', enabled ? 'true' : 'false');
+                
+                // Toast
+                if (showNotification && window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.show(`Würfel-Pulsieren: ${enabled ? 'An' : 'Aus'}`, 'success');
+                }
+            },
+            
+            loadEffects() {
+                const glow = localStorage.getItem('rift_dice_glow') === 'true';
+                const pulse = localStorage.getItem('rift_dice_pulse') === 'true';
+                
+                if (glow) this.setGlow(true, false);
+                if (pulse) this.setPulse(true, false);
             },
             
             // ========================================
@@ -5382,6 +5515,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l2 -2v8"/><path d="M9 8h3a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 0 -1 1v2a1 1 0 0 0 1 1h3"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1 -1.5 1.5h-2.5"/></svg>
                 Zahlen
             </button>
+            <button class="dice-settings-tab" data-tab="effects" onclick="DiceRoller.switchSettingsTab('effects')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275l5.813 1.912l-5.813 1.912a2 2 0 0 0 -1.275 1.275l-1.912 5.813l-1.912 -5.813a2 2 0 0 0 -1.275 -1.275l-5.813 -1.912l5.813 -1.912a2 2 0 0 0 1.275 -1.275z"/><path d="M5 3v2"/><path d="M19 17v2"/><path d="M3 5h2"/><path d="M17 19h2"/></svg>
+                Effekte
+            </button>
             <button class="dice-settings-tab" data-tab="arenaTheme" onclick="DiceRoller.switchSettingsTab('arenaTheme')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l-3 3"/><path d="M21 18l-3 3"/><path d="M11 3l-8 8"/><path d="M16 3l-13 13"/><path d="M21 3l-18 18"/><path d="M21 8l-13 13"/><path d="M21 13l-8 8"/></svg>
                 Arena
@@ -5812,6 +5949,80 @@
             </div>
         </div>
     </div><!-- Ende Tab Zahlenfarbe -->
+    
+    <!-- TAB CONTENT: Effekte -->
+    <div class="dice-settings-tab-content" id="tabEffects">
+        <div class="dice-settings-popup__section">
+            <span class="dice-settings-popup__label">Würfel-Effekte</span>
+            <p class="dice-settings-popup__hint">Verleihe deinen Würfeln besondere visuelle Effekte.</p>
+            
+            <!-- RIFT Silver -->
+            <div class="tier-section">
+                <div class="tier-header">
+                    <span class="tier-badge tier-badge--silver">RIFT Silver</span>
+                    <span class="tier-count">Basis-Effekte</span>
+                </div>
+                <div class="dice-effects-grid">
+                    <button class="dice-effect-btn" data-effect="glow" onclick="DiceRoller.setGlow(!DiceRoller.currentGlow)">
+                        <div class="dice-effect-btn__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                        </div>
+                        <span class="dice-effect-btn__label">Glow</span>
+                        <span class="dice-effect-btn__desc">Würfel leuchten sanft</span>
+                    </button>
+                    <button class="dice-effect-btn" data-effect="pulse" onclick="DiceRoller.setPulse(!DiceRoller.currentPulse)">
+                        <div class="dice-effect-btn__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        </div>
+                        <span class="dice-effect-btn__label">Pulsieren</span>
+                        <span class="dice-effect-btn__desc">Rhythmisches Leuchten</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- RIFT Gold -->
+            <div class="tier-section">
+                <div class="tier-header">
+                    <span class="tier-badge tier-badge--gold">RIFT Gold</span>
+                    <span class="tier-count">Premium-Effekte</span>
+                </div>
+                <div class="dice-effects-grid">
+                    <button class="dice-effect-btn dice-effect-btn--locked" data-effect="particles" disabled>
+                        <div class="dice-effect-btn__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275l5.813 1.912l-5.813 1.912a2 2 0 0 0 -1.275 1.275l-1.912 5.813l-1.912 -5.813a2 2 0 0 0 -1.275 -1.275l-5.813 -1.912l5.813 -1.912a2 2 0 0 0 1.275 -1.275z"/></svg>
+                        </div>
+                        <span class="dice-effect-btn__label">Partikel-Trail</span>
+                        <span class="dice-effect-btn__desc">Funkenspur beim Rollen</span>
+                        <span class="dice-effect-btn__badge">Bald</span>
+                    </button>
+                    <button class="dice-effect-btn dice-effect-btn--locked" data-effect="crit" disabled>
+                        <div class="dice-effect-btn__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </div>
+                        <span class="dice-effect-btn__label">Crit-Effekte</span>
+                        <span class="dice-effect-btn__desc">Epische Nat20 Explosionen</span>
+                        <span class="dice-effect-btn__badge">Bald</span>
+                    </button>
+                    <button class="dice-effect-btn dice-effect-btn--locked" data-effect="holographic" disabled>
+                        <div class="dice-effect-btn__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l10 6v8l-10 6-10-6V8z"/><path d="M12 22V10"/><path d="M22 8l-10 4-10-4"/></svg>
+                        </div>
+                        <span class="dice-effect-btn__label">Holografisch</span>
+                        <span class="dice-effect-btn__desc">Schillernde Oberfläche</span>
+                        <span class="dice-effect-btn__badge">Bald</span>
+                    </button>
+                    <button class="dice-effect-btn dice-effect-btn--locked" data-effect="smoke" disabled>
+                        <div class="dice-effect-btn__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0"/><path d="M12 7v5l3 3"/></svg>
+                        </div>
+                        <span class="dice-effect-btn__label">Rauch</span>
+                        <span class="dice-effect-btn__desc">Mystischer Nebel</span>
+                        <span class="dice-effect-btn__badge">Bald</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div><!-- Ende Tab Effekte -->
     
     <!-- TAB CONTENT: Arena-Theme -->
     <div class="dice-settings-tab-content" id="tabArenaTheme">
