@@ -1764,8 +1764,9 @@ const AssetsAdmin = {
                 '<button class="btn btn--ghost" onclick="document.getElementById(\'assetViewModal\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
                 '<div class="modal__body">' +
                 '<div style="display:flex;gap:20px;">' +
-                '<div style="width:200px;height:200px;background:var(--bg);border-radius:8px;overflow:hidden;flex-shrink:0;">' +
+                '<div class="asset-preview-container" style="width:200px;height:200px;background:var(--bg);border-radius:8px;overflow:hidden;flex-shrink:0;position:relative;cursor:zoom-in;" onmouseenter="AssetsAdmin.showFullPreview(this, \'' + i.url + '\')" onmouseleave="AssetsAdmin.hideFullPreview()">' +
                 '<img src="' + i.url + '" style="width:100%;height:100%;object-fit:cover;">' +
+                '<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:4px;font-size:10px;color:#fff;pointer-events:none;">Hover für Vollbild</div>' +
                 '</div>' +
                 '<div style="flex:1;">' +
                 '<div class="form-group"><label class="form-label">Name</label>' +
@@ -1787,6 +1788,33 @@ const AssetsAdmin = {
                 '</div></div></div>';
             document.body.insertAdjacentHTML('beforeend', html);
         }
+    },
+    
+    showFullPreview(element, url) {
+        var rect = element.getBoundingClientRect();
+        var preview = document.createElement('div');
+        preview.id = 'assetFullPreview';
+        preview.style.cssText = 'position:fixed;z-index:99999;background:var(--bg-elevated);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;max-width:80vw;max-height:80vh;';
+        
+        // Position to the right of the thumbnail, or left if not enough space
+        var left = rect.right + 20;
+        if (left + 400 > window.innerWidth) {
+            left = rect.left - 420;
+        }
+        var top = Math.max(20, rect.top - 100);
+        if (top + 400 > window.innerHeight) {
+            top = window.innerHeight - 420;
+        }
+        
+        preview.style.left = left + 'px';
+        preview.style.top = top + 'px';
+        preview.innerHTML = '<img src="' + url + '" style="max-width:400px;max-height:400px;display:block;">';
+        document.body.appendChild(preview);
+    },
+    
+    hideFullPreview() {
+        var preview = document.getElementById('assetFullPreview');
+        if (preview) preview.remove();
     },
     
     async saveEdit(id) {
@@ -1911,6 +1939,7 @@ const AuditAdmin = {
             case 'faq': FAQAdmin.load(); break;
             case 'rulesets': RulesetsAdmin.load(); break;
             case 'assets': AssetsAdmin.load(); break;
+            case 'arenaThemes': ArenaThemesAdmin.load(); break;
             case 'audit': AuditAdmin.load(); break;
             case 'team': TeamAdmin.load(); break;
             case 'carousel': if(typeof CarouselAdmin !== 'undefined') CarouselAdmin.load(); break;
@@ -2069,3 +2098,255 @@ const TeamAdmin = {
 };
 
 console.log('[Admin Extended] All modules loaded successfully');
+
+// ========================================
+// ARENA THEMES ADMIN MODULE
+// ========================================
+const ArenaThemesAdmin = {
+    themes: [],
+    cloudinaryConfig: {
+        cloudName: 'dza4jgreq',
+        uploadPreset: 'RIFTapp'
+    },
+    
+    async load() {
+        try {
+            const snap = await db.collection('arenaThemes').orderBy('order', 'asc').get();
+            this.themes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.render();
+            this.updateStats();
+            console.log('[Admin] Loaded', this.themes.length, 'arena themes');
+        } catch (e) {
+            console.warn('Arena themes collection not accessible:', e.message);
+            this.themes = [];
+            this.render();
+            this.updateStats();
+        }
+    },
+    
+    render() {
+        const c = document.getElementById('arenaThemesContainer');
+        if (!c) return;
+        
+        if (this.themes.length === 0) {
+            c.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">Keine Arena Themes vorhanden<br><br><button class="btn btn--primary" onclick="ArenaThemesAdmin.openEditor()">Erstes Theme erstellen</button></div>';
+            return;
+        }
+        
+        const tierColors = { free: '#22C55E', silver: '#94A3B8', gold: '#F59E0B' };
+        const tierLabels = { free: 'Free', silver: 'Silver', gold: 'Gold' };
+        
+        c.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;">' +
+            this.themes.map(t => {
+                const tier = t.tier || 'free';
+                return '<div style="background:var(--bg-elevated);border-radius:12px;overflow:hidden;position:relative;">' +
+                    '<div style="aspect-ratio:16/9;background:url(\'' + (t.imageUrl || '') + '\') center/cover;position:relative;">' +
+                    '<span style="position:absolute;top:8px;left:8px;background:' + tierColors[tier] + ';color:white;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;">' + tierLabels[tier] + '</span>' +
+                    '</div>' +
+                    '<div style="padding:12px;">' +
+                    '<div style="font-weight:500;font-size:14px;margin-bottom:4px;">' + (t.name || 'Unbenannt') + '</div>' +
+                    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">ID: ' + (t.themeId || t.id) + '</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                    '<button class="btn btn--ghost btn--small" onclick="ArenaThemesAdmin.openEditor(\'' + t.id + '\')" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
+                    '<button class="btn btn--ghost btn--small" onclick="ArenaThemesAdmin.delete(\'' + t.id + '\')" style="color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' +
+                    '</div></div></div>';
+            }).join('') + '</div>';
+    },
+    
+    updateStats() {
+        document.getElementById('statArenaTotal').textContent = this.themes.length;
+        document.getElementById('statArenaFree').textContent = this.themes.filter(t => t.tier === 'free').length;
+        document.getElementById('statArenaSilver').textContent = this.themes.filter(t => t.tier === 'silver').length;
+        document.getElementById('statArenaGold').textContent = this.themes.filter(t => t.tier === 'gold').length;
+    },
+    
+    filter() {
+        const search = document.getElementById('arenaThemeSearch').value.toLowerCase();
+        const tier = document.getElementById('arenaThemeTierFilter').value;
+        const filtered = this.themes.filter(t => {
+            const matchSearch = !search || (t.name || '').toLowerCase().includes(search) || (t.themeId || '').toLowerCase().includes(search);
+            const matchTier = !tier || t.tier === tier;
+            return matchSearch && matchTier;
+        });
+        const orig = this.themes;
+        this.themes = filtered;
+        this.render();
+        this.themes = orig;
+    },
+    
+    openEditor(id = null) {
+        const theme = id ? this.themes.find(t => t.id === id) : null;
+        const isNew = !theme;
+        
+        const html = '<div class="modal active" id="arenaThemeModal" onclick="if(event.target===this)this.remove()">' +
+            '<div class="modal__content" style="max-width:600px;">' +
+            '<div class="modal__header"><h3 class="modal__title">' + (isNew ? 'Neues Arena Theme' : 'Theme bearbeiten') + '</h3>' +
+            '<button class="btn btn--ghost" onclick="document.getElementById(\'arenaThemeModal\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+            '<div class="modal__body">' +
+            '<div class="form-group"><label class="form-label">Theme ID (für CSS/JS)</label>' +
+            '<input type="text" class="form-input" id="themeId" value="' + (theme?.themeId || '') + '" placeholder="z.B. dragonclaw-red"' + (isNew ? '' : ' readonly style="opacity:0.7;"') + '>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Nur Kleinbuchstaben, Zahlen und Bindestriche</div></div>' +
+            '<div class="form-group"><label class="form-label">Name</label>' +
+            '<input type="text" class="form-input" id="themeName" value="' + (theme?.name || '') + '" placeholder="z.B. Dragonclaw (Red)"></div>' +
+            '<div class="form-row">' +
+            '<div class="form-group" style="flex:1;"><label class="form-label">Tier</label>' +
+            '<select class="form-select" id="themeTier">' +
+            '<option value="free"' + (theme?.tier === 'free' ? ' selected' : '') + '>🟢 Free</option>' +
+            '<option value="silver"' + (theme?.tier === 'silver' ? ' selected' : '') + '>⚪ Silver</option>' +
+            '<option value="gold"' + (theme?.tier === 'gold' ? ' selected' : '') + '>🟡 Gold</option>' +
+            '</select></div>' +
+            '<div class="form-group" style="flex:1;"><label class="form-label">Reihenfolge</label>' +
+            '<input type="number" class="form-input" id="themeOrder" value="' + (theme?.order || 0) + '" min="0"></div>' +
+            '</div>' +
+            '<div class="form-group"><label class="form-label">Bild URL</label>' +
+            '<div style="display:flex;gap:8px;">' +
+            '<input type="text" class="form-input" id="themeImageUrl" value="' + (theme?.imageUrl || '') + '" placeholder="https://..." style="flex:1;">' +
+            '<button class="btn btn--secondary" onclick="ArenaThemesAdmin.uploadImage()">Upload</button>' +
+            '</div></div>' +
+            '<div id="themePreviewContainer" style="margin-top:12px;' + (theme?.imageUrl ? '' : 'display:none;') + '">' +
+            '<div style="aspect-ratio:16/9;max-width:300px;background:url(\'' + (theme?.imageUrl || '') + '\') center/cover;border-radius:8px;"></div>' +
+            '</div>' +
+            '<input type="file" id="themeImageInput" style="display:none;" accept="image/*" onchange="ArenaThemesAdmin.handleImageUpload(this.files[0])">' +
+            '</div>' +
+            '<div class="modal__footer">' +
+            '<button class="btn btn--secondary" onclick="document.getElementById(\'arenaThemeModal\').remove()">Abbrechen</button>' +
+            '<button class="btn btn--primary" onclick="ArenaThemesAdmin.save(\'' + (id || '') + '\')">' + (isNew ? 'Erstellen' : 'Speichern') + '</button>' +
+            '</div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+        
+        // Live preview update
+        document.getElementById('themeImageUrl').addEventListener('input', (e) => {
+            const container = document.getElementById('themePreviewContainer');
+            if (e.target.value) {
+                container.style.display = 'block';
+                container.querySelector('div').style.backgroundImage = 'url(' + e.target.value + ')';
+            } else {
+                container.style.display = 'none';
+            }
+        });
+    },
+    
+    uploadImage() {
+        document.getElementById('themeImageInput').click();
+    },
+    
+    async handleImageUpload(file) {
+        if (!file) return;
+        
+        try {
+            showToast('Bild wird hochgeladen...');
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', this.cloudinaryConfig.uploadPreset);
+            formData.append('folder', 'rift-assets');
+            
+            const response = await fetch('https://api.cloudinary.com/v1_1/' + this.cloudinaryConfig.cloudName + '/image/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) throw new Error('Upload failed');
+            
+            const data = await response.json();
+            document.getElementById('themeImageUrl').value = data.secure_url;
+            document.getElementById('themeImageUrl').dispatchEvent(new Event('input'));
+            showToast('Bild hochgeladen');
+        } catch (e) {
+            console.error('Upload error:', e);
+            showToast('Upload fehlgeschlagen', 'error');
+        }
+    },
+    
+    async save(id) {
+        const themeId = document.getElementById('themeId').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const name = document.getElementById('themeName').value.trim();
+        const tier = document.getElementById('themeTier').value;
+        const order = parseInt(document.getElementById('themeOrder').value) || 0;
+        const imageUrl = document.getElementById('themeImageUrl').value.trim();
+        
+        if (!themeId) {
+            showToast('Theme ID erforderlich', 'error');
+            return;
+        }
+        if (!name) {
+            showToast('Name erforderlich', 'error');
+            return;
+        }
+        if (!imageUrl) {
+            showToast('Bild URL erforderlich', 'error');
+            return;
+        }
+        
+        try {
+            const data = {
+                themeId: themeId,
+                name: name,
+                tier: tier,
+                order: order,
+                imageUrl: imageUrl,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            if (id) {
+                await db.collection('arenaThemes').doc(id).update(data);
+                showToast('Theme aktualisiert');
+            } else {
+                // Check if themeId already exists
+                const existing = await db.collection('arenaThemes').where('themeId', '==', themeId).get();
+                if (!existing.empty) {
+                    showToast('Theme ID existiert bereits', 'error');
+                    return;
+                }
+                data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('arenaThemes').add(data);
+                showToast('Theme erstellt');
+            }
+            
+            document.getElementById('arenaThemeModal').remove();
+            this.load();
+        } catch (e) {
+            console.error('Save error:', e);
+            showToast('Fehler beim Speichern', 'error');
+        }
+    },
+    
+    async delete(id) {
+        if (!confirm('Theme wirklich löschen?')) return;
+        
+        try {
+            await db.collection('arenaThemes').doc(id).delete();
+            showToast('Theme gelöscht');
+            this.load();
+        } catch (e) {
+            console.error('Delete error:', e);
+            showToast('Fehler beim Löschen', 'error');
+        }
+    },
+    
+    // Generate CSS for all themes (for export/copy)
+    generateCSS() {
+        let css = '/* RIFT Arena Themes - Generated */\n\n';
+        
+        this.themes.forEach(t => {
+            css += '/* ' + t.name + ' - ' + (t.tier || 'free').toUpperCase() + ' Tier */\n';
+            css += '.dice-arena[data-arena-theme="' + t.themeId + '"] {\n';
+            css += '    background: url(\'' + t.imageUrl + '\') center/cover;\n';
+            css += '}\n';
+            css += '.dice-arena[data-arena-theme="' + t.themeId + '"]::after { background: none !important; }\n';
+            css += '.dice-arena-theme-preview--' + t.themeId + ' {\n';
+            css += '    background: url(\'' + t.imageUrl + '\') center/cover;\n';
+            css += '}\n\n';
+        });
+        
+        return css;
+    },
+    
+    // Generate JS theme names object
+    generateThemeNames() {
+        const names = {};
+        this.themes.forEach(t => {
+            names[t.themeId] = t.name;
+        });
+        return names;
+    }
+};
