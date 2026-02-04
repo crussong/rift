@@ -467,8 +467,14 @@ const HubController = {
         const cls = card.querySelector('.qa-character__class');
         
         if (avatar) {
-            avatar.style.background = char.color || 'linear-gradient(135deg,#667eea,#764ba2)';
-            if (char.image) avatar.innerHTML = `<img src="${char.image}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+            const portraitUrl = char.image || char.portrait || char.portraitUrl;
+            if (portraitUrl) {
+                avatar.style.background = 'var(--bg-elevated)';
+                avatar.innerHTML = `<img src="${portraitUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+            } else {
+                avatar.style.background = char.color || 'linear-gradient(135deg,#667eea,#764ba2)';
+                avatar.innerHTML = '';
+            }
         }
         if (name) name.textContent = char.name;
         if (cls) cls.textContent = `${char.race||''} · ${char.class||''}`.replace(/^ · | · $/g,'');
