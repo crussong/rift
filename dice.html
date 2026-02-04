@@ -291,26 +291,71 @@
             gap: 12px;
         }
         
-        /* RIFT: Body scroll lock when popup is open */
-        body.popup-open {
-            overflow: hidden;
+        /* RIFT: CSS Glow Overlay */
+        .dice-glow-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 5;
+        }
+        .dice-glow-overlay.active {
+            opacity: 1;
+        }
+        .dice-glow-overlay.pulse {
+            animation: glowPulse 1s ease-in-out infinite;
+        }
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
         }
         
-        /* RIFT: Settings Preview */
+        /* RIFT: Body scroll lock when popup is open */
+        body.popup-open {
+            overflow: hidden !important;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* RIFT: Settings Preview - neben dem Popup */
         .dice-settings-preview {
-            display: flex;
+            display: none;
             flex-direction: column;
             align-items: center;
             gap: 8px;
             padding: 16px;
-            margin: 0 16px 16px;
-            background: rgba(0,0,0,0.3);
+            background: rgba(20,20,25,0.95);
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10002;
+            backdrop-filter: blur(10px);
+        }
+        /* Links vom Popup auf Desktop */
+        @media (min-width: 900px) {
+            .dice-settings-preview {
+                right: calc(50% + 220px);
+            }
+        }
+        /* Unter dem Popup auf Mobile */
+        @media (max-width: 899px) {
+            .dice-settings-preview {
+                display: none !important;
+            }
+        }
+        .dice-settings-preview.open {
+            display: flex;
         }
         .dice-settings-preview__canvas {
-            width: 120px;
-            height: 120px;
+            width: 140px;
+            height: 140px;
             border-radius: 8px;
         }
         .dice-settings-preview__label {
@@ -400,6 +445,9 @@
                     
                     <!-- 3D Arena -->
                     <div class="dice-arena empty" id="diceArena">
+                        <!-- RIFT: CSS-basierter Glow Effekt -->
+                        <div class="dice-glow-overlay" id="diceGlowOverlay"></div>
+                        
                         <!-- Pulse Effects Container (UNDER dice) -->
                         <div class="dice-pulses" id="dicePulses"></div>
                         
@@ -1806,6 +1854,16 @@
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateColors) {
                     DicePreview.updateColors();
                 }
+                
+                // RIFT: Glow Overlay Farbe updaten wenn aktiv
+                if (this.currentGlow) {
+                    const glowOverlay = document.getElementById('diceGlowOverlay');
+                    if (glowOverlay) {
+                        const themeData = this.themeColors[theme];
+                        const color = themeData?.secondary || themeData?.primary || '#4488ff';
+                        glowOverlay.style.background = `radial-gradient(ellipse at center, ${color}66 0%, ${color}33 40%, transparent 70%)`;
+                    }
+                }
             },
             
             // ========================================
@@ -1839,8 +1897,13 @@
                             // Open overlay behind popup
                             const overlay = document.getElementById('diceSettingsOverlay');
                             if (overlay) overlay.classList.add('open');
-                            // RIFT: Body scroll lock
+                            // RIFT: Body scroll lock mit Position-Speicherung
+                            this.savedScrollY = window.scrollY;
+                            document.body.style.top = `-${this.savedScrollY}px`;
                             document.body.classList.add('popup-open');
+                            // RIFT: Preview öffnen
+                            const preview = document.getElementById('settingsPreviewContainer');
+                            if (preview) preview.classList.add('open');
                         }
                     });
                     
@@ -2047,6 +2110,22 @@
                     DICE.setGlow(enabled);
                 }
                 
+                // RIFT: CSS Glow Overlay steuern
+                const glowOverlay = document.getElementById('diceGlowOverlay');
+                if (glowOverlay) {
+                    if (enabled) {
+                        // Farbe basierend auf aktuellem Theme
+                        const theme = this.themeColors[this.currentTheme];
+                        const color = theme?.secondary || theme?.primary || '#4488ff';
+                        // Großer radialer Glow vom Zentrum
+                        glowOverlay.style.background = `radial-gradient(ellipse at center, ${color}66 0%, ${color}33 40%, transparent 70%)`;
+                        glowOverlay.classList.add('active');
+                        console.log('[DICE] Glow activated with color:', color);
+                    } else {
+                        glowOverlay.classList.remove('active', 'pulse');
+                    }
+                }
+                
                 // Update Settings Preview
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateSettingsPreview) {
                     DicePreview.updateSettingsPreview();
@@ -2072,6 +2151,20 @@
                 // Update DICE library
                 if (typeof DICE !== 'undefined' && DICE.setPulse) {
                     DICE.setPulse(enabled);
+                }
+                
+                // RIFT: CSS Pulse Animation steuern
+                const glowOverlay = document.getElementById('diceGlowOverlay');
+                if (glowOverlay) {
+                    if (enabled) {
+                        // Pulse braucht Glow
+                        if (!this.currentGlow) {
+                            this.setGlow(true, false);
+                        }
+                        glowOverlay.classList.add('pulse');
+                    } else {
+                        glowOverlay.classList.remove('pulse');
+                    }
                 }
                 
                 // Update Settings Preview
@@ -4621,12 +4714,18 @@
                 if (except !== 'settings') {
                     document.getElementById('settingsPopup')?.classList.remove('open');
                     document.getElementById('settingsBtn')?.classList.remove('active');
+                    // RIFT: Preview schließen
+                    document.getElementById('settingsPreviewContainer')?.classList.remove('open');
                 }
                 // Only close overlay if ALL popups are closed
                 if (!except) {
                     document.getElementById('diceSettingsOverlay')?.classList.remove('open');
-                    // RIFT: Body scroll lock entfernen
+                    // RIFT: Body scroll lock entfernen und Position wiederherstellen
                     document.body.classList.remove('popup-open');
+                    document.body.style.top = '';
+                    if (this.savedScrollY !== undefined) {
+                        window.scrollTo(0, this.savedScrollY);
+                    }
                 }
             },
             
@@ -5497,7 +5596,7 @@
                     camera,
                     mesh,
                     glowLight,
-                    rotationSpeed: { x: 0.008, y: 0.012, z: 0.004 }
+                    rotationSpeed: { x: 0.0008, y: 0.001, z: 0.0004 }
                 };
                 
                 console.log('[DicePreview] Settings preview initialized');
@@ -5604,6 +5703,12 @@
     <!-- Settings Overlay - auf Body-Level für korrekten z-index -->
     <div class="dice-settings-overlay" id="diceSettingsOverlay" onclick="DiceRoller.closeAllPopups()"></div>
     
+    <!-- RIFT: D20 Preview - neben dem Popup -->
+    <div class="dice-settings-preview" id="settingsPreviewContainer">
+        <canvas class="dice-settings-preview__canvas" id="settingsPreviewCanvas" data-type="d20"></canvas>
+        <span class="dice-settings-preview__label">Vorschau</span>
+    </div>
+    
     <!-- Stats Popup - auf Body-Level für korrekten z-index -->
     <div class="dice-settings-popup dice-stats-popup" id="statsPopup">
         <div class="dice-settings-popup__header">
@@ -5677,12 +5782,6 @@
             <button class="dice-settings-popup__close" id="settingsClose" onclick="DiceRoller.closeAllPopups()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
-        </div>
-        
-        <!-- RIFT: D20 Preview -->
-        <div class="dice-settings-preview">
-            <canvas class="dice-settings-preview__canvas" id="settingsPreviewCanvas" data-type="d20"></canvas>
-            <span class="dice-settings-preview__label">Vorschau</span>
         </div>
         
         <!-- TABS -->
