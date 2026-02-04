@@ -1612,10 +1612,20 @@ const AssetsAdmin = {
             '<option value="icon">Icon</option>' +
             '</optgroup>' +
             '<optgroup label="Portraits">' +
+            '<option value="portrait">Portrait (Allgemein)</option>' +
             '<option value="portrait-worldsapart">Portrait (Worlds Apart)</option>' +
             '<option value="portrait-dnd5e">Portrait (D&amp;D 5e)</option>' +
             '<option value="portrait-htbah">Portrait (HTBAH)</option>' +
             '<option value="portrait-cyberpunk">Portrait (Cyberpunk)</option>' +
+            '</optgroup>' +
+            '<optgroup label="Dice Modul">' +
+            '<option value="dice-arena">Dice Arena</option>' +
+            '<option value="dice-texture">Dice Textures</option>' +
+            '</optgroup>' +
+            '<optgroup label="RIFT">' +
+            '<option value="news-cover">News-Cover</option>' +
+            '<option value="carousel-cover">Carousel-Cover</option>' +
+            '<option value="feature-asset">Feature-Assets</option>' +
             '</optgroup>' +
             '</select></div>' +
             '</div>' +
@@ -1718,15 +1728,88 @@ const AssetsAdmin = {
     view(id) { 
         var i = this.items.find(function(x) { return x.id === id; }); 
         if (i && i.url) {
-            // Show in modal
-            var html = '<div class="modal active" onclick="if(event.target===this)this.remove()" style="background:rgba(0,0,0,0.9);">' +
-                '<div style="max-width:90vw;max-height:90vh;position:relative;">' +
-                '<img src="' + i.url + '" style="max-width:100%;max-height:90vh;border-radius:8px;">' +
-                '<div style="position:absolute;bottom:-40px;left:0;right:0;text-align:center;color:white;">' + (i.name||'Asset') + '</div>' +
-                '<button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-40px;right:0;background:none;border:none;color:white;font-size:24px;cursor:pointer;">✕</button>' +
-                '<button onclick="navigator.clipboard.writeText(\'' + i.url + '\');showToast(\'URL kopiert\')" style="position:absolute;top:-40px;left:0;background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;">URL kopieren</button>' +
-                '</div></div>';
+            var typeOptions = [
+                { group: 'Allgemein', items: [
+                    { value: 'image', label: 'Bild' },
+                    { value: 'token', label: 'Token' },
+                    { value: 'map', label: 'Map' },
+                    { value: 'icon', label: 'Icon' }
+                ]},
+                { group: 'Portraits', items: [
+                    { value: 'portrait', label: 'Portrait (Allgemein)' },
+                    { value: 'portrait-worldsapart', label: 'Portrait (Worlds Apart)' },
+                    { value: 'portrait-dnd5e', label: 'Portrait (D&D 5e)' },
+                    { value: 'portrait-htbah', label: 'Portrait (HTBAH)' },
+                    { value: 'portrait-cyberpunk', label: 'Portrait (Cyberpunk)' }
+                ]},
+                { group: 'Dice Modul', items: [
+                    { value: 'dice-arena', label: 'Dice Arena' },
+                    { value: 'dice-texture', label: 'Dice Textures' }
+                ]},
+                { group: 'RIFT', items: [
+                    { value: 'news-cover', label: 'News-Cover' },
+                    { value: 'carousel-cover', label: 'Carousel-Cover' },
+                    { value: 'feature-asset', label: 'Feature-Assets' }
+                ]}
+            ];
+            var selectHtml = typeOptions.map(function(g) {
+                return '<optgroup label="' + g.group + '">' + g.items.map(function(opt) {
+                    return '<option value="' + opt.value + '"' + (i.type === opt.value ? ' selected' : '') + '>' + opt.label + '</option>';
+                }).join('') + '</optgroup>';
+            }).join('');
+            
+            var html = '<div class="modal active" id="assetViewModal" onclick="if(event.target===this)this.remove()">' +
+                '<div class="modal__content" style="max-width:600px;">' +
+                '<div class="modal__header"><h3 class="modal__title">Asset bearbeiten</h3>' +
+                '<button class="btn btn--ghost" onclick="document.getElementById(\'assetViewModal\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+                '<div class="modal__body">' +
+                '<div style="display:flex;gap:20px;">' +
+                '<div style="width:200px;height:200px;background:var(--bg);border-radius:8px;overflow:hidden;flex-shrink:0;">' +
+                '<img src="' + i.url + '" style="width:100%;height:100%;object-fit:cover;">' +
+                '</div>' +
+                '<div style="flex:1;">' +
+                '<div class="form-group"><label class="form-label">Name</label>' +
+                '<input type="text" class="form-input" id="editAssetName" value="' + (i.name || '').replace(/"/g, '&quot;') + '"></div>' +
+                '<div class="form-group"><label class="form-label">Kategorie</label>' +
+                '<select class="form-select" id="editAssetType">' + selectHtml + '</select></div>' +
+                '<div class="form-group"><label class="form-label">URL</label>' +
+                '<div style="display:flex;gap:8px;">' +
+                '<input type="text" class="form-input" value="' + i.url + '" readonly style="flex:1;font-size:12px;">' +
+                '<button class="btn btn--secondary" onclick="navigator.clipboard.writeText(\'' + i.url + '\');showToast(\'URL kopiert\')">Kopieren</button>' +
+                '</div></div>' +
+                '<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Größe: ' + this.formatSize(i.size) + '</div>' +
+                '</div></div></div>' +
+                '<div class="modal__footer">' +
+                '<button class="btn btn--ghost" style="color:var(--red);" onclick="AssetsAdmin.delete(\'' + i.id + '\');document.getElementById(\'assetViewModal\').remove()">Löschen</button>' +
+                '<div style="flex:1;"></div>' +
+                '<button class="btn btn--secondary" onclick="document.getElementById(\'assetViewModal\').remove()">Abbrechen</button>' +
+                '<button class="btn btn--primary" onclick="AssetsAdmin.saveEdit(\'' + i.id + '\')">Speichern</button>' +
+                '</div></div></div>';
             document.body.insertAdjacentHTML('beforeend', html);
+        }
+    },
+    
+    async saveEdit(id) {
+        var name = document.getElementById('editAssetName').value.trim();
+        var type = document.getElementById('editAssetType').value;
+        
+        if (!name) {
+            showToast('Name erforderlich', 'error');
+            return;
+        }
+        
+        try {
+            await db.collection('assets').doc(id).update({
+                name: name,
+                type: type,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            showToast('Asset aktualisiert');
+            document.getElementById('assetViewModal').remove();
+            this.load();
+        } catch (e) {
+            console.error('Update error:', e);
+            showToast('Fehler beim Speichern', 'error');
         }
     },
     
