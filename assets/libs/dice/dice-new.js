@@ -47,12 +47,13 @@ const DICE = (function() {
         dice_texture: null, // { type: 'marble'|'wood'|'stone', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         // RIFT: Glow & Effects
         dice_glow: false,
-        dice_glow_color: null, // null = use dice color, aber aufgehellt
-        dice_glow_intensity: 1.0, // Volle Stärke für sichtbaren Effekt
+        dice_glow_color: null, // null = use dice color
+        dice_glow_intensity: 2.0, // PointLight intensity
+        dice_glow_distance: 300, // Licht-Reichweite
         dice_pulse: false,
         dice_pulse_speed: 2, // pulses per second
-        dice_pulse_min: 0.3,
-        dice_pulse_max: 1.0,
+        dice_pulse_min: 0.5,
+        dice_pulse_max: 2.5,
         ambient_light_color: 0xf0f0f0,
         spot_light_color: 0xefefef,
         desk_color: '#101010', //canvas background
@@ -369,6 +370,20 @@ const DICE = (function() {
         dice.body.velocity.set(velocity.x, velocity.y, velocity.z);
         dice.body.linearDamping = 0.1;
         dice.body.angularDamping = 0.1;
+        
+        // RIFT: Glow-Licht an Würfel hängen
+        if (vars.dice_glow) {
+            var glowColor = vars.dice_glow_color || vars.dice_color;
+            if (typeof glowColor === 'string') {
+                glowColor = parseInt(glowColor.replace('#', ''), 16);
+            }
+            var light = new THREE.PointLight(glowColor, vars.dice_glow_intensity, vars.dice_glow_distance);
+            light.position.set(0, 0, 0);
+            dice.add(light);
+            dice.glowLight = light;
+            console.log('[DICE] Glow light attached:', { color: glowColor.toString(16), intensity: vars.dice_glow_intensity });
+        }
+        
         this.scene.add(dice);
         this.dices.push(dice);
         this.world.add(dice.body);
@@ -433,25 +448,16 @@ const DICE = (function() {
             }
         }
         
-        // RIFT: Pulse Animation (kompatibel mit Three.js r73)
+        // RIFT: Pulse Animation für PointLights
         if (vars.dice_pulse && vars.dice_glow && this.dices && this.dices.length > 0) {
             var pulseTime = time * 0.001 * vars.dice_pulse_speed * Math.PI * 2;
             var pulseValue = (Math.sin(pulseTime) + 1) / 2; // 0 to 1
             var intensity = vars.dice_pulse_min + pulseValue * (vars.dice_pulse_max - vars.dice_pulse_min);
             
-            // Glow-Farbe: aufgehellte Würfelfarbe
-            var glowHex = vars.dice_glow_color || lightenColor(vars.dice_color, 0.7);
-            var scaledEmissive = scaleColorByIntensity(glowHex, intensity);
-            
             for (var d = 0; d < this.dices.length; d++) {
                 var dice = this.dices[d];
-                if (dice.material && dice.material.materials) {
-                    for (var m = 0; m < dice.material.materials.length; m++) {
-                        var mat = dice.material.materials[m];
-                        if (mat.emissive) {
-                            mat.emissive.setHex(scaledEmissive);
-                        }
-                    }
+                if (dice.glowLight) {
+                    dice.glowLight.intensity = intensity;
                 }
             }
         }
@@ -461,6 +467,11 @@ const DICE = (function() {
         if (this.running == threadid && this.check_if_throw_finished()) {
             this.running = false;
             if (this.callback) this.callback.call(this, get_dice_values(this.dices));
+            
+            // RIFT: Starte Idle-Animation für Glow/Pulse wenn Würfel liegen bleiben
+            if (vars.dice_glow && this.dices.length > 0) {
+                this.__startIdleAnimation();
+            }
         }
         if (this.running == threadid) {
             (function(t, tid, uat) {
@@ -472,9 +483,50 @@ const DICE = (function() {
             })(this, threadid, vars.use_adapvite_timestep);
         }
     }
+    
+    // RIFT: Idle-Animation für Glow/Pulse wenn Würfel liegen
+    that.dice_box.prototype.__startIdleAnimation = function() {
+        if (this.idleAnimating) return;
+        this.idleAnimating = true;
+        var box = this;
+        
+        function idleLoop() {
+            if (!box.idleAnimating || box.running || !box.dices || box.dices.length === 0) {
+                box.idleAnimating = false;
+                return;
+            }
+            
+            var time = (new Date()).getTime();
+            
+            // Pulse Animation
+            if (vars.dice_pulse && vars.dice_glow) {
+                var pulseTime = time * 0.001 * vars.dice_pulse_speed * Math.PI * 2;
+                var pulseValue = (Math.sin(pulseTime) + 1) / 2;
+                var intensity = vars.dice_pulse_min + pulseValue * (vars.dice_pulse_max - vars.dice_pulse_min);
+                
+                for (var d = 0; d < box.dices.length; d++) {
+                    var dice = box.dices[d];
+                    if (dice.glowLight) {
+                        dice.glowLight.intensity = intensity;
+                    }
+                }
+            }
+            
+            box.renderer.render(box.scene, box.camera);
+            requestAnimationFrame(idleLoop);
+        }
+        
+        idleLoop();
+    }
+    
+    // RIFT: Idle-Animation stoppen
+    that.dice_box.prototype.__stopIdleAnimation = function() {
+        this.idleAnimating = false;
+    }
 
     that.dice_box.prototype.clear = function() {
         this.running = false;
+        this.__stopIdleAnimation(); // RIFT: Idle-Animation stoppen
         var dice;
         while (dice = this.dices.pop()) {
             this.scene.remove(dice); 
@@ -732,8 +784,11 @@ const DICE = (function() {
             glow: vars.dice_glow,
             glowColor: vars.dice_glow_color,
             glowIntensity: vars.dice_glow_intensity,
+            glowDistance: vars.dice_glow_distance,
             pulse: vars.dice_pulse,
-            pulseSpeed: vars.dice_pulse_speed
+            pulseSpeed: vars.dice_pulse_speed,
+            pulseMin: vars.dice_pulse_min,
+            pulseMax: vars.dice_pulse_max
         };
     };
     
@@ -951,29 +1006,6 @@ const DICE = (function() {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) });
             
-            // RIFT: Glow Support (kompatibel mit Three.js r73)
-            if (vars.dice_glow) {
-                // Glow-Farbe: Entweder explizit gesetzt, oder eine helle Version der Würfelfarbe
-                var glowHex;
-                if (vars.dice_glow_color) {
-                    glowHex = vars.dice_glow_color;
-                } else {
-                    // Würfelfarbe aufhellen für sichtbaren Glow
-                    glowHex = lightenColor(backgroundColor, 0.7);
-                }
-                var intensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
-                var scaledColor = scaleColorByIntensity(glowHex, intensity);
-                matOptions.emissive = scaledColor;
-                
-                // Debug
-                console.log('[DICE] Glow applied:', {
-                    baseColor: backgroundColor,
-                    glowHex: glowHex,
-                    intensity: intensity,
-                    finalEmissive: '0x' + scaledColor.toString(16)
-                });
-            }
-            
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
         return materials;
@@ -1051,19 +1083,6 @@ const DICE = (function() {
         for (var i = 0; i < labels.length; ++i) {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) });
-            
-            // RIFT: Glow Support (kompatibel mit Three.js r73)
-            if (vars.dice_glow) {
-                var glowHex;
-                if (vars.dice_glow_color) {
-                    glowHex = vars.dice_glow_color;
-                } else {
-                    glowHex = lightenColor(vars.dice_color, 0.7);
-                }
-                var intensity = vars.dice_pulse ? vars.dice_pulse_min : vars.dice_glow_intensity;
-                var scaledColor = scaleColorByIntensity(glowHex, intensity);
-                matOptions.emissive = scaledColor;
-            }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
