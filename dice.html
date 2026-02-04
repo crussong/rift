@@ -291,29 +291,6 @@
             gap: 12px;
         }
         
-        /* RIFT: CSS Glow Overlay */
-        .dice-glow-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 5;
-        }
-        .dice-glow-overlay.active {
-            opacity: 1;
-        }
-        .dice-glow-overlay.pulse {
-            animation: glowPulse 1s ease-in-out infinite;
-        }
-        @keyframes glowPulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
-        
         /* RIFT: Body scroll lock when popup is open */
         body.popup-open {
             overflow: hidden !important;
@@ -335,7 +312,7 @@
             position: fixed;
             top: 50%;
             transform: translateY(-50%);
-            z-index: 10002;
+            z-index: 100000;
             backdrop-filter: blur(10px);
         }
         /* Links vom Popup auf Desktop */
@@ -445,9 +422,6 @@
                     
                     <!-- 3D Arena -->
                     <div class="dice-arena empty" id="diceArena">
-                        <!-- RIFT: CSS-basierter Glow Effekt -->
-                        <div class="dice-glow-overlay" id="diceGlowOverlay"></div>
-                        
                         <!-- Pulse Effects Container (UNDER dice) -->
                         <div class="dice-pulses" id="dicePulses"></div>
                         
@@ -1854,16 +1828,6 @@
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateColors) {
                     DicePreview.updateColors();
                 }
-                
-                // RIFT: Glow Overlay Farbe updaten wenn aktiv
-                if (this.currentGlow) {
-                    const glowOverlay = document.getElementById('diceGlowOverlay');
-                    if (glowOverlay) {
-                        const themeData = this.themeColors[theme];
-                        const color = themeData?.secondary || themeData?.primary || '#4488ff';
-                        glowOverlay.style.background = `radial-gradient(ellipse at center, ${color}66 0%, ${color}33 40%, transparent 70%)`;
-                    }
-                }
             },
             
             // ========================================
@@ -2110,22 +2074,6 @@
                     DICE.setGlow(enabled);
                 }
                 
-                // RIFT: CSS Glow Overlay steuern
-                const glowOverlay = document.getElementById('diceGlowOverlay');
-                if (glowOverlay) {
-                    if (enabled) {
-                        // Farbe basierend auf aktuellem Theme
-                        const theme = this.themeColors[this.currentTheme];
-                        const color = theme?.secondary || theme?.primary || '#4488ff';
-                        // Großer radialer Glow vom Zentrum
-                        glowOverlay.style.background = `radial-gradient(ellipse at center, ${color}66 0%, ${color}33 40%, transparent 70%)`;
-                        glowOverlay.classList.add('active');
-                        console.log('[DICE] Glow activated with color:', color);
-                    } else {
-                        glowOverlay.classList.remove('active', 'pulse');
-                    }
-                }
-                
                 // Update Settings Preview
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateSettingsPreview) {
                     DicePreview.updateSettingsPreview();
@@ -2151,20 +2099,6 @@
                 // Update DICE library
                 if (typeof DICE !== 'undefined' && DICE.setPulse) {
                     DICE.setPulse(enabled);
-                }
-                
-                // RIFT: CSS Pulse Animation steuern
-                const glowOverlay = document.getElementById('diceGlowOverlay');
-                if (glowOverlay) {
-                    if (enabled) {
-                        // Pulse braucht Glow
-                        if (!this.currentGlow) {
-                            this.setGlow(true, false);
-                        }
-                        glowOverlay.classList.add('pulse');
-                    } else {
-                        glowOverlay.classList.remove('pulse');
-                    }
                 }
                 
                 // Update Settings Preview
