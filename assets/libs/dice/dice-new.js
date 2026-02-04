@@ -674,7 +674,36 @@ const DICE = (function() {
             var ts = calc_texture_size(size + size * 2 * margin) * 2;
             canvas.width = canvas.height = ts;
             context.font = ts / (1 + 2 * margin) + "pt Arial";
-            context.fillStyle = back_color;
+            
+            // RIFT: Gradient Support
+            if (vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
+                var gradient;
+                var colors = vars.dice_gradient.colors;
+                
+                if (vars.dice_gradient.type === 'radial') {
+                    // Radial gradient from center
+                    gradient = context.createRadialGradient(
+                        canvas.width / 2, canvas.height / 2, 0,
+                        canvas.width / 2, canvas.height / 2, canvas.width / 2
+                    );
+                } else {
+                    // Linear gradient (diagonal for more dynamic look)
+                    gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+                }
+                
+                // Add color stops
+                var stops = vars.dice_gradient.stops || colors.map(function(_, i) { 
+                    return i / (colors.length - 1); 
+                });
+                for (var j = 0; j < colors.length; j++) {
+                    gradient.addColorStop(stops[j] || j / (colors.length - 1), colors[j]);
+                }
+                
+                context.fillStyle = gradient;
+            } else {
+                context.fillStyle = back_color;
+            }
+            
             context.fillRect(0, 0, canvas.width, canvas.height);
             context.textAlign = "center";
             context.textBaseline = "middle";
@@ -701,7 +730,33 @@ const DICE = (function() {
             var ts = calc_texture_size(size + margin) * 2;
             canvas.width = canvas.height = ts;
             context.font = (ts - margin) * 0.5 + "pt Arial";
-            context.fillStyle = back_color;
+            
+            // RIFT: Gradient Support
+            if (vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
+                var gradient;
+                var colors = vars.dice_gradient.colors;
+                
+                if (vars.dice_gradient.type === 'radial') {
+                    gradient = context.createRadialGradient(
+                        canvas.width / 2, canvas.height / 2, 0,
+                        canvas.width / 2, canvas.height / 2, canvas.width / 2
+                    );
+                } else {
+                    gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+                }
+                
+                var stops = vars.dice_gradient.stops || colors.map(function(_, i) { 
+                    return i / (colors.length - 1); 
+                });
+                for (var j = 0; j < colors.length; j++) {
+                    gradient.addColorStop(stops[j] || j / (colors.length - 1), colors[j]);
+                }
+                
+                context.fillStyle = gradient;
+            } else {
+                context.fillStyle = back_color;
+            }
+            
             context.fillRect(0, 0, canvas.width, canvas.height);
             context.textAlign = "center";
             context.textBaseline = "middle";
