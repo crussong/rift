@@ -100,7 +100,7 @@ const DICE = (function() {
         container.appendChild(this.renderer.domElement);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFShadowMap;
-        this.renderer.setClearColor(0xffffff, 0); //color, alpha
+        this.renderer.setClearColor(0x000000, 0); //RIFT: black fallback if alpha fails (prevents white flash on mobile)
 
         this.reinit(container);
         $t.bind(container, 'resize', function() {
@@ -187,8 +187,15 @@ const DICE = (function() {
         this.scene.add(this.light);
 
         if (this.desk) this.scene.remove(this.desk);
-        this.desk = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 2, this.h * 2, 1, 1), 
-                new THREE.MeshPhongMaterial({ color: vars.desk_color, opacity: vars.desk_opacity, transparent: true }));
+        // RIFT: Use ShadowMaterial - fully transparent except where shadows fall
+        var deskMaterial;
+        if (typeof THREE.ShadowMaterial !== 'undefined') {
+            deskMaterial = new THREE.ShadowMaterial({ opacity: 0.4 });
+        } else {
+            // Fallback for older Three.js versions
+            deskMaterial = new THREE.MeshPhongMaterial({ color: vars.desk_color, opacity: vars.desk_opacity, transparent: true });
+        }
+        this.desk = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 2, this.h * 2, 1, 1), deskMaterial);
         this.desk.receiveShadow = vars.use_shadows;
         this.scene.add(this.desk); 
 
