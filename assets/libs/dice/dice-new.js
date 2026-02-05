@@ -1213,27 +1213,41 @@ const DICE = (function() {
     }
     
     // RIFT PRO: Duotone Split Texture
-    function generateDuotoneTexture(ctx, width, height, color1, color2) {
-        // Dramatischer diagonaler Split
-        var grad = ctx.createLinearGradient(0, 0, width, height);
-        grad.addColorStop(0, color1);
-        grad.addColorStop(0.42, color1);
-        grad.addColorStop(0.5, color2);  // Scharfer Übergang in der Mitte
-        grad.addColorStop(0.58, color2);
-        grad.addColorStop(1, color2);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, width, height);
-        
-        // Subtile Linie am Übergang
-        ctx.globalAlpha = 0.2;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(width, height);
-        ctx.stroke();
-        
-        ctx.globalAlpha = 1.0;
+    function generateDuotoneTexture(ctx, width, height, color1, color2, useRadial) {
+        if (useRadial) {
+            // Radiale Variante für D10/D100 – keine gerichtete Naht
+            var grad = ctx.createRadialGradient(
+                width / 2, height / 2, 0,
+                width / 2, height / 2, width * 0.6
+            );
+            grad.addColorStop(0, color1);
+            grad.addColorStop(0.5, color1);
+            grad.addColorStop(0.65, color2);
+            grad.addColorStop(1, color2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+        } else {
+            // Dramatischer diagonaler Split
+            var grad = ctx.createLinearGradient(0, 0, width, height);
+            grad.addColorStop(0, color1);
+            grad.addColorStop(0.42, color1);
+            grad.addColorStop(0.5, color2);  // Scharfer Übergang in der Mitte
+            grad.addColorStop(0.58, color2);
+            grad.addColorStop(1, color2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Subtile Linie am Übergang
+            ctx.globalAlpha = 0.2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(width, height);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1.0;
+        }
     }
     
     function create_dice_materials(face_labels, size, margin, useGradient) {
@@ -1288,7 +1302,7 @@ const DICE = (function() {
                         generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
                         break;
                     case 'duotone':
-                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000');
+                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000', !useGradient);
                         break;
                     default:
                         context.fillStyle = back_color;
@@ -1428,7 +1442,7 @@ const DICE = (function() {
                         generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
                         break;
                     case 'duotone':
-                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000');
+                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000', false);
                         break;
                     default:
                         context.fillStyle = back_color;
