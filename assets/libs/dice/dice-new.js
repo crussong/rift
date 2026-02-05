@@ -1594,10 +1594,16 @@ const DICE = (function() {
             var normal = geom.faces[triIndices[0]].normal.clone().normalize();
             
             // Lokales 2D-Koordinatensystem auf der Face-Plane
-            var ref = new THREE.Vector3().subVectors(verts[0], center);
-            // Referenz-Vektor auf Face-Plane projizieren (Normalkomponente entfernen)
-            var xAxis = ref.clone().sub(normal.clone().multiplyScalar(ref.dot(normal))).normalize();
-            var yAxis = new THREE.Vector3().crossVectors(normal, xAxis).normalize();
+            // "Oben" = Richtung zum Pol-Vertex (höchstes |z|) → konsistente Orientierung
+            var poleVi = -1, maxAbsZ = -1;
+            for (var vi in vertMap) {
+                var absZ = Math.abs(geom.vertices[vi].z);
+                if (absZ > maxAbsZ) { maxAbsZ = absZ; poleVi = parseInt(vi); }
+            }
+            var toPole = new THREE.Vector3().subVectors(geom.vertices[poleVi], center);
+            // Auf Face-Plane projizieren
+            var yAxis = toPole.clone().sub(normal.clone().multiplyScalar(toPole.dot(normal))).normalize();
+            var xAxis = new THREE.Vector3().crossVectors(yAxis, normal).normalize();
             
             // Alle Vertices in 2D projizieren
             var coords = {};
@@ -1620,14 +1626,14 @@ const DICE = (function() {
             for (var t = 0; t < triIndices.length; t++) {
                 var fi = triIndices[t];
                 var face = geom.faces[fi];
-                geom.faceVertexUvs[0][fi] = [
-                    new THREE.Vector2((coords[face.a].x - cx) / scale + 0.5,
-                                      (coords[face.a].y - cy) / scale + 0.5),
-                    new THREE.Vector2((coords[face.b].x - cx) / scale + 0.5,
-                                      (coords[face.b].y - cy) / scale + 0.5),
-                    new THREE.Vector2((coords[face.c].x - cx) / scale + 0.5,
-                                      (coords[face.c].y - cy) / scale + 0.5)
-                ];
+                var abc = [face.a, face.b, face.c];
+                var uvs = [];
+                for (var v = 0; v < 3; v++) {
+                    var u0 = (coords[abc[v]].x - cx) / scale + 0.5;
+                    var v0 = (coords[abc[v]].y - cy) / scale + 0.5;
+                    uvs.push(new THREE.Vector2(u0, v0));
+                }
+                geom.faceVertexUvs[0][fi] = uvs;
             }
         }
         
