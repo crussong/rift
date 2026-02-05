@@ -1588,9 +1588,6 @@ const DICE = (function() {
                     case 'runic':
                         generateRunicTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.runeColor || '#ffd700', tex.glowColor || '#ffaa00');
                         break;
-                    case 'circuit':
-                        generateCircuitTexture(context, ts, ts, tex.baseColor || '#0a0e0a', tex.traceColor || '#00ff88', tex.glowColor || '#00aa44');
-                        break;
                     default:
                         context.fillStyle = back_color;
                         context.fillRect(0, 0, canvas.width, canvas.height);
@@ -1719,9 +1716,6 @@ const DICE = (function() {
                     case 'galaxy':
                         generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
                         break;
-                    case 'lava':
-                        generateLavaCracksTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.crackColor || '#ff6600', tex.glowColor || '#ff2200');
-                        break;
                     case 'frost':
                         generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
                         break;
@@ -1736,9 +1730,6 @@ const DICE = (function() {
                         break;
                     case 'runic':
                         generateRunicTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.runeColor || '#ffd700', tex.glowColor || '#ffaa00');
-                        break;
-                    case 'circuit':
-                        generateCircuitTexture(context, ts, ts, tex.baseColor || '#0a0e0a', tex.traceColor || '#00ff88', tex.glowColor || '#00aa44');
                         break;
                     default:
                         context.fillStyle = back_color;
