@@ -2133,12 +2133,13 @@ const ArenaThemesAdmin = {
             return;
         }
         
-        const tierColors = { free: '#22C55E', silver: '#94A3B8', gold: '#F59E0B' };
-        const tierLabels = { free: 'Free', silver: 'Silver', gold: 'Gold' };
+        const tierColors = { free: '#22C55E', pro: '#bca24d' };
+        const tierLabels = { free: 'Free', pro: 'Pro' };
         
         c.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;">' +
             this.themes.map(t => {
-                const tier = t.tier || 'free';
+                const rawTier = t.tier || 'free';
+                const tier = (rawTier === 'silver' || rawTier === 'gold') ? 'pro' : rawTier;
                 return '<div style="background:var(--bg-elevated);border-radius:12px;overflow:hidden;position:relative;">' +
                     '<div style="aspect-ratio:16/9;background:url(\'' + (t.imageUrl || '') + '\') center/cover;position:relative;">' +
                     '<span style="position:absolute;top:8px;left:8px;background:' + tierColors[tier] + ';color:white;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;">' + tierLabels[tier] + '</span>' +
@@ -2156,17 +2157,18 @@ const ArenaThemesAdmin = {
     updateStats() {
         document.getElementById('statArenaTotal').textContent = this.themes.length;
         document.getElementById('statArenaFree').textContent = this.themes.filter(t => t.tier === 'free').length;
-        document.getElementById('statArenaSilver').textContent = this.themes.filter(t => t.tier === 'silver').length;
-        document.getElementById('statArenaGold').textContent = this.themes.filter(t => t.tier === 'gold').length;
+        document.getElementById('statArenaPro').textContent = this.themes.filter(t => t.tier === 'silver' || t.tier === 'gold' || t.tier === 'pro').length;
     },
     
     filter() {
         const search = document.getElementById('arenaThemeSearch').value.toLowerCase();
-        const tier = document.getElementById('arenaThemeTierFilter').value;
+        const tierFilter = document.getElementById('arenaThemeTierFilter').value;
         const filtered = this.themes.filter(t => {
             const matchSearch = !search || (t.name || '').toLowerCase().includes(search) || (t.themeId || '').toLowerCase().includes(search);
-            const matchTier = !tier || t.tier === tier;
-            return matchSearch && matchTier;
+            if (!tierFilter) return matchSearch;
+            const rawTier = t.tier || 'free';
+            const mappedTier = (rawTier === 'silver' || rawTier === 'gold') ? 'pro' : rawTier;
+            return matchSearch && mappedTier === tierFilter;
         });
         const orig = this.themes;
         this.themes = filtered;
@@ -2192,8 +2194,7 @@ const ArenaThemesAdmin = {
             '<div class="form-group" style="flex:1;"><label class="form-label">Tier</label>' +
             '<select class="form-select" id="themeTier">' +
             '<option value="free"' + (theme?.tier === 'free' ? ' selected' : '') + '>🟢 Free</option>' +
-            '<option value="silver"' + (theme?.tier === 'silver' ? ' selected' : '') + '>⚪ Silver</option>' +
-            '<option value="gold"' + (theme?.tier === 'gold' ? ' selected' : '') + '>🟡 Gold</option>' +
+            '<option value="pro"' + (theme?.tier === 'silver' || theme?.tier === 'gold' || theme?.tier === 'pro' ? ' selected' : '') + '>🟡 Pro</option>' +
             '</select></div>' +
             '<div class="form-group" style="flex:1;"><label class="form-label">Reihenfolge</label>' +
             '<input type="number" class="form-input" id="themeOrder" value="' + (theme?.order || 0) + '" min="0"></div>' +
@@ -2373,9 +2374,9 @@ const ArenaThemesAdmin = {
             // SILVER TIER (gradient-based themes - would need image conversion or skip)
             // These use CSS gradients, not images. For now we skip them or you can create images later.
             
-            // GOLD TIER
-            { themeId: 'dragonclaw-red', name: 'Dragonclaw (Red)', tier: 'gold', order: 100, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770235663/rift-assets/mq1vanad7kzp4tg6vwfn.png' },
-            { themeId: 'dragonclaw-green', name: 'Dragonclaw (Green)', tier: 'gold', order: 101, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770235665/rift-assets/rflk7srpbglks52z43s0.png' },
+            // PRO TIER
+            { themeId: 'dragonclaw-red', name: 'Dragonclaw (Red)', tier: 'pro', order: 100, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770235663/rift-assets/mq1vanad7kzp4tg6vwfn.png' },
+            { themeId: 'dragonclaw-green', name: 'Dragonclaw (Green)', tier: 'pro', order: 101, imageUrl: 'https://res.cloudinary.com/dza4jgreq/image/upload/v1770235665/rift-assets/rflk7srpbglks52z43s0.png' },
         ];
         
         let imported = 0;
