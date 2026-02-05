@@ -590,14 +590,7 @@
                         <!-- Pulse Effects Container (UNDER dice) -->
                         <div class="dice-pulses" id="dicePulses"></div>
                         
-                        <!-- Empty State -->
-                        <div class="dice-arena__empty">
-                            <svg class="dice-arena__empty-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                                <circle cx="12" cy="12" r="2"/>
-                            </svg>
-                            <p>Wähle Würfel und ziehe zum Werfen</p>
-                        </div>
+                        <!-- Empty State removed - swipe hint below is sufficient -->
                         
                         <!-- Swipe Hint -->
                         <div class="dice-arena__swipe-hint">
@@ -953,7 +946,7 @@
     <script src="assets/libs/dice/teal.js"></script>
     <script src="assets/libs/dice/three.min.js"></script>
     <script src="assets/libs/dice/cannon.min.js"></script>
-    <script src="assets/libs/dice/dice-new.js?v=14"></script>
+    <script src="assets/libs/dice/dice-new.js?v=15"></script>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -2365,11 +2358,23 @@
             async loadArenaThemesFromDB() {
                 if (this.arenaThemesLoaded) return;
                 
+                // Always apply saved/default theme immediately (CSS is hardcoded)
+                const savedTheme = localStorage.getItem('rift_dice_arena_theme') || 'rift';
+                this.setArenaTheme(savedTheme, false);
+                
                 try {
                     // Check if Firebase is available
                     if (typeof db === 'undefined') {
                         console.warn('[DiceRoller] Firebase not available, using fallback');
                         this.renderArenaThemesFallback();
+                        // Retry after delay in case Firebase loads later
+                        this._themeRetryCount = (this._themeRetryCount || 0) + 1;
+                        if (this._themeRetryCount <= 3) {
+                            setTimeout(() => {
+                                this.arenaThemesLoaded = false;
+                                this.loadArenaThemesFromDB();
+                            }, 2000 * this._themeRetryCount);
+                        }
                         return;
                     }
                     
@@ -2398,6 +2403,14 @@
                 } catch (error) {
                     console.error('[DiceRoller] Error loading arena themes:', error);
                     this.renderArenaThemesFallback();
+                    // Retry on error
+                    this._themeRetryCount = (this._themeRetryCount || 0) + 1;
+                    if (this._themeRetryCount <= 3) {
+                        setTimeout(() => {
+                            this.arenaThemesLoaded = false;
+                            this.loadArenaThemesFromDB();
+                        }, 2000 * this._themeRetryCount);
+                    }
                 }
             },
             
@@ -2490,21 +2503,70 @@
             },
             
             renderArenaThemesFallback() {
-                // Fallback with basic themes if DB fails
+                // Hardcoded fallback themes - CSS is already in dice.css, so these always work
+                const fallbackThemes = [
+                    // RIFT Image Themes
+                    { themeId: 'rift', name: 'RIFT Original' },
+                    { themeId: 'rift-negative', name: 'RIFT Negative' },
+                    { themeId: 'rift-tag', name: 'RIFT Tag' },
+                    { themeId: 'rift-tag-negative', name: 'RIFT Tag Neg.' },
+                    { themeId: 'rift-rest-easy', name: 'Rest Easy' },
+                    { themeId: 'rift-rest-easy-negative', name: 'Rest Easy Neg.' },
+                    { themeId: 'rift-punk', name: 'Punk' },
+                    { themeId: 'rift-punk-alt', name: 'Punk Alt' },
+                    { themeId: 'rift-leather', name: 'Leather' },
+                    { themeId: 'rift-leather-negative', name: 'Leather Neg.' },
+                    { themeId: 'rift-the-dice', name: 'The Dice' },
+                    { themeId: 'rift-the-dice-alt', name: 'The Dice Alt' },
+                    { themeId: 'dragonclaw-red', name: 'Dragonclaw Red' },
+                    { themeId: 'dragonclaw-green', name: 'Dragonclaw Green' },
+                    // CSS-only Themes
+                    { themeId: 'grid', name: 'Grid' },
+                    { themeId: 'tavern', name: 'Tavern' },
+                    { themeId: 'casino', name: 'Casino' },
+                    { themeId: 'dungeon', name: 'Dungeon' },
+                    { themeId: 'arcane', name: 'Arcane' },
+                    { themeId: 'cyber', name: 'Cyber' },
+                    { themeId: 'nebula', name: 'Nebula' },
+                    { themeId: 'lava', name: 'Lava' },
+                    { themeId: 'frost', name: 'Frost' },
+                    { themeId: 'parchment', name: 'Parchment' },
+                    { themeId: 'ocean', name: 'Ocean' },
+                    { themeId: 'forest', name: 'Forest' },
+                    { themeId: 'bloodmoon', name: 'Bloodmoon' },
+                    { themeId: 'desert', name: 'Desert' },
+                    { themeId: 'void', name: 'Void' },
+                    { themeId: 'marble', name: 'Marble' },
+                    { themeId: 'gothic', name: 'Gothic' },
+                    { themeId: 'steampunk', name: 'Steampunk' }
+                ];
+                
+                this.arenaThemes = fallbackThemes;
+                this.arenaThemesLoaded = true;
+                
                 const container = document.getElementById('arenaThemesContent');
                 if (!container) return;
                 
-                container.innerHTML = `
-                    <div style="text-align:center;padding:30px;color:rgba(255,255,255,0.5);">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:40px;height:40px;margin-bottom:12px;opacity:0.5;">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                        <p>Arena Themes konnten nicht geladen werden.</p>
-                        <p style="font-size:12px;margin-top:8px;">Bitte versuche es später erneut.</p>
-                    </div>
-                `;
+                const currentTheme = this.currentArenaTheme || localStorage.getItem('rift_dice_arena_theme') || 'rift';
+                
+                let html = '<div class="dice-arena-theme-grid">';
+                fallbackThemes.forEach(t => {
+                    const isActive = t.themeId === currentTheme ? ' active' : '';
+                    html += `
+                        <button class="dice-arena-theme-card${isActive}" data-arena-theme="${t.themeId}" onclick="DiceRoller.setArenaTheme('${t.themeId}')">
+                            <div class="dice-arena-theme-preview dice-arena-theme-preview--${t.themeId}"></div>
+                            <span>${t.name}</span>
+                        </button>
+                    `;
+                });
+                html += '</div>';
+                
+                container.innerHTML = html;
+                
+                // Apply saved theme
+                this.loadArenaTheme();
+                
+                console.log('[DiceRoller] Fallback themes rendered:', fallbackThemes.length);
             },
             
             // ========================================
@@ -3835,8 +3897,20 @@
                 console.log('[DiceRoller] initMultiplayer called, roomCode:', roomCode, 'firebase:', typeof firebase !== 'undefined');
                 
                 // Check if Firebase SDK is loaded AND initialized
-                if (!roomCode || typeof firebase === 'undefined' || !firebase.apps || firebase.apps.length === 0) {
-                    console.log('[DiceRoller] No room or Firebase not initialized, skipping multiplayer');
+                if (!roomCode) {
+                    console.log('[DiceRoller] No room, skipping multiplayer');
+                    return;
+                }
+                
+                if (typeof firebase === 'undefined' || !firebase.apps || firebase.apps.length === 0) {
+                    // Firebase not ready yet - retry
+                    this._mpRetryCount = (this._mpRetryCount || 0) + 1;
+                    if (this._mpRetryCount <= 5) {
+                        console.log('[DiceRoller] Firebase not ready, retry', this._mpRetryCount, '/5');
+                        setTimeout(() => this.initMultiplayer(), 1000 * this._mpRetryCount);
+                    } else {
+                        console.warn('[DiceRoller] Firebase not available after 5 retries, multiplayer disabled');
+                    }
                     return;
                 }
                 
