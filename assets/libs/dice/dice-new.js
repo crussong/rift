@@ -99,7 +99,7 @@ const DICE = (function() {
             : new THREE.CanvasRenderer({ antialias: true, alpha: true });
         container.appendChild(this.renderer.domElement);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x000000, 0); //RIFT: black fallback if alpha fails (prevents white flash on mobile)
 
         this.reinit(container);
@@ -179,11 +179,11 @@ const DICE = (function() {
         this.light.castShadow = true;
         this.light.shadowCameraNear = mw / 10;
         this.light.shadowCameraFar = mw * 5;
-        this.light.shadowCameraFov = 50;
-        this.light.shadowBias = 0.001;
+        this.light.shadowCameraFov = 80;
+        this.light.shadowBias = 0.0015;
         this.light.shadowDarkness = 1.1;
-        this.light.shadowMapWidth = 2048;
-        this.light.shadowMapHeight = 2048;
+        this.light.shadowMapWidth = 4096;
+        this.light.shadowMapHeight = 4096;
         this.scene.add(this.light);
 
         if (this.desk) this.scene.remove(this.desk);
