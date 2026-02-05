@@ -1553,7 +1553,86 @@ const DICE = (function() {
             [11, 3, 4, 5, 8],   // Kite 8: N-Pol, ring3(up), ring4(down), ring5(up)
             [10, 6, 5, 4, 9],   // Kite 9: S-Pol, ring6(down), ring5(up), ring4(down)
         ];
-        return create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
+        var geom = create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
+        
+        // RIFT FIX: Kite-UV-Korrektur
+        // make_geom setzt reguläre Quadrat-UVs (aa=π/2), aber die Kite-Fläche ist
+        // höher als breit → Text wird verzerrt. Fix: UVs aus echten 3D-Positionen
+        // berechnen, damit gleiche Abstände in UV = gleiche Abstände auf der Fläche.
+        var faceGroups = {};
+        for (var i = 0; i < geom.faces.length; i++) {
+            var mi = geom.faces[i].materialIndex;
+            if (mi === 0) continue; // Chamfer-Flächen überspringen
+            if (!faceGroups[mi]) faceGroups[mi] = [];
+            faceGroups[mi].push(i);
+        }
+        
+        for (var mi in faceGroups) {
+            var triIndices = faceGroups[mi];
+            
+            // Sammle einzigartige Vertices dieser Kite-Fläche (2 Tris → 4 Verts)
+            var vertMap = {}; // vertex-index → position im Array
+            var verts = [];
+            for (var t = 0; t < triIndices.length; t++) {
+                var face = geom.faces[triIndices[t]];
+                var abc = [face.a, face.b, face.c];
+                for (var v = 0; v < 3; v++) {
+                    var vi = abc[v];
+                    if (vertMap[vi] === undefined) {
+                        vertMap[vi] = verts.length;
+                        verts.push(geom.vertices[vi]);
+                    }
+                }
+            }
+            
+            // Face-Zentrum
+            var center = new THREE.Vector3(0, 0, 0);
+            for (var v = 0; v < verts.length; v++) center.add(verts[v]);
+            center.divideScalar(verts.length);
+            
+            // Face-Normale (vom ersten Triangle)
+            var normal = geom.faces[triIndices[0]].normal.clone().normalize();
+            
+            // Lokales 2D-Koordinatensystem auf der Face-Plane
+            var ref = new THREE.Vector3().subVectors(verts[0], center);
+            // Referenz-Vektor auf Face-Plane projizieren (Normalkomponente entfernen)
+            var xAxis = ref.clone().sub(normal.clone().multiplyScalar(ref.dot(normal))).normalize();
+            var yAxis = new THREE.Vector3().crossVectors(normal, xAxis).normalize();
+            
+            // Alle Vertices in 2D projizieren
+            var coords = {};
+            var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (var vi in vertMap) {
+                var rel = new THREE.Vector3().subVectors(geom.vertices[vi], center);
+                var x = rel.dot(xAxis);
+                var y = rel.dot(yAxis);
+                coords[vi] = { x: x, y: y };
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+            }
+            
+            // UV-Mapping: Auf [0,1] skalieren MIT korrektem Aspect-Ratio
+            var w = maxX - minX, h = maxY - minY;
+            var scale = Math.max(w, h);
+            var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+            
+            // UVs auf Triangle-Faces anwenden
+            for (var t = 0; t < triIndices.length; t++) {
+                var fi = triIndices[t];
+                var face = geom.faces[fi];
+                geom.faceVertexUvs[0][fi] = [
+                    new THREE.Vector2((coords[face.a].x - cx) / scale + 0.5,
+                                      (coords[face.a].y - cy) / scale + 0.5),
+                    new THREE.Vector2((coords[face.b].x - cx) / scale + 0.5,
+                                      (coords[face.b].y - cy) / scale + 0.5),
+                    new THREE.Vector2((coords[face.c].x - cx) / scale + 0.5,
+                                      (coords[face.c].y - cy) / scale + 0.5)
+                ];
+            }
+        }
+        
+        geom.uvsNeedUpdate = true;
+        return geom;
     }
 
     function create_d12_geometry(radius) {
