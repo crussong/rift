@@ -596,18 +596,18 @@ const DICE = (function() {
         return new THREE.Mesh(this.d8_geometry, this.d8_material);
     }
 
-    // D10-based dice: disable gradient to avoid visible seams on kite faces
+    // D10-based dice: Kite-Quad-Geometrie → Gradient/Textur nahtlos pro Fläche
     threeD_dice.create_d9 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
     threeD_dice.create_d10 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
@@ -628,7 +628,7 @@ const DICE = (function() {
     threeD_dice.create_d100 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d100_material) this.d100_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false));
+                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5));
         return new THREE.Mesh(this.d10_geometry, this.d100_material);
     }
 
@@ -1302,7 +1302,7 @@ const DICE = (function() {
                         generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
                         break;
                     case 'duotone':
-                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000', !useGradient);
+                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000', false);
                         break;
                     default:
                         context.fillStyle = back_color;
@@ -1530,15 +1530,29 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        var a = Math.PI * 2 / 10, k = Math.cos(a), h = 0.105, v = -1;
+        var a = Math.PI * 2 / 10, h = 0.105;
         var vertices = [];
         for (var i = 0, b = 0; i < 10; ++i, b += a)
             vertices.push([Math.cos(b), Math.sin(b), h * (i % 2 ? 1 : -1)]);
-        vertices.push([0, 0, -1]); vertices.push([0, 0, 1]);
-        var faces = [[5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
-                [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9],
-                [1, 0, 2, v], [1, 2, 3, v], [3, 2, 4, v], [3, 4, 5, v], [5, 4, 6, v],
-                [5, 6, 7, v], [7, 6, 8, v], [7, 8, 9, v], [9, 8, 0, v], [9, 0, 1, v]];
+        vertices.push([0, 0, -1]); // 10 = Südpol
+        vertices.push([0, 0, 1]);  // 11 = Nordpol
+        
+        // RIFT FIX: Kite-Faces als 4-Eck-Quads statt 20 separate Dreiecke.
+        // Jedes Quad = Pol → Ring-A → Ring-B → anderer Pol.
+        // make_geom fan-trianguliert: 2 Triangles pro Quad, GLEICHER materialIndex.
+        // → Textur/Gradient nahtlos über gesamte Kite-Fläche.
+        var faces = [
+            [11, 5, 6, 7, 0],   // Kite 0: N-Pol, ring5(up), ring6(down), ring7(up)
+            [10, 4, 3, 2, 1],   // Kite 1: S-Pol, ring4(down), ring3(up), ring2(down)
+            [11, 1, 2, 3, 2],   // Kite 2: N-Pol, ring1(up), ring2(down), ring3(up)
+            [10, 0, 9, 8, 3],   // Kite 3: S-Pol, ring0(down), ring9(up), ring8(down)
+            [11, 7, 8, 9, 4],   // Kite 4: N-Pol, ring7(up), ring8(down), ring9(up)
+            [10, 8, 7, 6, 5],   // Kite 5: S-Pol, ring8(down), ring7(up), ring6(down)
+            [11, 9, 0, 1, 6],   // Kite 6: N-Pol, ring9(up), ring0(down), ring1(up)
+            [10, 2, 1, 0, 7],   // Kite 7: S-Pol, ring2(down), ring1(up), ring0(down)
+            [11, 3, 4, 5, 8],   // Kite 8: N-Pol, ring3(up), ring4(down), ring5(up)
+            [10, 6, 5, 4, 9],   // Kite 9: S-Pol, ring6(down), ring5(up), ring4(down)
+        ];
         return create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
     }
 
@@ -1847,9 +1861,8 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.4);
                 break;
             case 'd10':
-                // D10: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
                 break;
             case 'd12':
                 geometry = create_d12_geometry(vars.scale * 0.9);
@@ -1860,9 +1873,8 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
                 break;
             case 'd100':
-                // D100: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false);
+                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5);
                 break;
             default:
                 vars.scale = originalScale;
