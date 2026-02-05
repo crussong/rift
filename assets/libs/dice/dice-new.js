@@ -44,8 +44,11 @@ const DICE = (function() {
         // RIFT: Gradient Support
         dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
         // RIFT: Texture Support
-        dice_texture: null, // { type: 'marble'|'wood'|'stone', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
+        dice_texture: null, // { type: 'marble'|'wood'|'stone'|'leather'|'metal', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         // RIFT: Glow & Effects
+        dice_material_override: null, // { shininess, specular, emissive } - per-theme material overrides
+        dice_text_style: null, // 'embossed', 'neon' or null
+        dice_neon_color: null, // Neon glow color for text
         dice_glow: false,
         dice_glow_color: null, // null = use dice color
         dice_glow_intensity: 2.0, // PointLight intensity
@@ -99,8 +102,8 @@ const DICE = (function() {
             : new THREE.CanvasRenderer({ antialias: true, alpha: true });
         container.appendChild(this.renderer.domElement);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFShadowMap;
-        this.renderer.setClearColor(0xffffff, 0); //color, alpha
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.setClearColor(0x000000, 0); //RIFT: black fallback if alpha fails (prevents white flash on mobile)
 
         this.reinit(container);
         $t.bind(container, 'resize', function() {
@@ -173,22 +176,23 @@ const DICE = (function() {
         var mw = Math.max(this.w, this.h);
         if (this.light) this.scene.remove(this.light);
         this.light = new THREE.SpotLight(vars.spot_light_color, 2.0);
-        this.light.position.set(-mw / 2, mw / 2, mw * 2);
+        this.light.position.set(0, mw / 2, mw * 2);
         this.light.target.position.set(0, 0, 0);
         this.light.distance = mw * 5;
         this.light.castShadow = true;
         this.light.shadowCameraNear = mw / 10;
         this.light.shadowCameraFar = mw * 5;
-        this.light.shadowCameraFov = 50;
-        this.light.shadowBias = 0.001;
+        this.light.shadowCameraFov = 80;
+        this.light.shadowBias = 0.0015;
         this.light.shadowDarkness = 1.1;
-        this.light.shadowMapWidth = 1024;
-        this.light.shadowMapHeight = 1024;
+        this.light.shadowMapWidth = 4096;
+        this.light.shadowMapHeight = 4096;
         this.scene.add(this.light);
 
         if (this.desk) this.scene.remove(this.desk);
+        // RIFT: Low opacity desk for shadow rendering - nearly invisible on dark themes
         this.desk = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 2, this.h * 2, 1, 1), 
-                new THREE.MeshPhongMaterial({ color: vars.desk_color, opacity: vars.desk_opacity, transparent: true }));
+                new THREE.MeshPhongMaterial({ color: '#000000', opacity: 0.25, transparent: true }));
         this.desk.receiveShadow = vars.use_shadows;
         this.scene.add(this.desk); 
 
@@ -592,18 +596,18 @@ const DICE = (function() {
         return new THREE.Mesh(this.d8_geometry, this.d8_material);
     }
 
-    // D10-based dice: disable gradient to avoid visible seams on kite faces
+    // D10-based dice: Kite-Quad-Geometrie → Gradient/Textur nahtlos pro Fläche
     threeD_dice.create_d9 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
     threeD_dice.create_d10 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
@@ -624,7 +628,7 @@ const DICE = (function() {
     threeD_dice.create_d100 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d100_material) this.d100_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false));
+                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5));
         return new THREE.Mesh(this.d10_geometry, this.d100_material);
     }
 
@@ -632,10 +636,13 @@ const DICE = (function() {
     var manualLabelColor = null;
     
     // RIFT: Methode um Würfelfarbe zu ändern
-    that.setDiceColor = function(color, gradient, texture) {
+    that.setDiceColor = function(color, gradient, texture, materialOverride, textStyle, neonColor) {
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
         vars.dice_texture = texture || null;
+        vars.dice_material_override = materialOverride || null;
+        vars.dice_text_style = textStyle || null;
+        vars.dice_neon_color = neonColor || null;
         
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
@@ -781,22 +788,22 @@ const DICE = (function() {
     
     // RIFT: Texture generation functions
     function generateMarbleTexture(ctx, width, height, baseColor, veinColor) {
-        // Fill with base color
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Generate marble veins using random curves
+        // Primary veins - thick, prominent
         ctx.strokeStyle = veinColor;
-        ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.45;
         
-        for (var i = 0; i < 8; i++) {
+        for (var i = 0; i < 12; i++) {
             ctx.beginPath();
             var x = Math.random() * width;
             var y = Math.random() * height;
             ctx.moveTo(x, y);
+            ctx.lineWidth = 1 + Math.random() * 2.5;
             
-            for (var j = 0; j < 5; j++) {
+            for (var j = 0; j < 6; j++) {
                 var cp1x = x + (Math.random() - 0.5) * width * 0.5;
                 var cp1y = y + (Math.random() - 0.5) * height * 0.5;
                 var cp2x = x + (Math.random() - 0.5) * width * 0.5;
@@ -808,12 +815,27 @@ const DICE = (function() {
             ctx.stroke();
         }
         
-        // Add some noise/speckles
-        ctx.globalAlpha = 0.1;
-        for (var i = 0; i < 100; i++) {
+        // Secondary fine veins
+        ctx.globalAlpha = 0.2;
+        ctx.lineWidth = 0.5;
+        for (var i = 0; i < 8; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.4;
+                y += (Math.random() - 0.5) * height * 0.4;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Noise/speckles
+        ctx.globalAlpha = 0.15;
+        for (var i = 0; i < 150; i++) {
             ctx.fillStyle = Math.random() > 0.5 ? veinColor : baseColor;
             ctx.beginPath();
-            ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 2, 0, Math.PI * 2);
+            ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 2.5, 0, Math.PI * 2);
             ctx.fill();
         }
         
@@ -821,22 +843,68 @@ const DICE = (function() {
     }
     
     function generateWoodTexture(ctx, width, height, baseColor, grainColor) {
-        // Fill with base color
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Wood grain lines
+        // Wood grain lines - stronger
         ctx.strokeStyle = grainColor;
-        ctx.globalAlpha = 0.2;
+        ctx.globalAlpha = 0.3;
         
-        for (var i = 0; i < 20; i++) {
-            ctx.lineWidth = 1 + Math.random() * 2;
+        for (var i = 0; i < 28; i++) {
+            ctx.lineWidth = 1 + Math.random() * 3;
             ctx.beginPath();
-            var y = (i / 20) * height + (Math.random() - 0.5) * 10;
+            var y = (i / 28) * height + (Math.random() - 0.5) * 10;
             ctx.moveTo(0, y);
             
-            for (var x = 0; x < width; x += 10) {
-                y += (Math.random() - 0.5) * 4;
+            for (var x = 0; x < width; x += 8) {
+                y += (Math.random() - 0.5) * 5;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Wood knots (1-2 per face)
+        ctx.globalAlpha = 0.18;
+        for (var i = 0; i < 2; i++) {
+            var kx = width * 0.2 + Math.random() * width * 0.6;
+            var ky = height * 0.2 + Math.random() * height * 0.6;
+            for (var r = 3; r > 0; r--) {
+                ctx.beginPath();
+                ctx.ellipse(kx, ky, 4 + r * 4, 2 + r * 2, Math.random() * 0.5, 0, Math.PI * 2);
+                ctx.strokeStyle = grainColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateStoneTexture(ctx, width, height, baseColor, speckleColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Speckles - more and bolder
+        for (var i = 0; i < 300; i++) {
+            ctx.globalAlpha = 0.15 + Math.random() * 0.28;
+            ctx.fillStyle = Math.random() > 0.5 ? speckleColor : baseColor;
+            var size = 1 + Math.random() * 5;
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Subtle cracks
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = speckleColor;
+        ctx.lineWidth = 0.8;
+        for (var i = 0; i < 5; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.3;
+                y += (Math.random() - 0.5) * height * 0.3;
                 ctx.lineTo(x, y);
             }
             ctx.stroke();
@@ -845,825 +913,619 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
-    function generateStoneTexture(ctx, width, height, baseColor, speckleColor) {
-        // Fill with base color
+    function generateLeatherTexture(ctx, width, height, baseColor, grainColor) {
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Add random speckles
-        for (var i = 0; i < 200; i++) {
-            ctx.globalAlpha = 0.1 + Math.random() * 0.2;
-            ctx.fillStyle = Math.random() > 0.5 ? speckleColor : baseColor;
-            var size = 1 + Math.random() * 4;
+        // Leather grain: bold irregular bumps
+        ctx.globalAlpha = 0.18;
+        for (var i = 0; i < 400; i++) {
+            ctx.fillStyle = Math.random() > 0.35 ? grainColor : baseColor;
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            var w = 2 + Math.random() * 7;
+            var h = 2 + Math.random() * 5;
+            ctx.beginPath();
+            ctx.ellipse(x, y, w, h, Math.random() * Math.PI, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Crease lines - stronger
+        ctx.strokeStyle = grainColor;
+        ctx.globalAlpha = 0.14;
+        ctx.lineWidth = 0.8;
+        for (var i = 0; i < 16; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.35;
+                y += (Math.random() - 0.5) * height * 0.35;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateMetalBrushedTexture(ctx, width, height, baseColor, brushColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Brushed metal: dense horizontal lines
+        ctx.globalAlpha = 0.1;
+        for (var i = 0; i < 120; i++) {
+            ctx.strokeStyle = Math.random() > 0.5 ? brushColor : baseColor;
+            ctx.lineWidth = 0.5 + Math.random() * 1.5;
+            ctx.beginPath();
+            var y = (i / 120) * height + (Math.random() - 0.5) * 6;
+            ctx.moveTo(0, y);
+            for (var x = 0; x < width; x += 5) {
+                y += (Math.random() - 0.5) * 1.5;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Strong highlight streak
+        var grad = ctx.createLinearGradient(0, 0, width, height * 0.3);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.35, 'rgba(255,255,255,0.1)');
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+        grad.addColorStop(0.65, 'rgba(255,255,255,0.1)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Galaxy/Nebula Texture
+    function generateGalaxyTexture(ctx, width, height, baseColor, nebulaColor1, nebulaColor2) {
+        // Dunkler Weltraum-Hintergrund
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Nebula-Wolken: Mehrere überlagerte Radial-Gradienten
+        var blobs = [
+            { x: 0.3, y: 0.4, r: 0.5, color: nebulaColor1, alpha: 0.35 },
+            { x: 0.7, y: 0.6, r: 0.4, color: nebulaColor2, alpha: 0.3 },
+            { x: 0.5, y: 0.3, r: 0.35, color: nebulaColor1, alpha: 0.2 },
+            { x: 0.2, y: 0.7, r: 0.3, color: nebulaColor2, alpha: 0.25 }
+        ];
+        
+        for (var i = 0; i < blobs.length; i++) {
+            var b = blobs[i];
+            var cx = b.x * width + (Math.random() - 0.5) * width * 0.15;
+            var cy = b.y * height + (Math.random() - 0.5) * height * 0.15;
+            var rad = b.r * Math.min(width, height);
+            
+            var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+            grad.addColorStop(0, b.color);
+            grad.addColorStop(0.4, b.color);
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            ctx.globalAlpha = b.alpha;
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Sterne: Viele kleine weiße Punkte
+        ctx.globalAlpha = 1.0;
+        for (var i = 0; i < 60; i++) {
+            var brightness = 0.3 + Math.random() * 0.7;
+            var size = 0.5 + Math.random() * 1.5;
+            ctx.globalAlpha = brightness;
+            ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Ein paar hellere Sterne mit Glow
+        for (var i = 0; i < 5; i++) {
+            var sx = Math.random() * width;
+            var sy = Math.random() * height;
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(sx, sy, 4 + Math.random() * 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1, 0, Math.PI * 2);
             ctx.fill();
         }
         
         ctx.globalAlpha = 1.0;
     }
     
-    // RIFT: Generic texture overlay system for all new texture types
-    function applyTextureOverlay(ctx, width, height, textureName) {
-        ctx.save();
+    // RIFT PRO: Lava-Cracks Texture
+    function generateLavaCracksTexture(ctx, width, height, baseColor, crackColor, glowColor) {
+        // Dunkle Basis
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
         
-        switch(textureName) {
-            case 'granite':
-                var imgData = ctx.getImageData(0, 0, width, height);
-                var d = imgData.data;
-                for (var i = 0; i < d.length; i += 4) {
-                    var n = (Math.random() - 0.5) * 60;
-                    var fleck = Math.random();
-                    if (fleck > 0.97) { n += 40; }
-                    else if (fleck > 0.94) { n -= 40; }
-                    d[i] = Math.min(255, Math.max(0, d[i] + n));
-                    d[i+1] = Math.min(255, Math.max(0, d[i+1] + n * 0.9));
-                    d[i+2] = Math.min(255, Math.max(0, d[i+2] + n * 0.8));
-                }
-                ctx.putImageData(imgData, 0, 0);
-                break;
-                
-            case 'obsidian':
-                ctx.globalCompositeOperation = 'screen';
-                for (var i = 0; i < 5; i++) {
-                    var grd = ctx.createLinearGradient(
-                        Math.random() * width, Math.random() * height,
-                        Math.random() * width, Math.random() * height
-                    );
-                    grd.addColorStop(0, 'rgba(255,255,255,0)');
-                    grd.addColorStop(0.4 + Math.random() * 0.2, 'rgba(255,255,255,0.15)');
-                    grd.addColorStop(1, 'rgba(255,255,255,0)');
-                    ctx.fillStyle = grd;
-                    ctx.fillRect(0, 0, width, height);
-                }
-                break;
-                
-            case 'crystal':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var i = 0; i < 12; i++) {
-                    var cx = Math.random() * width;
-                    var cy = Math.random() * height;
-                    var sides = 4 + Math.floor(Math.random() * 3);
-                    var r = width * 0.08 + Math.random() * width * 0.12;
-                    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
-                    ctx.beginPath();
-                    for (var j = 0; j < sides; j++) {
-                        var a = (j / sides) * Math.PI * 2 + Math.random() * 0.3;
-                        var px = cx + Math.cos(a) * r;
-                        var py = cy + Math.sin(a) * r;
-                        if (j === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
-                }
-                break;
-
-            case 'sandstone':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var y = 0; y < height; y += 2 + Math.random() * 3) {
-                    ctx.strokeStyle = Math.random() > 0.5 ? 
-                        'rgba(255,255,255,' + (0.05 + Math.random() * 0.1) + ')' :
-                        'rgba(0,0,0,' + (0.05 + Math.random() * 0.08) + ')';
-                    ctx.lineWidth = 1 + Math.random() * 1.5;
-                    ctx.beginPath();
-                    ctx.moveTo(0, y);
-                    ctx.lineTo(width, y + (Math.random() - 0.5) * 3);
-                    ctx.stroke();
-                }
-                var sd = ctx.getImageData(0, 0, width, height);
-                var sp = sd.data;
-                for (var i = 0; i < sp.length; i += 4) {
-                    var sn = (Math.random() - 0.5) * 20;
-                    sp[i] += sn; sp[i+1] += sn; sp[i+2] += sn;
-                }
-                ctx.putImageData(sd, 0, 0);
-                break;
-                
-            case 'jade':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var v = 0; v < 8; v++) {
-                    ctx.strokeStyle = v % 2 === 0 ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)';
-                    ctx.lineWidth = 3 + Math.random() * 5;
-                    ctx.beginPath();
-                    var sx = Math.random() * width;
-                    var sy = Math.random() * height;
-                    ctx.moveTo(sx, sy);
-                    for (var j = 0; j < 5; j++) {
-                        ctx.bezierCurveTo(
-                            sx + (Math.random() - 0.5) * width * 0.6, sy + (Math.random() - 0.5) * height * 0.6,
-                            sx + (Math.random() - 0.5) * width * 0.6, sy + (Math.random() - 0.5) * height * 0.6,
-                            Math.random() * width, Math.random() * height
-                        );
-                    }
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'lapis':
-                var ld = ctx.getImageData(0, 0, width, height);
-                var lp = ld.data;
-                for (var i = 0; i < lp.length; i += 4) {
-                    var ln = (Math.random() - 0.5) * 30;
-                    lp[i] += ln * 0.5; lp[i+1] += ln * 0.6; lp[i+2] += ln;
-                    if (Math.random() > 0.985) {
-                        lp[i] = Math.min(255, lp[i] + 120);
-                        lp[i+1] = Math.min(255, lp[i+1] + 100);
-                        lp[i+2] = Math.min(255, lp[i+2] + 20);
-                    }
-                }
-                ctx.putImageData(ld, 0, 0);
-                break;
-                
-            case 'meteorite':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var i = 0; i < 20; i++) {
-                    var cx = Math.random() * width;
-                    var cy = Math.random() * height;
-                    var r = 2 + Math.random() * 8;
-                    var grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-                    grd.addColorStop(0, 'rgba(0,0,0,0.3)');
-                    grd.addColorStop(0.7, 'rgba(0,0,0,0.15)');
-                    grd.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = grd;
-                    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-                }
-                ctx.globalCompositeOperation = 'screen';
-                for (var i = 0; i < 30; i++) {
-                    ctx.fillStyle = 'rgba(200,200,180,' + (Math.random() * 0.4 + 0.1) + ')';
-                    ctx.fillRect(Math.random() * width, Math.random() * height, 1 + Math.random() * 2, 1 + Math.random() * 2);
-                }
-                break;
-                
-            case 'fossil':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var y = 0; y < height; y += 5 + Math.random() * 8) {
-                    ctx.strokeStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.1) + ')';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(0, y);
-                    for (var x = 0; x < width; x += 10) {
-                        ctx.lineTo(x, y + (Math.random() - 0.5) * 3);
-                    }
-                    ctx.stroke();
-                }
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                ctx.lineWidth = 1.5;
-                for (var f = 0; f < 2; f++) {
-                    var fx = width * 0.3 + Math.random() * width * 0.4;
-                    var fy = height * 0.3 + Math.random() * height * 0.4;
-                    ctx.beginPath();
-                    for (var a = 0; a < Math.PI * 4; a += 0.15) {
-                        var fr = a * 2;
-                        var px = fx + Math.cos(a) * fr;
-                        var py = fy + Math.sin(a) * fr;
-                        if (a === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'bamboo':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var y = 0; y < height; y += height / 6 + Math.random() * 5) {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(0, y + 3); ctx.lineTo(width, y + 3); ctx.stroke();
-                }
-                for (var x = 0; x < width; x += 3 + Math.random() * 4) {
-                    ctx.strokeStyle = 'rgba(0,0,0,' + (0.03 + Math.random() * 0.05) + ')';
-                    ctx.lineWidth = 0.5;
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + (Math.random() - 0.5) * 2, height); ctx.stroke();
-                }
-                break;
-                
-            case 'bark':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var x = 0; x < width; x += 3 + Math.random() * 6) {
-                    var ridgeW = 2 + Math.random() * 4;
-                    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)';
-                    ctx.fillRect(x, 0, ridgeW, height);
-                }
-                for (var i = 0; i < 6; i++) {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(Math.random() * width, Math.random() * height);
-                    ctx.lineTo(Math.random() * width, Math.random() * height);
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'cork':
-                var cd = ctx.getImageData(0, 0, width, height);
-                var cp = cd.data;
-                for (var i = 0; i < cp.length; i += 4) {
-                    var cn = (Math.random() - 0.5) * 35;
-                    cp[i] += cn; cp[i+1] += cn * 0.9; cp[i+2] += cn * 0.7;
-                }
-                ctx.putImageData(cd, 0, 0);
-                ctx.globalCompositeOperation = 'multiply';
-                for (var i = 0; i < 40; i++) {
-                    ctx.fillStyle = 'rgba(80,50,20,0.15)';
-                    ctx.beginPath();
-                    ctx.ellipse(Math.random()*width, Math.random()*height, 1+Math.random()*3, 1+Math.random()*2, Math.random()*Math.PI, 0, Math.PI*2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'brushedMetal':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var y = 0; y < height; y += 1) {
-                    if (Math.random() > 0.3) {
-                        ctx.strokeStyle = Math.random() > 0.5 ? 
-                            'rgba(255,255,255,' + (Math.random() * 0.08) + ')' :
-                            'rgba(0,0,0,' + (Math.random() * 0.06) + ')';
-                        ctx.lineWidth = 0.5;
-                        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-                    }
-                }
-                break;
-                
-            case 'rust':
-                var rd = ctx.getImageData(0, 0, width, height);
-                var rp = rd.data;
-                for (var i = 0; i < rp.length; i += 4) {
-                    var rn = (Math.random() - 0.5) * 50;
-                    rp[i] = Math.min(255, Math.max(0, rp[i] + rn));
-                    rp[i+1] = Math.min(255, Math.max(0, rp[i+1] + rn * 0.6));
-                    rp[i+2] = Math.min(255, Math.max(0, rp[i+2] + rn * 0.3));
-                }
-                ctx.putImageData(rd, 0, 0);
-                ctx.globalCompositeOperation = 'multiply';
-                for (var i = 0; i < 25; i++) {
-                    ctx.fillStyle = 'rgba(80,40,10,' + (Math.random() * 0.2 + 0.05) + ')';
-                    ctx.beginPath();
-                    ctx.arc(Math.random()*width, Math.random()*height, 1+Math.random()*5, 0, Math.PI*2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'damascus':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var y = -height; y < height * 2; y += 4) {
-                    ctx.strokeStyle = y % 8 < 4 ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    for (var x = 0; x <= width; x += 4) {
-                        var dy = y + Math.sin(x * 0.04) * 15 + Math.sin(x * 0.02) * 8;
-                        if (x === 0) ctx.moveTo(x, dy);
-                        else ctx.lineTo(x, dy);
-                    }
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'rivets':
-                ctx.globalCompositeOperation = 'overlay';
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(width*0.08, height*0.08, width*0.84, height*0.84);
-                var rivSpacing = width / 5;
-                for (var x = rivSpacing; x < width; x += rivSpacing) {
-                    for (var y = rivSpacing; y < height; y += rivSpacing) {
-                        var rg = ctx.createRadialGradient(x-1, y-1, 0, x, y, 4);
-                        rg.addColorStop(0, 'rgba(255,255,255,0.3)');
-                        rg.addColorStop(0.5, 'rgba(255,255,255,0.1)');
-                        rg.addColorStop(1, 'rgba(0,0,0,0.15)');
-                        ctx.fillStyle = rg;
-                        ctx.beginPath();
-                        ctx.arc(x, y, 4, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-                break;
-                
-            case 'snakeskin':
-                ctx.globalCompositeOperation = 'overlay';
-                var ss = width / 12;
-                for (var row = -1; row < height / ss + 2; row++) {
-                    for (var col = -1; col < width / ss + 2; col++) {
-                        var sx = col * ss + (row % 2) * ss / 2;
-                        var sy = row * ss * 0.8;
-                        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-                        ctx.beginPath();
-                        ctx.moveTo(sx, sy - ss * 0.35);
-                        ctx.lineTo(sx + ss * 0.4, sy);
-                        ctx.lineTo(sx, sy + ss * 0.35);
-                        ctx.lineTo(sx - ss * 0.4, sy);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
-                    }
-                }
-                break;
-                
-            case 'chainmail':
-                ctx.globalCompositeOperation = 'overlay';
-                var ringR = width / 14;
-                for (var row = -1; row < height / (ringR * 1.5) + 2; row++) {
-                    for (var col = -1; col < width / (ringR * 1.5) + 2; col++) {
-                        var mx = col * ringR * 1.5 + (row % 2) * ringR * 0.75;
-                        var my = row * ringR * 1.3;
-                        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                        ctx.lineWidth = 1.5;
-                        ctx.beginPath();
-                        ctx.arc(mx, my, ringR * 0.5, 0, Math.PI * 2);
-                        ctx.stroke();
-                    }
-                }
-                break;
-                
-            case 'silk':
-                ctx.globalCompositeOperation = 'screen';
-                var sg = ctx.createLinearGradient(0, 0, width, height * 0.7);
-                sg.addColorStop(0, 'rgba(255,255,255,0)');
-                sg.addColorStop(0.3, 'rgba(255,255,255,0.1)');
-                sg.addColorStop(0.5, 'rgba(255,255,255,0.2)');
-                sg.addColorStop(0.7, 'rgba(255,255,255,0.05)');
-                sg.addColorStop(1, 'rgba(255,255,255,0)');
-                ctx.fillStyle = sg;
-                ctx.fillRect(0, 0, width, height);
-                break;
-                
-            case 'linen':
-                ctx.globalCompositeOperation = 'overlay';
-                var ls = 4;
-                for (var x = 0; x < width; x += ls) {
-                    ctx.strokeStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.05) + ')';
-                    ctx.lineWidth = 0.5;
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
-                }
-                for (var y = 0; y < height; y += ls) {
-                    ctx.strokeStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.05) + ')';
-                    ctx.lineWidth = 0.5;
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-                }
-                break;
-                
-            case 'bone':
-                var bd = ctx.getImageData(0, 0, width, height);
-                var bp = bd.data;
-                for (var i = 0; i < bp.length; i += 4) {
-                    var bn = (Math.random() - 0.5) * 20;
-                    bp[i] += bn; bp[i+1] += bn * 0.95; bp[i+2] += bn * 0.85;
-                    if (Math.random() > 0.98) { bp[i] -= 25; bp[i+1] -= 25; bp[i+2] -= 20; }
-                }
-                ctx.putImageData(bd, 0, 0);
-                break;
-                
-            case 'parchment':
-                var pd = ctx.getImageData(0, 0, width, height);
-                var pp = pd.data;
-                for (var i = 0; i < pp.length; i += 4) {
-                    var pn = (Math.random() - 0.5) * 18;
-                    pp[i] += pn; pp[i+1] += pn * 0.9; pp[i+2] += pn * 0.7;
-                }
-                ctx.putImageData(pd, 0, 0);
-                ctx.globalCompositeOperation = 'multiply';
-                var vg = ctx.createRadialGradient(width/2, height/2, width*0.2, width/2, height/2, width*0.7);
-                vg.addColorStop(0, 'rgba(255,255,255,1)');
-                vg.addColorStop(1, 'rgba(200,180,140,1)');
-                ctx.fillStyle = vg;
-                ctx.fillRect(0, 0, width, height);
-                break;
-
-            case 'bandage':
-                ctx.globalCompositeOperation = 'overlay';
-                var bw = width / 6;
-                for (var i = -height; i < width + height; i += bw) {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-                    ctx.lineWidth = bw * 0.8;
-                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + height * 0.6, height); ctx.stroke();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(i + 2, 0); ctx.lineTo(i + height * 0.6 + 2, height); ctx.stroke();
-                }
-                break;
-                
-            case 'runes':
-                ctx.globalCompositeOperation = 'screen';
-                var runeChars = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ','ᛇ','ᛈ','ᛉ','ᛊ'];
-                ctx.font = Math.floor(width/6) + 'px serif';
-                ctx.fillStyle = 'rgba(255,255,255,0.18)';
-                for (var i = 0; i < 6; i++) {
-                    ctx.fillText(runeChars[Math.floor(Math.random() * runeChars.length)], Math.random() * width * 0.8, Math.random() * height * 0.8 + height * 0.15);
-                }
-                break;
-                
-            case 'nebula':
-                ctx.globalCompositeOperation = 'screen';
-                for (var i = 0; i < 6; i++) {
-                    var nx = Math.random() * width;
-                    var ny = Math.random() * height;
-                    var nr = width * 0.2 + Math.random() * width * 0.3;
-                    var ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
-                    var hue = Math.random() > 0.5 ? 'rgba(180,100,255,' : 'rgba(100,180,255,';
-                    ng.addColorStop(0, hue + '0.15)');
-                    ng.addColorStop(0.5, hue + '0.06)');
-                    ng.addColorStop(1, hue + '0)');
-                    ctx.fillStyle = ng;
-                    ctx.fillRect(0, 0, width, height);
-                }
-                for (var i = 0; i < 20; i++) {
-                    ctx.fillStyle = 'rgba(255,255,255,' + (Math.random()*0.5+0.2) + ')';
-                    ctx.beginPath();
-                    ctx.arc(Math.random()*width, Math.random()*height, Math.random()*1.5+0.3, 0, Math.PI*2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'veins':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.shadowColor = 'rgba(255,255,255,0.5)';
-                ctx.shadowBlur = 6;
-                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-                ctx.lineWidth = 1.5;
-                for (var v = 0; v < 4; v++) {
-                    ctx.beginPath();
-                    var vx = Math.random() * width;
-                    var vy = Math.random() * height;
-                    ctx.moveTo(vx, vy);
-                    for (var j = 0; j < 8; j++) {
-                        vx += (Math.random() - 0.5) * 35;
-                        vy += 8 + Math.random() * 15;
-                        ctx.lineTo(vx, vy);
-                        if (Math.random() > 0.6) {
-                            ctx.moveTo(vx, vy);
-                            ctx.lineTo(vx + (Math.random()-0.5)*25, vy + 10 + Math.random()*10);
-                            ctx.moveTo(vx, vy);
-                        }
-                    }
-                    ctx.stroke();
-                }
-                ctx.shadowBlur = 0;
-                break;
-                
-            case 'glyphs':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                ctx.lineWidth = 1;
-                for (var i = 0; i < 4; i++) {
-                    var gx = width * 0.2 + Math.random() * width * 0.6;
-                    var gy = height * 0.2 + Math.random() * height * 0.6;
-                    var gr = 10 + Math.random() * 20;
-                    ctx.beginPath();
-                    ctx.arc(gx, gy, gr, 0, Math.PI * 2);
-                    ctx.stroke();
-                    for (var j = 0; j < 4; j++) {
-                        var a1 = (j/4) * Math.PI * 2;
-                        var a2 = ((j+2)/4) * Math.PI * 2;
-                        ctx.beginPath();
-                        ctx.moveTo(gx + Math.cos(a1)*gr, gy + Math.sin(a1)*gr);
-                        ctx.lineTo(gx + Math.cos(a2)*gr, gy + Math.sin(a2)*gr);
-                        ctx.stroke();
-                    }
-                }
-                break;
-                
-            case 'blackhole':
-                ctx.globalCompositeOperation = 'overlay';
-                var bh = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width*0.5);
-                bh.addColorStop(0, 'rgba(0,0,0,0.5)');
-                bh.addColorStop(0.2, 'rgba(0,0,0,0.3)');
-                bh.addColorStop(0.4, 'rgba(60,0,120,0.15)');
-                bh.addColorStop(0.6, 'rgba(255,255,255,0.1)');
-                bh.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = bh;
-                ctx.fillRect(0, 0, width, height);
-                ctx.globalCompositeOperation = 'screen';
-                ctx.strokeStyle = 'rgba(255,200,100,0.2)';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.ellipse(width/2, height/2, width*0.35, height*0.15, 0.3, 0, Math.PI*2);
-                ctx.stroke();
-                break;
-                
-            case 'carbon':
-                ctx.globalCompositeOperation = 'overlay';
-                var cs = width / 15;
-                for (var y = 0; y < height; y += cs) {
-                    for (var x = 0; x < width; x += cs) {
-                        var bright = ((Math.floor(x/cs) + Math.floor(y/cs)) % 2 === 0) ? 0.08 : -0.08;
-                        ctx.fillStyle = bright > 0 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-                        ctx.fillRect(x, y, cs/2, cs);
-                        ctx.fillStyle = bright > 0 ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
-                        ctx.fillRect(x + cs/2, y, cs/2, cs);
-                    }
-                }
-                break;
-                
-            case 'circuit':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                ctx.lineWidth = 1.5;
-                for (var i = 0; i < 10; i++) {
-                    ctx.beginPath();
-                    var tx = Math.random() * width;
-                    var ty = Math.random() * height;
-                    ctx.moveTo(tx, ty);
-                    for (var j = 0; j < 5; j++) {
-                        if (Math.random() > 0.5) tx += (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 20);
-                        else ty += (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 20);
-                        ctx.lineTo(tx, ty);
-                    }
-                    ctx.stroke();
-                    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-                    ctx.beginPath();
-                    ctx.arc(tx, ty, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'neonGrid':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.shadowColor = 'rgba(255,255,255,0.3)';
-                ctx.shadowBlur = 4;
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                ctx.lineWidth = 0.8;
-                var gs = width / 8;
-                for (var x = gs; x < width; x += gs) {
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
-                }
-                for (var y = gs; y < height; y += gs) {
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-                }
-                ctx.shadowBlur = 0;
-                for (var x = gs; x < width; x += gs) {
-                    for (var y = gs; y < height; y += gs) {
-                        if (Math.random() > 0.5) {
-                            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                            ctx.beginPath();
-                            ctx.arc(x, y, 1.5, 0, Math.PI*2);
-                            ctx.fill();
-                        }
-                    }
-                }
-                break;
-                
-            case 'hologram':
-                ctx.globalCompositeOperation = 'screen';
-                for (var y = 0; y < height; y += 3) {
-                    ctx.fillStyle = 'rgba(255,255,255,' + (0.02 + Math.random() * 0.04) + ')';
-                    ctx.fillRect(0, y, width, 1);
-                }
-                var hues = ['rgba(255,0,0,0.04)','rgba(0,255,0,0.04)','rgba(0,0,255,0.04)','rgba(255,0,255,0.04)'];
-                for (var i = 0; i < 4; i++) {
-                    ctx.fillStyle = hues[i];
-                    ctx.fillRect(0, height * (i / 4) + Math.random() * height * 0.1, width, height * 0.15);
-                }
-                break;
-                
-            case 'laserEtch':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                ctx.lineWidth = 0.5;
-                for (var i = 0; i < 5; i++) {
-                    ctx.beginPath();
-                    ctx.arc(width/2 + (Math.random()-0.5)*width*0.3, height/2 + (Math.random()-0.5)*height*0.3, 8 + i * 8, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                ctx.beginPath();
-                ctx.moveTo(0, height/2); ctx.lineTo(width, height/2);
-                ctx.moveTo(width/2, 0); ctx.lineTo(width/2, height);
-                ctx.stroke();
-                break;
-                
-            case 'scratched':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var i = 0; i < 12; i++) {
-                    ctx.strokeStyle = 'rgba(255,255,255,' + (0.1 + Math.random() * 0.15) + ')';
-                    ctx.lineWidth = 0.5 + Math.random();
-                    var angle = Math.random() * Math.PI;
-                    var len = 20 + Math.random() * 60;
-                    var sx = Math.random() * width;
-                    var sy = Math.random() * height;
-                    ctx.beginPath();
-                    ctx.moveTo(sx, sy);
-                    ctx.lineTo(sx + Math.cos(angle)*len, sy + Math.sin(angle)*len);
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'chipped':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var i = 0; i < 10; i++) {
-                    var cx = Math.random() * width;
-                    var cy = Math.random() * height;
-                    ctx.fillStyle = 'rgba(0,0,0,' + (0.15 + Math.random() * 0.15) + ')';
-                    ctx.beginPath();
-                    ctx.moveTo(cx, cy);
-                    for (var j = 0; j < 5 + Math.floor(Math.random()*3); j++) {
-                        var a = (j / 6) * Math.PI * 2;
-                        var r = 3 + Math.random() * 10;
-                        ctx.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                }
-                break;
-
-            case 'weathered':
-                var wd = ctx.getImageData(0, 0, width, height);
-                var wp = wd.data;
-                for (var i = 0; i < wp.length; i += 4) {
-                    var wn = (Math.random() - 0.5) * 35;
-                    wp[i] += wn; wp[i+1] += wn; wp[i+2] += wn;
-                    var px = (i/4) % width; var py = Math.floor((i/4) / width);
-                    var edgeDist = Math.min(px, py, width-px, height-py) / (width*0.3);
-                    if (edgeDist < 1) {
-                        var fade = (1 - edgeDist) * 30;
-                        wp[i] += fade; wp[i+1] += fade; wp[i+2] += fade;
-                    }
-                }
-                ctx.putImageData(wd, 0, 0);
-                break;
-                
-            case 'frozen':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.strokeStyle = 'rgba(200,230,255,0.2)';
-                ctx.lineWidth = 1;
-                for (var i = 0; i < 8; i++) {
-                    var fx = Math.random() * width;
-                    var fy = Math.random() * height;
-                    for (var j = 0; j < 6; j++) {
-                        var fa = (j / 6) * Math.PI * 2;
-                        var fl = 5 + Math.random() * 15;
-                        ctx.beginPath();
-                        ctx.moveTo(fx, fy);
-                        ctx.lineTo(fx + Math.cos(fa)*fl, fy + Math.sin(fa)*fl);
-                        ctx.stroke();
-                    }
-                }
-                ctx.fillStyle = 'rgba(200,230,255,0.06)';
-                ctx.fillRect(0, 0, width, height);
-                break;
-                
-            case 'glowCracks':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.shadowColor = 'rgba(255,200,100,0.5)';
-                ctx.shadowBlur = 5;
-                ctx.strokeStyle = 'rgba(255,200,100,0.4)';
-                ctx.lineWidth = 1.5;
-                for (var i = 0; i < 3; i++) {
-                    ctx.beginPath();
-                    var gx = Math.random() * width;
-                    var gy = Math.random() * height;
-                    ctx.moveTo(gx, gy);
-                    for (var j = 0; j < 6; j++) {
-                        gx += (Math.random() - 0.5) * 30;
-                        gy += (Math.random() - 0.5) * 30;
-                        ctx.lineTo(gx, gy);
-                    }
-                    ctx.stroke();
-                }
-                ctx.shadowBlur = 0;
-                break;
-                
-            case 'patched':
-                ctx.globalCompositeOperation = 'overlay';
-                for (var i = 0; i < 3; i++) {
-                    var px = width * 0.15 + Math.random() * width * 0.7;
-                    var py = height * 0.15 + Math.random() * height * 0.7;
-                    var pw = 15 + Math.random() * 20;
-                    var ph = 15 + Math.random() * 20;
-                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                    ctx.fillRect(px, py, pw, ph);
-                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                    ctx.lineWidth = 1;
-                    ctx.setLineDash([3, 3]);
-                    ctx.strokeRect(px, py, pw, ph);
-                    ctx.setLineDash([]);
-                }
-                break;
-                
-            case 'mandala':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-                ctx.lineWidth = 1;
-                var mcx = width / 2, mcy = height / 2;
-                for (var ring = 1; ring <= 4; ring++) {
-                    var mr = ring * width * 0.1;
-                    ctx.beginPath();
-                    ctx.arc(mcx, mcy, mr, 0, Math.PI * 2);
-                    ctx.stroke();
-                    for (var p = 0; p < 8; p++) {
-                        var pa = (p / 8) * Math.PI * 2;
-                        ctx.beginPath();
-                        ctx.moveTo(mcx + Math.cos(pa) * (mr - 5), mcy + Math.sin(pa) * (mr - 5));
-                        ctx.lineTo(mcx + Math.cos(pa) * (mr + 5), mcy + Math.sin(pa) * (mr + 5));
-                        ctx.stroke();
-                    }
-                }
-                break;
-                
-            case 'tribal':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                for (var i = 0; i < 5; i++) {
-                    var tx = Math.random() * width;
-                    var ty = Math.random() * height;
-                    ctx.beginPath();
-                    ctx.moveTo(tx, ty);
-                    ctx.lineTo(tx + 15, ty - 8);
-                    ctx.lineTo(tx + 30, ty);
-                    ctx.lineTo(tx + 15, ty + 8);
-                    ctx.closePath();
-                    ctx.fill();
-                }
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                ctx.lineWidth = 3;
-                for (var i = 0; i < 3; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(Math.random()*width, Math.random()*height);
-                    ctx.lineTo(Math.random()*width, Math.random()*height);
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'pixel':
-                ctx.globalCompositeOperation = 'overlay';
-                var ps = width / 10;
-                for (var x = 0; x < width; x += ps) {
-                    for (var y = 0; y < height; y += ps) {
-                        ctx.fillStyle = Math.random() > 0.5 ? 
-                            'rgba(255,255,255,' + (Math.random() * 0.1) + ')' :
-                            'rgba(0,0,0,' + (Math.random() * 0.1) + ')';
-                        ctx.fillRect(x, y, ps - 1, ps - 1);
-                    }
-                }
-                break;
-                
-            case 'topographic':
-                ctx.globalCompositeOperation = 'overlay';
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                ctx.lineWidth = 1;
-                var tcx = width * 0.4 + Math.random() * width * 0.2;
-                var tcy = height * 0.4 + Math.random() * height * 0.2;
-                for (var ring = 1; ring <= 10; ring++) {
-                    ctx.beginPath();
-                    for (var a = 0; a <= Math.PI * 2; a += 0.1) {
-                        var tr = ring * width * 0.05 + Math.sin(a * 3) * 5 + Math.cos(a * 5) * 3;
-                        var px = tcx + Math.cos(a) * tr;
-                        var py = tcy + Math.sin(a) * tr;
-                        if (a === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                    ctx.closePath();
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'starmap':
-                ctx.globalCompositeOperation = 'screen';
-                var stars = [];
-                for (var i = 0; i < 20; i++) {
-                    stars.push({x: Math.random()*width, y: Math.random()*height});
-                    ctx.fillStyle = 'rgba(255,255,255,' + (0.3 + Math.random()*0.5) + ')';
-                    ctx.beginPath();
-                    ctx.arc(stars[i].x, stars[i].y, 0.5 + Math.random()*2, 0, Math.PI*2);
-                    ctx.fill();
-                }
-                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-                ctx.lineWidth = 0.5;
-                for (var i = 0; i < stars.length - 1; i++) {
-                    if (Math.random() > 0.5) {
-                        var nearest = i + 1 + Math.floor(Math.random() * Math.min(3, stars.length - i - 1));
-                        ctx.beginPath();
-                        ctx.moveTo(stars[i].x, stars[i].y);
-                        ctx.lineTo(stars[nearest].x, stars[nearest].y);
-                        ctx.stroke();
-                    }
-                }
-                break;
-                
-            case 'fractal':
-                ctx.globalCompositeOperation = 'screen';
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                function drawBranch(x, y, angle, len, depth) {
-                    if (depth <= 0 || len < 3) return;
-                    var ex = x + Math.cos(angle) * len;
-                    var ey = y + Math.sin(angle) * len;
-                    ctx.lineWidth = depth * 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
-                    drawBranch(ex, ey, angle - 0.5, len * 0.65, depth - 1);
-                    drawBranch(ex, ey, angle + 0.5, len * 0.65, depth - 1);
-                }
-                drawBranch(width/2, height * 0.85, -Math.PI/2, height * 0.25, 6);
-                break;
+        // Subtile Stein-Textur im Hintergrund
+        ctx.globalAlpha = 0.08;
+        for (var i = 0; i < 80; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#333' : '#111';
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, 2 + Math.random() * 5, 0, Math.PI * 2);
+            ctx.fill();
         }
         
-        ctx.restore();
+        // Lava-Risse zeichnen: Verzweigende leuchtende Linien
+        function drawCrack(startX, startY, angle, length, thickness, depth) {
+            if (depth <= 0 || length < 5) return;
+            
+            var x = startX;
+            var y = startY;
+            var segments = Math.floor(length / 8);
+            
+            // Glow Layer (breiterer, transparenterer Strich)
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = glowColor || crackColor;
+            ctx.lineWidth = thickness * 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            
+            var points = [{x: x, y: y}];
+            for (var i = 0; i < segments; i++) {
+                angle += (Math.random() - 0.5) * 1.2;
+                var step = 6 + Math.random() * 10;
+                x += Math.cos(angle) * step;
+                y += Math.sin(angle) * step;
+                points.push({x: x, y: y});
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Heller Kern
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = crackColor;
+            ctx.lineWidth = thickness;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (var i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            
+            // Weißer Innenkern für extra Hitze
+            ctx.globalAlpha = 0.4;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = thickness * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (var i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            
+            // Verzweigungen
+            if (depth > 1) {
+                for (var i = 0; i < 2; i++) {
+                    var branchIdx = Math.floor(Math.random() * points.length);
+                    var branchAngle = angle + (Math.random() - 0.5) * 2.5;
+                    drawCrack(points[branchIdx].x, points[branchIdx].y, branchAngle, 
+                              length * 0.5, thickness * 0.6, depth - 1);
+                }
+            }
+        }
+        
+        // 3-4 Hauptrisse von verschiedenen Seiten
+        drawCrack(0, height * 0.3, 0.3, width * 0.7, 2.5, 3);
+        drawCrack(width, height * 0.6, Math.PI + 0.5, width * 0.6, 2, 3);
+        drawCrack(width * 0.5, 0, Math.PI / 2 + 0.3, height * 0.5, 1.8, 2);
+        drawCrack(width * 0.3, height, -Math.PI / 2 - 0.2, height * 0.4, 1.5, 2);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Frost/Ice Crystal Texture
+    function generateFrostTexture(ctx, width, height, baseColor, crystalColor, accentColor) {
+        // Eisige Basis
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtiler radialer Gradient für Tiefe
+        var centerGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width * 0.7);
+        centerGrad.addColorStop(0, 'rgba(255,255,255,0.1)');
+        centerGrad.addColorStop(1, 'rgba(0,0,0,0.05)');
+        ctx.fillStyle = centerGrad;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Eiskristall-Äste zeichnen
+        function drawFrostBranch(x, y, angle, length, thickness, depth) {
+            if (depth <= 0 || length < 3) return;
+            
+            var endX = x + Math.cos(angle) * length;
+            var endY = y + Math.sin(angle) * length;
+            
+            // Glow
+            ctx.globalAlpha = 0.15;
+            ctx.strokeStyle = accentColor || crystalColor;
+            ctx.lineWidth = thickness * 2.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Hauptlinie
+            ctx.globalAlpha = 0.5 + depth * 0.1;
+            ctx.strokeStyle = crystalColor;
+            ctx.lineWidth = thickness;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Highlight
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = thickness * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Verzweigungen in 60°-Winkeln (Schneekristall-Muster)
+            if (depth > 1) {
+                var branches = 2 + Math.floor(Math.random() * 2);
+                for (var i = 0; i < branches; i++) {
+                    var pos = 0.3 + Math.random() * 0.5;
+                    var bx = x + (endX - x) * pos;
+                    var by = y + (endY - y) * pos;
+                    var bAngle = angle + (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 3 + (Math.random() - 0.5) * 0.4);
+                    drawFrostBranch(bx, by, bAngle, length * 0.45, thickness * 0.6, depth - 1);
+                }
+            }
+        }
+        
+        // Mehrere Kristall-Ursprünge
+        for (var i = 0; i < 4; i++) {
+            var sx = Math.random() * width;
+            var sy = Math.random() * height;
+            var numArms = 3 + Math.floor(Math.random() * 3);
+            for (var a = 0; a < numArms; a++) {
+                var angle = (a / numArms) * Math.PI * 2 + Math.random() * 0.3;
+                drawFrostBranch(sx, sy, angle, width * 0.25, 1.5, 3);
+            }
+        }
+        
+        // Glitzerpunkte
+        for (var i = 0; i < 30; i++) {
+            ctx.globalAlpha = 0.3 + Math.random() * 0.5;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, 0.5 + Math.random() * 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Border/Frame Texture
+    function generateBorderTexture(ctx, width, height, baseColor, borderColor) {
+        // Basis-Farbe
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        var borderWidth = Math.max(8, width * 0.06);
+        var inset = borderWidth * 0.5;
+        
+        // Äußerer Rahmen Glow
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth * 2;
+        ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+        
+        // Hauptrahmen
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(inset + borderWidth * 0.5, inset + borderWidth * 0.5, 
+                        width - inset * 2 - borderWidth, height - inset * 2 - borderWidth);
+        
+        // Innerer Highlight-Strich
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = borderWidth * 0.2;
+        var innerInset = inset + borderWidth * 0.3;
+        ctx.strokeRect(innerInset, innerInset, width - innerInset * 2, height - innerInset * 2);
+        
+        // Eckverzierungen (kleine Dreiecke in den Ecken)
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = borderColor;
+        var cs = borderWidth * 1.2;
+        // Oben-links
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(cs, 0); ctx.lineTo(0, cs); ctx.closePath(); ctx.fill();
+        // Oben-rechts
+        ctx.beginPath(); ctx.moveTo(width, 0); ctx.lineTo(width - cs, 0); ctx.lineTo(width, cs); ctx.closePath(); ctx.fill();
+        // Unten-links
+        ctx.beginPath(); ctx.moveTo(0, height); ctx.lineTo(cs, height); ctx.lineTo(0, height - cs); ctx.closePath(); ctx.fill();
+        // Unten-rechts
+        ctx.beginPath(); ctx.moveTo(width, height); ctx.lineTo(width - cs, height); ctx.lineTo(width, height - cs); ctx.closePath(); ctx.fill();
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Lightning/Blitz Texture
+    function generateLightningTexture(ctx, width, height, baseColor, boltColor, glowColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        function drawBolt(x1, y1, x2, y2, thickness, depth) {
+            if (depth <= 0) return;
+            
+            var midX = (x1 + x2) / 2 + (Math.random() - 0.5) * Math.abs(x2 - x1) * 0.5;
+            var midY = (y1 + y2) / 2 + (Math.random() - 0.5) * Math.abs(y2 - y1) * 0.5;
+            
+            if (depth === 1) {
+                // Glow layer
+                ctx.globalAlpha = 0.2;
+                ctx.strokeStyle = glowColor || boltColor;
+                ctx.lineWidth = thickness * 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(midX, midY); ctx.lineTo(x2, y2); ctx.stroke();
+                
+                // Main bolt
+                ctx.globalAlpha = 0.85;
+                ctx.strokeStyle = boltColor;
+                ctx.lineWidth = thickness;
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(midX, midY); ctx.lineTo(x2, y2); ctx.stroke();
+                
+                // Hot core
+                ctx.globalAlpha = 0.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = thickness * 0.3;
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(midX, midY); ctx.lineTo(x2, y2); ctx.stroke();
+                return;
+            }
+            
+            drawBolt(x1, y1, midX, midY, thickness, depth - 1);
+            drawBolt(midX, midY, x2, y2, thickness, depth - 1);
+            
+            // Branch
+            if (Math.random() > 0.4) {
+                var bAngle = Math.atan2(y2 - y1, x2 - x1) + (Math.random() > 0.5 ? 1 : -1) * (0.4 + Math.random() * 0.8);
+                var bLen = Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) * 0.3;
+                drawBolt(midX, midY, midX + Math.cos(bAngle) * bLen, midY + Math.sin(bAngle) * bLen, thickness * 0.6, depth - 1);
+            }
+        }
+        
+        // 2-3 main bolts crossing the face
+        drawBolt(width * 0.1, 0, width * 0.8, height, 2.0, 4);
+        drawBolt(width * 0.9, height * 0.1, width * 0.2, height * 0.9, 1.5, 3);
+        if (Math.random() > 0.3) drawBolt(0, height * 0.5, width, height * 0.4, 1.2, 3);
+        
+        // Ambient electric glow spots
+        for (var i = 0; i < 4; i++) {
+            var gx = Math.random() * width, gy = Math.random() * height;
+            var gRad = ctx.createRadialGradient(gx, gy, 0, gx, gy, 15 + Math.random() * 20);
+            gRad.addColorStop(0, glowColor || boltColor);
+            gRad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = gRad;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Dragon Scale Texture
+    function generateDragonScaleTexture(ctx, width, height, baseColor, scaleColor, highlightColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        var scaleW = width / 6;
+        var scaleH = height / 5;
+        
+        for (var row = -1; row < 7; row++) {
+            for (var col = -1; col < 8; col++) {
+                var x = col * scaleW + (row % 2 ? scaleW * 0.5 : 0);
+                var y = row * scaleH * 0.75;
+                
+                // Scale shape (rounded arch)
+                ctx.beginPath();
+                ctx.moveTo(x, y + scaleH);
+                ctx.quadraticCurveTo(x, y, x + scaleW / 2, y);
+                ctx.quadraticCurveTo(x + scaleW, y, x + scaleW, y + scaleH);
+                ctx.closePath();
+                
+                // Scale fill with subtle variation
+                var variation = 0.85 + Math.random() * 0.3;
+                ctx.globalAlpha = 0.25 * variation;
+                ctx.fillStyle = scaleColor;
+                ctx.fill();
+                
+                // Scale edge
+                ctx.globalAlpha = 0.35;
+                ctx.strokeStyle = scaleColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Highlight on top edge
+                ctx.globalAlpha = 0.15;
+                ctx.strokeStyle = highlightColor || '#ffffff';
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(x + scaleW * 0.15, y + scaleH * 0.3);
+                ctx.quadraticCurveTo(x + scaleW / 2, y - scaleH * 0.05, x + scaleW * 0.85, y + scaleH * 0.3);
+                ctx.stroke();
+            }
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Runic/Arcane Texture
+    function generateRunicTexture(ctx, width, height, baseColor, runeColor, glowColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Faint magic circle in center
+        var cx = width / 2, cy = height / 2;
+        var circleR = Math.min(width, height) * 0.35;
+        
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = runeColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cy, circleR, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, circleR * 0.7, 0, Math.PI * 2); ctx.stroke();
+        
+        // Inscribed polygon
+        ctx.globalAlpha = 0.1;
+        var sides = 5 + Math.floor(Math.random() * 3);
+        ctx.beginPath();
+        for (var i = 0; i <= sides; i++) {
+            var angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+            var px = cx + Math.cos(angle) * circleR * 0.85;
+            var py = cy + Math.sin(angle) * circleR * 0.85;
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        
+        // Random rune-like symbols scattered
+        function drawRune(rx, ry, size) {
+            var type = Math.floor(Math.random() * 6);
+            ctx.save();
+            ctx.translate(rx, ry);
+            ctx.rotate(Math.random() * Math.PI * 2);
+            ctx.beginPath();
+            
+            switch(type) {
+                case 0: // Vertical with cross
+                    ctx.moveTo(0, -size); ctx.lineTo(0, size);
+                    ctx.moveTo(-size*0.5, -size*0.3); ctx.lineTo(size*0.5, size*0.3);
+                    break;
+                case 1: // Triangle
+                    ctx.moveTo(0, -size); ctx.lineTo(size*0.7, size*0.5); ctx.lineTo(-size*0.7, size*0.5); ctx.closePath();
+                    break;
+                case 2: // Diamond
+                    ctx.moveTo(0, -size); ctx.lineTo(size*0.5, 0); ctx.lineTo(0, size); ctx.lineTo(-size*0.5, 0); ctx.closePath();
+                    break;
+                case 3: // Arrow
+                    ctx.moveTo(0, -size); ctx.lineTo(0, size);
+                    ctx.moveTo(-size*0.4, -size*0.4); ctx.lineTo(0, -size); ctx.lineTo(size*0.4, -size*0.4);
+                    break;
+                case 4: // Zigzag
+                    ctx.moveTo(-size*0.5, -size); ctx.lineTo(size*0.5, -size*0.3);
+                    ctx.lineTo(-size*0.5, size*0.3); ctx.lineTo(size*0.5, size);
+                    break;
+                case 5: // Circle with dot
+                    ctx.arc(0, 0, size * 0.6, 0, Math.PI * 2);
+                    ctx.moveTo(2, 0); ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                    break;
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        // Glow pass for runes
+        ctx.strokeStyle = glowColor || runeColor;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.06;
+        for (var i = 0; i < 8; i++) {
+            drawRune(Math.random() * width, Math.random() * height, 6 + Math.random() * 10);
+        }
+        
+        // Sharp pass
+        ctx.strokeStyle = runeColor;
+        ctx.lineWidth = 0.8;
+        ctx.globalAlpha = 0.25;
+        for (var i = 0; i < 8; i++) {
+            drawRune(Math.random() * width, Math.random() * height, 6 + Math.random() * 10);
+        }
+        
+        // Center glow
+        var centerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, circleR);
+        centerGlow.addColorStop(0, glowColor || runeColor);
+        centerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = centerGlow;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Circuit Board Texture
+    function generateCircuitTexture(ctx, width, height, baseColor, traceColor, glowColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        var gridSize = Math.min(width, height) / 8;
+        
+        function drawTrace(startX, startY, length) {
+            var x = startX, y = startY;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            
+            for (var i = 0; i < length; i++) {
+                var dir = Math.floor(Math.random() * 4);
+                switch(dir) {
+                    case 0: x += gridSize; break;
+                    case 1: x -= gridSize; break;
+                    case 2: y += gridSize; break;
+                    case 3: y -= gridSize; break;
+                }
+                x = Math.max(0, Math.min(width, x));
+                y = Math.max(0, Math.min(height, y));
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Node/pad at end
+            ctx.beginPath();
+            ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Glow layer
+        ctx.strokeStyle = glowColor || traceColor;
+        ctx.fillStyle = glowColor || traceColor;
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.08;
+        for (var i = 0; i < 10; i++) {
+            drawTrace(Math.random() * width, Math.random() * height, 3 + Math.floor(Math.random() * 5));
+        }
+        
+        // Main traces
+        ctx.strokeStyle = traceColor;
+        ctx.fillStyle = traceColor;
+        ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.3;
+        for (var i = 0; i < 10; i++) {
+            drawTrace(Math.random() * width, Math.random() * height, 3 + Math.floor(Math.random() * 5));
+        }
+        
+        // Connection pads
+        ctx.globalAlpha = 0.25;
+        for (var i = 0; i < 6; i++) {
+            var px = Math.round(Math.random() * 6) * gridSize;
+            var py = Math.round(Math.random() * 6) * gridSize;
+            ctx.fillStyle = traceColor;
+            ctx.fillRect(px - 3, py - 3, 6, 6);
+        }
+        
+        // Subtle grid dots
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = traceColor;
+        for (var gx = 0; gx < width; gx += gridSize) {
+            for (var gy = 0; gy < height; gy += gridSize) {
+                ctx.beginPath();
+                ctx.arc(gx, gy, 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        ctx.globalAlpha = 1.0;
     }
     
     function create_dice_materials(face_labels, size, margin, useGradient) {
@@ -1699,26 +1561,36 @@ const DICE = (function() {
                     case 'stone':
                         generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
                         break;
+                    case 'leather':
+                        generateLeatherTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#2a1a0a');
+                        break;
+                    case 'metal':
+                        generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
+                        break;
+                    case 'galaxy':
+                        generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
+                        break;
+                    case 'lava':
+                        generateLavaCracksTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.crackColor || '#ff6600', tex.glowColor || '#ff2200');
+                        break;
+                    case 'frost':
+                        generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
+                        break;
+                    case 'border':
+                        generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
+                        break;
+                    case 'lightning':
+                        generateLightningTexture(context, ts, ts, tex.baseColor || '#0a0a0e', tex.boltColor || '#88aaff', tex.glowColor || '#4466ff');
+                        break;
+                    case 'dragonscale':
+                        generateDragonScaleTexture(context, ts, ts, tex.baseColor || '#1a0808', tex.scaleColor || '#660000', tex.highlightColor || '#ff4444');
+                        break;
+                    case 'runic':
+                        generateRunicTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.runeColor || '#ffd700', tex.glowColor || '#ffaa00');
+                        break;
                     default:
-                        // New texture types: fill gradient first, then apply overlay
-                        if (useGradient && vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
-                            var gradient;
-                            var colors = vars.dice_gradient.colors;
-                            if (vars.dice_gradient.type === 'radial') {
-                                gradient = context.createRadialGradient(ts/2, ts/2, 0, ts/2, ts/2, ts/2);
-                            } else {
-                                gradient = context.createLinearGradient(0, 0, ts, ts);
-                            }
-                            var stops = vars.dice_gradient.stops || colors.map(function(_, i) { return i / (colors.length - 1); });
-                            for (var j = 0; j < colors.length; j++) {
-                                gradient.addColorStop(stops[j] || j / (colors.length - 1), colors[j]);
-                            }
-                            context.fillStyle = gradient;
-                        } else {
-                            context.fillStyle = tex.baseColor || back_color;
-                        }
-                        context.fillRect(0, 0, ts, ts);
-                        applyTextureOverlay(context, ts, ts, tex.type);
+                        context.fillStyle = back_color;
+                        context.fillRect(0, 0, canvas.width, canvas.height);
                 }
             }
             // RIFT: Gradient Support (can be disabled for d10 to avoid seam visibility)
@@ -1754,8 +1626,41 @@ const DICE = (function() {
             
             context.textAlign = "center";
             context.textBaseline = "middle";
-            context.fillStyle = color;
-            context.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            // RIFT: Premium text styles
+            if (vars.dice_text_style === 'embossed') {
+                // Shadow for depth (bottom-right = light catching edge)
+                context.fillStyle = 'rgba(0,0,0,0.5)';
+                context.fillText(text, canvas.width / 2 + ts * 0.012, canvas.height / 2 + ts * 0.015);
+                // Highlight edge (top-left)
+                context.fillStyle = 'rgba(255,255,255,0.3)';
+                context.fillText(text, canvas.width / 2 - ts * 0.008, canvas.height / 2 - ts * 0.008);
+                // Main text
+                context.fillStyle = color;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+            } else if (vars.dice_text_style === 'neon') {
+                var neonColor = vars.dice_neon_color || color;
+                // Äußerer Glow (breit + transparent)
+                context.save();
+                context.shadowColor = neonColor;
+                context.shadowBlur = ts * 0.12;
+                context.shadowOffsetX = 0;
+                context.shadowOffsetY = 0;
+                context.fillStyle = neonColor;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                // Zweiter Glow-Pass für Intensität
+                context.shadowBlur = ts * 0.06;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                context.restore();
+                // Heller Kern
+                context.fillStyle = '#ffffff';
+                context.globalAlpha = 0.9;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                context.globalAlpha = 1.0;
+            } else {
+                context.fillStyle = color;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+            }
             if (text == '6' || text == '9') {
                 context.fillText('  .', canvas.width / 2, canvas.height / 2);
             }
@@ -1767,6 +1672,14 @@ const DICE = (function() {
         for (var i = 0; i < face_labels.length; ++i) {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) });
+            
+            // RIFT: Per-theme material overrides (metallic, embossed, etc.)
+            if (vars.dice_material_override) {
+                var ov = vars.dice_material_override;
+                if (ov.shininess !== undefined) matOptions.shininess = ov.shininess;
+                if (ov.specular !== undefined) matOptions.specular = ov.specular;
+                if (ov.emissive !== undefined) matOptions.emissive = ov.emissive;
+            }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
@@ -1794,26 +1707,33 @@ const DICE = (function() {
                     case 'stone':
                         generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
                         break;
+                    case 'leather':
+                        generateLeatherTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#2a1a0a');
+                        break;
+                    case 'metal':
+                        generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
+                        break;
+                    case 'galaxy':
+                        generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
+                        break;
+                    case 'frost':
+                        generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
+                        break;
+                    case 'border':
+                        generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
+                        break;
+                    case 'lightning':
+                        generateLightningTexture(context, ts, ts, tex.baseColor || '#0a0a0e', tex.boltColor || '#88aaff', tex.glowColor || '#4466ff');
+                        break;
+                    case 'dragonscale':
+                        generateDragonScaleTexture(context, ts, ts, tex.baseColor || '#1a0808', tex.scaleColor || '#660000', tex.highlightColor || '#ff4444');
+                        break;
+                    case 'runic':
+                        generateRunicTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.runeColor || '#ffd700', tex.glowColor || '#ffaa00');
+                        break;
                     default:
-                        // New texture types: fill gradient first, then apply overlay
-                        if (vars.dice_gradient && vars.dice_gradient.colors && vars.dice_gradient.colors.length > 0) {
-                            var gradient;
-                            var colors = vars.dice_gradient.colors;
-                            if (vars.dice_gradient.type === 'radial') {
-                                gradient = context.createRadialGradient(ts/2, ts/2, 0, ts/2, ts/2, ts/2);
-                            } else {
-                                gradient = context.createLinearGradient(0, 0, ts, ts);
-                            }
-                            var stops = vars.dice_gradient.stops || colors.map(function(_, i) { return i / (colors.length - 1); });
-                            for (var j = 0; j < colors.length; j++) {
-                                gradient.addColorStop(stops[j] || j / (colors.length - 1), colors[j]);
-                            }
-                            context.fillStyle = gradient;
-                        } else {
-                            context.fillStyle = tex.baseColor || back_color;
-                        }
-                        context.fillRect(0, 0, ts, ts);
-                        applyTextureOverlay(context, ts, ts, tex.type);
+                        context.fillStyle = back_color;
+                        context.fillRect(0, 0, canvas.width, canvas.height);
                 }
             }
             // RIFT: Gradient Support
@@ -1863,6 +1783,13 @@ const DICE = (function() {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) });
             
+            if (vars.dice_material_override) {
+                var ov = vars.dice_material_override;
+                if (ov.shininess !== undefined) matOptions.shininess = ov.shininess;
+                if (ov.specular !== undefined) matOptions.specular = ov.specular;
+                if (ov.emissive !== undefined) matOptions.emissive = ov.emissive;
+            }
+            
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
         return materials;
@@ -1890,16 +1817,115 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        var a = Math.PI * 2 / 10, k = Math.cos(a), h = 0.105, v = -1;
+        var a = Math.PI * 2 / 10, h = 0.105;
         var vertices = [];
         for (var i = 0, b = 0; i < 10; ++i, b += a)
             vertices.push([Math.cos(b), Math.sin(b), h * (i % 2 ? 1 : -1)]);
-        vertices.push([0, 0, -1]); vertices.push([0, 0, 1]);
-        var faces = [[5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
-                [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9],
-                [1, 0, 2, v], [1, 2, 3, v], [3, 2, 4, v], [3, 4, 5, v], [5, 4, 6, v],
-                [5, 6, 7, v], [7, 6, 8, v], [7, 8, 9, v], [9, 8, 0, v], [9, 0, 1, v]];
-        return create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
+        vertices.push([0, 0, -1]); // 10 = Südpol
+        vertices.push([0, 0, 1]);  // 11 = Nordpol
+        
+        // RIFT FIX: Kite-Faces als 4-Eck-Quads statt 20 separate Dreiecke.
+        // Jedes Quad = Pol → Ring-A → Ring-B → anderer Pol.
+        // make_geom fan-trianguliert: 2 Triangles pro Quad, GLEICHER materialIndex.
+        // → Textur/Gradient nahtlos über gesamte Kite-Fläche.
+        var faces = [
+            [11, 5, 6, 7, 0],   // Kite 0: N-Pol, ring5(up), ring6(down), ring7(up)
+            [10, 4, 3, 2, 1],   // Kite 1: S-Pol, ring4(down), ring3(up), ring2(down)
+            [11, 1, 2, 3, 2],   // Kite 2: N-Pol, ring1(up), ring2(down), ring3(up)
+            [10, 0, 9, 8, 3],   // Kite 3: S-Pol, ring0(down), ring9(up), ring8(down)
+            [11, 7, 8, 9, 4],   // Kite 4: N-Pol, ring7(up), ring8(down), ring9(up)
+            [10, 8, 7, 6, 5],   // Kite 5: S-Pol, ring8(down), ring7(up), ring6(down)
+            [11, 9, 0, 1, 6],   // Kite 6: N-Pol, ring9(up), ring0(down), ring1(up)
+            [10, 2, 1, 0, 7],   // Kite 7: S-Pol, ring2(down), ring1(up), ring0(down)
+            [11, 3, 4, 5, 8],   // Kite 8: N-Pol, ring3(up), ring4(down), ring5(up)
+            [10, 6, 5, 4, 9],   // Kite 9: S-Pol, ring6(down), ring5(up), ring4(down)
+        ];
+        var geom = create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
+        
+        // RIFT FIX: Kite-UV-Korrektur
+        // make_geom setzt reguläre Quadrat-UVs (aa=π/2), aber die Kite-Fläche ist
+        // höher als breit → Text wird verzerrt. Fix: UVs aus echten 3D-Positionen
+        // berechnen, damit gleiche Abstände in UV = gleiche Abstände auf der Fläche.
+        var faceGroups = {};
+        for (var i = 0; i < geom.faces.length; i++) {
+            var mi = geom.faces[i].materialIndex;
+            if (mi === 0) continue; // Chamfer-Flächen überspringen
+            if (!faceGroups[mi]) faceGroups[mi] = [];
+            faceGroups[mi].push(i);
+        }
+        
+        for (var mi in faceGroups) {
+            var triIndices = faceGroups[mi];
+            
+            // Sammle einzigartige Vertices dieser Kite-Fläche (2 Tris → 4 Verts)
+            var vertMap = {}; // vertex-index → position im Array
+            var verts = [];
+            for (var t = 0; t < triIndices.length; t++) {
+                var face = geom.faces[triIndices[t]];
+                var abc = [face.a, face.b, face.c];
+                for (var v = 0; v < 3; v++) {
+                    var vi = abc[v];
+                    if (vertMap[vi] === undefined) {
+                        vertMap[vi] = verts.length;
+                        verts.push(geom.vertices[vi]);
+                    }
+                }
+            }
+            
+            // Face-Zentrum
+            var center = new THREE.Vector3(0, 0, 0);
+            for (var v = 0; v < verts.length; v++) center.add(verts[v]);
+            center.divideScalar(verts.length);
+            
+            // Face-Normale (vom ersten Triangle)
+            var normal = geom.faces[triIndices[0]].normal.clone().normalize();
+            
+            // Lokales 2D-Koordinatensystem auf der Face-Plane
+            // "Oben" = Richtung zum Pol-Vertex (höchstes |z|) → konsistente Orientierung
+            var poleVi = -1, maxAbsZ = -1;
+            for (var vi in vertMap) {
+                var absZ = Math.abs(geom.vertices[vi].z);
+                if (absZ > maxAbsZ) { maxAbsZ = absZ; poleVi = parseInt(vi); }
+            }
+            var toPole = new THREE.Vector3().subVectors(geom.vertices[poleVi], center);
+            // Auf Face-Plane projizieren
+            var yAxis = toPole.clone().sub(normal.clone().multiplyScalar(toPole.dot(normal))).normalize();
+            var xAxis = new THREE.Vector3().crossVectors(yAxis, normal).normalize();
+            
+            // Alle Vertices in 2D projizieren
+            var coords = {};
+            var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (var vi in vertMap) {
+                var rel = new THREE.Vector3().subVectors(geom.vertices[vi], center);
+                var x = rel.dot(xAxis);
+                var y = rel.dot(yAxis);
+                coords[vi] = { x: x, y: y };
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+            }
+            
+            // UV-Mapping: Auf [0,1] skalieren MIT korrektem Aspect-Ratio
+            var w = maxX - minX, h = maxY - minY;
+            var scale = Math.max(w, h);
+            var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+            
+            // UVs auf Triangle-Faces anwenden
+            for (var t = 0; t < triIndices.length; t++) {
+                var fi = triIndices[t];
+                var face = geom.faces[fi];
+                var abc = [face.a, face.b, face.c];
+                var uvs = [];
+                for (var v = 0; v < 3; v++) {
+                    var u0 = (coords[abc[v]].x - cx) / scale + 0.5;
+                    var v0 = (coords[abc[v]].y - cy) / scale + 0.5;
+                    uvs.push(new THREE.Vector2(u0, v0));
+                }
+                geom.faceVertexUvs[0][fi] = uvs;
+            }
+        }
+        
+        geom.uvsNeedUpdate = true;
+        return geom;
     }
 
     function create_d12_geometry(radius) {
@@ -2207,9 +2233,8 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.4);
                 break;
             case 'd10':
-                // D10: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
                 break;
             case 'd12':
                 geometry = create_d12_geometry(vars.scale * 0.9);
@@ -2220,9 +2245,8 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
                 break;
             case 'd100':
-                // D100: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false);
+                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5);
                 break;
             default:
                 vars.scale = originalScale;
