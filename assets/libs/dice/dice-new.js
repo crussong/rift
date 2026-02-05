@@ -187,15 +187,9 @@ const DICE = (function() {
         this.scene.add(this.light);
 
         if (this.desk) this.scene.remove(this.desk);
-        // RIFT: Use ShadowMaterial - fully transparent except where shadows fall
-        var deskMaterial;
-        if (typeof THREE.ShadowMaterial !== 'undefined') {
-            deskMaterial = new THREE.ShadowMaterial({ opacity: 0.4 });
-        } else {
-            // Fallback for older Three.js versions
-            deskMaterial = new THREE.MeshPhongMaterial({ color: vars.desk_color, opacity: vars.desk_opacity, transparent: true });
-        }
-        this.desk = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 2, this.h * 2, 1, 1), deskMaterial);
+        // RIFT: Low opacity desk for shadow rendering - nearly invisible on dark themes
+        this.desk = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 2, this.h * 2, 1, 1), 
+                new THREE.MeshPhongMaterial({ color: '#000000', opacity: 0.15, transparent: true }));
         this.desk.receiveShadow = vars.use_shadows;
         this.scene.add(this.desk); 
 
