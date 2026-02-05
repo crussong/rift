@@ -44,8 +44,10 @@ const DICE = (function() {
         // RIFT: Gradient Support
         dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
         // RIFT: Texture Support
-        dice_texture: null, // { type: 'marble'|'wood'|'stone', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
+        dice_texture: null, // { type: 'marble'|'wood'|'stone'|'leather'|'metal', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         // RIFT: Glow & Effects
+        dice_material_override: null, // { shininess, specular, emissive } - per-theme material overrides
+        dice_text_style: null, // 'embossed' or null
         dice_glow: false,
         dice_glow_color: null, // null = use dice color
         dice_glow_intensity: 2.0, // PointLight intensity
@@ -633,10 +635,12 @@ const DICE = (function() {
     var manualLabelColor = null;
     
     // RIFT: Methode um Würfelfarbe zu ändern
-    that.setDiceColor = function(color, gradient, texture) {
+    that.setDiceColor = function(color, gradient, texture, materialOverride, textStyle) {
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
         vars.dice_texture = texture || null;
+        vars.dice_material_override = materialOverride || null;
+        vars.dice_text_style = textStyle || null;
         
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
@@ -864,6 +868,75 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
+    function generateLeatherTexture(ctx, width, height, baseColor, grainColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Leather grain: irregular small bumps and creases
+        ctx.globalAlpha = 0.12;
+        for (var i = 0; i < 300; i++) {
+            ctx.fillStyle = Math.random() > 0.4 ? grainColor : baseColor;
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            var w = 2 + Math.random() * 6;
+            var h = 2 + Math.random() * 4;
+            ctx.beginPath();
+            ctx.ellipse(x, y, w, h, Math.random() * Math.PI, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Subtle crease lines
+        ctx.strokeStyle = grainColor;
+        ctx.globalAlpha = 0.08;
+        ctx.lineWidth = 0.5;
+        for (var i = 0; i < 12; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 3; j++) {
+                x += (Math.random() - 0.5) * width * 0.3;
+                y += (Math.random() - 0.5) * height * 0.3;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateMetalBrushedTexture(ctx, width, height, baseColor, brushColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Brushed metal: many fine horizontal lines with slight variation
+        ctx.globalAlpha = 0.06;
+        for (var i = 0; i < 80; i++) {
+            ctx.strokeStyle = Math.random() > 0.5 ? brushColor : baseColor;
+            ctx.lineWidth = 0.5 + Math.random() * 1;
+            ctx.beginPath();
+            var y = (i / 80) * height + (Math.random() - 0.5) * 6;
+            ctx.moveTo(0, y);
+            for (var x = 0; x < width; x += 5) {
+                y += (Math.random() - 0.5) * 1.5;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Subtle highlight streak
+        var grad = ctx.createLinearGradient(0, 0, width, height * 0.3);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.4, 'rgba(255,255,255,0.06)');
+        grad.addColorStop(0.6, 'rgba(255,255,255,0.06)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
     function create_dice_materials(face_labels, size, margin, useGradient) {
         // Default: use gradient if available (but can be disabled for d10)
         if (useGradient === undefined) useGradient = true;
@@ -896,6 +969,12 @@ const DICE = (function() {
                         break;
                     case 'stone':
                         generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
+                        break;
+                    case 'leather':
+                        generateLeatherTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#2a1a0a');
+                        break;
+                    case 'metal':
+                        generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
                         break;
                     default:
                         context.fillStyle = back_color;
@@ -935,8 +1014,22 @@ const DICE = (function() {
             
             context.textAlign = "center";
             context.textBaseline = "middle";
-            context.fillStyle = color;
-            context.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            // RIFT: Embossed text style
+            if (vars.dice_text_style === 'embossed') {
+                // Shadow for depth (bottom-right = light catching edge)
+                context.fillStyle = 'rgba(0,0,0,0.5)';
+                context.fillText(text, canvas.width / 2 + ts * 0.012, canvas.height / 2 + ts * 0.015);
+                // Highlight edge (top-left)
+                context.fillStyle = 'rgba(255,255,255,0.3)';
+                context.fillText(text, canvas.width / 2 - ts * 0.008, canvas.height / 2 - ts * 0.008);
+                // Main text
+                context.fillStyle = color;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+            } else {
+                context.fillStyle = color;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+            }
             if (text == '6' || text == '9') {
                 context.fillText('  .', canvas.width / 2, canvas.height / 2);
             }
@@ -948,6 +1041,14 @@ const DICE = (function() {
         for (var i = 0; i < face_labels.length; ++i) {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) });
+            
+            // RIFT: Per-theme material overrides (metallic, embossed, etc.)
+            if (vars.dice_material_override) {
+                var ov = vars.dice_material_override;
+                if (ov.shininess !== undefined) matOptions.shininess = ov.shininess;
+                if (ov.specular !== undefined) matOptions.specular = ov.specular;
+                if (ov.emissive !== undefined) matOptions.emissive = ov.emissive;
+            }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
@@ -974,6 +1075,12 @@ const DICE = (function() {
                         break;
                     case 'stone':
                         generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
+                        break;
+                    case 'leather':
+                        generateLeatherTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#2a1a0a');
+                        break;
+                    case 'metal':
+                        generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
                         break;
                     default:
                         context.fillStyle = back_color;
@@ -1026,6 +1133,13 @@ const DICE = (function() {
         for (var i = 0; i < labels.length; ++i) {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) });
+            
+            if (vars.dice_material_override) {
+                var ov = vars.dice_material_override;
+                if (ov.shininess !== undefined) matOptions.shininess = ov.shininess;
+                if (ov.specular !== undefined) matOptions.specular = ov.specular;
+                if (ov.emissive !== undefined) matOptions.emissive = ov.emissive;
+            }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
