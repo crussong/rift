@@ -47,7 +47,8 @@ const DICE = (function() {
         dice_texture: null, // { type: 'marble'|'wood'|'stone'|'leather'|'metal', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         // RIFT: Glow & Effects
         dice_material_override: null, // { shininess, specular, emissive } - per-theme material overrides
-        dice_text_style: null, // 'embossed' or null
+        dice_text_style: null, // 'embossed', 'neon' or null
+        dice_neon_color: null, // Neon glow color for text
         dice_glow: false,
         dice_glow_color: null, // null = use dice color
         dice_glow_intensity: 2.0, // PointLight intensity
@@ -635,12 +636,13 @@ const DICE = (function() {
     var manualLabelColor = null;
     
     // RIFT: Methode um Würfelfarbe zu ändern
-    that.setDiceColor = function(color, gradient, texture, materialOverride, textStyle) {
+    that.setDiceColor = function(color, gradient, texture, materialOverride, textStyle, neonColor) {
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
         vars.dice_texture = texture || null;
         vars.dice_material_override = materialOverride || null;
         vars.dice_text_style = textStyle || null;
+        vars.dice_neon_color = neonColor || null;
         
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
@@ -937,6 +939,303 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
+    // RIFT PRO: Galaxy/Nebula Texture
+    function generateGalaxyTexture(ctx, width, height, baseColor, nebulaColor1, nebulaColor2) {
+        // Dunkler Weltraum-Hintergrund
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Nebula-Wolken: Mehrere überlagerte Radial-Gradienten
+        var blobs = [
+            { x: 0.3, y: 0.4, r: 0.5, color: nebulaColor1, alpha: 0.35 },
+            { x: 0.7, y: 0.6, r: 0.4, color: nebulaColor2, alpha: 0.3 },
+            { x: 0.5, y: 0.3, r: 0.35, color: nebulaColor1, alpha: 0.2 },
+            { x: 0.2, y: 0.7, r: 0.3, color: nebulaColor2, alpha: 0.25 }
+        ];
+        
+        for (var i = 0; i < blobs.length; i++) {
+            var b = blobs[i];
+            var cx = b.x * width + (Math.random() - 0.5) * width * 0.15;
+            var cy = b.y * height + (Math.random() - 0.5) * height * 0.15;
+            var rad = b.r * Math.min(width, height);
+            
+            var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+            grad.addColorStop(0, b.color);
+            grad.addColorStop(0.4, b.color);
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            ctx.globalAlpha = b.alpha;
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Sterne: Viele kleine weiße Punkte
+        ctx.globalAlpha = 1.0;
+        for (var i = 0; i < 60; i++) {
+            var brightness = 0.3 + Math.random() * 0.7;
+            var size = 0.5 + Math.random() * 1.5;
+            ctx.globalAlpha = brightness;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Ein paar hellere Sterne mit Glow
+        for (var i = 0; i < 5; i++) {
+            var sx = Math.random() * width;
+            var sy = Math.random() * height;
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(sx, sy, 4 + Math.random() * 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Lava-Cracks Texture
+    function generateLavaCracksTexture(ctx, width, height, baseColor, crackColor, glowColor) {
+        // Dunkle Basis
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtile Stein-Textur im Hintergrund
+        ctx.globalAlpha = 0.08;
+        for (var i = 0; i < 80; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#333' : '#111';
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, 2 + Math.random() * 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Lava-Risse zeichnen: Verzweigende leuchtende Linien
+        function drawCrack(startX, startY, angle, length, thickness, depth) {
+            if (depth <= 0 || length < 5) return;
+            
+            var x = startX;
+            var y = startY;
+            var segments = Math.floor(length / 8);
+            
+            // Glow Layer (breiterer, transparenterer Strich)
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = glowColor || crackColor;
+            ctx.lineWidth = thickness * 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            
+            var points = [{x: x, y: y}];
+            for (var i = 0; i < segments; i++) {
+                angle += (Math.random() - 0.5) * 1.2;
+                var step = 6 + Math.random() * 10;
+                x += Math.cos(angle) * step;
+                y += Math.sin(angle) * step;
+                points.push({x: x, y: y});
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Heller Kern
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = crackColor;
+            ctx.lineWidth = thickness;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (var i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            
+            // Weißer Innenkern für extra Hitze
+            ctx.globalAlpha = 0.4;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = thickness * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (var i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            
+            // Verzweigungen
+            if (depth > 1) {
+                for (var i = 0; i < 2; i++) {
+                    var branchIdx = Math.floor(Math.random() * points.length);
+                    var branchAngle = angle + (Math.random() - 0.5) * 2.5;
+                    drawCrack(points[branchIdx].x, points[branchIdx].y, branchAngle, 
+                              length * 0.5, thickness * 0.6, depth - 1);
+                }
+            }
+        }
+        
+        // 3-4 Hauptrisse von verschiedenen Seiten
+        drawCrack(0, height * 0.3, 0.3, width * 0.7, 2.5, 3);
+        drawCrack(width, height * 0.6, Math.PI + 0.5, width * 0.6, 2, 3);
+        drawCrack(width * 0.5, 0, Math.PI / 2 + 0.3, height * 0.5, 1.8, 2);
+        drawCrack(width * 0.3, height, -Math.PI / 2 - 0.2, height * 0.4, 1.5, 2);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Frost/Ice Crystal Texture
+    function generateFrostTexture(ctx, width, height, baseColor, crystalColor, accentColor) {
+        // Eisige Basis
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtiler radialer Gradient für Tiefe
+        var centerGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width * 0.7);
+        centerGrad.addColorStop(0, 'rgba(255,255,255,0.1)');
+        centerGrad.addColorStop(1, 'rgba(0,0,0,0.05)');
+        ctx.fillStyle = centerGrad;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Eiskristall-Äste zeichnen
+        function drawFrostBranch(x, y, angle, length, thickness, depth) {
+            if (depth <= 0 || length < 3) return;
+            
+            var endX = x + Math.cos(angle) * length;
+            var endY = y + Math.sin(angle) * length;
+            
+            // Glow
+            ctx.globalAlpha = 0.15;
+            ctx.strokeStyle = accentColor || crystalColor;
+            ctx.lineWidth = thickness * 2.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Hauptlinie
+            ctx.globalAlpha = 0.5 + depth * 0.1;
+            ctx.strokeStyle = crystalColor;
+            ctx.lineWidth = thickness;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Highlight
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = thickness * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Verzweigungen in 60°-Winkeln (Schneekristall-Muster)
+            if (depth > 1) {
+                var branches = 2 + Math.floor(Math.random() * 2);
+                for (var i = 0; i < branches; i++) {
+                    var pos = 0.3 + Math.random() * 0.5;
+                    var bx = x + (endX - x) * pos;
+                    var by = y + (endY - y) * pos;
+                    var bAngle = angle + (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 3 + (Math.random() - 0.5) * 0.4);
+                    drawFrostBranch(bx, by, bAngle, length * 0.45, thickness * 0.6, depth - 1);
+                }
+            }
+        }
+        
+        // Mehrere Kristall-Ursprünge
+        for (var i = 0; i < 4; i++) {
+            var sx = Math.random() * width;
+            var sy = Math.random() * height;
+            var numArms = 3 + Math.floor(Math.random() * 3);
+            for (var a = 0; a < numArms; a++) {
+                var angle = (a / numArms) * Math.PI * 2 + Math.random() * 0.3;
+                drawFrostBranch(sx, sy, angle, width * 0.25, 1.5, 3);
+            }
+        }
+        
+        // Glitzerpunkte
+        for (var i = 0; i < 30; i++) {
+            ctx.globalAlpha = 0.3 + Math.random() * 0.5;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, 0.5 + Math.random() * 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Border/Frame Texture
+    function generateBorderTexture(ctx, width, height, baseColor, borderColor) {
+        // Basis-Farbe
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        var borderWidth = Math.max(8, width * 0.06);
+        var inset = borderWidth * 0.5;
+        
+        // Äußerer Rahmen Glow
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth * 2;
+        ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+        
+        // Hauptrahmen
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(inset + borderWidth * 0.5, inset + borderWidth * 0.5, 
+                        width - inset * 2 - borderWidth, height - inset * 2 - borderWidth);
+        
+        // Innerer Highlight-Strich
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = borderWidth * 0.2;
+        var innerInset = inset + borderWidth * 0.3;
+        ctx.strokeRect(innerInset, innerInset, width - innerInset * 2, height - innerInset * 2);
+        
+        // Eckverzierungen (kleine Dreiecke in den Ecken)
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = borderColor;
+        var cs = borderWidth * 1.2;
+        // Oben-links
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(cs, 0); ctx.lineTo(0, cs); ctx.closePath(); ctx.fill();
+        // Oben-rechts
+        ctx.beginPath(); ctx.moveTo(width, 0); ctx.lineTo(width - cs, 0); ctx.lineTo(width, cs); ctx.closePath(); ctx.fill();
+        // Unten-links
+        ctx.beginPath(); ctx.moveTo(0, height); ctx.lineTo(cs, height); ctx.lineTo(0, height - cs); ctx.closePath(); ctx.fill();
+        // Unten-rechts
+        ctx.beginPath(); ctx.moveTo(width, height); ctx.lineTo(width - cs, height); ctx.lineTo(width, height - cs); ctx.closePath(); ctx.fill();
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Duotone Split Texture
+    function generateDuotoneTexture(ctx, width, height, color1, color2) {
+        // Dramatischer diagonaler Split
+        var grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, color1);
+        grad.addColorStop(0.42, color1);
+        grad.addColorStop(0.5, color2);  // Scharfer Übergang in der Mitte
+        grad.addColorStop(0.58, color2);
+        grad.addColorStop(1, color2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtile Linie am Übergang
+        ctx.globalAlpha = 0.2;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(width, height);
+        ctx.stroke();
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
     function create_dice_materials(face_labels, size, margin, useGradient) {
         // Default: use gradient if available (but can be disabled for d10)
         if (useGradient === undefined) useGradient = true;
@@ -975,6 +1274,21 @@ const DICE = (function() {
                         break;
                     case 'metal':
                         generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
+                        break;
+                    case 'galaxy':
+                        generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
+                        break;
+                    case 'lava':
+                        generateLavaCracksTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.crackColor || '#ff6600', tex.glowColor || '#ff2200');
+                        break;
+                    case 'frost':
+                        generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
+                        break;
+                    case 'border':
+                        generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
+                        break;
+                    case 'duotone':
+                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000');
                         break;
                     default:
                         context.fillStyle = back_color;
@@ -1015,7 +1329,7 @@ const DICE = (function() {
             context.textAlign = "center";
             context.textBaseline = "middle";
             
-            // RIFT: Embossed text style
+            // RIFT: Premium text styles
             if (vars.dice_text_style === 'embossed') {
                 // Shadow for depth (bottom-right = light catching edge)
                 context.fillStyle = 'rgba(0,0,0,0.5)';
@@ -1026,6 +1340,25 @@ const DICE = (function() {
                 // Main text
                 context.fillStyle = color;
                 context.fillText(text, canvas.width / 2, canvas.height / 2);
+            } else if (vars.dice_text_style === 'neon') {
+                var neonColor = vars.dice_neon_color || color;
+                // Äußerer Glow (breit + transparent)
+                context.save();
+                context.shadowColor = neonColor;
+                context.shadowBlur = ts * 0.12;
+                context.shadowOffsetX = 0;
+                context.shadowOffsetY = 0;
+                context.fillStyle = neonColor;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                // Zweiter Glow-Pass für Intensität
+                context.shadowBlur = ts * 0.06;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                context.restore();
+                // Heller Kern
+                context.fillStyle = '#ffffff';
+                context.globalAlpha = 0.9;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                context.globalAlpha = 1.0;
             } else {
                 context.fillStyle = color;
                 context.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -1081,6 +1414,21 @@ const DICE = (function() {
                         break;
                     case 'metal':
                         generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
+                        break;
+                    case 'galaxy':
+                        generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
+                        break;
+                    case 'lava':
+                        generateLavaCracksTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.crackColor || '#ff6600', tex.glowColor || '#ff2200');
+                        break;
+                    case 'frost':
+                        generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
+                        break;
+                    case 'border':
+                        generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
+                        break;
+                    case 'duotone':
+                        generateDuotoneTexture(context, ts, ts, tex.color1 || '#000000', tex.color2 || '#cc0000');
                         break;
                     default:
                         context.fillStyle = back_color;
