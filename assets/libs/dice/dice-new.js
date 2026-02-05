@@ -189,7 +189,7 @@ const DICE = (function() {
         if (this.desk) this.scene.remove(this.desk);
         // RIFT: Low opacity desk for shadow rendering - nearly invisible on dark themes
         this.desk = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 2, this.h * 2, 1, 1), 
-                new THREE.MeshPhongMaterial({ color: '#000000', opacity: 0.15, transparent: true }));
+                new THREE.MeshPhongMaterial({ color: '#000000', opacity: 0.25, transparent: true }));
         this.desk.receiveShadow = vars.use_shadows;
         this.scene.add(this.desk); 
 
