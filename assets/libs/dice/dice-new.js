@@ -888,6 +888,50 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
+    function generateGemTexture(ctx, width, height, baseColor, veinColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtle veins (very faint)
+        ctx.strokeStyle = veinColor;
+        ctx.globalAlpha = 0.35;
+        
+        for (var i = 0; i < 4; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            ctx.lineWidth = 0.3 + Math.random() * 0.8;
+            
+            for (var j = 0; j < 3; j++) {
+                var cp1x = x + (Math.random() - 0.5) * width * 0.35;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.35;
+                var cp2x = x + (Math.random() - 0.5) * width * 0.35;
+                var cp2y = y + (Math.random() - 0.5) * height * 0.35;
+                x = Math.random() * width;
+                y = Math.random() * height;
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+            }
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1.0;
+        
+        // High-resolution grain overlay via pixel manipulation
+        var imageData = ctx.getImageData(0, 0, width, height);
+        var pixels = imageData.data;
+        var grainAlpha = 0.4;
+        
+        for (var i = 0; i < pixels.length; i += 4) {
+            // Random brightness shift per pixel: -30 to +30
+            var noise = (Math.random() - 0.5) * 60;
+            pixels[i]     = Math.max(0, Math.min(255, pixels[i]     + noise * grainAlpha));
+            pixels[i + 1] = Math.max(0, Math.min(255, pixels[i + 1] + noise * grainAlpha));
+            pixels[i + 2] = Math.max(0, Math.min(255, pixels[i + 2] + noise * grainAlpha));
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+    }
+    
     function generateWoodTexture(ctx, width, height, baseColor, grainColor) {
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
@@ -1671,6 +1715,9 @@ const DICE = (function() {
                     case 'crystal':
                         generateCrystalTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
                         break;
+                    case 'gem':
+                        generateGemTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
                         break;
@@ -1826,6 +1873,9 @@ const DICE = (function() {
                         break;
                     case 'crystal':
                         generateCrystalTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'gem':
+                        generateGemTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
                         break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
