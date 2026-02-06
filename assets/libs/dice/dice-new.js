@@ -47,8 +47,9 @@ const DICE = (function() {
         dice_texture: null, // { type: 'marble'|'wood'|'stone'|'leather'|'metal', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         // RIFT: Glow & Effects
         dice_material_override: null, // { shininess, specular, emissive } - per-theme material overrides
-        dice_text_style: null, // 'embossed', 'neon' or null
+        dice_text_style: null, // 'embossed', 'neon', 'metallic', 'outline' or null
         dice_neon_color: null, // Neon glow color for text
+        dice_text_color2: null, // Secondary text color (gradient end, stroke, etc.)
         dice_glow: false,
         dice_glow_color: null, // null = use dice color
         dice_glow_intensity: 2.0, // PointLight intensity
@@ -667,12 +668,31 @@ const DICE = (function() {
         if (color === 'auto' || color === null) {
             // Zurück zu automatischer Berechnung
             manualLabelColor = null;
+            vars.dice_text_style = null;
+            vars.dice_neon_color = null;
+            vars.dice_text_color2 = null;
             var brightness = getColorBrightness(vars.dice_gradient ? vars.dice_gradient.colors[0] : vars.dice_color);
             vars.label_color = brightness > 160 ? vars.label_color_dark : '#ffffff';
+        } else if (typeof color === 'string' && color.indexOf('style:') === 0) {
+            // Style-encoded label: style:{type}:{color1}:{color2}
+            var parts = color.split(':');
+            var styleName = parts[1] || 'neon';
+            var color1 = parts[2] || '#ffffff';
+            var color2 = parts[3] || null;
+            manualLabelColor = color;
+            vars.label_color = color1;
+            vars.dice_text_style = styleName;
+            vars.dice_text_color2 = color2;
+            if (styleName === 'neon') {
+                vars.dice_neon_color = color1;
+            }
         } else {
-            // Manuelle Farbe setzen
+            // Einfache manuelle Farbe - Style zurücksetzen
             manualLabelColor = color;
             vars.label_color = color;
+            vars.dice_text_style = null;
+            vars.dice_neon_color = null;
+            vars.dice_text_color2 = null;
         }
         
         // Cache löschen damit neue Materialien erstellt werden
@@ -2187,13 +2207,13 @@ const DICE = (function() {
             context.textBaseline = "middle";
             
             // RIFT: Premium text styles
-            if (vars.dice_text_style === 'embossed') {
-                // Shadow for depth (bottom-right = light catching edge)
+            if (vars.dice_text_style === 'emboss') {
+                // Shadow for depth (bottom-right = dark)
                 context.fillStyle = 'rgba(0,0,0,0.5)';
-                context.fillText(text, canvas.width / 2 + ts * 0.012, canvas.height / 2 + ts * 0.015);
-                // Highlight edge (top-left)
-                context.fillStyle = 'rgba(255,255,255,0.3)';
-                context.fillText(text, canvas.width / 2 - ts * 0.008, canvas.height / 2 - ts * 0.008);
+                context.fillText(text, canvas.width / 2 + ts * 0.015, canvas.height / 2 + ts * 0.018);
+                // Highlight edge (top-left = light)
+                context.fillStyle = 'rgba(255,255,255,0.35)';
+                context.fillText(text, canvas.width / 2 - ts * 0.01, canvas.height / 2 - ts * 0.01);
                 // Main text
                 context.fillStyle = color;
                 context.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -2216,6 +2236,39 @@ const DICE = (function() {
                 context.globalAlpha = 0.9;
                 context.fillText(text, canvas.width / 2, canvas.height / 2);
                 context.globalAlpha = 1.0;
+            } else if (vars.dice_text_style === 'metallic') {
+                var color2 = vars.dice_text_color2 || '#333333';
+                var cx = canvas.width / 2, cy = canvas.height / 2;
+                // Metallic gradient (vertical bands: light -> dark -> light -> dark)
+                var grad = context.createLinearGradient(cx, cy - ts * 0.18, cx, cy + ts * 0.18);
+                grad.addColorStop(0, color);
+                grad.addColorStop(0.3, color2);
+                grad.addColorStop(0.5, color);
+                grad.addColorStop(0.7, color2);
+                grad.addColorStop(1, color);
+                // Subtle shadow for depth
+                context.fillStyle = 'rgba(0,0,0,0.3)';
+                context.fillText(text, cx + ts * 0.008, cy + ts * 0.01);
+                // Gradient text
+                context.fillStyle = grad;
+                context.fillText(text, cx, cy);
+                // Tiny specular highlight on top portion
+                context.save();
+                context.globalAlpha = 0.15;
+                context.fillStyle = '#ffffff';
+                context.fillText(text, cx, cy - ts * 0.005);
+                context.restore();
+            } else if (vars.dice_text_style === 'outline') {
+                var strokeColor = vars.dice_text_color2 || '#000000';
+                var cx = canvas.width / 2, cy = canvas.height / 2;
+                // Outer stroke
+                context.strokeStyle = strokeColor;
+                context.lineWidth = ts * 0.025;
+                context.lineJoin = 'round';
+                context.strokeText(text, cx, cy);
+                // Fill
+                context.fillStyle = color;
+                context.fillText(text, cx, cy);
             } else {
                 context.fillStyle = color;
                 context.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -2353,10 +2406,56 @@ const DICE = (function() {
             
             context.textAlign = "center";
             context.textBaseline = "middle";
-            context.fillStyle = color;
+            
+            // RIFT: D4 text with style support
             for (var i in text) {
-                context.fillText(text[i], canvas.width / 2,
-                        canvas.height / 2 - ts * 0.3);
+                var cx = canvas.width / 2, cy = canvas.height / 2 - ts * 0.3;
+                
+                if (vars.dice_text_style === 'emboss') {
+                    context.fillStyle = 'rgba(0,0,0,0.5)';
+                    context.fillText(text[i], cx + ts * 0.015, cy + ts * 0.018);
+                    context.fillStyle = 'rgba(255,255,255,0.35)';
+                    context.fillText(text[i], cx - ts * 0.01, cy - ts * 0.01);
+                    context.fillStyle = color;
+                    context.fillText(text[i], cx, cy);
+                } else if (vars.dice_text_style === 'neon') {
+                    var neonColor = vars.dice_neon_color || color;
+                    context.save();
+                    context.shadowColor = neonColor;
+                    context.shadowBlur = ts * 0.12;
+                    context.shadowOffsetX = 0; context.shadowOffsetY = 0;
+                    context.fillStyle = neonColor;
+                    context.fillText(text[i], cx, cy);
+                    context.shadowBlur = ts * 0.06;
+                    context.fillText(text[i], cx, cy);
+                    context.restore();
+                    context.fillStyle = '#ffffff';
+                    context.globalAlpha = 0.9;
+                    context.fillText(text[i], cx, cy);
+                    context.globalAlpha = 1.0;
+                } else if (vars.dice_text_style === 'metallic') {
+                    var color2 = vars.dice_text_color2 || '#333333';
+                    var grad = context.createLinearGradient(cx, cy - ts * 0.18, cx, cy + ts * 0.18);
+                    grad.addColorStop(0, color); grad.addColorStop(0.3, color2);
+                    grad.addColorStop(0.5, color); grad.addColorStop(0.7, color2);
+                    grad.addColorStop(1, color);
+                    context.fillStyle = 'rgba(0,0,0,0.3)';
+                    context.fillText(text[i], cx + ts * 0.008, cy + ts * 0.01);
+                    context.fillStyle = grad;
+                    context.fillText(text[i], cx, cy);
+                } else if (vars.dice_text_style === 'outline') {
+                    var strokeColor = vars.dice_text_color2 || '#000000';
+                    context.strokeStyle = strokeColor;
+                    context.lineWidth = ts * 0.025;
+                    context.lineJoin = 'round';
+                    context.strokeText(text[i], cx, cy);
+                    context.fillStyle = color;
+                    context.fillText(text[i], cx, cy);
+                } else {
+                    context.fillStyle = color;
+                    context.fillText(text[i], cx, cy);
+                }
+                
                 context.translate(canvas.width / 2, canvas.height / 2);
                 context.rotate(Math.PI * 2 / 3);
                 context.translate(-canvas.width / 2, -canvas.height / 2);
