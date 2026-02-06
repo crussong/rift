@@ -616,14 +616,14 @@ const DICE = (function() {
     threeD_dice.create_d9 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, true, 0.08));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
     threeD_dice.create_d10 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, true, 0.08));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
@@ -644,7 +644,7 @@ const DICE = (function() {
     threeD_dice.create_d100 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d100_material) this.d100_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5));
+                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, true, 0.08));
         return new THREE.Mesh(this.d10_geometry, this.d100_material);
     }
 
@@ -2139,9 +2139,10 @@ const DICE = (function() {
         return _proceduralEnvMap;
     }
     
-    function create_dice_materials(face_labels, size, margin, useGradient) {
+    function create_dice_materials(face_labels, size, margin, useGradient, textYOffset) {
         // Default: use gradient if available (but can be disabled for d10)
         if (useGradient === undefined) useGradient = true;
+        if (textYOffset === undefined) textYOffset = 0;
         
         // RIFT: Determine background color - use middle gradient color if gradient disabled but available
         var backgroundColor = vars.dice_color;
@@ -2255,6 +2256,11 @@ const DICE = (function() {
             
             context.textAlign = "center";
             context.textBaseline = "middle";
+            
+            // RIFT: D10 kite-face text centering — shift text down slightly
+            if (textYOffset) {
+                context.translate(0, textYOffset * ts);
+            }
             
             // RIFT: Premium text styles
             if (vars.dice_text_style === 'emboss') {
@@ -3040,7 +3046,7 @@ const DICE = (function() {
                 break;
             case 'd10':
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, true, 0.08);
                 break;
             case 'd12':
                 geometry = create_d12_geometry(vars.scale * 0.9);
@@ -3052,7 +3058,7 @@ const DICE = (function() {
                 break;
             case 'd100':
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5);
+                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, true, 0.08);
                 break;
             default:
                 vars.scale = originalScale;
@@ -3064,6 +3070,32 @@ const DICE = (function() {
         const material = new THREE.MeshFaceMaterial(materials);
         const mesh = new THREE.Mesh(geometry, material);
         mesh.castShadow = true;
+        
+        // RIFT: Wireframe edge overlay for preview (same as rolling dice)
+        if (vars.dice_material_override && vars.dice_material_override.wireframeEdges) {
+            var edgeColor = vars.dice_material_override.wireframeEdgeColor || 0x00ffcc;
+            var edgeOpacity = vars.dice_material_override.wireframeEdgeOpacity || 0.8;
+            try {
+                if (THREE.EdgesGeometry && THREE.LineSegments) {
+                    var edges = new THREE.EdgesGeometry(geometry, 15);
+                    var lineMat = new THREE.LineBasicMaterial({ 
+                        color: edgeColor, 
+                        transparent: true, 
+                        opacity: edgeOpacity,
+                        linewidth: 2
+                    });
+                    var wireframe = new THREE.LineSegments(edges, lineMat);
+                    mesh.add(wireframe);
+                }
+            } catch(e) {
+                // Fallback: add wireframe overlay on material
+                if (mesh.material && mesh.material.materials) {
+                    mesh.material.materials.forEach(function(m) {
+                        if (m.map) { m.wireframe = true; m.wireframeLinewidth = 1; }
+                    });
+                }
+            }
+        }
         
         return mesh;
     };
