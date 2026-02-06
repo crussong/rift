@@ -635,6 +635,7 @@ const DICE = (function() {
 
     // RIFT: Flag ob Label-Farbe manuell gesetzt wurde
     var manualLabelColor = null;
+    var labelTextStyle = false; // true wenn text style von setLabelColor gesetzt wurde
     
     // RIFT: Methode um Würfelfarbe zu ändern
     that.setDiceColor = function(color, gradient, texture, materialOverride, textStyle, neonColor) {
@@ -642,8 +643,15 @@ const DICE = (function() {
         vars.dice_gradient = gradient || null;
         vars.dice_texture = texture || null;
         vars.dice_material_override = materialOverride || null;
-        vars.dice_text_style = textStyle || null;
-        vars.dice_neon_color = neonColor || null;
+        // Nur text style überschreiben wenn explizit vom Theme gesetzt, NICHT wenn von Label gesetzt
+        if (textStyle) {
+            vars.dice_text_style = textStyle;
+            vars.dice_neon_color = neonColor || null;
+            labelTextStyle = false;
+        } else if (!labelTextStyle) {
+            vars.dice_text_style = null;
+            vars.dice_neon_color = null;
+        }
         
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
@@ -668,6 +676,7 @@ const DICE = (function() {
         if (color === 'auto' || color === null) {
             // Zurück zu automatischer Berechnung
             manualLabelColor = null;
+            labelTextStyle = false;
             vars.dice_text_style = null;
             vars.dice_neon_color = null;
             vars.dice_text_color2 = null;
@@ -680,6 +689,7 @@ const DICE = (function() {
             var color1 = parts[2] || '#ffffff';
             var color2 = parts[3] || null;
             manualLabelColor = color;
+            labelTextStyle = true;
             vars.label_color = color1;
             vars.dice_text_style = styleName;
             vars.dice_text_color2 = color2;
@@ -689,6 +699,7 @@ const DICE = (function() {
         } else {
             // Einfache manuelle Farbe - Style zurücksetzen
             manualLabelColor = color;
+            labelTextStyle = false;
             vars.label_color = color;
             vars.dice_text_style = null;
             vars.dice_neon_color = null;
