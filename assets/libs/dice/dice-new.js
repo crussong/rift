@@ -1037,6 +1037,285 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
+    function generateLavaTexture(ctx, width, height, baseColor, glowColor) {
+        // Dark base with glowing cracks
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtle dark variation
+        ctx.globalAlpha = 0.15;
+        for (var i = 0; i < 8; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#000000' : '#1a1a1a';
+            ctx.beginPath();
+            var rx = Math.random() * width, ry = Math.random() * height;
+            var rr = width * (0.05 + Math.random() * 0.15);
+            ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Glowing cracks - main
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = glowColor;
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 6;
+        ctx.lineWidth = 1.2;
+        
+        for (var i = 0; i < 5; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 5; j++) {
+                // Jagged crack lines
+                x += (Math.random() - 0.5) * width * 0.3;
+                y += (Math.random() - 0.5) * height * 0.3;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Thinner branching cracks
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = 0.5;
+        ctx.shadowBlur = 3;
+        for (var i = 0; i < 8; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 3; j++) {
+                x += (Math.random() - 0.5) * width * 0.2;
+                y += (Math.random() - 0.5) * height * 0.2;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Hot spots at crack intersections
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = 0.3;
+        for (var i = 0; i < 3; i++) {
+            var hx = Math.random() * width, hy = Math.random() * height;
+            var hGrd = ctx.createRadialGradient(hx, hy, 0, hx, hy, width * 0.08);
+            hGrd.addColorStop(0, glowColor);
+            hGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = hGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generatePearlescentTexture(ctx, width, height, baseColor, shimmerColor) {
+        // Soft iridescent base
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Iridescent color zones - overlapping gradients with different hues
+        var hues = [shimmerColor, '#ffccee', '#ccffee', '#eeccff', '#ffffcc'];
+        for (var i = 0; i < 4; i++) {
+            var zx = Math.random() * width;
+            var zy = Math.random() * height;
+            var zr = width * (0.25 + Math.random() * 0.3);
+            var zGrd = ctx.createRadialGradient(zx, zy, 0, zx, zy, zr);
+            zGrd.addColorStop(0, hues[i % hues.length]);
+            zGrd.addColorStop(1, baseColor);
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = zGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Sweeping shimmer bands (like oil on water)
+        ctx.globalAlpha = 0.06;
+        for (var i = 0; i < 6; i++) {
+            var angle = Math.random() * Math.PI;
+            var bx = width * 0.5 + Math.cos(angle) * width * 0.3;
+            var by = height * 0.5 + Math.sin(angle) * height * 0.3;
+            var bGrd = ctx.createLinearGradient(
+                bx - Math.cos(angle + Math.PI/2) * width * 0.4,
+                by - Math.sin(angle + Math.PI/2) * height * 0.4,
+                bx + Math.cos(angle + Math.PI/2) * width * 0.4,
+                by + Math.sin(angle + Math.PI/2) * height * 0.4
+            );
+            bGrd.addColorStop(0, 'rgba(255,255,255,0)');
+            bGrd.addColorStop(0.4, shimmerColor);
+            bGrd.addColorStop(0.6, 'rgba(255,255,255,0.5)');
+            bGrd.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = bGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Soft center highlight
+        var cGrd = ctx.createRadialGradient(width * 0.45, height * 0.4, 0, width * 0.5, height * 0.5, width * 0.5);
+        cGrd.addColorStop(0, 'rgba(255,255,255,0.1)');
+        cGrd.addColorStop(0.5, 'rgba(255,255,255,0.02)');
+        cGrd.addColorStop(1, 'rgba(0,0,0,0.04)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = cGrd;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateToxicTexture(ctx, width, height, baseColor, neonColor) {
+        // Dark base
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Toxic swirl patterns
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = neonColor;
+        ctx.lineWidth = 3;
+        for (var i = 0; i < 4; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 6; j++) {
+                var cp1x = x + (Math.random() - 0.5) * width * 0.6;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.6;
+                x = Math.random() * width;
+                y = Math.random() * height;
+                ctx.quadraticCurveTo(cp1x, cp1y, x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Neon glow patches
+        ctx.globalAlpha = 0.08;
+        for (var i = 0; i < 5; i++) {
+            var gx = Math.random() * width, gy = Math.random() * height;
+            var gr = width * (0.08 + Math.random() * 0.12);
+            var gGrd = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+            gGrd.addColorStop(0, neonColor);
+            gGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Fine veiny network (like toxic veins)
+        ctx.globalAlpha = 0.2;
+        ctx.strokeStyle = neonColor;
+        ctx.lineWidth = 0.4;
+        for (var i = 0; i < 10; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.25;
+                y += (Math.random() - 0.5) * height * 0.25;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Cached grain
+        ctx.globalAlpha = 0.2;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generatePatinaTexture(ctx, width, height, baseColor, patinaColor) {
+        // Metal base
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Fine grain for metal surface
+        ctx.globalAlpha = 0.3;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
+        
+        // Patina/oxidation patches - irregular blobs
+        ctx.globalAlpha = 1.0;
+        for (var i = 0; i < 6; i++) {
+            var px = Math.random() * width, py = Math.random() * height;
+            var pr = width * (0.1 + Math.random() * 0.2);
+            var pGrd = ctx.createRadialGradient(px, py, 0, px, py, pr);
+            pGrd.addColorStop(0, patinaColor);
+            pGrd.addColorStop(0.6, patinaColor);
+            pGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 0.15 + Math.random() * 0.1;
+            ctx.fillStyle = pGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Scratches and wear marks
+        ctx.globalAlpha = 0.08;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.3;
+        for (var i = 0; i < 12; i++) {
+            ctx.beginPath();
+            var sx = Math.random() * width, sy = Math.random() * height;
+            var angle = Math.random() * Math.PI;
+            var len = width * (0.05 + Math.random() * 0.15);
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx + Math.cos(angle) * len, sy + Math.sin(angle) * len);
+            ctx.stroke();
+        }
+        
+        // Edge darkening / weathering
+        var eGrd = ctx.createRadialGradient(width * 0.5, height * 0.5, width * 0.15, width * 0.5, height * 0.5, width * 0.55);
+        eGrd.addColorStop(0, 'rgba(0,0,0,0)');
+        eGrd.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = eGrd;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateCelestialTexture(ctx, width, height, baseColor, highlightColor) {
+        // Base surface
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Crater impacts
+        for (var i = 0; i < 5; i++) {
+            var cx = Math.random() * width, cy = Math.random() * height;
+            var cr = width * (0.03 + Math.random() * 0.07);
+            
+            // Crater ring (raised rim)
+            ctx.globalAlpha = 0.1;
+            ctx.strokeStyle = highlightColor;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Crater shadow (inner)
+            var cGrd = ctx.createRadialGradient(cx - cr * 0.2, cy - cr * 0.2, 0, cx, cy, cr);
+            cGrd.addColorStop(0, 'rgba(0,0,0,0.12)');
+            cGrd.addColorStop(0.7, 'rgba(0,0,0,0.04)');
+            cGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = cGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Surface dust / regolith variation
+        ctx.globalAlpha = 0.25;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
+        
+        // Soft glow from above
+        var sGrd = ctx.createRadialGradient(width * 0.35, height * 0.3, 0, width * 0.5, height * 0.5, width * 0.6);
+        sGrd.addColorStop(0, 'rgba(255,255,255,0.06)');
+        sGrd.addColorStop(0.5, 'rgba(255,255,255,0)');
+        sGrd.addColorStop(1, 'rgba(0,0,0,0.06)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = sGrd;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Tiny surface pebbles/rocks
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = highlightColor;
+        for (var i = 0; i < 15; i++) {
+            var px = Math.random() * width, py = Math.random() * height;
+            var ps = 0.5 + Math.random() * 1.5;
+            ctx.beginPath();
+            ctx.arc(px, py, ps, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
     function generateWoodTexture(ctx, width, height, baseColor, grainColor) {
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
@@ -1823,6 +2102,21 @@ const DICE = (function() {
                     case 'gem':
                         generateGemTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
                         break;
+                    case 'lava':
+                        generateLavaTexture(context, ts, ts, tex.baseColor || back_color, tex.glowColor || '#ff4400');
+                        break;
+                    case 'pearlescent':
+                        generatePearlescentTexture(context, ts, ts, tex.baseColor || back_color, tex.shimmerColor || '#ffccee');
+                        break;
+                    case 'toxic':
+                        generateToxicTexture(context, ts, ts, tex.baseColor || back_color, tex.neonColor || '#44ff44');
+                        break;
+                    case 'patina':
+                        generatePatinaTexture(context, ts, ts, tex.baseColor || back_color, tex.patinaColor || '#44aa88');
+                        break;
+                    case 'celestial':
+                        generateCelestialTexture(context, ts, ts, tex.baseColor || back_color, tex.highlightColor || '#ccccdd');
+                        break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
                         break;
@@ -1837,9 +2131,6 @@ const DICE = (function() {
                         break;
                     case 'galaxy':
                         generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
-                        break;
-                    case 'lava':
-                        generateLavaCracksTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.crackColor || '#ff6600', tex.glowColor || '#ff2200');
                         break;
                     case 'frost':
                         generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
@@ -1981,6 +2272,21 @@ const DICE = (function() {
                         break;
                     case 'gem':
                         generateGemTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'lava':
+                        generateLavaTexture(context, ts, ts, tex.baseColor || back_color, tex.glowColor || '#ff4400');
+                        break;
+                    case 'pearlescent':
+                        generatePearlescentTexture(context, ts, ts, tex.baseColor || back_color, tex.shimmerColor || '#ffccee');
+                        break;
+                    case 'toxic':
+                        generateToxicTexture(context, ts, ts, tex.baseColor || back_color, tex.neonColor || '#44ff44');
+                        break;
+                    case 'patina':
+                        generatePatinaTexture(context, ts, ts, tex.baseColor || back_color, tex.patinaColor || '#44aa88');
+                        break;
+                    case 'celestial':
+                        generateCelestialTexture(context, ts, ts, tex.baseColor || back_color, tex.highlightColor || '#ccccdd');
                         break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
