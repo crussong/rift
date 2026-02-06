@@ -512,21 +512,29 @@ function _notifyListeners(event = {}) {
 function _defaultLimits() {
     return {
         free: {
-            sessionsPerAccount: 5,
+            activeSessions: 2,      // GM or player, across all rooms, not ended
+            charsPerRuleset: 2,      // Characters per ruleset
             sessionsPerRoom: 2,
             participantsPerRoom: 6,
             participantsPerSession: 6,
             charsPerRoom: 1,
+            mapsPerRoom: 3,          // World/environment maps per room
+            chatImageUpload: false,  // false = disabled for free
+            pdfExport: false,        // false = disabled for free
             diceThemes: 10,
             numberThemes: 6,
             arenaThemes: 12,
         },
         pro: {
-            sessionsPerAccount: 0,  // 0 = unlimited
+            activeSessions: 0,      // 0 = unlimited
+            charsPerRuleset: 5,
             sessionsPerRoom: 5,
             participantsPerRoom: 10,
             participantsPerSession: 10,
             charsPerRoom: 3,
+            mapsPerRoom: 0,          // 0 = unlimited
+            chatImageUpload: true,   // true = enabled for pro
+            pdfExport: true,         // true = enabled for pro
             diceThemes: 0,          // 0 = all
             numberThemes: 0,
             arenaThemes: 0,
@@ -653,6 +661,50 @@ async function adminRevokeProStatus(uid) {
 }
 
 // ========================================
+// HELPERS: SESSION & CHARACTER COUNTING
+// ========================================
+
+/**
+ * Count active (non-ended) sessions owned by or involving the current user.
+ * Checks both localStorage and Firebase subscribed sessions.
+ * 
+ * @param {object[]} [firebaseSessions] - Optional array of sessions from Firebase subscription
+ * @returns {number}
+ */
+function getActiveSessionCount(firebaseSessions) {
+    const uid = _proState.uid;
+    if (!uid) return 0;
+    
+    let count = 0;
+    const countedIds = new Set();
+    
+    // Count from Firebase sessions (if provided by the calling page)
+    if (Array.isArray(firebaseSessions)) {
+        firebaseSessions.forEach(s => {
+            if (s.status === 'ended') return;
+            if (s.ownerId === uid || (s.participants && s.participants[uid])) {
+                countedIds.add(s.id);
+                count++;
+            }
+        });
+    }
+    
+    // Also count from localStorage (catches sessions from other rooms)
+    try {
+        const stored = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+        stored.forEach(s => {
+            if (countedIds.has(s.id)) return; // Already counted from Firebase
+            if (s.status === 'ended') return;
+            if (s.ownerId === uid) {
+                count++;
+            }
+        });
+    } catch (e) { /* corrupted localStorage */ }
+    
+    return count;
+}
+
+// ========================================
 // EXPORT
 // ========================================
 
@@ -697,5 +749,8 @@ if (typeof window !== 'undefined') {
         // Admin
         adminSetPro: adminSetProStatus,
         adminRevokePro: adminRevokeProStatus,
+        
+        // Counting helpers
+        getActiveSessionCount,
     };
 }
