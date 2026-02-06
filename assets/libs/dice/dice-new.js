@@ -888,48 +888,153 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
+    // Cached grain overlay - generated once, reused for all gem faces
+    var _grainCache = {};
+    function getGrainOverlay(size) {
+        if (_grainCache[size]) return _grainCache[size];
+        var c = document.createElement('canvas');
+        c.width = c.height = size;
+        var ctx = c.getContext('2d');
+        var imageData = ctx.createImageData(size, size);
+        var pixels = imageData.data;
+        for (var i = 0; i < pixels.length; i += 4) {
+            var v = Math.random() * 255;
+            pixels[i] = pixels[i + 1] = pixels[i + 2] = v;
+            pixels[i + 3] = 60; // ~0.24 alpha for subtle grain
+        }
+        ctx.putImageData(imageData, 0, 0);
+        _grainCache[size] = c;
+        return c;
+    }
+    
     function generateGemTexture(ctx, width, height, baseColor, veinColor) {
+        var cx = width * 0.5, cy = height * 0.5;
+        
+        // --- 1. Base + Sättigungs-Zonen (color variation patches) ---
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Subtle veins (very faint)
-        ctx.strokeStyle = veinColor;
-        ctx.globalAlpha = 0.35;
+        // Parse baseColor for HSL shifting
+        ctx.save();
+        for (var i = 0; i < 3; i++) {
+            var zx = Math.random() * width;
+            var zy = Math.random() * height;
+            var zr = width * (0.2 + Math.random() * 0.25);
+            var zGrd = ctx.createRadialGradient(zx, zy, 0, zx, zy, zr);
+            // Alternate lighter and slightly different-hued patches
+            if (i % 2 === 0) {
+                zGrd.addColorStop(0, 'rgba(255,255,255,0.06)');
+                zGrd.addColorStop(1, 'rgba(255,255,255,0)');
+            } else {
+                zGrd.addColorStop(0, veinColor);
+                zGrd.addColorStop(1, baseColor);
+            }
+            ctx.globalAlpha = i % 2 === 0 ? 0.5 : 0.08;
+            ctx.fillStyle = zGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        ctx.restore();
         
+        // --- 2. Farb-Tiefe Vignette (darker at edges) ---
+        ctx.globalAlpha = 1.0;
+        var vig = ctx.createRadialGradient(cx, cy, width * 0.1, cx, cy, width * 0.6);
+        vig.addColorStop(0, 'rgba(255,255,255,0.04)');
+        vig.addColorStop(0.4, 'rgba(0,0,0,0)');
+        vig.addColorStop(1, 'rgba(0,0,0,0.15)');
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, width, height);
+        
+        // --- 3. Facetten-Schliff Lichtbrechung (crossing light lines) ---
+        ctx.save();
+        ctx.globalAlpha = 0.07;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.8;
+        
+        // Star-like refraction pattern from center
+        var numRays = 5 + Math.floor(Math.random() * 3);
+        var angleOff = Math.random() * Math.PI;
+        for (var i = 0; i < numRays; i++) {
+            var angle = angleOff + (i / numRays) * Math.PI;
+            ctx.beginPath();
+            ctx.moveTo(
+                cx + Math.cos(angle) * width * 0.05,
+                cy + Math.sin(angle) * height * 0.05
+            );
+            ctx.lineTo(
+                cx + Math.cos(angle) * width * 0.55,
+                cy + Math.sin(angle) * height * 0.55
+            );
+            ctx.stroke();
+        }
+        
+        // A couple of faint triangular brilliance shapes
+        ctx.globalAlpha = 0.04;
+        ctx.fillStyle = '#ffffff';
+        for (var i = 0; i < 2; i++) {
+            var tx = cx + (Math.random() - 0.5) * width * 0.3;
+            var ty = cy + (Math.random() - 0.5) * height * 0.3;
+            var ts = width * (0.06 + Math.random() * 0.08);
+            var ta = Math.random() * Math.PI * 2;
+            ctx.beginPath();
+            for (var j = 0; j < 3; j++) {
+                var px = tx + Math.cos(ta + j * Math.PI * 2 / 3) * ts;
+                var py = ty + Math.sin(ta + j * Math.PI * 2 / 3) * ts;
+                j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+        
+        // --- 4. Schliff-Kanten (sub-facet geometric lines) ---
+        ctx.save();
+        ctx.globalAlpha = 0.05;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.4;
+        
+        // Lines from corners/edges through center area
+        var corners = [
+            [0, 0], [width, 0], [width, height], [0, height],
+            [width * 0.5, 0], [width, height * 0.5], [width * 0.5, height], [0, height * 0.5]
+        ];
         for (var i = 0; i < 4; i++) {
+            var c1 = corners[Math.floor(Math.random() * corners.length)];
+            var target = [
+                cx + (Math.random() - 0.5) * width * 0.3,
+                cy + (Math.random() - 0.5) * height * 0.3
+            ];
+            ctx.beginPath();
+            ctx.moveTo(c1[0], c1[1]);
+            ctx.lineTo(target[0], target[1]);
+            ctx.stroke();
+        }
+        ctx.restore();
+        
+        // --- 5. Subtle veins (very faint internal structure) ---
+        ctx.strokeStyle = veinColor;
+        ctx.globalAlpha = 0.25;
+        for (var i = 0; i < 3; i++) {
             ctx.beginPath();
             var x = Math.random() * width;
             var y = Math.random() * height;
             ctx.moveTo(x, y);
-            ctx.lineWidth = 0.3 + Math.random() * 0.8;
-            
+            ctx.lineWidth = 0.2 + Math.random() * 0.5;
             for (var j = 0; j < 3; j++) {
-                var cp1x = x + (Math.random() - 0.5) * width * 0.35;
-                var cp1y = y + (Math.random() - 0.5) * height * 0.35;
-                var cp2x = x + (Math.random() - 0.5) * width * 0.35;
-                var cp2y = y + (Math.random() - 0.5) * height * 0.35;
+                var cp1x = x + (Math.random() - 0.5) * width * 0.3;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.3;
+                var cp2x = x + (Math.random() - 0.5) * width * 0.3;
+                var cp2y = y + (Math.random() - 0.5) * height * 0.3;
                 x = Math.random() * width;
                 y = Math.random() * height;
                 ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
             }
             ctx.stroke();
         }
+        
+        // --- 6. Cached grain overlay ---
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
         ctx.globalAlpha = 1.0;
-        
-        // High-resolution grain overlay via pixel manipulation
-        var imageData = ctx.getImageData(0, 0, width, height);
-        var pixels = imageData.data;
-        var grainAlpha = 0.4;
-        
-        for (var i = 0; i < pixels.length; i += 4) {
-            // Random brightness shift per pixel: -30 to +30
-            var noise = (Math.random() - 0.5) * 60;
-            pixels[i]     = Math.max(0, Math.min(255, pixels[i]     + noise * grainAlpha));
-            pixels[i + 1] = Math.max(0, Math.min(255, pixels[i + 1] + noise * grainAlpha));
-            pixels[i + 2] = Math.max(0, Math.min(255, pixels[i + 2] + noise * grainAlpha));
-        }
-        
-        ctx.putImageData(imageData, 0, 0);
     }
     
     function generateWoodTexture(ctx, width, height, baseColor, grainColor) {
