@@ -1042,6 +1042,11 @@
             secretRoll: false,
             currentTheme: null,
             currentDiceColor: '#2a2a2a',
+            currentDiceGradient: null,
+            currentDiceTexture: null,
+            currentDiceMaterial: null,
+            currentDiceTextStyle: null,
+            currentDiceNeonColor: null,
             currentLabelColor: 'auto', // 'auto' oder Hex-Farbe
             
             // Theme colors for 3D dice
@@ -1619,7 +1624,7 @@
                     material: { shininess: 80, specular: 0x330018, emissive: 0x200010 } },
                 
                 // ═══════════════════════════════════════
-                // PRO: MATTE GRADIENT (10)
+                // PRO: MATT GRADIENT (10)
                 // ═══════════════════════════════════════
                 matteCandy: { primary: '#1a1a1a', secondary: '#ff3388', accent: '#ff3388',
                     gradient: { type: 'linear', colors: ['#ff3388', '#ff7744', '#ffcc22'] },
@@ -2404,10 +2409,13 @@
                     arena.style.setProperty('--theme-secondary', colors.secondary);
                 }
                 
-                // Update 3D dice color + gradient + texture - store for next roll
+                // Update 3D dice color + gradient + texture + material - store for next roll
                 this.currentDiceColor = colors.accent;
                 this.currentDiceGradient = colors.gradient || null;
                 this.currentDiceTexture = colors.texture || null;
+                this.currentDiceMaterial = colors.material || null;
+                this.currentDiceTextStyle = colors.textStyle || null;
+                this.currentDiceNeonColor = colors.neonColor || null;
                 
                 // Set color, gradient, texture, material override AND text style on DICE module
                 if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
@@ -2520,10 +2528,10 @@
                         coreFrost: 'Core Frost', coreNova: 'Core Nova', coreShadow: 'Core Schatten',
                         coreRose: 'Core Rose',
                         // Pro: Matte Gradient
-                        matteCandy: 'Matte Candy', matteSunset: 'Matte Sunset', matteOcean: 'Matte Ozean',
-                        matteLime: 'Matte Limette', matteBerry: 'Matte Beere', matteDesert: 'Matte Wüste',
-                        matteForest: 'Matte Wald', matteNight: 'Matte Nacht', mattePeach: 'Matte Pfirsich',
-                        matteIce: 'Matte Eis',
+                        matteCandy: 'Matt Gradient Candy', matteSunset: 'Matt Gradient Sunset', matteOcean: 'Matt Gradient Ozean',
+                        matteLime: 'Matt Gradient Limette', matteBerry: 'Matt Gradient Beere', matteDesert: 'Matt Gradient Wüste',
+                        matteForest: 'Matt Gradient Wald', matteNight: 'Matt Gradient Nacht', mattePeach: 'Matt Gradient Pfirsich',
+                        matteIce: 'Matt Gradient Eis',
                         // Pro: Wire
                         wireCyan: 'Wire Cyan', wireNeon: 'Wire Neon', wireGold: 'Wire Gold',
                         wireRed: 'Wire Rot', wireBlue: 'Wire Blau', wireGreen: 'Wire Grün',
@@ -3465,7 +3473,7 @@
                 this.clearDiceLabels();
                 
                 if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                    DICE.setDiceColor(this.currentDiceColor, this.currentDiceGradient, this.currentDiceTexture);
+                    DICE.setDiceColor(this.currentDiceColor, this.currentDiceGradient, this.currentDiceTexture, this.currentDiceMaterial, this.currentDiceTextStyle, this.currentDiceNeonColor);
                 }
                 
                 const arena = document.getElementById('diceArena');
@@ -4619,7 +4627,7 @@
                 // Setze Würfelfarbe
                 if (roll.diceTheme && typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
                     const remoteColors = this.themeColors[roll.diceTheme] || this.themeColors.onyx;
-                    DICE.setDiceColor(remoteColors.accent, remoteColors.gradient || null, remoteColors.texture || null);
+                    DICE.setDiceColor(remoteColors.accent, remoteColors.gradient || null, remoteColors.texture || null, remoteColors.material || null, remoteColors.textStyle || null, remoteColors.neonColor || null);
                 }
                 if (roll.labelColor && typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
                     DICE.setLabelColor(roll.labelColor === 'auto' ? null : roll.labelColor);
@@ -4751,6 +4759,9 @@
                 const myDiceColor = this.currentDiceColor;
                 const myDiceGradient = this.currentDiceGradient;
                 const myDiceTexture = this.currentDiceTexture;
+                const myDiceMaterial = this.currentDiceMaterial;
+                const myDiceTextStyle = this.currentDiceTextStyle;
+                const myDiceNeonColor = this.currentDiceNeonColor;
                 const myLabelColor = this.currentLabelColor;
                 
                 const labelValues = roll.diceConfig?.labelValues || roll.labelValues || [];
@@ -4793,7 +4804,7 @@
                     
                     // Eigene Farben wiederherstellen
                     if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                        DICE.setDiceColor(myDiceColor, myDiceGradient, myDiceTexture);
+                        DICE.setDiceColor(myDiceColor, myDiceGradient, myDiceTexture, myDiceMaterial, myDiceTextStyle, myDiceNeonColor);
                     }
                     if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
                         DICE.setLabelColor(myLabelColor === 'auto' ? null : myLabelColor);
@@ -4868,7 +4879,7 @@
                 
                 // Eigene Farben wiederherstellen
                 if (typeof DICE !== 'undefined' && typeof DICE.setDiceColor === 'function') {
-                    DICE.setDiceColor(this.currentDiceColor, this.currentDiceGradient, this.currentDiceTexture);
+                    DICE.setDiceColor(this.currentDiceColor, this.currentDiceGradient, this.currentDiceTexture, this.currentDiceMaterial, this.currentDiceTextStyle, this.currentDiceNeonColor);
                 }
                 if (typeof DICE !== 'undefined' && typeof DICE.setLabelColor === 'function') {
                     DICE.setLabelColor(this.currentLabelColor === 'auto' ? null : this.currentLabelColor);
@@ -7189,11 +7200,11 @@
             </div>
         </div>
         
-        <!-- RIFT Pro: Matte Gradient -->
+        <!-- RIFT Pro: Matt Gradient -->
         <div class="tier-section">
             <div class="tier-header">
                 <span class="tier-badge tier-badge--pro"><img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="RIFT Pro"></span>
-                <span class="tier-count">10 Matte</span>
+                <span class="tier-count">10 Matt Gradient</span>
             </div>
             <div class="dice-theme-grid">
                 <button class="dice-theme-card" data-theme="matteCandy"><div class="dice-theme-card__preview" style="background: linear-gradient(135deg, #ff3388, #ff7744, #ffcc22); filter: brightness(0.9);"></div><span>Candy</span></button>
