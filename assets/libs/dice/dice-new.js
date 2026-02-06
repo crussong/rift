@@ -367,6 +367,21 @@ const DICE = (function() {
         var dice = threeD_dice['create_' + type]();
         dice.castShadow = true;
         dice.dice_type = type;
+        
+        // RIFT: Wireframe edge overlay (keeps textures + adds glowing edges)
+        if (vars.dice_material_override && vars.dice_material_override.wireframeEdges) {
+            var edgeColor = vars.dice_material_override.wireframeEdgeColor || 0x00ffcc;
+            var edgeOpacity = vars.dice_material_override.wireframeEdgeOpacity || 0.8;
+            var edges = new THREE.EdgesGeometry(dice.geometry, 15);
+            var lineMat = new THREE.LineBasicMaterial({ 
+                color: edgeColor, 
+                transparent: true, 
+                opacity: edgeOpacity,
+                linewidth: 1
+            });
+            var wireframe = new THREE.LineSegments(edges, lineMat);
+            dice.add(wireframe);
+        }
         dice.body = new CANNON.RigidBody(CONSTS.dice_mass[type],
                 dice.geometry.cannon_shape, this.dice_body_material);
         dice.body.position.set(pos.x, pos.y, pos.z);
