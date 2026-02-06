@@ -61,6 +61,12 @@ const App = {
                     window.currentUser = user;
                     console.log('[App] User authenticated:', user.displayName || user.name);
                     
+                    // Initialize Pro Status
+                    if (RIFT.pro) {
+                        await RIFT.pro.init(user.uid);
+                        window.currentUser.isPro = RIFT.pro.isPro;
+                    }
+                    
                     // Get current room
                     this.roomCode = RIFT.user.getCurrentRoom();
                     
@@ -93,7 +99,10 @@ const App = {
                         updateUserDisplay();
                     }
                 } else {
-                    // Not logged in - check if should redirect
+                    // Not logged in – clean up Pro status
+                    if (RIFT.pro) RIFT.pro.destroy();
+                    
+                    // Check if should redirect
                     const currentPage = window.location.pathname.split('/').pop();
                     const publicPages = ['login', 'login.html', 'about', 'about.html', 'privacy', 'privacy.html', 'imprint', 'imprint.html', 'news', 'roadmap'];
                     if (!publicPages.includes(currentPage)) {
