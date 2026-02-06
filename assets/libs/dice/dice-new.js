@@ -2275,30 +2275,22 @@ const DICE = (function() {
             } else if (vars.dice_text_style === 'metallic') {
                 var color2 = vars.dice_text_color2 || '#333333';
                 var cx = canvas.width / 2, cy = canvas.height / 2;
-                // Realistic metallic: curved highlight gradient (bright top, dark middle, bright bottom edge)
+                // Realistic metal: single smooth specular arc
+                // Like light reflecting off a curved metal surface
                 var grad = context.createLinearGradient(cx, cy - ts * 0.22, cx, cy + ts * 0.22);
-                grad.addColorStop(0, color);
-                grad.addColorStop(0.15, '#ffffff');  // specular highlight near top
-                grad.addColorStop(0.35, color);
-                grad.addColorStop(0.55, color2);     // dark shadow in middle-lower
-                grad.addColorStop(0.75, color);
-                grad.addColorStop(0.9, color2);
-                grad.addColorStop(1, color);
-                // Drop shadow
-                context.fillStyle = 'rgba(0,0,0,0.4)';
-                context.fillText(text, cx + ts * 0.01, cy + ts * 0.012);
-                // Main metallic gradient
+                grad.addColorStop(0, color2);          // dark top edge
+                grad.addColorStop(0.25, color);         // main color
+                grad.addColorStop(0.42, color);         // hold main
+                grad.addColorStop(0.50, '#ffffff');      // single bright specular band
+                grad.addColorStop(0.58, color);         // back to main
+                grad.addColorStop(0.8, color2);          // darken toward bottom
+                grad.addColorStop(1, color);             // slight rim light at bottom
+                // Drop shadow for depth
+                context.fillStyle = 'rgba(0,0,0,0.35)';
+                context.fillText(text, cx + ts * 0.008, cy + ts * 0.01);
+                // Main metallic fill
                 context.fillStyle = grad;
                 context.fillText(text, cx, cy);
-                // Bright specular line across top third
-                context.save();
-                var specGrad = context.createLinearGradient(cx, cy - ts * 0.18, cx, cy - ts * 0.04);
-                specGrad.addColorStop(0, 'rgba(255,255,255,0)');
-                specGrad.addColorStop(0.4, 'rgba(255,255,255,0.4)');
-                specGrad.addColorStop(1, 'rgba(255,255,255,0)');
-                context.fillStyle = specGrad;
-                context.fillText(text, cx, cy);
-                context.restore();
             } else if (vars.dice_text_style === 'outline') {
                 var strokeColor = vars.dice_text_color2 || '#000000';
                 var cx = canvas.width / 2, cy = canvas.height / 2;
@@ -2495,25 +2487,17 @@ const DICE = (function() {
                 } else if (vars.dice_text_style === 'metallic') {
                     var color2 = vars.dice_text_color2 || '#333333';
                     var grad = context.createLinearGradient(cx, cy - ts * 0.22, cx, cy + ts * 0.22);
-                    grad.addColorStop(0, color);
-                    grad.addColorStop(0.15, '#ffffff');
-                    grad.addColorStop(0.35, color);
-                    grad.addColorStop(0.55, color2);
-                    grad.addColorStop(0.75, color);
-                    grad.addColorStop(0.9, color2);
+                    grad.addColorStop(0, color2);
+                    grad.addColorStop(0.25, color);
+                    grad.addColorStop(0.42, color);
+                    grad.addColorStop(0.50, '#ffffff');
+                    grad.addColorStop(0.58, color);
+                    grad.addColorStop(0.8, color2);
                     grad.addColorStop(1, color);
-                    context.fillStyle = 'rgba(0,0,0,0.4)';
-                    context.fillText(text[i], cx + ts * 0.01, cy + ts * 0.012);
+                    context.fillStyle = 'rgba(0,0,0,0.35)';
+                    context.fillText(text[i], cx + ts * 0.008, cy + ts * 0.01);
                     context.fillStyle = grad;
                     context.fillText(text[i], cx, cy);
-                    context.save();
-                    var specGrad = context.createLinearGradient(cx, cy - ts * 0.18, cx, cy - ts * 0.04);
-                    specGrad.addColorStop(0, 'rgba(255,255,255,0)');
-                    specGrad.addColorStop(0.4, 'rgba(255,255,255,0.4)');
-                    specGrad.addColorStop(1, 'rgba(255,255,255,0)');
-                    context.fillStyle = specGrad;
-                    context.fillText(text[i], cx, cy);
-                    context.restore();
                 } else if (vars.dice_text_style === 'outline') {
                     var strokeColor = vars.dice_text_color2 || '#000000';
                     context.strokeStyle = strokeColor;
