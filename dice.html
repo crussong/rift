@@ -967,7 +967,7 @@
     <script src="assets/libs/dice/teal.js"></script>
     <script src="assets/libs/dice/three.min.js"></script>
     <script src="assets/libs/dice/cannon.min.js"></script>
-    <script src="assets/libs/dice/dice-new.js?v=34"></script>
+    <script src="assets/libs/dice/dice-new.js?v=35"></script>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -1710,18 +1710,18 @@
                 // ═══════════════════════════════════════
                 // TEST 2 - Material Experiments
                 // ═══════════════════════════════════════
-                // Mirror: high-contrast envmap reflection
-                testMirror: { primary: '#888888', secondary: '#ffffff', accent: '#cccccc',
-                    material: { shininess: 1000, specular: 0xffffff, emissive: 0x111111, envMap: true, reflectivity: 0.95, combine: 2 } },
-                // Wireframe: Tron-style wireframe
-                testWireframe: { primary: '#00ffcc', secondary: '#001a14', accent: '#00aa88',
-                    material: { shininess: 200, specular: 0x00ffcc, emissive: 0x003322, wireframe: true } },
-                // Wire Neon: hot pink wireframe
-                testWireNeon: { primary: '#ff00ff', secondary: '#1a001a', accent: '#cc00cc',
-                    material: { shininess: 200, specular: 0xff00ff, emissive: 0x440044, wireframe: true } },
-                // Flat Poly: low-poly faceted look
-                testFlatPoly: { primary: '#ee8844', secondary: '#1a0c04', accent: '#cc6622',
-                    material: { shininess: 30, specular: 0x443322, emissive: 0x0a0400, flatShading: true } },
+                // Mirror: dark base + high-contrast envmap reflection
+                testMirror: { primary: '#222222', secondary: '#888888', accent: '#1a1a1a',
+                    material: { shininess: 1000, specular: 0xffffff, emissive: 0x000000, envMap: true, reflectivity: 0.95, combine: 2 } },
+                // Wireframe Tron: textured faces + glowing edge overlay
+                testWireframe: { primary: '#00ffcc', secondary: '#001a14', accent: '#001a14',
+                    material: { shininess: 10, specular: 0x003322, emissive: 0x002a1a, wireframeEdges: true, wireframeEdgeColor: 0x00ffcc, wireframeEdgeOpacity: 0.9 } },
+                // Wire Neon: hot pink edges
+                testWireNeon: { primary: '#ff00ff', secondary: '#1a001a', accent: '#1a001a',
+                    material: { shininess: 10, specular: 0x330033, emissive: 0x220022, wireframeEdges: true, wireframeEdgeColor: 0xff00ff, wireframeEdgeOpacity: 0.9 } },
+                // Wire Gold: golden edges on dark body
+                testWireGold: { primary: '#ffd700', secondary: '#1a1400', accent: '#0a0a00',
+                    material: { shininess: 10, specular: 0x332200, emissive: 0x1a1200, wireframeEdges: true, wireframeEdgeColor: 0xffd700, wireframeEdgeOpacity: 0.9 } },
                 // Reactor: self-illuminating + arena glow
                 testReactor: { primary: '#44ff44', secondary: '#001a00', accent: '#003300',
                     material: { shininess: 40, specular: 0x224422, emissive: 0x00aa00, themeGlow: true, themeGlowColor: '#00ff00', themeGlowIntensity: 3.0 } },
@@ -2446,6 +2446,26 @@
                     DICE.setDiceColor(colors.accent, colors.gradient, colors.texture, colors.material, colors.textStyle, colors.neonColor);
                 }
                 
+                // RIFT: Theme→Glow bridge — themes can force arena glow
+                if (colors.material && colors.material.themeGlow) {
+                    this._themeGlowActive = true;
+                    this._savedUserGlow = this.currentGlow;
+                    this.currentGlow = true;
+                    // Set glow color from theme
+                    if (typeof DICE !== 'undefined' && DICE.setGlow) {
+                        DICE.setGlow(true, colors.material.themeGlowColor || colors.accent, colors.material.themeGlowIntensity || 2.0);
+                    }
+                    this.updatePreviewEffects();
+                } else if (this._themeGlowActive) {
+                    // Restore user's glow setting
+                    this._themeGlowActive = false;
+                    this.currentGlow = this._savedUserGlow || false;
+                    if (typeof DICE !== 'undefined' && DICE.setGlow) {
+                        DICE.setGlow(this.currentGlow);
+                    }
+                    this.updatePreviewEffects();
+                }
+                
                 // Update preview dice with new colors
                 if (typeof DicePreview !== 'undefined' && DicePreview.updateColors) {
                     DicePreview.updateColors();
@@ -2564,7 +2584,7 @@
                         testMatteIce: 'Matte Eis',
                         // Test 2: Material
                         testMirror: 'Mirror', testWireframe: 'Wireframe', testWireNeon: 'Wire Neon',
-                        testFlatPoly: 'Flat Poly', testReactor: 'Reactor', testXray: 'X-Ray'
+                        testWireGold: 'Wire Gold', testReactor: 'Reactor', testXray: 'X-Ray'
                     };
                     // Toast removed - preview is sufficient
                 }
@@ -2876,7 +2896,9 @@
                 container.innerHTML = '';
                 
                 // Theme-Farbe holen
-                const glowColor = this.themeColors[this.currentTheme] || '#ffffff';
+                const themeObj = this.themeColors[this.currentTheme];
+                const glowColor = (themeObj && themeObj.material && themeObj.material.themeGlowColor) 
+                    || (themeObj && themeObj.accent) || '#ffffff';
                 
                 if (this.currentGlow && !this.currentPulse) {
                     // Nur Glow: statischer Schein
@@ -5132,7 +5154,7 @@
                     testMatteIce: '#aaccee',
                     // Test 2: Material
                     testMirror: '#cccccc', testWireframe: '#00ffcc', testWireNeon: '#ff00ff',
-                    testFlatPoly: '#ee8844', testReactor: '#44ff44', testXray: '#66aaff'
+                    testWireGold: '#ffd700', testReactor: '#44ff44', testXray: '#66aaff'
                 };
                 const diceColor = themeColors[roll.diceTheme] || '#ffffff';
                 
@@ -5262,8 +5284,10 @@
                     
                     // RIFT: Dauerhafter Glow/Pulse-Effekt wenn aktiviert
                     if (pulseContainer && (this.currentGlow || this.currentPulse)) {
-                        // Theme-Farbe direkt nutzen (ist ein Hex-String)
-                        const glowColor = this.themeColors[this.currentTheme] || '#ffffff';
+                        // Theme-Farbe holen (accent als Glow-Farbe)
+                        const arenaThemeObj = this.themeColors[this.currentTheme];
+                        const glowColor = (arenaThemeObj && arenaThemeObj.material && arenaThemeObj.material.themeGlowColor) 
+                            || (arenaThemeObj && arenaThemeObj.accent) || '#ffffff';
                         
                         if (this.currentGlow && !this.currentPulse) {
                             // Nur Glow: statischer Schein
@@ -7564,7 +7588,7 @@
             </div>
             <div class="dice-theme-grid">
                 <button class="dice-theme-card" data-theme="testMirror">
-                    <div class="dice-theme-card__preview" style="background: linear-gradient(135deg, #eee 0%, #555 25%, #fff 50%, #666 75%, #ccc 100%);"></div>
+                    <div class="dice-theme-card__preview" style="background: linear-gradient(135deg, #333 0%, #111 25%, #666 50%, #222 75%, #444 100%);"></div>
                     <span>Mirror</span>
                 </button>
                 <button class="dice-theme-card" data-theme="testWireframe">
@@ -7575,9 +7599,9 @@
                     <div class="dice-theme-card__preview" style="background: #1a001a; border: 1px solid #ff00ff; box-shadow: inset 0 0 10px rgba(255,0,255,0.2);"></div>
                     <span>Wire Neon</span>
                 </button>
-                <button class="dice-theme-card" data-theme="testFlatPoly">
-                    <div class="dice-theme-card__preview" style="background: linear-gradient(135deg, #ee8844 0%, #cc6622 50%, #aa4400 100%);"></div>
-                    <span>Flat Poly</span>
+                <button class="dice-theme-card" data-theme="testWireGold">
+                    <div class="dice-theme-card__preview" style="background: #0a0a00; border: 1px solid #ffd700; box-shadow: inset 0 0 10px rgba(255,215,0,0.2);"></div>
+                    <span>Wire Gold</span>
                 </button>
                 <button class="dice-theme-card" data-theme="testReactor">
                     <div class="dice-theme-card__preview" style="background: #003300; box-shadow: inset 0 0 20px rgba(0,255,0,0.6), 0 0 8px rgba(0,255,0,0.3);"></div>
@@ -8053,7 +8077,7 @@
                     <span class="tier-count">Arena-Effekte</span>
                 </div>
                 <div class="dice-effects-grid">
-                    <button class="dice-effect-btn" data-effect="test-reactor-glow" onclick="DiceApp.setTheme('testReactor', true)">
+                    <button class="dice-effect-btn" data-effect="test-reactor-glow" onclick="DiceRoller.setTheme('testReactor', true)">
                         <div class="dice-effect-btn__icon" style="color: #00ff00;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" stroke-dasharray="2 2"/><circle cx="12" cy="12" r="10" opacity="0.4"/></svg>
                         </div>
