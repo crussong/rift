@@ -1690,7 +1690,7 @@
             autoSave: true
         };
 
-        let currentUser = null;
+        let _authUser = null;
         let currentSettings = { ...DEFAULTS };
         let saveTimer = null;
 
@@ -1730,10 +1730,10 @@
         }
 
         async function loadSettingsFromFirestore() {
-            if (!currentUser) return;
+            if (!_authUser) return;
             try {
                 const db = firebase.firestore();
-                const doc = await db.collection('users').doc(currentUser.uid).get();
+                const doc = await db.collection('users').doc(_authUser.uid).get();
                 if (doc.exists && doc.data().settings) {
                     currentSettings = { ...DEFAULTS, ...doc.data().settings };
                     // Sync to localStorage
@@ -1756,10 +1756,10 @@
         }
 
         async function saveSettingsToFirestore() {
-            if (!currentUser) return;
+            if (!_authUser) return;
             try {
                 const db = firebase.firestore();
-                await db.collection('users').doc(currentUser.uid).set({
+                await db.collection('users').doc(_authUser.uid).set({
                     settings: currentSettings,
                     lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
@@ -1944,7 +1944,7 @@
 
         // ========== LOAD PROFILE ==========
         async function loadProfile() {
-            if (!currentUser) return;
+            if (!_authUser) return;
 
             // Get data from multiple sources
             const localData = JSON.parse(localStorage.getItem('rift_user') || '{}');
@@ -1952,18 +1952,18 @@
 
             try {
                 const db = firebase.firestore();
-                const doc = await db.collection('users').doc(currentUser.uid).get();
+                const doc = await db.collection('users').doc(_authUser.uid).get();
                 if (doc.exists) firestoreData = doc.data();
             } catch(e) {
                 console.warn('[UserSettings] Firestore profile load failed:', e.message);
             }
 
             // Merge: Firestore > localStorage > auth fallback
-            const name = firestoreData.displayName || localData.displayName || localData.name || currentUser.displayName || 'Unbekannt';
-            const email = firestoreData.email || localData.email || currentUser.email || '—';
+            const name = firestoreData.displayName || localData.displayName || localData.name || _authUser.displayName || 'Unbekannt';
+            const email = firestoreData.email || localData.email || _authUser.email || '—';
             const color = firestoreData.color || localData.color || '#8b5cf6';
             const bio = firestoreData.bio || localData.bio || '';
-            const avatar = firestoreData.avatar || firestoreData.photoURL || localData.avatar || currentUser.photoURL || null;
+            const avatar = firestoreData.avatar || firestoreData.photoURL || localData.avatar || _authUser.photoURL || null;
 
             // Populate UI
             document.getElementById('profileName').textContent = name;
@@ -1991,9 +1991,9 @@
             }
 
             // Google connection status
-            const providers = currentUser.providerData.map(p => p.providerId);
+            const providers = _authUser.providerData.map(p => p.providerId);
             if (providers.includes('google.com')) {
-                document.getElementById('googleStatus').textContent = currentUser.email;
+                document.getElementById('googleStatus').textContent = _authUser.email;
                 document.getElementById('googleStatus').classList.add('us-account__status--connected');
             }
         }
@@ -2024,10 +2024,10 @@
             document.getElementById('avatarPlaceholder').style.backgroundColor = color;
 
             // Save to Firestore user profile
-            if (currentUser) {
+            if (_authUser) {
                 try {
                     const db = firebase.firestore();
-                    await db.collection('users').doc(currentUser.uid).set({
+                    await db.collection('users').doc(_authUser.uid).set({
                         displayName: name,
                         name: name,
                         color: color,
@@ -2045,7 +2045,7 @@
                     try {
                         const db = firebase.firestore();
                         await db.collection('rooms').doc(roomCode.toUpperCase().replace(/[^A-Z0-9]/g, ''))
-                            .collection('members').doc(currentUser.uid)
+                            .collection('members').doc(_authUser.uid)
                             .update({ displayName: name, color: color });
                     } catch(e) {
                         console.warn('[UserSettings] Room member update failed:', e.message);
@@ -2058,22 +2058,22 @@
 
         // ========== LOAD SECURITY ==========
         function loadSecurity() {
-            if (!currentUser) return;
-            document.getElementById('securityEmail').textContent = currentUser.email || '—';
-            document.getElementById('securityUid').textContent = currentUser.uid;
+            if (!_authUser) return;
+            document.getElementById('securityEmail').textContent = _authUser.email || '—';
+            document.getElementById('securityUid').textContent = _authUser.uid;
 
-            if (currentUser.metadata) {
-                if (currentUser.metadata.creationTime) {
-                    document.getElementById('securityCreated').textContent = new Date(currentUser.metadata.creationTime).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            if (_authUser.metadata) {
+                if (_authUser.metadata.creationTime) {
+                    document.getElementById('securityCreated').textContent = new Date(_authUser.metadata.creationTime).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 }
-                if (currentUser.metadata.lastSignInTime) {
-                    document.getElementById('securityLastLogin').textContent = new Date(currentUser.metadata.lastSignInTime).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                if (_authUser.metadata.lastSignInTime) {
+                    document.getElementById('securityLastLogin').textContent = new Date(_authUser.metadata.lastSignInTime).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 }
             }
 
             // Google verified check
-            const providers = currentUser.providerData.map(p => p.providerId);
-            if (currentUser.emailVerified || providers.includes('google.com')) {
+            const providers = _authUser.providerData.map(p => p.providerId);
+            if (_authUser.emailVerified || providers.includes('google.com')) {
                 // Already shows verified
             }
         }
@@ -2121,10 +2121,10 @@
                 localStorage.setItem('rift_user', JSON.stringify(userData));
 
                 // Save to Firestore
-                if (currentUser) {
+                if (_authUser) {
                     try {
                         const db = firebase.firestore();
-                        await db.collection('users').doc(currentUser.uid).set({
+                        await db.collection('users').doc(_authUser.uid).set({
                             avatar: dataUrl,
                             photoURL: dataUrl,
                             lastSeen: firebase.firestore.FieldValue.serverTimestamp()
@@ -2146,7 +2146,7 @@
             let charCount = Object.keys(localChars).length;
 
             // Try getting Firestore character count from current room
-            if (currentUser) {
+            if (_authUser) {
                 try {
                     const roomCode = localStorage.getItem('rift_current_room');
                     if (roomCode) {
@@ -2154,7 +2154,7 @@
                         const normalized = roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
                         const charSnap = await db.collection('rooms').doc(normalized)
                             .collection('characters')
-                            .where('createdBy', '==', currentUser.uid)
+                            .where('createdBy', '==', _authUser.uid)
                             .get();
                         if (!charSnap.empty) charCount = Math.max(charCount, charSnap.size);
                     }
@@ -2165,7 +2165,7 @@
 
             // Sessions from Firestore
             let sessionCount = 0;
-            if (currentUser) {
+            if (_authUser) {
                 try {
                     const roomCode = localStorage.getItem('rift_current_room');
                     if (roomCode) {
@@ -2210,7 +2210,7 @@
             data = { ...local };
 
             // From Firestore (current room)
-            if (currentUser) {
+            if (_authUser) {
                 try {
                     const roomCode = localStorage.getItem('rift_current_room');
                     if (roomCode) {
@@ -2218,7 +2218,7 @@
                         const normalized = roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
                         const snap = await db.collection('rooms').doc(normalized)
                             .collection('characters')
-                            .where('createdBy', '==', currentUser.uid)
+                            .where('createdBy', '==', _authUser.uid)
                             .get();
                         snap.forEach(doc => {
                             data[doc.id] = doc.data();
@@ -2248,10 +2248,10 @@
             };
 
             // Add Firestore profile
-            if (currentUser) {
+            if (_authUser) {
                 try {
                     const db = firebase.firestore();
-                    const doc = await db.collection('users').doc(currentUser.uid).get();
+                    const doc = await db.collection('users').doc(_authUser.uid).get();
                     if (doc.exists) {
                         data.firestoreProfile = doc.data();
                     }
@@ -2383,8 +2383,8 @@
                 setTimeout(() => resolve(null), 8000);
             });
 
-            currentUser = await waitForUser();
-            if (!currentUser) return;
+            _authUser = await waitForUser();
+            if (!_authUser) return;
 
             // Load from Firestore (may override localStorage)
             await loadSettingsFromFirestore();
@@ -2396,7 +2396,7 @@
             loadStats();
             calculateStorage();
 
-            console.log('[UserSettings] Initialized for', currentUser.email);
+            console.log('[UserSettings] Initialized for', _authUser.email);
         })();
     </script>
 </body>
