@@ -846,14 +846,6 @@ const DICE = (function() {
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Subtle inner depth glow
-        var glow = ctx.createRadialGradient(width * 0.4, height * 0.4, 0, width * 0.5, height * 0.5, width * 0.6);
-        glow.addColorStop(0, 'rgba(255,255,255,0.06)');
-        glow.addColorStop(0.6, 'rgba(255,255,255,0)');
-        glow.addColorStop(1, 'rgba(0,0,0,0.04)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, width, height);
-        
         // Crystal veins - elegant, fewer than marble
         ctx.strokeStyle = veinColor;
         ctx.globalAlpha = 0.5;
@@ -1606,10 +1598,10 @@ const DICE = (function() {
                 grd.addColorStop(1, '#303840');
                 ctx.fillStyle = grd;
                 ctx.fillRect(0, 0, size, size);
-                // Add bright spot (light source reflection)
-                var spot = ctx.createRadialGradient(size * 0.4, size * 0.4, 0, size * 0.4, size * 0.4, size * 0.15);
-                spot.addColorStop(0, 'rgba(255,255,255,0.8)');
-                spot.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+                // Add soft overhead glow (no sharp spot)
+                var spot = ctx.createRadialGradient(size * 0.4, size * 0.4, 0, size * 0.4, size * 0.4, size * 0.35);
+                spot.addColorStop(0, 'rgba(255,255,255,0.3)');
+                spot.addColorStop(0.5, 'rgba(255,255,255,0.1)');
                 spot.addColorStop(1, 'rgba(255,255,255,0)');
                 ctx.fillStyle = spot;
                 ctx.fillRect(0, 0, size, size);
