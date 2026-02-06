@@ -2363,10 +2363,22 @@
                 // Theme buttons (alte + neue)
                 document.querySelectorAll('.dice-theme-btn, .dice-theme-card').forEach(btn => {
                     btn.addEventListener('click', () => {
+                        // Pro gating: check if this card is Pro-locked
+                        if (btn.classList.contains('is-pro') && !btn.classList.contains('pro-unlocked')) {
+                            if (window.RIFT?.pro?.showUpsell) {
+                                RIFT.pro.showUpsell('Dieses Theme ist Teil von RIFT Pro.', { feature: 'diceTheme', themeId: btn.dataset.theme });
+                            } else if (window.RIFT?.ui?.Toast) {
+                                RIFT.ui.Toast.show('Dieses Theme ist Teil von RIFT Pro', 'info');
+                            }
+                            return;
+                        }
                         const theme = btn.dataset.theme;
                         this.setTheme(theme, true); // true = show toast
                     });
                 });
+                
+                // Mark Pro themes with badges and dimming
+                this.markProThemes();
                 
                 // Load saved theme (no toast on initial load)
                 const saved = localStorage.getItem('rift_dice_theme') || 'onyx';
@@ -2380,6 +2392,42 @@
                 
                 // Load saved effects
                 this.loadEffects();
+            },
+            
+            markProThemes() {
+                const isPro = window.RIFT?.pro?.isPro === true;
+                
+                // Find all tier-sections that have a Pro badge
+                document.querySelectorAll('.tier-section').forEach(section => {
+                    const badge = section.querySelector('.tier-badge--pro');
+                    if (!badge) return; // Free section, skip
+                    
+                    section.querySelectorAll('.dice-theme-card').forEach(card => {
+                        card.classList.add('is-pro');
+                        
+                        if (isPro) {
+                            // Pro user: remove visual gating
+                            card.classList.add('pro-unlocked');
+                        } else {
+                            // Free user: add Pro badge icons
+                            if (!card.querySelector('.dice-theme-card__pro-badge')) {
+                                card.insertAdjacentHTML('beforeend',
+                                    '<img class="dice-theme-card__pro-badge dice-theme-card__pro-badge--black" src="assets/rift_pro/img/svg/rift_pro_badge02_black.svg" alt="" draggable="false">' +
+                                    '<img class="dice-theme-card__pro-badge dice-theme-card__pro-badge--gold" src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="" draggable="false">'
+                                );
+                            }
+                        }
+                    });
+                });
+                
+                // Listen for Pro status changes (upgrade/downgrade in real-time)
+                if (window.RIFT?.pro?.onStatusChange) {
+                    RIFT.pro.onStatusChange(({ isPro }) => {
+                        document.querySelectorAll('.dice-theme-card.is-pro').forEach(card => {
+                            card.classList.toggle('pro-unlocked', isPro);
+                        });
+                    });
+                }
             },
             
             setTheme(theme, showNotification = false) {
