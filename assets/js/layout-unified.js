@@ -5,78 +5,6 @@
  */
 
 // ============================================================
-// PAGE TITLE MANAGEMENT
-// ============================================================
-
-function setPageTitle() {
-    const pageTitles = {
-        'hub': 'Hub',
-        'dice': 'Würfel',
-        'sheet-worldsapart': 'Charakterbogen',
-        'sheet-5e': 'Charakterbogen',
-        'sheet-5e-de': 'Charakterbogen',
-        'sheet-5e-en': 'Charakterbogen',
-        'sheet': 'Charakterbogen',
-        'sheet-new': 'Charakterbogen',
-        'sheet-v2': 'Charakterbogen',
-        'sessions': 'Sessions',
-        'session': 'Session',
-        'chat': 'Chat',
-        'map': 'Karte',
-        'whiteboard': 'Whiteboard',
-        'notes': 'Notizen',
-        'gm': 'GM Optionen',
-        'admin': 'Admin',
-        'profile': 'Profil',
-        'settings': 'Einstellungen',
-        'login': 'Anmelden',
-        'register': 'Registrieren',
-        'worldsapart': 'Worlds Apart',
-        'dnd5e': 'D&D 5e',
-        'htbah': 'How To Be A Hero',
-        'cyberpunkred': 'Cyberpunk RED',
-        'pathfinder': 'Pathfinder',
-        'shadowrun': 'Shadowrun',
-        'cthulhu': 'Call of Cthulhu',
-        'changelog': 'Changelog',
-        'impressum': 'Impressum',
-        'datenschutz': 'Datenschutz',
-        'agb': 'AGB',
-        'kontakt': 'Kontakt',
-        'faq': 'FAQ',
-        'hilfe': 'Hilfe'
-    };
-    
-    // Get current page from URL
-    const path = window.location.pathname;
-    const filename = path.split('/').pop().replace('.html', '') || 'index';
-    
-    // Index/Home page just shows "RIFT"
-    if (filename === 'index' || filename === '' || path === '/') {
-        document.title = 'RIFT';
-        console.log('[Layout] Page title set:', document.title);
-        return;
-    }
-    
-    // Find matching title
-    const pageTitle = pageTitles[filename];
-    
-    // Set document title
-    if (pageTitle) {
-        document.title = `RIFT - ${pageTitle}`;
-    } else {
-        // Fallback: Capitalize filename
-        const fallbackTitle = filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-/g, ' ');
-        document.title = `RIFT - ${fallbackTitle}`;
-    }
-    
-    console.log('[Layout] Page title set:', document.title);
-}
-
-// Set title immediately
-setPageTitle();
-
-// ============================================================
 // USER DATA & ROOM CODE HELPERS
 // ============================================================
 
@@ -481,7 +409,10 @@ function createUnifiedMeganav() {
             
             <!-- Social Links -->
             <div class="meganav__social">
-                <a href="https://discord.gg/de5zmanAMC" target="_blank" class="meganav__social-link meganav__social-link--discord" title="Discord">
+                <a href="riftpro.html" class="meganav__pro-link" title="RIFT PRO">
+                    <img src="assets/rift_pro/img/svg/rift_pro_large_white.svg" alt="RIFT PRO" style="height: 38px; display: block;">
+                </a>
+                <a href="https://discord.gg/riftapp" target="_blank" class="meganav__social-link meganav__social-link--discord" title="Discord">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
                 </a>
                 <a href="donate.html" class="meganav__social-link meganav__social-link--heart" title="Unterstützen">
@@ -508,6 +439,29 @@ function createUnifiedDock() {
     
     return `
     <div class="dock" id="bottomDock">
+        <!-- Character Card (loaded dynamically) -->
+        <a href="sheet.html" class="dock__character-card hidden" id="dockCharacterCard">
+            <div class="dock__char-portrait" id="dockCharPortrait">
+                <div class="dock__char-portrait-placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
+                </div>
+            </div>
+            <div class="dock__char-info">
+                <div class="dock__char-name" id="dockCharName">Charakter</div>
+                <div class="dock__char-bars">
+                    <div class="dock__char-bar dock__char-bar--hp">
+                        <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%"></div>
+                    </div>
+                    <div class="dock__char-bar dock__char-bar--moral">
+                        <div class="dock__char-bar-fill" id="dockCharMoralBar" style="width: 100%"></div>
+                    </div>
+                    <div class="dock__char-bar dock__char-bar--resonanz">
+                        <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </a>
+        
         <a href="index.html" class="dock__item ${isHub ? 'active' : ''}" data-tooltip="Hub">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.707 2.293l9 9c.63 .63 .184 1.707 -.707 1.707h-1v6a3 3 0 0 1 -3 3h-1v-7a3 3 0 0 0 -2.824 -2.995l-.176 -.005h-2a3 3 0 0 0 -3 3v7h-1a3 3 0 0 1 -3 -3v-6h-1c-.89 0 -1.337 -1.077 -.707 -1.707l9 -9a1 1 0 0 1 1.414 0m.293 11.707a1 1 0 0 1 1 1v7h-4v-7a1 1 0 0 1 .883 -.993l.117 -.007z"/>
@@ -552,60 +506,14 @@ function createUnifiedDock() {
             </svg>
         </a>
         
+        ${(userData.isGM || userData.isCogm) ? `
         <div class="dock__divider"></div>
-        
-        <!-- Character Card (loaded dynamically) -->
-        <a href="sheet.html" class="dock__character-card hidden" id="dockCharacterCard">
-            <div class="dock__char-portrait" id="dockCharPortrait">
-                <div class="dock__char-portrait-placeholder">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
-                </div>
-            </div>
-            <div class="dock__char-info">
-                <div class="dock__char-name-row">
-                    <div class="dock__char-name" id="dockCharName">Charakter</div>
-                    <div class="dock__char-level" id="dockCharLevel">1</div>
-                </div>
-                <div class="dock__char-bars">
-                    <div class="dock__char-bar dock__char-bar--hp">
-                        <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%; background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);"></div>
-                    </div>
-                    <div class="dock__char-bar dock__char-bar--moral">
-                        <div class="dock__char-bar-fill" id="dockCharMoralBar" style="width: 100%; background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);"></div>
-                    </div>
-                    <div class="dock__char-bar dock__char-bar--resonanz">
-                        <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%; background: linear-gradient(90deg, #7c3aed 0%, #a855f7 100%);"></div>
-                    </div>
-                </div>
-            </div>
+        <a href="gm.html" class="dock__item dock__item--gm ${currentPage === 'gm' ? 'active' : ''}" data-tooltip="GM Optionen">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.884 2.007l.114 -.007l.118 .007l.059 .008l.061 .013l.111 .034a.993 .993 0 0 1 .217 .112l.104 .082l.255 .218a11 11 0 0 0 7.189 2.537l.342 -.01a1 1 0 0 1 1.005 .717a13 13 0 0 1 -9.208 16.25a1 1 0 0 1 -.502 0a13 13 0 0 1 -9.209 -16.25a1 1 0 0 1 1.005 -.717a11 11 0 0 0 7.531 -2.527l.263 -.225l.096 -.075a.993 .993 0 0 1 .217 -.112l.112 -.034a.97 .97 0 0 1 .119 -.021z"/>
+            </svg>
         </a>
-        
-        <!-- Divider between Character and Session Card -->
-        <div class="dock__divider"></div>
-        
-        <!-- Session Card (loaded dynamically) -->
-        <a href="session.html" class="dock__session-card hidden" id="dockSessionCard">
-            <div class="dock__session-portrait" id="dockSessionPortrait">
-                <div class="dock__session-portrait-placeholder">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
-                </div>
-            </div>
-        </a>
-        
-        <div class="dock__divider"></div>
-        
-        <!-- Quick Dice Slots -->
-        <div class="dock__quick-dice" id="dockQuickDice">
-            <button class="dock__dice-slot" id="dockDiceSlot1" data-slot="0">
-                <div class="dock__dice-icon"></div>
-            </button>
-            <button class="dock__dice-slot" id="dockDiceSlot2" data-slot="1">
-                <div class="dock__dice-icon"></div>
-            </button>
-            <button class="dock__dice-slot" id="dockDiceSlot3" data-slot="2">
-                <div class="dock__dice-icon"></div>
-            </button>
-        </div>
+        ` : ''}
     </div>
     `;
 }
@@ -673,7 +581,7 @@ function createUnifiedFooter() {
                 <a href="legal.html">Impressum</a>
             </div>
             <div class="footer__social">
-                <a href="https://discord.gg/de5zmanAMC" target="_blank" title="Discord" class="footer__social-link--discord">
+                <a href="https://discord.gg/riftapp" target="_blank" title="Discord" class="footer__social-link--discord">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
                 </a>
                 <a href="donate.html" title="Unterstützen" class="footer__social-link--heart">
@@ -959,15 +867,12 @@ function initPartyDisplay() {
     
     // Initialize Dock Character Card
     initDockCharacterCard();
-    initDockSessionCard();
-    
-    // Initialize tooltips after cards are loaded
-    setTimeout(initDockCardTooltips, 1500);
 }
 
 // ============================================================
 // DOCK CHARACTER CARD
 // ============================================================
+let dockCharacterUnsubscribe = null;
 
 async function initDockCharacterCard() {
     console.log('[DockChar] Initializing...');
@@ -977,186 +882,99 @@ async function initDockCharacterCard() {
         console.log('[DockChar] Card element not found in DOM');
         return;
     }
+    console.log('[DockChar] Card element found');
     
     const roomCode = localStorage.getItem('rift_current_room');
-    console.log('[DockChar] Room code:', roomCode || 'none');
-    
-    // Try multiple sources for character data (same as Hub CharPanel)
-    let charData = null;
-    let charId = null;
-    
-    // Helper function to validate character data
-    const isValidCharacter = (data) => {
-        if (!data) return false;
-        // Must have a name that's not empty or default
-        if (!data.name || data.name === 'Unbenannt' || data.name.trim() === '') return false;
-        return true;
-    };
-    
-    // Source 1: worldsapart_character_v5 (most reliable for local characters)
-    try {
-        const localData = localStorage.getItem('worldsapart_character_v5');
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            if (isValidCharacter(parsed)) {
-                charData = parsed;
-                charId = charData.id || 'local';
-                console.log('[DockChar] Loaded from worldsapart_character_v5:', charData.name);
-            } else {
-                console.log('[DockChar] worldsapart_character_v5 exists but is invalid/empty');
-            }
-        }
-    } catch (e) {
-        console.warn('[DockChar] worldsapart_character_v5 error:', e);
+    if (!roomCode) {
+        console.log('[DockChar] No room code in localStorage');
+        return;
     }
+    console.log('[DockChar] Room code:', roomCode);
     
-    // Source 2: CharacterStorage as fallback
-    if (!charData && typeof CharacterStorage !== 'undefined') {
-        // Get session ruleset
-        let ruleset = 'worldsapart';
-        const activeSessionData = localStorage.getItem('rift_active_session');
-        const sessionsData = localStorage.getItem('rift_sessions');
-        
-        if (activeSessionData && sessionsData) {
-            try {
-                const activeSession = JSON.parse(activeSessionData);
-                const sessions = JSON.parse(sessionsData);
-                const fullSession = sessions.find(s => s.id === activeSession.id);
-                if (fullSession?.ruleset) {
-                    ruleset = fullSession.ruleset;
-                }
-            } catch (e) {}
-        }
-        
-        // Try main character
-        const mainChar = CharacterStorage.getMainCharacter(ruleset);
-        if (isValidCharacter(mainChar)) {
-            charData = mainChar;
-            charId = mainChar.id;
-            console.log('[DockChar] Loaded from CharacterStorage:', charData.name);
-        }
-        
-        // Fallback: first valid character
-        if (!charData) {
-            const all = CharacterStorage.getAll();
-            const chars = Object.values(all).filter(isValidCharacter);
-            if (chars.length > 0) {
-                charData = chars[0];
-                charId = charData.id;
-                console.log('[DockChar] Loaded first valid character:', charData.name);
-            }
-        }
-    }
-    
-    if (!charData) {
-        console.log('[DockChar] No valid character found, showing empty state');
-        showEmptyCharacterCard(card);
+    // Wait for RIFT.rooms to be ready (same approach as subscribeToParty)
+    if (typeof RIFT === 'undefined' || !RIFT.rooms) {
+        console.log('[DockChar] RIFT.rooms not ready, retrying in 500ms...');
+        setTimeout(initDockCharacterCard, 500);
         return;
     }
     
-    console.log('[DockChar] Displaying character:', charData.name);
-    updateDockCharacterCard(charData, charId, roomCode);
+    // Wait for user to be logged in
+    const storedUser = localStorage.getItem('rift_user');
+    if (!storedUser) {
+        console.log('[DockChar] No user in localStorage');
+        return;
+    }
     
-    // Subscribe to localStorage changes for real-time updates
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5') {
-            console.log('[DockChar] Characters updated, refreshing...');
-            initDockCharacterCard();
-        }
-    });
+    let odName;
+    try {
+        const parsed = JSON.parse(storedUser);
+        odName = parsed.odName || parsed.displayName || parsed.name;
+        console.log('[DockChar] User odName:', odName);
+    } catch (e) {
+        console.log('[DockChar] Failed to parse user data');
+        return;
+    }
     
-    // Subscribe to same-tab character saves (custom event)
-    window.addEventListener('rift-character-saved', (e) => {
-        console.log('[DockChar] Character saved in same tab, refreshing...');
-        initDockCharacterCard();
-    });
-}
-
-function showEmptyCharacterCard(card) {
-    card.href = 'sheet.html?new=true';
-    card.innerHTML = `
-        <div class="dock__card-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-        </div>
-        <div class="dock__char-info">
-            <div class="dock__char-name dock__char-name--empty">Charakter erstellen</div>
-        </div>
-    `;
-    card.classList.remove('hidden');
-    card.classList.add('dock__card--empty');
-    card.dataset.isEmpty = 'true';
-}
-
-function showEmptySessionCard(card) {
-    card.href = 'sessions.html';
-    card.innerHTML = `
-        <div class="dock__card-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-        </div>
-    `;
-    card.classList.remove('hidden');
-    card.classList.add('dock__card--empty');
-    card.dataset.isEmpty = 'true';
+    if (!odName) {
+        console.log('[DockChar] No odName found');
+        return;
+    }
+    
+    try {
+        const db = firebase.firestore();
+        
+        console.log('[DockChar] Looking up member:', odName, 'in room:', roomCode);
+        
+        // Subscribe to member document to get assignedCharacterId
+        const memberRef = db.collection('rooms').doc(roomCode).collection('members').doc(odName);
+        
+        dockCharacterUnsubscribe = memberRef.onSnapshot(async (memberDoc) => {
+            if (!memberDoc.exists) {
+                console.log('[DockChar] Member doc not found');
+                card.classList.add('hidden');
+                return;
+            }
+            
+            const memberData = memberDoc.data();
+            const charId = memberData.assignedCharacterId;
+            
+            if (!charId) {
+                console.log('[DockChar] No character assigned');
+                card.classList.add('hidden');
+                return;
+            }
+            
+            console.log('[DockChar] Loading character:', charId);
+            
+            // Load character data
+            const charRef = db.collection('rooms').doc(roomCode).collection('characters').doc(charId);
+            const charDoc = await charRef.get();
+            
+            if (!charDoc.exists) {
+                console.log('[DockChar] Character doc not found');
+                card.classList.add('hidden');
+                return;
+            }
+            
+            const charData = charDoc.data();
+            updateDockCharacterCard(charData, charId, roomCode);
+            
+            // Subscribe to character updates
+            charRef.onSnapshot((doc) => {
+                if (doc.exists) {
+                    updateDockCharacterCard(doc.data(), charId, roomCode);
+                }
+            });
+        });
+        
+    } catch (e) {
+        console.error('[DockChar] Error:', e);
+    }
 }
 
 function updateDockCharacterCard(charData, charId, roomCode) {
     const card = document.getElementById('dockCharacterCard');
     if (!card) return;
-    
-    // Reset empty state if was empty before
-    if (card.dataset.isEmpty === 'true') {
-        card.classList.remove('dock__card--empty');
-        card.dataset.isEmpty = 'false';
-        // Restore original HTML structure
-        card.innerHTML = `
-            <div class="dock__char-portrait" id="dockCharPortrait">
-                <div class="dock__char-portrait-placeholder">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
-                </div>
-            </div>
-            <div class="dock__char-info">
-                <div class="dock__char-name-row">
-                    <div class="dock__char-name" id="dockCharName">Charakter</div>
-                    <div class="dock__char-level" id="dockCharLevel">1</div>
-                </div>
-                <div class="dock__char-bars">
-                    <div class="dock__char-bar dock__char-bar--hp">
-                        <div class="dock__char-bar-fill" id="dockCharHpBar" style="width: 100%; background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);"></div>
-                    </div>
-                    <div class="dock__char-bar dock__char-bar--moral">
-                        <div class="dock__char-bar-fill" id="dockCharMoralBar" style="width: 100%; background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);"></div>
-                    </div>
-                    <div class="dock__char-bar dock__char-bar--resonanz">
-                        <div class="dock__char-bar-fill" id="dockCharResonanzBar" style="width: 100%; background: linear-gradient(90deg, #7c3aed 0%, #a855f7 100%);"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    // Fokus Element Mapping
-    const FOKUS_NAMES = {
-        'fire': 'Feuer', 'water': 'Wasser', 'wind': 'Wind', 'earth': 'Erde',
-        'lightning': 'Blitz', 'shadow': 'Schatten', 'illusion': 'Illusion',
-        'room': 'Raum', 'time': 'Zeit', 'poison': 'Gift', 'sound': 'Schall'
-    };
-    
-    // Schwäche Mapping
-    const SCHWAECHE_NAMES = {
-        'platzangst': 'Platzangst', 'seekrank': 'Seekrank', 'schlechte-sicht': 'Schlechte Sicht',
-        'gleichgewicht': 'Schlechter Gleichgewichtssinn', 'ausdauer': 'Geringe Ausdauer',
-        'reaktion': 'Langsame Reaktion', 'feinmotorik': 'Ungeschickte Feinmotorik',
-        'zittrig': 'Zittrige Hände unter Stress', 'verletzungen': 'Anfällig für Verletzungen',
-        'hitze': 'Hitzeempfindlich', 'kaelte': 'Kälteempfindlich',
-        'reizueberflutung': 'Reizüberflutung', 'orientierung': 'Schlechte Orientierung',
-        'geraeusch': 'Geräuschempfindlich', 'griff': 'Schwacher Griff'
-    };
     
     // Update link to character sheet
     const ruleset = charData.ruleset || 'worldsapart';
@@ -1167,30 +985,13 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         'cyberpunkred': 'sheet-cyberpunkred.html'
     };
     const sheetUrl = sheetMap[ruleset] || 'sheet-worldsapart.html';
-    
-    // Build URL - if we loaded from worldsapart_character_v5, don't pass ID (sheet loads from localStorage itself)
-    // Only pass ID if we got it from CharacterStorage
-    const actualId = charData.id; // Only use if explicitly present in data
-    let url = sheetUrl;
-    if (actualId && charId !== 'local') {
-        url += `?id=${actualId}`;
-        if (roomCode) {
-            url += `&roomCode=${roomCode}`;
-        }
-    } else if (roomCode) {
-        // No character ID but we have a room - just pass room
-        url += `?room=${roomCode}`;
-    }
-    // If no ID and no room, just link to sheet.html - it will load from localStorage
-    card.href = url;
-    console.log('[DockChar] URL:', url, '(charId:', charId, ', actualId:', actualId, ')');
+    card.href = `${sheetUrl}?charId=${charId}&roomCode=${roomCode}`;
     
     // Update portrait
     const portrait = document.getElementById('dockCharPortrait');
     if (portrait) {
-        const portraitUrl = charData.portraitUrl || charData.portrait || charData.imageUrl || charData.data?.portrait;
-        // Only use if it's a valid URL (starts with http) or base64 data
-        if (portraitUrl && (portraitUrl.startsWith('http') || portraitUrl.startsWith('data:'))) {
+        const portraitUrl = charData.portraitUrl || charData.portrait || charData.imageUrl;
+        if (portraitUrl) {
             portrait.innerHTML = `<img src="${portraitUrl}" alt="Portrait">`;
         } else {
             portrait.innerHTML = `<div class="dock__char-portrait-placeholder">
@@ -1203,12 +1004,6 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     const nameEl = document.getElementById('dockCharName');
     if (nameEl) {
         nameEl.textContent = charData.name || charData.characterName || 'Unbenannt';
-    }
-    
-    // Update level
-    const levelEl = document.getElementById('dockCharLevel');
-    if (levelEl) {
-        levelEl.textContent = charData.level ?? 1;
     }
     
     // Helper to get nested value
@@ -1231,873 +1026,33 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Update HP bar
     const hpBar = document.getElementById('dockCharHpBar');
     if (hpBar) {
-        const hp = getVal(charData, 'health.current', 'status.hp', 'hp', 'currentHp', 'lebenspunkte') ?? 100;
-        const maxHp = getVal(charData, 'health.max', 'status.maxHp', 'maxHp', 'hp_max', 'maxLebenspunkte') ?? 100;
+        const hp = getVal(charData, 'status.hp', 'hp', 'currentHp', 'lebenspunkte') ?? 100;
+        const maxHp = getVal(charData, 'status.maxHp', 'maxHp', 'hp_max', 'maxLebenspunkte') ?? 100;
         const hpPercent = maxHp > 0 ? Math.min(100, Math.max(0, (hp / maxHp) * 100)) : 100;
         hpBar.style.width = hpPercent + '%';
-        hpBar.style.background = 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)';
     }
     
     // Update Moral bar
     const moralBar = document.getElementById('dockCharMoralBar');
     if (moralBar) {
-        const moral = getVal(charData, 'moral.current', 'status.moral', 'moral', 'currentMoral') ?? 100;
-        const maxMoral = getVal(charData, 'moral.max', 'status.maxMoral', 'maxMoral', 'moral_max') ?? 100;
+        const moral = getVal(charData, 'status.moral', 'moral', 'currentMoral') ?? 100;
+        const maxMoral = getVal(charData, 'status.maxMoral', 'maxMoral', 'moral_max') ?? 100;
         const moralPercent = maxMoral > 0 ? Math.min(100, Math.max(0, (moral / maxMoral) * 100)) : 100;
         moralBar.style.width = moralPercent + '%';
-        moralBar.style.background = 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)';
     }
     
-    // Update Resonanz bar (Worlds Apart specific - calculated from attributes)
+    // Update Resonanz bar
     const resonanzBar = document.getElementById('dockCharResonanzBar');
     if (resonanzBar) {
-        // Use getVal helper for attribute fallbacks
-        const power = getVal(charData, 'attributes.power', 'power', 'kraft', 'str') ?? 0;
-        const presence = getVal(charData, 'attributes.presence', 'presence', 'praesenz', 'cha') ?? 0;
-        // Resonanz = 10 + (KRF × PRÄ)
-        const resonanz = 10 + (power * presence);
-        // Display as percentage (max visual is 100)
-        const resonanzPercent = Math.min(100, resonanz);
-        console.log('[DockChar] Resonanz calc:', { power, presence, resonanz, resonanzPercent });
+        const resonanz = getVal(charData, 'status.resonanz', 'resonanz', 'currentResonanz') ?? 100;
+        const maxResonanz = getVal(charData, 'status.maxResonanz', 'maxResonanz', 'resonanz_max') ?? 100;
+        const resonanzPercent = maxResonanz > 0 ? Math.min(100, Math.max(0, (resonanz / maxResonanz) * 100)) : 100;
         resonanzBar.style.width = resonanzPercent + '%';
-        resonanzBar.style.background = 'linear-gradient(90deg, #7c3aed 0%, #a855f7 100%)';
     }
-    
-    // Store character data for tooltip
-    const attrs = charData.attributes || {};
-    console.log('[DockChar] Character data:', {
-        name: charData.name,
-        attributes: charData.attributes,
-        fokus: charData.fokus,
-        schwaeche: charData.schwaeche,
-        secondChance: charData.secondChance,
-        race: charData.race,
-        age: charData.age,
-        gender: charData.gender,
-        role: charData.role,
-        currency: charData.currency,
-        level: charData.level
-    });
-    
-    card.dataset.charName = charData.name || 'Unbenannt';
-    card.dataset.charLevel = charData.level ?? 1;
-    card.dataset.charPower = attrs.power ?? 0;
-    card.dataset.charAgility = attrs.agility ?? 0;
-    card.dataset.charEndurance = attrs.endurance ?? 0;
-    card.dataset.charMind = attrs.mind ?? 0;
-    card.dataset.charPresence = attrs.presence ?? 0;
-    
-    // Fokus - with German name
-    const fokus = charData.fokus || {};
-    const fokusType = fokus.type || '';
-    card.dataset.charFokusElement = fokusType;
-    card.dataset.charFokusName = FOKUS_NAMES[fokusType] || fokusType;
-    const fokusAbilities = fokus.abilities || [];
-    card.dataset.charFokus1 = fokusAbilities[0] || '';
-    card.dataset.charFokus2 = fokusAbilities[1] || '';
-    
-    // Schwäche - with full name
-    const schwaeche = charData.schwaeche || '';
-    card.dataset.charSchwaecheId = schwaeche;
-    card.dataset.charSchwaeche = SCHWAECHE_NAMES[schwaeche] || schwaeche;
-    
-    // Zweite Chance
-    const zc = charData.secondChance || [false, false, false];
-    const zcAvailable = Array.isArray(zc) ? zc.filter(v => v === false).length : 3;
-    card.dataset.charZweiteChance = zcAvailable.toString();
-    
-    // Additional info
-    card.dataset.charRace = charData.race || '';
-    card.dataset.charAge = charData.age || '';
-    card.dataset.charGender = charData.gender || '';
-    card.dataset.charRole = charData.role || '';
-    card.dataset.charCrew = charData.crew || '';
-    card.dataset.charWeapon = charData.weapon || '';
-    card.dataset.charCurrency = charData.currency || '';
-    card.dataset.charCurrencyType = charData.currencyType || 'dollar';
-    
-    // Stats for tooltip
-    const hp = charData.health?.current ?? 100;
-    const maxHp = charData.health?.max ?? 100;
-    const moral = charData.moral?.current ?? 100;
-    const maxMoral = charData.moral?.max ?? 100;
-    const power = attrs.power || 0;
-    const presence = attrs.presence || 0;
-    const resonanz = 10 + (power * presence);
-    
-    card.dataset.charHp = hp;
-    card.dataset.charMaxHp = maxHp;
-    card.dataset.charMoral = moral;
-    card.dataset.charMaxMoral = maxMoral;
-    card.dataset.charResonanz = resonanz;
     
     // Show card
     card.classList.remove('hidden');
-    console.log('[DockChar] Card updated:', charData.name, '- Attrs:', attrs);
-}
-
-// ============================================================
-// DOCK SESSION CARD
-// ============================================================
-
-async function initDockSessionCard() {
-    console.log('[DockSession] Initializing...');
-    
-    const card = document.getElementById('dockSessionCard');
-    if (!card) {
-        console.log('[DockSession] Card element not found in DOM');
-        return;
-    }
-    
-    const roomCode = localStorage.getItem('rift_current_room');
-    console.log('[DockSession] Room code:', roomCode);
-    
-    // Load sessions from localStorage (same as sessions.html)
-    const allSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-    console.log('[DockSession] Total sessions in localStorage:', allSessions.length);
-    
-    // Filter for current room
-    const sessions = allSessions.filter(s => {
-        if (roomCode && s.roomCode === roomCode) return true;
-        return false;
-    });
-    
-    console.log('[DockSession] Filtered sessions for room:', sessions.length);
-    if (sessions.length > 0) {
-        console.log('[DockSession] Sessions:', sessions.map(s => ({ 
-            id: s.id, 
-            name: s.name, 
-            status: s.status,
-            coverUrl: s.coverUrl ? 'yes' : 'no'
-        })));
-    }
-    
-    // Find active session (live or paused)
-    let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
-    
-    // Fallback: first planned/scheduled session
-    if (!session) {
-        session = sessions.find(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming' || s.status === 'draft');
-    }
-    
-    // Fallback: first session without ended status (including undefined status)
-    if (!session) {
-        session = sessions.find(s => s.status !== 'ended');
-    }
-    
-    // Fallback: first session with coverUrl
-    if (!session) {
-        session = sessions.find(s => s.coverUrl);
-    }
-    
-    // Fallback: first session
-    if (!session && sessions.length > 0) {
-        session = sessions[0];
-    }
-    
-    if (!session) {
-        console.log('[DockSession] No session found, showing empty state');
-        showEmptySessionCard(card);
-        return;
-    }
-    
-    console.log('[DockSession] Using session:', session.name, '- status:', session.status);
-    updateDockSessionCard(session);
-}
-
-function updateDockSessionCard(session) {
-    const card = document.getElementById('dockSessionCard');
-    if (!card) return;
-    
-    // Reset empty state if was empty before
-    if (card.dataset.isEmpty === 'true') {
-        card.classList.remove('dock__card--empty');
-        card.dataset.isEmpty = 'false';
-        // Restore original HTML structure
-        card.innerHTML = `
-            <div class="dock__session-portrait" id="dockSessionPortrait">
-                <div class="dock__session-portrait-placeholder">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
-                </div>
-            </div>
-        `;
-    }
-    
-    // Update portrait
-    const portrait = document.getElementById('dockSessionPortrait');
-    if (portrait) {
-        const portraitUrl = session.coverUrl || session.portraitUrl || session.portrait || session.imageUrl;
-        if (portraitUrl) {
-            portrait.innerHTML = `<img src="${portraitUrl}" alt="Session">`;
-        } else {
-            portrait.innerHTML = `<div class="dock__session-portrait-placeholder">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
-            </div>`;
-        }
-    }
-    
-    // Update link
-    card.href = `session.html?id=${session.id}`;
-    
-    // Store session data for tooltip
-    card.dataset.sessionName = session.name || 'Session';
-    card.dataset.sessionSubtitle = session.subtitle || session.description || '';
-    card.dataset.sessionRuleset = session.ruleset || 'worldsapart';
-    card.dataset.sessionNumber = session.currentSession || session.sessionNumber || '1';
-    card.dataset.sessionCount = session.sessionCount || session.totalSessions || '';
-    card.dataset.sessionStatus = session.status || 'planned';
-    card.dataset.sessionDate = session.date || '';
-    card.dataset.sessionTime = session.time || '';
-    card.dataset.sessionDuration = session.duration || '';
-    card.dataset.sessionTags = (session.tags || []).join(',');
-    card.dataset.sessionMaxPlayers = session.maxPlayers || '5';
-    card.dataset.sessionDiscord = session.discordUrl || '';
-    
-    // Show card
-    card.classList.remove('hidden');
-    console.log('[DockSession] Card updated:', session.name, session);
-}
-
-// ============================================================
-// DOCK CARD TOOLTIPS
-// ============================================================
-
-function initDockCardTooltips() {
-    // Create tooltip element if not exists
-    let tooltip = document.getElementById('dockCardTooltip');
-    if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.id = 'dockCardTooltip';
-        tooltip.className = 'dock-card-tooltip';
-        document.body.appendChild(tooltip);
-    }
-    
-    // Fokus Element Colors
-    const FOKUS_COLORS = {
-        'fire': '#ef4444', 'water': '#3b82f6', 'wind': '#06b6d4', 'earth': '#a16207',
-        'lightning': '#eab308', 'shadow': '#6b21a8', 'illusion': '#ec4899',
-        'room': '#8b5cf6', 'time': '#14b8a6', 'poison': '#22c55e', 'sound': '#f97316'
-    };
-    
-    // Character Card Tooltip
-    const charCard = document.getElementById('dockCharacterCard');
-    if (charCard) {
-        charCard.addEventListener('mouseenter', (e) => {
-            const d = charCard.dataset;
-            
-            // Empty state tooltip
-            if (d.isEmpty === 'true') {
-                tooltip.innerHTML = `
-                    <div class="dock-tooltip__header">Charakter erstellen</div>
-                    <div class="dock-tooltip__subtitle">Klicke um einen neuen Charakter anzulegen</div>
-                `;
-                showDockTooltip(tooltip, charCard);
-                return;
-            }
-            
-            const fokusEl = d.charFokusElement || '';
-            const fokusName = d.charFokusName || fokusEl;
-            const fokusColor = FOKUS_COLORS[fokusEl] || '#8b5cf6';
-            const zcCount = parseInt(d.charZweiteChance) || 0;
-            
-            // Generate d20 icons for Zweite Chance (gray)
-            let zcIcons = '';
-            for (let i = 0; i < 3; i++) {
-                const isAvailable = i < zcCount;
-                zcIcons += `<img src="assets/icons/dice/d20.svg" class="dock-tooltip__d20 ${isAvailable ? '' : 'used'}" alt="D20">`;
-            }
-            
-            // Build info line (Race, Age, Gender)
-            const infoParts = [];
-            if (d.charRace) infoParts.push(d.charRace);
-            if (d.charAge) infoParts.push(d.charAge + ' Jahre');
-            if (d.charGender) infoParts.push(d.charGender);
-            const infoLine = infoParts.join(' · ');
-            
-            // SVG Icons (Tabler Icons Filled)
-            const heartIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.979 3.074a6 6 0 0 1 4.988 1.425l.037 .033l.034 -.03a6 6 0 0 1 4.733 -1.44l.246 .036a6 6 0 0 1 3.364 10.008l-.18 .185l-.048 .041l-7.45 7.379a1 1 0 0 1 -1.313 .082l-.094 -.082l-7.493 -7.422a6 6 0 0 1 3.176 -10.215z"/></svg>`;
-            const boltIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13.378 3.077a1 1 0 0 1 1.126 .607l.042 .125l1.931 7.191h2.523a1 1 0 0 1 .932 .638l.032 .104a1 1 0 0 1 -.371 1.067l-.095 .066l-8.5 5a1 1 0 0 1 -1.502 -.703l-.018 -.12l.012 -5.052h-2.49a1 1 0 0 1 -.933 -.639l-.032 -.103a1 1 0 0 1 .372 -1.068l.094 -.066l7.498 -6.17a1 1 0 0 1 .38 -.177z"/></svg>`;
-            const flameIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-4.97 0-9-3.582-9-8c0-2.92 1.247-5.214 3-6.931c-.007.155-.007.31 0 .465c.08 1.794 1.147 3.354 2.832 4.065a.5.5 0 0 0 .676-.476v-.517a4.6 4.6 0 0 1 .953-2.809l.078-.103l2.022-2.494a.5.5 0 0 1 .878.32v2.48c0 .296.131.578.357.769l.065.049l.063.039l.138.077l.053.027a.6.6 0 0 0 .163.053l.06.01h.087l.058-.007l.056-.012l.054-.015l.053-.02l.05-.023l.048-.028l.045-.031l.042-.035l.039-.038l.036-.042l.033-.046l.029-.05l.024-.053l.02-.057l.015-.061l.01-.064l.004-.068v-.034l-.003-.066a3.2 3.2 0 0 0-.322-1.194l-.116-.22a.4.4 0 0 1 .47-.564c3.008.938 5.043 3.618 5.043 6.792c0 4.418-4.03 8-9 8z"/></svg>`;
-            
-            tooltip.innerHTML = `
-                <div class="dock-tooltip__header-row">
-                    <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
-                    <div class="dock-tooltip__level">Lv. ${d.charLevel || 1}</div>
-                </div>
-                ${infoLine ? `<div class="dock-tooltip__info-line">${infoLine}</div>` : ''}
-                
-                ${(d.charRole || d.charCrew) ? `
-                <div class="dock-tooltip__role-crew-row">
-                    ${d.charRole ? `<div class="dock-tooltip__role-item"><span class="dock-tooltip__role-label">Rolle</span><span class="dock-tooltip__role-value">${d.charRole}</span></div>` : ''}
-                    ${d.charCrew ? `<div class="dock-tooltip__role-item"><span class="dock-tooltip__role-label">Zugehörigkeit</span><span class="dock-tooltip__role-value">${d.charCrew}</span></div>` : ''}
-                </div>
-                ` : ''}
-                
-                <div class="dock-tooltip__divider"></div>
-                
-                <div class="dock-tooltip__stats-row">
-                    <span class="dock-tooltip__stat dock-tooltip__stat--hp">${heartIcon} ${d.charHp || 100}/${d.charMaxHp || 100}</span>
-                    <span class="dock-tooltip__stat dock-tooltip__stat--moral">${boltIcon} ${d.charMoral || 100}/${d.charMaxMoral || 100}</span>
-                    <span class="dock-tooltip__stat dock-tooltip__stat--resonanz">${flameIcon} ${d.charResonanz || 10}</span>
-                </div>
-                
-                <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label-bg">Attribute</div>
-                    <div class="dock-tooltip__attrs">
-                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charPower || 0}</span><span class="dock-tooltip__attr-label">KRF</span></span>
-                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charAgility || 0}</span><span class="dock-tooltip__attr-label">GES</span></span>
-                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charEndurance || 0}</span><span class="dock-tooltip__attr-label">ZÄH</span></span>
-                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charMind || 0}</span><span class="dock-tooltip__attr-label">VER</span></span>
-                        <span class="dock-tooltip__attr-box"><span class="dock-tooltip__attr-val">${d.charPresence || 0}</span><span class="dock-tooltip__attr-label">PRÄ</span></span>
-                    </div>
-                </div>
-                
-                ${fokusEl ? `
-                <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label-bg">Fokus</div>
-                    <div class="dock-tooltip__focus-row" style="background: ${fokusColor}20; border-left: 3px solid ${fokusColor};">
-                        <img src="assets/icons/icon_focus_${fokusEl}.png" class="dock-tooltip__focus-icon" alt="${fokusName}" onerror="this.style.display='none'">
-                        <span class="dock-tooltip__focus-name" style="color: ${fokusColor}">${fokusName}</span>
-                    </div>
-                    ${d.charFokus1 ? `<div class="dock-tooltip__ability">${d.charFokus1}</div>` : ''}
-                    ${d.charFokus2 ? `<div class="dock-tooltip__ability">${d.charFokus2}</div>` : ''}
-                </div>
-                ` : ''}
-                
-                ${d.charSchwaeche ? `
-                <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label-bg">Schwäche</div>
-                    <div class="dock-tooltip__weakness">${d.charSchwaeche}</div>
-                </div>
-                ` : ''}
-                
-                <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label-bg">Zweite Chance</div>
-                    <div class="dock-tooltip__chance-icons">${zcIcons}</div>
-                </div>
-                
-                ${d.charWeapon ? `
-                <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label-bg">Waffe</div>
-                    <div class="dock-tooltip__weapon">${d.charWeapon}</div>
-                </div>
-                ` : ''}
-                
-                ${d.charCurrency ? `
-                <div class="dock-tooltip__section">
-                    <div class="dock-tooltip__label-bg">Währung</div>
-                    <div class="dock-tooltip__currency-value">¤ ${d.charCurrency}</div>
-                </div>
-                ` : ''}
-            `;
-            showDockTooltip(tooltip, charCard);
-        });
-        
-        charCard.addEventListener('mouseleave', () => {
-            tooltip.classList.remove('visible');
-        });
-    }
-    
-    // Session Card Tooltip
-    const sessionCard = document.getElementById('dockSessionCard');
-    if (sessionCard) {
-        sessionCard.addEventListener('mouseenter', (e) => {
-            const d = sessionCard.dataset;
-            
-            // Empty state tooltip
-            if (d.isEmpty === 'true') {
-                tooltip.innerHTML = `
-                    <div class="dock-tooltip__header">Session erstellen</div>
-                    <div class="dock-tooltip__subtitle">Klicke um eine neue Session zu planen</div>
-                `;
-                showDockTooltip(tooltip, sessionCard);
-                return;
-            }
-            
-            const rulesetNames = {
-                'worldsapart': 'Worlds Apart',
-                'dnd5e': 'D&D 5e',
-                '5e2024': 'D&D 5e (2024)',
-                'htbah': 'How To Be A Hero',
-                'cyberpunkred': 'Cyberpunk RED',
-                'cyberpunk': 'Cyberpunk RED'
-            };
-            
-            const statusLabels = {
-                'planned': 'Geplant',
-                'scheduled': 'Geplant',
-                'upcoming': 'Bevorstehend',
-                'draft': 'Entwurf',
-                'live': 'Live',
-                'paused': 'Pausiert',
-                'ended': 'Beendet'
-            };
-            
-            const statusColors = {
-                'planned': '#f59e0b',
-                'scheduled': '#f59e0b',
-                'upcoming': '#3b82f6',
-                'draft': '#6b7280',
-                'live': '#22c55e',
-                'paused': '#f59e0b',
-                'ended': '#6b7280'
-            };
-            
-            const sessionNumText = d.sessionCount 
-                ? `Session ${d.sessionNumber || '1'}/${d.sessionCount}`
-                : `Session ${d.sessionNumber || '1'}`;
-            
-            // Format date
-            let dateText = '';
-            if (d.sessionDate) {
-                const date = new Date(d.sessionDate);
-                const options = { weekday: 'short', day: 'numeric', month: 'short' };
-                dateText = date.toLocaleDateString('de-DE', options);
-                if (d.sessionTime) {
-                    dateText += ` · ${d.sessionTime} Uhr`;
-                }
-            }
-            
-            // Format duration
-            let durationText = '';
-            if (d.sessionDuration) {
-                durationText = `~${d.sessionDuration}`;
-            }
-            
-            // Tags
-            const tags = d.sessionTags ? d.sessionTags.split(',').filter(t => t) : [];
-            const tagsHtml = tags.length > 0 
-                ? `<div class="dock-tooltip__tags">${tags.map(t => `<span class="dock-tooltip__tag">${t}</span>`).join('')}</div>` 
-                : '';
-            
-            // SVG Icons
-            const calendarIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 2a1 1 0 0 1 1 1v1h2a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-14a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h2v-1a1 1 0 0 1 2 0v1h6v-1a1 1 0 0 1 1 -1m3 8h-14v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1 -1z"/></svg>`;
-            const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336m-5 2.66a1 1 0 0 0 -1 1v5l.007 .117a1 1 0 0 0 .466 .724l3.5 2.5l.088 .058a1 1 0 0 0 1.146 -1.623l-3.207 -2.291v-4.485l-.007 -.117a1 1 0 0 0 -.993 -.883"/></svg>`;
-            const usersIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 7a4 4 0 1 1 -4 4l.005 -.217a4 4 0 0 1 3.995 -3.783"/><path d="M15 7a4 4 0 1 1 -4 4l.005 -.217a4 4 0 0 1 3.995 -3.783"/><path d="M5 16c0 -2.21 2.686 -4 6 -4s6 1.79 6 4c0 1.105 -2.686 2 -6 2s-6 -.895 -6 -2"/></svg>`;
-            
-            const statusLabel = statusLabels[d.sessionStatus] || d.sessionStatus;
-            const statusColor = statusColors[d.sessionStatus] || '#6b7280';
-            
-            tooltip.innerHTML = `
-                <div class="dock-tooltip__header-row">
-                    <div class="dock-tooltip__header">${d.sessionName || 'Session'}</div>
-                    <span class="dock-tooltip__status-badge" style="background: ${statusColor}20; color: ${statusColor};">${statusLabel}</span>
-                </div>
-                ${d.sessionSubtitle ? `<div class="dock-tooltip__subtitle">${d.sessionSubtitle}</div>` : ''}
-                
-                <div class="dock-tooltip__session-meta">
-                    <span class="dock-tooltip__ruleset">${rulesetNames[d.sessionRuleset] || d.sessionRuleset}</span>
-                    <span class="dock-tooltip__session-num">${sessionNumText}</span>
-                </div>
-                
-                ${dateText || durationText ? `
-                <div class="dock-tooltip__divider"></div>
-                <div class="dock-tooltip__session-info">
-                    ${dateText ? `<div class="dock-tooltip__info-row">${calendarIcon} ${dateText}</div>` : ''}
-                    ${durationText ? `<div class="dock-tooltip__info-row">${clockIcon} ${durationText}</div>` : ''}
-                    ${d.sessionMaxPlayers ? `<div class="dock-tooltip__info-row">${usersIcon} Max. ${d.sessionMaxPlayers} Spieler</div>` : ''}
-                </div>
-                ` : ''}
-                
-                ${tagsHtml}
-            `;
-            showDockTooltip(tooltip, sessionCard);
-        });
-        
-        sessionCard.addEventListener('mouseleave', () => {
-            tooltip.classList.remove('visible');
-        });
-    }
-}
-
-function showDockTooltip(tooltip, card) {
-    const rect = card.getBoundingClientRect();
-    tooltip.style.left = `${rect.left + rect.width / 2}px`;
-    tooltip.style.bottom = `${window.innerHeight - rect.top + 12}px`;
-    tooltip.classList.add('visible');
-}
-
-// ============================================================
-// QUICK DICE SYSTEM
-// ============================================================
-const QuickDiceSystem = {
-    STORAGE_KEY: 'rift_quick_dice',
-    slots: [null, null, null],
-    editMode: false,
-    activeTooltipSlot: null,
-    hideTimeout: null,
-    
-    init() {
-        console.log('[QuickDice] Initializing...');
-        this.load();
-        this.renderSlots();
-        this.initTooltip();
-        this.bindEvents();
-    },
-    
-    load() {
-        try {
-            const saved = localStorage.getItem(this.STORAGE_KEY);
-            if (saved) {
-                this.slots = JSON.parse(saved);
-            }
-        } catch (e) {
-            console.warn('[QuickDice] Load error:', e);
-        }
-    },
-    
-    save() {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.slots));
-    },
-    
-    renderSlots() {
-        for (let i = 0; i < 3; i++) {
-            this.renderSlot(i);
-        }
-    },
-    
-    renderSlot(index) {
-        const slot = document.getElementById(`dockDiceSlot${index + 1}`);
-        if (!slot) return;
-        
-        const config = this.slots[index];
-        const iconContainer = slot.querySelector('.dock__dice-icon');
-        
-        if (!config) {
-            // Empty slot
-            slot.classList.add('dock__dice-slot--empty');
-            slot.classList.remove('dock__dice-slot--configured');
-            iconContainer.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-            `;
-        } else {
-            // Configured slot - use actual dice icons (clean, no badges)
-            slot.classList.remove('dock__dice-slot--empty');
-            slot.classList.add('dock__dice-slot--configured');
-            iconContainer.innerHTML = `<img src="assets/icons/dice/${config.type}.svg" alt="${config.type}" class="dock__dice-img">`;
-        }
-    },
-    
-    initTooltip() {
-        // Create tooltip element
-        let tooltip = document.getElementById('quickDiceTooltip');
-        if (!tooltip) {
-            tooltip = document.createElement('div');
-            tooltip.id = 'quickDiceTooltip';
-            tooltip.className = 'quick-dice-tooltip';
-            document.body.appendChild(tooltip);
-        }
-        this.tooltip = tooltip;
-    },
-    
-    bindEvents() {
-        const slots = document.querySelectorAll('.dock__dice-slot');
-        
-        slots.forEach((slot, index) => {
-            // Click to roll (navigates to dice.html)
-            slot.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const config = this.slots[index];
-                if (config && !this.editMode) {
-                    this.rollDice(config, index);
-                } else if (!config) {
-                    // Empty slot - show config in edit mode
-                    this.showTooltip(slot, index, true);
-                }
-            });
-            
-            // Hover for tooltip
-            slot.addEventListener('mouseenter', () => {
-                this.clearHideTimeout();
-                this.showTooltip(slot, index, false);
-            });
-            
-            slot.addEventListener('mouseleave', () => {
-                if (!this.editMode) {
-                    this.scheduleHide();
-                }
-            });
-        });
-        
-        // Tooltip mouse events - keep open when hovering tooltip
-        this.tooltip.addEventListener('mouseenter', () => {
-            this.clearHideTimeout();
-        });
-        
-        this.tooltip.addEventListener('mouseleave', () => {
-            if (!this.editMode) {
-                this.scheduleHide();
-            }
-        });
-        
-        // Stop clicks inside tooltip from bubbling to document
-        this.tooltip.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-        
-        // Close edit mode on click outside
-        document.addEventListener('click', (e) => {
-            if (this.editMode && !e.target.closest('.quick-dice-tooltip') && !e.target.closest('.dock__dice-slot')) {
-                this.closeEditMode();
-            }
-        });
-    },
-    
-    clearHideTimeout() {
-        if (this.hideTimeout) {
-            clearTimeout(this.hideTimeout);
-            this.hideTimeout = null;
-        }
-    },
-    
-    scheduleHide() {
-        this.clearHideTimeout();
-        this.hideTimeout = setTimeout(() => {
-            this.hideTooltip();
-        }, 300); // 300ms delay for easier tooltip access
-    },
-    
-    showTooltip(slot, index, forceEdit = false) {
-        this.activeTooltipSlot = index;
-        const config = this.slots[index];
-        const rect = slot.getBoundingClientRect();
-        
-        if (forceEdit || this.editMode) {
-            this.editMode = true;
-            this.renderEditMode(index, config);
-        } else {
-            this.renderViewMode(index, config);
-        }
-        
-        this.tooltip.style.left = `${rect.left + rect.width / 2}px`;
-        this.tooltip.style.bottom = `${window.innerHeight - rect.top + 12}px`;
-        this.tooltip.classList.add('visible');
-    },
-    
-    hideTooltip() {
-        this.tooltip.classList.remove('visible');
-        this.activeTooltipSlot = null;
-    },
-    
-    closeEditMode() {
-        this.editMode = false;
-        this.hideTooltip();
-    },
-    
-    renderViewMode(index, config) {
-        // SVG Icons (Tabler Filled)
-        const diceIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 2a2.5 2.5 0 0 1 2.5 2.5v15a2.5 2.5 0 0 1 -2.5 2.5h-13a2.5 2.5 0 0 1 -2.5 -2.5v-15a2.5 2.5 0 0 1 2.5 -2.5zm-5.5 12a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2m4 -4a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2m-8 0a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2m4 -4a2 2 0 0 0 -2 2a2 2 0 1 0 2 -2"/></svg>`;
-        const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.586 2a2 2 0 0 1 1.284 .467l.13 .119l.12 .13c.528 .595 .6 1.455 .221 2.118l-.1 .153l-11.612 14.7a2 2 0 0 1 -.725 .574l-.156 .07l-5.173 1.993a1 1 0 0 1 -1.3 -1.2l.047 -.14l2.06 -5.204a2 2 0 0 1 .5 -.736l.128 -.117l14.7 -11.612a2 2 0 0 1 1.276 -.475z"/></svg>`;
-        
-        if (!config) {
-            this.tooltip.innerHTML = `
-                <div class="quick-dice-tooltip__header">Leerer Slot</div>
-                <div class="quick-dice-tooltip__hint">Klicken zum Konfigurieren</div>
-            `;
-            return;
-        }
-        
-        // Build dice formula display
-        const count = config.count || 1;
-        const type = config.type || 'd20';
-        const mod = config.mod || 0;
-        const modText = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : '';
-        const labelText = config.label || '';
-        
-        // Format: "2d20+5" or "d100-10"
-        const formula = `${count > 1 ? count : ''}${type}${modText}`;
-        
-        this.tooltip.innerHTML = `
-            ${labelText ? `<div class="quick-dice-tooltip__label-top">${labelText}</div>` : ''}
-            <div class="quick-dice-tooltip__formula">
-                <img src="assets/icons/dice/${type}.svg" alt="${type}" class="quick-dice-tooltip__dice-icon">
-                <span class="quick-dice-tooltip__formula-text">${formula}</span>
-            </div>
-            <div class="quick-dice-tooltip__details">
-                <span class="quick-dice-tooltip__detail">Anzahl: ${count}</span>
-                <span class="quick-dice-tooltip__detail">Würfel: ${type.toUpperCase()}</span>
-                ${mod !== 0 ? `<span class="quick-dice-tooltip__detail">Modifier: ${modText}</span>` : ''}
-            </div>
-            <div class="quick-dice-tooltip__actions">
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--roll" data-action="roll" data-index="${index}">
-                    ${diceIcon} Würfeln
-                </button>
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--edit" data-action="edit" data-index="${index}">
-                    ${editIcon} Bearbeiten
-                </button>
-            </div>
-        `;
-        
-        // Bind buttons with event.stopPropagation
-        this.tooltip.querySelector('[data-action="roll"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.rollDice(this.slots[index], index);
-        });
-        this.tooltip.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.enterEditMode(index);
-        });
-    },
-    
-    renderEditMode(index, config) {
-        // SVG Icons (Tabler Filled)
-        const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-1.293 5.953a1 1 0 0 0 -1.32 -.083l-.094 .083l-3.293 3.292l-1.293 -1.292l-.094 -.083a1 1 0 0 0 -1.403 1.403l.083 .094l2 2l.094 .083a1 1 0 0 0 1.226 0l.094 -.083l4 -4l.083 -.094a1 1 0 0 0 -.083 -1.32z"/></svg>`;
-        const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6a1 1 0 0 1 .117 1.993l-.117 .007h-.081l-.919 11a3 3 0 0 1 -2.824 2.995l-.176 .005h-8c-1.598 0 -2.904 -1.249 -2.992 -2.75l-.005 -.167l-.923 -11.083h-.08a1 1 0 0 1 -.117 -1.993l.117 -.007h16zm-9.489 5.14a1 1 0 0 0 -1.218 1.567l1.292 1.293l-1.292 1.293l-.083 .094a1 1 0 0 0 1.497 1.32l1.293 -1.292l1.293 1.292l.094 .083a1 1 0 0 0 1.32 -1.497l-1.292 -1.293l1.292 -1.293l.083 -.094a1 1 0 0 0 -1.497 -1.32l-1.293 1.292l-1.293 -1.292l-.094 -.083z"/><path d="M14 2a2 2 0 0 1 2 2a1 1 0 0 1 -1.993 .117l-.007 -.117h-4l-.007 .117a1 1 0 0 1 -1.993 -.117a2 2 0 0 1 1.85 -1.995l.15 -.005h4z"/></svg>`;
-        const xIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-6.489 5.8a1 1 0 0 0 -1.218 1.567l1.292 1.293l-1.292 1.293l-.083 .094a1 1 0 0 0 1.497 1.32l1.293 -1.292l1.293 1.292l.094 .083a1 1 0 0 0 1.32 -1.497l-1.292 -1.293l1.292 -1.293l.083 -.094a1 1 0 0 0 -1.497 -1.32l-1.293 1.292l-1.293 -1.292l-.094 -.083z"/></svg>`;
-        
-        const currentType = config?.type || 'd20';
-        const currentCount = config?.count || 1;
-        const currentMod = config?.mod || 0;
-        const currentLabel = config?.label || '';
-        
-        const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'];
-        const diceOptions = diceTypes.map(d => 
-            `<button class="quick-dice-tooltip__dice-btn ${d === currentType ? 'active' : ''}" data-type="${d}">${d}</button>`
-        ).join('');
-        
-        this.tooltip.innerHTML = `
-            <div class="quick-dice-tooltip__header">Würfel konfigurieren</div>
-            
-            <div class="quick-dice-tooltip__section">
-                <label>Würfeltyp</label>
-                <div class="quick-dice-tooltip__dice-grid">${diceOptions}</div>
-            </div>
-            
-            <div class="quick-dice-tooltip__row">
-                <div class="quick-dice-tooltip__field">
-                    <label>Anzahl</label>
-                    <input type="number" id="qdCount" min="1" max="10" value="${currentCount}">
-                </div>
-                <div class="quick-dice-tooltip__field">
-                    <label>Modifier</label>
-                    <input type="number" id="qdMod" min="-99" max="99" value="${currentMod}">
-                </div>
-            </div>
-            
-            <div class="quick-dice-tooltip__section">
-                <label>Label (optional)</label>
-                <input type="text" id="qdLabel" placeholder="z.B. Angriff, Schaden..." value="${currentLabel}" maxlength="20">
-            </div>
-            
-            <div class="quick-dice-tooltip__actions">
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--save" data-action="save">
-                    ${checkIcon} Speichern
-                </button>
-                ${config ? `
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--delete" data-action="delete">
-                    ${trashIcon} Löschen
-                </button>
-                ` : ''}
-                <button class="quick-dice-tooltip__btn quick-dice-tooltip__btn--cancel" data-action="cancel">
-                    ${xIcon} Abbrechen
-                </button>
-            </div>
-        `;
-        
-        // Bind dice type buttons
-        this.tooltip.querySelectorAll('.quick-dice-tooltip__dice-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.tooltip.querySelectorAll('.quick-dice-tooltip__dice-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
-        });
-        
-        // Bind action buttons with stopPropagation
-        this.tooltip.querySelector('[data-action="save"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.saveSlot(index);
-        });
-        this.tooltip.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.clearSlot(index);
-        });
-        this.tooltip.querySelector('[data-action="cancel"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.closeEditMode();
-        });
-        
-        // Stop propagation on inputs
-        this.tooltip.querySelectorAll('input').forEach(input => {
-            input.addEventListener('click', (e) => e.stopPropagation());
-        });
-    },
-    
-    enterEditMode(index) {
-        this.editMode = true;
-        const slot = document.getElementById(`dockDiceSlot${index + 1}`);
-        this.showTooltip(slot, index, true);
-    },
-    
-    saveSlot(index) {
-        const typeBtn = this.tooltip.querySelector('.quick-dice-tooltip__dice-btn.active');
-        const type = typeBtn ? typeBtn.dataset.type : 'd20';
-        const count = parseInt(document.getElementById('qdCount')?.value) || 1;
-        const mod = parseInt(document.getElementById('qdMod')?.value) || 0;
-        const label = document.getElementById('qdLabel')?.value?.trim() || '';
-        
-        this.slots[index] = { type, count, mod, label };
-        this.save();
-        this.renderSlot(index);
-        this.closeEditMode();
-        
-        if (window.RIFT?.ui?.Toast) {
-            RIFT.ui.Toast.success('Würfel gespeichert');
-        }
-    },
-    
-    clearSlot(index) {
-        this.slots[index] = null;
-        this.save();
-        this.renderSlot(index);
-        this.closeEditMode();
-        
-        if (window.RIFT?.ui?.Toast) {
-            RIFT.ui.Toast.info('Würfel entfernt');
-        }
-    },
-    
-    rollDice(config, slotIndex) {
-        if (!config) return;
-        
-        const { type, count, mod, label } = config;
-        
-        // Build URL params for dice.html (compatible with existing system)
-        const params = new URLSearchParams();
-        params.set('dice', type);           // e.g., "d20"
-        params.set('roll', '1');            // Auto-roll flag
-        if (count > 1) params.set('count', count.toString());
-        if (mod) params.set('mod', mod.toString());
-        if (label) params.set('label', encodeURIComponent(label));
-        params.set('quickdice', 'true');    // Mark as quick dice roll
-        
-        // Navigate to dice.html with auto-roll params
-        const url = `dice.html?${params.toString()}`;
-        console.log('[QuickDice] Navigating to:', url);
-        
-        // Visual feedback on slot
-        const slot = document.getElementById(`dockDiceSlot${slotIndex + 1}`);
-        if (slot) {
-            slot.classList.add('dock__dice-slot--rolling');
-            setTimeout(() => slot.classList.remove('dock__dice-slot--rolling'), 300);
-        }
-        
-        // Hide tooltip and navigate
-        this.hideTooltip();
-        window.location.href = url;
-    }
-};
-
-// Initialize Quick Dice after DOM ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(() => QuickDiceSystem.init(), 500));
-} else {
-    setTimeout(() => QuickDiceSystem.init(), 500);
+    console.log('[DockChar] Card updated:', charData.name);
 }
 
 // ============================================================
