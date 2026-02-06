@@ -1253,7 +1253,14 @@
         };
         
         let currentRuleset = 'worldsapart';
-        const MAX_CHARS = 3;
+        
+        // Dynamic limit: Pro users get 5, Free users get 2
+        function getMaxChars() {
+            if (window.RIFT?.pro?.initialized) {
+                return RIFT.pro.getLimit('charsPerRuleset');
+            }
+            return 2; // Safe default (Free tier)
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -1360,7 +1367,7 @@
             });
             
             // Render empty slots
-            for (let i = count; i < MAX_CHARS; i++) {
+            for (let i = count; i < getMaxChars(); i++) {
                 html += renderEmptySlot(i === count); // First empty slot is clickable
             }
             
@@ -1572,8 +1579,22 @@
         
         function createCharacter() {
             const count = CharacterStorage.getCountForRuleset(currentRuleset);
-            if (count >= MAX_CHARS) {
-                if (window.RIFT?.ui?.Toast) {
+            const maxChars = getMaxChars();
+            if (count >= maxChars) {
+                // Show upsell if Pro system is available and user is Free
+                if (window.RIFT?.pro?.initialized && !RIFT.pro.isPro) {
+                    const comparison = RIFT.pro.getLimitComparison('charsPerRuleset');
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.warning(
+                            `Du hast ${count} von ${comparison.free} Charakteren für dieses Regelwerk. ` +
+                            `Mit RIFT Pro: bis zu ${comparison.pro}.`
+                        );
+                    }
+                    RIFT.pro.showUpsell(
+                        `Charakter-Limit erreicht (${count}/${maxChars})`,
+                        { limitKey: 'charsPerRuleset' }
+                    );
+                } else if (window.RIFT?.ui?.Toast) {
                     RIFT.ui.Toast.warning('Maximum erreicht. Lösche erst einen Charakter.');
                 }
                 return;

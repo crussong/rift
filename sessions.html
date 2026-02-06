@@ -1730,6 +1730,29 @@
                 }
             } else {
                 // CREATE new session
+                
+                // ── Pro Limit Check ──
+                if (window.RIFT?.pro?.initialized) {
+                    const activeCount = RIFT.pro.getActiveSessionCount(firebaseSessions);
+                    if (!RIFT.pro.checkLimit('activeSessions', activeCount)) {
+                        const limit = RIFT.pro.getLimit('activeSessions');
+                        const comparison = RIFT.pro.getLimitComparison('activeSessions');
+                        
+                        // Show upsell
+                        if (window.RIFT?.ui?.Toast) {
+                            RIFT.ui.Toast.warning(
+                                `Du hast bereits ${activeCount} von ${limit} aktiven Sessions. ` +
+                                `Mit RIFT Pro: unbegrenzt.`
+                            );
+                        }
+                        RIFT.pro.showUpsell(
+                            `Session-Limit erreicht (${activeCount}/${limit})`,
+                            { limitKey: 'activeSessions' }
+                        );
+                        return;
+                    }
+                }
+                
                 const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 const currentUserId = window.currentUser?.uid || localStorage.getItem('rift_user_uid') || null;
                 

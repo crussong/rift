@@ -722,7 +722,9 @@
             } else {
                 // Show ruleset-specific "new" card with limit check
                 const count = CharacterStorage.getCountForRuleset(currentFilter);
-                const maxChars = CharacterStorage.MAX_PER_RULESET || 3;
+                const maxChars = (window.RIFT?.pro?.initialized) 
+                    ? RIFT.pro.getLimit('charsPerRuleset') 
+                    : (CharacterStorage.MAX_PER_RULESET || 2);
                 html += renderNewCard(currentFilter, count >= maxChars);
             }
             
@@ -857,6 +859,26 @@
                     RIFT.ui.Toast.info('Dieses Regelwerk wird bald unterstützt!');
                 }
                 return;
+            }
+            
+            // Pro limit check
+            if (ruleset) {
+                const count = CharacterStorage.getCountForRuleset(ruleset);
+                const maxChars = (window.RIFT?.pro?.initialized) 
+                    ? RIFT.pro.getLimit('charsPerRuleset') : 2;
+                if (count >= maxChars) {
+                    if (window.RIFT?.pro?.initialized && !RIFT.pro.isPro) {
+                        const comparison = RIFT.pro.getLimitComparison('charsPerRuleset');
+                        if (window.RIFT?.ui?.Toast) {
+                            RIFT.ui.Toast.warning(
+                                `Du hast ${count} von ${comparison.free} Charakteren. Mit RIFT Pro: bis zu ${comparison.pro}.`
+                            );
+                        }
+                    } else if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.warning('Maximum erreicht. Lösche erst einen Charakter.');
+                    }
+                    return;
+                }
             }
             
             const roomCode = localStorage.getItem('rift_current_room') || '';

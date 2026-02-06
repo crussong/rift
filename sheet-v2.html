@@ -808,7 +808,14 @@
         };
         
         let currentRuleset = 'worldsapart';
-        const MAX_CHARS = 3;
+        
+        // Dynamic limit: Pro users get 5, Free users get 2
+        function getMaxChars() {
+            if (window.RIFT?.pro?.initialized) {
+                return RIFT.pro.getLimit('charsPerRuleset');
+            }
+            return 2; // Safe default (Free tier)
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -848,7 +855,7 @@
             const config = rulesetConfig[currentRuleset];
             const chars = CharacterStorage.getByRuleset(currentRuleset);
             const count = chars.length;
-            const canCreate = count < MAX_CHARS;
+            const canCreate = count < getMaxChars();
             
             const hero = document.getElementById('rulesetHero');
             hero.innerHTML = `
@@ -872,7 +879,7 @@
                             <span class="ruleset-hero__stat-label">Charaktere</span>
                         </div>
                         <div class="ruleset-hero__stat">
-                            <span class="ruleset-hero__stat-value">${MAX_CHARS - count}</span>
+                            <span class="ruleset-hero__stat-value">${getMaxChars() - count}</span>
                             <span class="ruleset-hero__stat-label">Verfügbar</span>
                         </div>
                     </div>
@@ -897,7 +904,7 @@
             const count = chars.length;
             
             // Update count display
-            document.getElementById('charCount').textContent = `${count} / ${MAX_CHARS}`;
+            document.getElementById('charCount').textContent = `${count} / ${getMaxChars()}`;
             
             // Sort: Main first, then by lastPlayed
             chars.sort((a, b) => {
@@ -916,7 +923,7 @@
             });
             
             // Render empty slots
-            for (let i = count; i < MAX_CHARS; i++) {
+            for (let i = count; i < getMaxChars(); i++) {
                 html += renderEmptySlot(i === count); // First empty slot is clickable
             }
             
@@ -1014,7 +1021,7 @@
                         </div>
                         <div class="char-card__empty-text">
                             <strong>Reserviert</strong>
-                            <span>Slot ${MAX_CHARS}</span>
+                            <span>Slot ${getMaxChars()}</span>
                         </div>
                     </div>
                 `;
@@ -1033,8 +1040,16 @@
         
         function createCharacter() {
             const count = CharacterStorage.getCountForRuleset(currentRuleset);
-            if (count >= MAX_CHARS) {
-                if (window.RIFT?.ui?.Toast) {
+            const maxChars = getMaxChars();
+            if (count >= maxChars) {
+                if (window.RIFT?.pro?.initialized && !RIFT.pro.isPro) {
+                    const comparison = RIFT.pro.getLimitComparison('charsPerRuleset');
+                    if (window.RIFT?.ui?.Toast) {
+                        RIFT.ui.Toast.warning(
+                            `Du hast ${count} von ${comparison.free} Charakteren. Mit RIFT Pro: bis zu ${comparison.pro}.`
+                        );
+                    }
+                } else if (window.RIFT?.ui?.Toast) {
                     RIFT.ui.Toast.warning('Maximum erreicht. Lösche erst einen Charakter.');
                 }
                 return;
