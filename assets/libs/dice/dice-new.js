@@ -1528,6 +1528,73 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
+    // RIFT PRO: Procedural Environment Map for reflective materials (Chrome, Crystal, Gems)
+    var _proceduralEnvMap = null;
+    function getProceduralEnvMap() {
+        if (_proceduralEnvMap) return _proceduralEnvMap;
+        
+        var size = 128;
+        var canvases = [];
+        
+        // 6 cube faces: +X, -X, +Y (top), -Y (bottom), +Z, -Z
+        for (var face = 0; face < 6; face++) {
+            var canvas = document.createElement('canvas');
+            canvas.width = canvas.height = size;
+            var ctx = canvas.getContext('2d');
+            
+            var grd;
+            if (face === 2) {
+                // +Y (top) - bright area simulating overhead light/sky
+                grd = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.7);
+                grd.addColorStop(0, '#e0e4f0');
+                grd.addColorStop(0.3, '#a0a8b8');
+                grd.addColorStop(0.7, '#505868');
+                grd.addColorStop(1, '#303840');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, size, size);
+                // Add bright spot (light source reflection)
+                var spot = ctx.createRadialGradient(size * 0.4, size * 0.4, 0, size * 0.4, size * 0.4, size * 0.15);
+                spot.addColorStop(0, 'rgba(255,255,255,0.8)');
+                spot.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+                spot.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = spot;
+                ctx.fillRect(0, 0, size, size);
+            } else if (face === 3) {
+                // -Y (bottom) - dark ground/table surface
+                grd = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.7);
+                grd.addColorStop(0, '#1a1c22');
+                grd.addColorStop(1, '#08090c');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, size, size);
+            } else {
+                // Sides - gradient from bright (top) to dark (bottom) with subtle variation
+                grd = ctx.createLinearGradient(0, 0, 0, size);
+                grd.addColorStop(0, '#6a7080');
+                grd.addColorStop(0.3, '#404850');
+                grd.addColorStop(0.6, '#282c34');
+                grd.addColorStop(1, '#101218');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, size, size);
+                // Subtle horizontal variation per face for non-uniform look
+                var hShift = (face * 37) % 100; // pseudo-random per face
+                var hGlow = ctx.createRadialGradient(
+                    size * (0.3 + hShift / 200), size * 0.25, 0,
+                    size * 0.5, size * 0.4, size * 0.5
+                );
+                hGlow.addColorStop(0, 'rgba(140,150,170,0.15)');
+                hGlow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = hGlow;
+                ctx.fillRect(0, 0, size, size);
+            }
+            
+            canvases.push(canvas);
+        }
+        
+        _proceduralEnvMap = new THREE.CubeTexture(canvases);
+        _proceduralEnvMap.needsUpdate = true;
+        return _proceduralEnvMap;
+    }
+    
     function create_dice_materials(face_labels, size, margin, useGradient) {
         // Default: use gradient if available (but can be disabled for d10)
         if (useGradient === undefined) useGradient = true;
@@ -1684,6 +1751,8 @@ const DICE = (function() {
                 if (ov.side !== undefined) matOptions.side = ov.side;
                 if (ov.shading !== undefined) matOptions.shading = ov.shading;
                 if (ov.depthWrite !== undefined) matOptions.depthWrite = ov.depthWrite;
+                if (ov.envMap) { matOptions.envMap = getProceduralEnvMap(); matOptions.combine = ov.combine || THREE.MixOperation; }
+                if (ov.reflectivity !== undefined) matOptions.reflectivity = ov.reflectivity;
             }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
@@ -1798,6 +1867,8 @@ const DICE = (function() {
                 if (ov.side !== undefined) matOptions.side = ov.side;
                 if (ov.shading !== undefined) matOptions.shading = ov.shading;
                 if (ov.depthWrite !== undefined) matOptions.depthWrite = ov.depthWrite;
+                if (ov.envMap) { matOptions.envMap = getProceduralEnvMap(); matOptions.combine = ov.combine || THREE.MixOperation; }
+                if (ov.reflectivity !== undefined) matOptions.reflectivity = ov.reflectivity;
             }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
