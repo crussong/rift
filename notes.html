@@ -1251,22 +1251,51 @@
         }
     };
     
-    // --- Auth Guard & Init ---
+    // --- Auth Guard & Init (waits for Firebase properly) ---
     (function() {
-        function waitForAuth() {
-            if (typeof firebase === 'undefined' || !firebase.auth) {
-                return setTimeout(waitForAuth, 50);
+        async function boot() {
+            // 1. Initialize Firebase via RIFT wrapper
+            if (window.RIFT?.firebase?.init) {
+                try { await window.RIFT.firebase.init(); } catch(e) {}
             }
-            firebase.auth().onAuthStateChanged(function(user) {
-                if (user) {
-                    document.body.classList.add('auth-ready');
-                    Journal.init();
-                } else {
-                    window.location.href = 'login.html';
-                }
+            
+            // 2. Poll until Firebase is actually ready
+            await new Promise((resolve) => {
+                const start = Date.now();
+                const check = () => {
+                    try {
+                        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                            resolve();
+                            return;
+                        }
+                    } catch(e) {}
+                    if (Date.now() - start > 10000) { resolve(); return; }
+                    setTimeout(check, 100);
+                };
+                check();
             });
+            
+            // 3. Wait for auth state
+            const user = await new Promise((resolve) => {
+                try {
+                    const unsub = firebase.auth().onAuthStateChanged(function(u) {
+                        unsub();
+                        resolve(u);
+                    });
+                } catch(e) {
+                    resolve(null);
+                }
+                setTimeout(() => resolve(null), 5000);
+            });
+            
+            if (user) {
+                document.body.classList.add('auth-ready');
+                Journal.init();
+            } else {
+                window.location.href = 'login.html';
+            }
         }
-        waitForAuth();
+        boot();
     })();
     </script>
 </body>
