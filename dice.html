@@ -2363,6 +2363,8 @@
                 // Theme buttons (alte + neue)
                 document.querySelectorAll('.dice-theme-btn, .dice-theme-card').forEach(btn => {
                     btn.addEventListener('click', (e) => {
+                        // Allow Pro tooltip link clicks through
+                        if (e.target.closest('.pro-gate-tooltip__link')) return;
                         // Pro gating: block theme change for locked cards
                         if (btn.classList.contains('is-pro') && !btn.classList.contains('pro-unlocked')) {
                             e.preventDefault();
@@ -2373,8 +2375,8 @@
                     });
                 });
                 
-                // Mark Pro themes with badges and dimming
-                this.markProThemes();
+                // Mark Pro items (dice themes + label colors)
+                this.markProItems();
                 
                 // Load saved theme (no toast on initial load)
                 const saved = localStorage.getItem('rift_dice_theme') || 'onyx';
@@ -2390,37 +2392,39 @@
                 this.loadEffects();
             },
             
-            markProThemes() {
+            // Pro tooltip HTML shared across all gated items
+            _proTooltipHTML: '<div class="pro-gate-tooltip">' +
+                '<img class="pro-gate-tooltip__badge" src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="RIFT Pro" draggable="false">' +
+                '<div class="pro-gate-tooltip__divider"></div>' +
+                '<a class="pro-gate-tooltip__link" href="riftpro.html">Mehr erfahren</a>' +
+                '</div>',
+            
+            markProItems() {
                 const isPro = window.RIFT?.pro?.isPro === true;
                 
-                // Find all tier-sections that have a Pro badge
+                // Find all tier-sections with a Pro badge and mark their children
                 document.querySelectorAll('.tier-section').forEach(section => {
                     const badge = section.querySelector('.tier-badge--pro');
                     if (!badge) return; // Free section, skip
                     
-                    section.querySelectorAll('.dice-theme-card').forEach(card => {
+                    // Mark dice theme cards, label color buttons, and arena theme cards
+                    section.querySelectorAll('.dice-theme-card, .dice-label-color-btn, .dice-arena-theme-card').forEach(card => {
+                        if (card.classList.contains('is-pro')) return; // Already marked
                         card.classList.add('is-pro');
                         
                         if (isPro) {
-                            // Pro user: remove visual gating
                             card.classList.add('pro-unlocked');
                         } else {
-                            // Free user: add Pro badge + hover tooltip
-                            if (!card.querySelector('.dice-theme-card__pro-badge')) {
-                                card.insertAdjacentHTML('beforeend',
-                                    '<img class="dice-theme-card__pro-badge dice-theme-card__pro-badge--black" src="assets/rift_pro/img/svg/rift_pro_badge02_black.svg" alt="" draggable="false">' +
-                                    '<img class="dice-theme-card__pro-badge dice-theme-card__pro-badge--gold" src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="" draggable="false">' +
-                                    '<div class="dice-theme-card__pro-tooltip"><span>RIFT Pro</span><a href="riftpro.html">Mehr erfahren</a></div>'
-                                );
-                            }
+                            card.insertAdjacentHTML('beforeend', this._proTooltipHTML);
                         }
                     });
                 });
                 
                 // Listen for Pro status changes (upgrade/downgrade in real-time)
-                if (window.RIFT?.pro?.onStatusChange) {
+                if (!this._proListenerSet && window.RIFT?.pro?.onStatusChange) {
+                    this._proListenerSet = true;
                     RIFT.pro.onStatusChange(({ isPro }) => {
-                        document.querySelectorAll('.dice-theme-card.is-pro').forEach(card => {
+                        document.querySelectorAll('.is-pro').forEach(card => {
                             card.classList.toggle('pro-unlocked', isPro);
                         });
                     });
@@ -2783,6 +2787,12 @@
             // ========================================
             
             setLabelColor(color, showNotification = true) {
+                // Pro gating: check if this color button is locked
+                const btn = document.querySelector(`.dice-label-color-btn[data-color="${color}"]`);
+                if (btn && btn.classList.contains('is-pro') && !btn.classList.contains('pro-unlocked')) {
+                    return;
+                }
+                
                 this.currentLabelColor = color;
                 
                 // Update DICE library
@@ -2933,6 +2943,12 @@
             currentArenaTheme: 'default',
             
             setArenaTheme(theme, showNotification = true) {
+                // Pro gating: check if this arena theme card is locked
+                const card = document.querySelector(`.dice-arena-theme-card[data-arena-theme="${theme}"]`);
+                if (card && card.classList.contains('is-pro') && !card.classList.contains('pro-unlocked')) {
+                    return;
+                }
+                
                 this.currentArenaTheme = theme;
                 
                 // Apply to arena
@@ -3117,6 +3133,9 @@
                 });
                 
                 container.innerHTML = html;
+                
+                // Mark Pro items on dynamically rendered arena themes
+                this.markProItems();
             },
             
             renderArenaThemesFallback() {
