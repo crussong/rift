@@ -842,6 +842,60 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
+    function generateCrystalTexture(ctx, width, height, baseColor, veinColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtle inner depth glow
+        var glow = ctx.createRadialGradient(width * 0.4, height * 0.4, 0, width * 0.5, height * 0.5, width * 0.6);
+        glow.addColorStop(0, 'rgba(255,255,255,0.06)');
+        glow.addColorStop(0.6, 'rgba(255,255,255,0)');
+        glow.addColorStop(1, 'rgba(0,0,0,0.04)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Crystal veins - elegant, fewer than marble
+        ctx.strokeStyle = veinColor;
+        ctx.globalAlpha = 0.5;
+        
+        for (var i = 0; i < 6; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            ctx.lineWidth = 0.5 + Math.random() * 1.5;
+            
+            for (var j = 0; j < 4; j++) {
+                var cp1x = x + (Math.random() - 0.5) * width * 0.4;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.4;
+                var cp2x = x + (Math.random() - 0.5) * width * 0.4;
+                var cp2y = y + (Math.random() - 0.5) * height * 0.4;
+                x = Math.random() * width;
+                y = Math.random() * height;
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Fine secondary veins
+        ctx.globalAlpha = 0.25;
+        ctx.lineWidth = 0.3;
+        for (var i = 0; i < 5; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 3; j++) {
+                x += (Math.random() - 0.5) * width * 0.3;
+                y += (Math.random() - 0.5) * height * 0.3;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // NO speckles/bubbles - clean crystal look
+        ctx.globalAlpha = 1.0;
+    }
+    
     function generateWoodTexture(ctx, width, height, baseColor, grainColor) {
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
@@ -1622,6 +1676,9 @@ const DICE = (function() {
                     case 'marble':
                         generateMarbleTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
                         break;
+                    case 'crystal':
+                        generateCrystalTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
                         break;
@@ -1774,6 +1831,9 @@ const DICE = (function() {
                 switch(tex.type) {
                     case 'marble':
                         generateMarbleTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'crystal':
+                        generateCrystalTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
                         break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
