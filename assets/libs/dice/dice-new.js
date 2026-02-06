@@ -44,8 +44,12 @@ const DICE = (function() {
         // RIFT: Gradient Support
         dice_gradient: null, // { type: 'linear'|'radial', colors: ['#color1', '#color2', ...], stops: [0, 0.5, 1] }
         // RIFT: Texture Support
-        dice_texture: null, // { type: 'marble'|'wood'|'stone', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
+        dice_texture: null, // { type: 'marble'|'wood'|'stone'|'leather'|'metal', baseColor: '#...', veinColor/grainColor/speckleColor: '#...' }
         // RIFT: Glow & Effects
+        dice_material_override: null, // { shininess, specular, emissive } - per-theme material overrides
+        dice_text_style: null, // 'embossed', 'neon', 'metallic', 'outline' or null
+        dice_neon_color: null, // Neon glow color for text
+        dice_text_color2: null, // Secondary text color (gradient end, stroke, etc.)
         dice_glow: false,
         dice_glow_color: null, // null = use dice color
         dice_glow_intensity: 2.0, // PointLight intensity
@@ -99,8 +103,8 @@ const DICE = (function() {
             : new THREE.CanvasRenderer({ antialias: true, alpha: true });
         container.appendChild(this.renderer.domElement);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFShadowMap;
-        this.renderer.setClearColor(0xffffff, 0); //color, alpha
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.setClearColor(0x000000, 0); //RIFT: black fallback if alpha fails (prevents white flash on mobile)
 
         this.reinit(container);
         $t.bind(container, 'resize', function() {
@@ -173,22 +177,23 @@ const DICE = (function() {
         var mw = Math.max(this.w, this.h);
         if (this.light) this.scene.remove(this.light);
         this.light = new THREE.SpotLight(vars.spot_light_color, 2.0);
-        this.light.position.set(-mw / 2, mw / 2, mw * 2);
+        this.light.position.set(0, mw / 2, mw * 2);
         this.light.target.position.set(0, 0, 0);
         this.light.distance = mw * 5;
         this.light.castShadow = true;
         this.light.shadowCameraNear = mw / 10;
         this.light.shadowCameraFar = mw * 5;
-        this.light.shadowCameraFov = 50;
-        this.light.shadowBias = 0.001;
+        this.light.shadowCameraFov = 80;
+        this.light.shadowBias = 0.0015;
         this.light.shadowDarkness = 1.1;
-        this.light.shadowMapWidth = 1024;
-        this.light.shadowMapHeight = 1024;
+        this.light.shadowMapWidth = 4096;
+        this.light.shadowMapHeight = 4096;
         this.scene.add(this.light);
 
         if (this.desk) this.scene.remove(this.desk);
+        // RIFT: Low opacity desk for shadow rendering - nearly invisible on dark themes
         this.desk = new THREE.Mesh(new THREE.PlaneGeometry(this.w * 2, this.h * 2, 1, 1), 
-                new THREE.MeshPhongMaterial({ color: vars.desk_color, opacity: vars.desk_opacity, transparent: true }));
+                new THREE.MeshPhongMaterial({ color: '#000000', opacity: 0.25, transparent: true }));
         this.desk.receiveShadow = vars.use_shadows;
         this.scene.add(this.desk); 
 
@@ -362,6 +367,21 @@ const DICE = (function() {
         var dice = threeD_dice['create_' + type]();
         dice.castShadow = true;
         dice.dice_type = type;
+        
+        // RIFT: Wireframe edge overlay (keeps textures + adds glowing edges)
+        if (vars.dice_material_override && vars.dice_material_override.wireframeEdges) {
+            var edgeColor = vars.dice_material_override.wireframeEdgeColor || 0x00ffcc;
+            var edgeOpacity = vars.dice_material_override.wireframeEdgeOpacity || 0.8;
+            var edges = new THREE.EdgesGeometry(dice.geometry, 15);
+            var lineMat = new THREE.LineBasicMaterial({ 
+                color: edgeColor, 
+                transparent: true, 
+                opacity: edgeOpacity,
+                linewidth: 1
+            });
+            var wireframe = new THREE.LineSegments(edges, lineMat);
+            dice.add(wireframe);
+        }
         dice.body = new CANNON.RigidBody(CONSTS.dice_mass[type],
                 dice.geometry.cannon_shape, this.dice_body_material);
         dice.body.position.set(pos.x, pos.y, pos.z);
@@ -592,18 +612,18 @@ const DICE = (function() {
         return new THREE.Mesh(this.d8_geometry, this.d8_material);
     }
 
-    // D10-based dice: disable gradient to avoid visible seams on kite faces
+    // D10-based dice: Kite-Quad-Geometrie → Gradient/Textur nahtlos pro Fläche
     threeD_dice.create_d9 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, true, 0.08));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
     threeD_dice.create_d10 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d10_material) this.d10_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false));
+                create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, true, 0.08));
         return new THREE.Mesh(this.d10_geometry, this.d10_material);
     }
 
@@ -624,18 +644,43 @@ const DICE = (function() {
     threeD_dice.create_d100 = function() {
         if (!this.d10_geometry) this.d10_geometry = create_d10_geometry(vars.scale * 0.9);
         if (!this.d100_material) this.d100_material = new THREE.MeshFaceMaterial(
-                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false));
+                create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, true, 0.08));
         return new THREE.Mesh(this.d10_geometry, this.d100_material);
     }
 
     // RIFT: Flag ob Label-Farbe manuell gesetzt wurde
     var manualLabelColor = null;
+    var labelTextStyle = false; // true wenn text style von setLabelColor gesetzt wurde
     
     // RIFT: Methode um Würfelfarbe zu ändern
-    that.setDiceColor = function(color, gradient, texture) {
+    that.setDiceColor = function(color, gradient, texture, materialOverride, textStyle, neonColor) {
         vars.dice_color = color;
         vars.dice_gradient = gradient || null;
         vars.dice_texture = texture || null;
+        vars.dice_material_override = materialOverride || null;
+        // Nur text style überschreiben wenn explizit vom Theme gesetzt, NICHT wenn von Label gesetzt
+        if (textStyle) {
+            vars.dice_text_style = textStyle;
+            vars.dice_neon_color = neonColor || null;
+            labelTextStyle = false;
+        } else if (!labelTextStyle) {
+            vars.dice_text_style = null;
+            vars.dice_neon_color = null;
+        }
+        
+        // RIFT: Theme→Glow bridge - themes can force glow on/off
+        if (materialOverride && materialOverride.themeGlow) {
+            vars.dice_glow = true;
+            vars.dice_glow_color = materialOverride.themeGlowColor || color;
+            vars.dice_glow_intensity = materialOverride.themeGlowIntensity || 2.0;
+            vars._themeGlowActive = true;
+        } else if (vars._themeGlowActive) {
+            // Theme had glow but new theme doesn't - restore user setting
+            vars.dice_glow = vars._userGlowSetting || false;
+            vars.dice_glow_color = vars._userGlowColor || null;
+            vars.dice_glow_intensity = vars._userGlowIntensity || 2.0;
+            vars._themeGlowActive = false;
+        }
         
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
@@ -660,12 +705,34 @@ const DICE = (function() {
         if (color === 'auto' || color === null) {
             // Zurück zu automatischer Berechnung
             manualLabelColor = null;
+            labelTextStyle = false;
+            vars.dice_text_style = null;
+            vars.dice_neon_color = null;
+            vars.dice_text_color2 = null;
             var brightness = getColorBrightness(vars.dice_gradient ? vars.dice_gradient.colors[0] : vars.dice_color);
             vars.label_color = brightness > 160 ? vars.label_color_dark : '#ffffff';
-        } else {
-            // Manuelle Farbe setzen
+        } else if (typeof color === 'string' && color.indexOf('style:') === 0) {
+            // Style-encoded label: style:{type}:{color1}:{color2}
+            var parts = color.split(':');
+            var styleName = parts[1] || 'neon';
+            var color1 = parts[2] || '#ffffff';
+            var color2 = parts[3] || null;
             manualLabelColor = color;
+            labelTextStyle = true;
+            vars.label_color = color1;
+            vars.dice_text_style = styleName;
+            vars.dice_text_color2 = color2;
+            if (styleName === 'neon') {
+                vars.dice_neon_color = color1;
+            }
+        } else {
+            // Einfache manuelle Farbe - Style zurücksetzen
+            manualLabelColor = color;
+            labelTextStyle = false;
             vars.label_color = color;
+            vars.dice_text_style = null;
+            vars.dice_neon_color = null;
+            vars.dice_text_color2 = null;
         }
         
         // Cache löschen damit neue Materialien erstellt werden
@@ -699,6 +766,10 @@ const DICE = (function() {
         vars.dice_glow = enabled;
         if (color !== undefined) vars.dice_glow_color = color;
         if (intensity !== undefined) vars.dice_glow_intensity = intensity;
+        // Save user preference (for restore after theme-glow)
+        vars._userGlowSetting = enabled;
+        vars._userGlowColor = vars.dice_glow_color;
+        vars._userGlowIntensity = vars.dice_glow_intensity;
         
         // Material Cache löschen
         clearMaterialCache();
@@ -781,22 +852,22 @@ const DICE = (function() {
     
     // RIFT: Texture generation functions
     function generateMarbleTexture(ctx, width, height, baseColor, veinColor) {
-        // Fill with base color
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Generate marble veins using random curves
+        // Primary veins - thick, prominent
         ctx.strokeStyle = veinColor;
-        ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.45;
         
-        for (var i = 0; i < 8; i++) {
+        for (var i = 0; i < 12; i++) {
             ctx.beginPath();
             var x = Math.random() * width;
             var y = Math.random() * height;
             ctx.moveTo(x, y);
+            ctx.lineWidth = 1 + Math.random() * 2.5;
             
-            for (var j = 0; j < 5; j++) {
+            for (var j = 0; j < 6; j++) {
                 var cp1x = x + (Math.random() - 0.5) * width * 0.5;
                 var cp1y = y + (Math.random() - 0.5) * height * 0.5;
                 var cp2x = x + (Math.random() - 0.5) * width * 0.5;
@@ -808,12 +879,501 @@ const DICE = (function() {
             ctx.stroke();
         }
         
-        // Add some noise/speckles
-        ctx.globalAlpha = 0.1;
-        for (var i = 0; i < 100; i++) {
+        // Secondary fine veins
+        ctx.globalAlpha = 0.2;
+        ctx.lineWidth = 0.5;
+        for (var i = 0; i < 8; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.4;
+                y += (Math.random() - 0.5) * height * 0.4;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Noise/speckles
+        ctx.globalAlpha = 0.15;
+        for (var i = 0; i < 150; i++) {
             ctx.fillStyle = Math.random() > 0.5 ? veinColor : baseColor;
             ctx.beginPath();
-            ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 2, 0, Math.PI * 2);
+            ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateCrystalTexture(ctx, width, height, baseColor, veinColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Crystal veins - elegant, fewer than marble
+        ctx.strokeStyle = veinColor;
+        ctx.globalAlpha = 0.5;
+        
+        for (var i = 0; i < 6; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            ctx.lineWidth = 0.5 + Math.random() * 1.5;
+            
+            for (var j = 0; j < 4; j++) {
+                var cp1x = x + (Math.random() - 0.5) * width * 0.4;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.4;
+                var cp2x = x + (Math.random() - 0.5) * width * 0.4;
+                var cp2y = y + (Math.random() - 0.5) * height * 0.4;
+                x = Math.random() * width;
+                y = Math.random() * height;
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Fine secondary veins
+        ctx.globalAlpha = 0.25;
+        ctx.lineWidth = 0.3;
+        for (var i = 0; i < 5; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 3; j++) {
+                x += (Math.random() - 0.5) * width * 0.3;
+                y += (Math.random() - 0.5) * height * 0.3;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // NO speckles/bubbles - clean crystal look
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // Cached grain overlay - generated once, reused for all gem faces
+    var _grainCache = {};
+    function getGrainOverlay(size) {
+        if (_grainCache[size]) return _grainCache[size];
+        var c = document.createElement('canvas');
+        c.width = c.height = size;
+        var ctx = c.getContext('2d');
+        var imageData = ctx.createImageData(size, size);
+        var pixels = imageData.data;
+        for (var i = 0; i < pixels.length; i += 4) {
+            var v = Math.random() * 255;
+            pixels[i] = pixels[i + 1] = pixels[i + 2] = v;
+            pixels[i + 3] = 60; // ~0.24 alpha for subtle grain
+        }
+        ctx.putImageData(imageData, 0, 0);
+        _grainCache[size] = c;
+        return c;
+    }
+    
+    function generateGemTexture(ctx, width, height, baseColor, veinColor) {
+        var cx = width * 0.5, cy = height * 0.5;
+        
+        // --- 1. Base + Sättigungs-Zonen (color variation patches) ---
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Parse baseColor for HSL shifting
+        ctx.save();
+        for (var i = 0; i < 3; i++) {
+            var zx = Math.random() * width;
+            var zy = Math.random() * height;
+            var zr = width * (0.2 + Math.random() * 0.25);
+            var zGrd = ctx.createRadialGradient(zx, zy, 0, zx, zy, zr);
+            // Alternate lighter and slightly different-hued patches
+            if (i % 2 === 0) {
+                zGrd.addColorStop(0, 'rgba(255,255,255,0.06)');
+                zGrd.addColorStop(1, 'rgba(255,255,255,0)');
+            } else {
+                zGrd.addColorStop(0, veinColor);
+                zGrd.addColorStop(1, baseColor);
+            }
+            ctx.globalAlpha = i % 2 === 0 ? 0.5 : 0.08;
+            ctx.fillStyle = zGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        ctx.restore();
+        
+        // --- 2. Farb-Tiefe Vignette (darker at edges) ---
+        ctx.globalAlpha = 1.0;
+        var vig = ctx.createRadialGradient(cx, cy, width * 0.1, cx, cy, width * 0.6);
+        vig.addColorStop(0, 'rgba(255,255,255,0.04)');
+        vig.addColorStop(0.4, 'rgba(0,0,0,0)');
+        vig.addColorStop(1, 'rgba(0,0,0,0.15)');
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, width, height);
+        
+        // --- 3. Facetten-Schliff Lichtbrechung (crossing light lines) ---
+        ctx.save();
+        ctx.globalAlpha = 0.07;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.8;
+        
+        // Star-like refraction pattern from center
+        var numRays = 5 + Math.floor(Math.random() * 3);
+        var angleOff = Math.random() * Math.PI;
+        for (var i = 0; i < numRays; i++) {
+            var angle = angleOff + (i / numRays) * Math.PI;
+            ctx.beginPath();
+            ctx.moveTo(
+                cx + Math.cos(angle) * width * 0.05,
+                cy + Math.sin(angle) * height * 0.05
+            );
+            ctx.lineTo(
+                cx + Math.cos(angle) * width * 0.55,
+                cy + Math.sin(angle) * height * 0.55
+            );
+            ctx.stroke();
+        }
+        
+        // A couple of faint triangular brilliance shapes
+        ctx.globalAlpha = 0.04;
+        ctx.fillStyle = '#ffffff';
+        for (var i = 0; i < 2; i++) {
+            var tx = cx + (Math.random() - 0.5) * width * 0.3;
+            var ty = cy + (Math.random() - 0.5) * height * 0.3;
+            var ts = width * (0.06 + Math.random() * 0.08);
+            var ta = Math.random() * Math.PI * 2;
+            ctx.beginPath();
+            for (var j = 0; j < 3; j++) {
+                var px = tx + Math.cos(ta + j * Math.PI * 2 / 3) * ts;
+                var py = ty + Math.sin(ta + j * Math.PI * 2 / 3) * ts;
+                j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+        
+        // --- 4. Schliff-Kanten (sub-facet geometric lines) ---
+        ctx.save();
+        ctx.globalAlpha = 0.05;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.4;
+        
+        // Lines from corners/edges through center area
+        var corners = [
+            [0, 0], [width, 0], [width, height], [0, height],
+            [width * 0.5, 0], [width, height * 0.5], [width * 0.5, height], [0, height * 0.5]
+        ];
+        for (var i = 0; i < 4; i++) {
+            var c1 = corners[Math.floor(Math.random() * corners.length)];
+            var target = [
+                cx + (Math.random() - 0.5) * width * 0.3,
+                cy + (Math.random() - 0.5) * height * 0.3
+            ];
+            ctx.beginPath();
+            ctx.moveTo(c1[0], c1[1]);
+            ctx.lineTo(target[0], target[1]);
+            ctx.stroke();
+        }
+        ctx.restore();
+        
+        // --- 5. Subtle veins (very faint internal structure) ---
+        ctx.strokeStyle = veinColor;
+        ctx.globalAlpha = 0.25;
+        for (var i = 0; i < 3; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            ctx.lineWidth = 0.2 + Math.random() * 0.5;
+            for (var j = 0; j < 3; j++) {
+                var cp1x = x + (Math.random() - 0.5) * width * 0.3;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.3;
+                var cp2x = x + (Math.random() - 0.5) * width * 0.3;
+                var cp2y = y + (Math.random() - 0.5) * height * 0.3;
+                x = Math.random() * width;
+                y = Math.random() * height;
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // --- 6. Cached grain overlay ---
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateLavaTexture(ctx, width, height, baseColor, glowColor) {
+        // Dark base with glowing cracks
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtle dark variation
+        ctx.globalAlpha = 0.15;
+        for (var i = 0; i < 8; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#000000' : '#1a1a1a';
+            ctx.beginPath();
+            var rx = Math.random() * width, ry = Math.random() * height;
+            var rr = width * (0.05 + Math.random() * 0.15);
+            ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Glowing cracks - main
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = glowColor;
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 6;
+        ctx.lineWidth = 1.2;
+        
+        for (var i = 0; i < 5; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 5; j++) {
+                // Jagged crack lines
+                x += (Math.random() - 0.5) * width * 0.3;
+                y += (Math.random() - 0.5) * height * 0.3;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Thinner branching cracks
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = 0.5;
+        ctx.shadowBlur = 3;
+        for (var i = 0; i < 8; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 3; j++) {
+                x += (Math.random() - 0.5) * width * 0.2;
+                y += (Math.random() - 0.5) * height * 0.2;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Hot spots at crack intersections
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = 0.3;
+        for (var i = 0; i < 3; i++) {
+            var hx = Math.random() * width, hy = Math.random() * height;
+            var hGrd = ctx.createRadialGradient(hx, hy, 0, hx, hy, width * 0.08);
+            hGrd.addColorStop(0, glowColor);
+            hGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = hGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generatePearlescentTexture(ctx, width, height, baseColor, shimmerColor) {
+        // Soft iridescent base
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Iridescent color zones - overlapping gradients with different hues
+        var hues = [shimmerColor, '#ffccee', '#ccffee', '#eeccff', '#ffffcc'];
+        for (var i = 0; i < 4; i++) {
+            var zx = Math.random() * width;
+            var zy = Math.random() * height;
+            var zr = width * (0.25 + Math.random() * 0.3);
+            var zGrd = ctx.createRadialGradient(zx, zy, 0, zx, zy, zr);
+            zGrd.addColorStop(0, hues[i % hues.length]);
+            zGrd.addColorStop(1, baseColor);
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = zGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Sweeping shimmer bands (like oil on water)
+        ctx.globalAlpha = 0.06;
+        for (var i = 0; i < 6; i++) {
+            var angle = Math.random() * Math.PI;
+            var bx = width * 0.5 + Math.cos(angle) * width * 0.3;
+            var by = height * 0.5 + Math.sin(angle) * height * 0.3;
+            var bGrd = ctx.createLinearGradient(
+                bx - Math.cos(angle + Math.PI/2) * width * 0.4,
+                by - Math.sin(angle + Math.PI/2) * height * 0.4,
+                bx + Math.cos(angle + Math.PI/2) * width * 0.4,
+                by + Math.sin(angle + Math.PI/2) * height * 0.4
+            );
+            bGrd.addColorStop(0, 'rgba(255,255,255,0)');
+            bGrd.addColorStop(0.4, shimmerColor);
+            bGrd.addColorStop(0.6, 'rgba(255,255,255,0.5)');
+            bGrd.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = bGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Soft center highlight
+        var cGrd = ctx.createRadialGradient(width * 0.45, height * 0.4, 0, width * 0.5, height * 0.5, width * 0.5);
+        cGrd.addColorStop(0, 'rgba(255,255,255,0.1)');
+        cGrd.addColorStop(0.5, 'rgba(255,255,255,0.02)');
+        cGrd.addColorStop(1, 'rgba(0,0,0,0.04)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = cGrd;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateToxicTexture(ctx, width, height, baseColor, neonColor) {
+        // Dark base
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Toxic swirl patterns
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = neonColor;
+        ctx.lineWidth = 3;
+        for (var i = 0; i < 4; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 6; j++) {
+                var cp1x = x + (Math.random() - 0.5) * width * 0.6;
+                var cp1y = y + (Math.random() - 0.5) * height * 0.6;
+                x = Math.random() * width;
+                y = Math.random() * height;
+                ctx.quadraticCurveTo(cp1x, cp1y, x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Neon glow patches
+        ctx.globalAlpha = 0.08;
+        for (var i = 0; i < 5; i++) {
+            var gx = Math.random() * width, gy = Math.random() * height;
+            var gr = width * (0.08 + Math.random() * 0.12);
+            var gGrd = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+            gGrd.addColorStop(0, neonColor);
+            gGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Fine veiny network (like toxic veins)
+        ctx.globalAlpha = 0.2;
+        ctx.strokeStyle = neonColor;
+        ctx.lineWidth = 0.4;
+        for (var i = 0; i < 10; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.25;
+                y += (Math.random() - 0.5) * height * 0.25;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Cached grain
+        ctx.globalAlpha = 0.2;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generatePatinaTexture(ctx, width, height, baseColor, patinaColor) {
+        // Metal base
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Fine grain for metal surface
+        ctx.globalAlpha = 0.3;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
+        
+        // Patina/oxidation patches - irregular blobs
+        ctx.globalAlpha = 1.0;
+        for (var i = 0; i < 6; i++) {
+            var px = Math.random() * width, py = Math.random() * height;
+            var pr = width * (0.1 + Math.random() * 0.2);
+            var pGrd = ctx.createRadialGradient(px, py, 0, px, py, pr);
+            pGrd.addColorStop(0, patinaColor);
+            pGrd.addColorStop(0.6, patinaColor);
+            pGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 0.15 + Math.random() * 0.1;
+            ctx.fillStyle = pGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Scratches and wear marks
+        ctx.globalAlpha = 0.08;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.3;
+        for (var i = 0; i < 12; i++) {
+            ctx.beginPath();
+            var sx = Math.random() * width, sy = Math.random() * height;
+            var angle = Math.random() * Math.PI;
+            var len = width * (0.05 + Math.random() * 0.15);
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx + Math.cos(angle) * len, sy + Math.sin(angle) * len);
+            ctx.stroke();
+        }
+        
+        // Edge darkening / weathering
+        var eGrd = ctx.createRadialGradient(width * 0.5, height * 0.5, width * 0.15, width * 0.5, height * 0.5, width * 0.55);
+        eGrd.addColorStop(0, 'rgba(0,0,0,0)');
+        eGrd.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = eGrd;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateCelestialTexture(ctx, width, height, baseColor, highlightColor) {
+        // Base surface
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Crater impacts
+        for (var i = 0; i < 5; i++) {
+            var cx = Math.random() * width, cy = Math.random() * height;
+            var cr = width * (0.03 + Math.random() * 0.07);
+            
+            // Crater ring (raised rim)
+            ctx.globalAlpha = 0.1;
+            ctx.strokeStyle = highlightColor;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Crater shadow (inner)
+            var cGrd = ctx.createRadialGradient(cx - cr * 0.2, cy - cr * 0.2, 0, cx, cy, cr);
+            cGrd.addColorStop(0, 'rgba(0,0,0,0.12)');
+            cGrd.addColorStop(0.7, 'rgba(0,0,0,0.04)');
+            cGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = cGrd;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Surface dust / regolith variation
+        ctx.globalAlpha = 0.25;
+        ctx.drawImage(getGrainOverlay(width), 0, 0);
+        
+        // Soft glow from above
+        var sGrd = ctx.createRadialGradient(width * 0.35, height * 0.3, 0, width * 0.5, height * 0.5, width * 0.6);
+        sGrd.addColorStop(0, 'rgba(255,255,255,0.06)');
+        sGrd.addColorStop(0.5, 'rgba(255,255,255,0)');
+        sGrd.addColorStop(1, 'rgba(0,0,0,0.06)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = sGrd;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Tiny surface pebbles/rocks
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = highlightColor;
+        for (var i = 0; i < 15; i++) {
+            var px = Math.random() * width, py = Math.random() * height;
+            var ps = 0.5 + Math.random() * 1.5;
+            ctx.beginPath();
+            ctx.arc(px, py, ps, 0, Math.PI * 2);
             ctx.fill();
         }
         
@@ -821,22 +1381,68 @@ const DICE = (function() {
     }
     
     function generateWoodTexture(ctx, width, height, baseColor, grainColor) {
-        // Fill with base color
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Wood grain lines
+        // Wood grain lines - stronger
         ctx.strokeStyle = grainColor;
-        ctx.globalAlpha = 0.2;
+        ctx.globalAlpha = 0.3;
         
-        for (var i = 0; i < 20; i++) {
-            ctx.lineWidth = 1 + Math.random() * 2;
+        for (var i = 0; i < 28; i++) {
+            ctx.lineWidth = 1 + Math.random() * 3;
             ctx.beginPath();
-            var y = (i / 20) * height + (Math.random() - 0.5) * 10;
+            var y = (i / 28) * height + (Math.random() - 0.5) * 10;
             ctx.moveTo(0, y);
             
-            for (var x = 0; x < width; x += 10) {
-                y += (Math.random() - 0.5) * 4;
+            for (var x = 0; x < width; x += 8) {
+                y += (Math.random() - 0.5) * 5;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Wood knots (1-2 per face)
+        ctx.globalAlpha = 0.18;
+        for (var i = 0; i < 2; i++) {
+            var kx = width * 0.2 + Math.random() * width * 0.6;
+            var ky = height * 0.2 + Math.random() * height * 0.6;
+            for (var r = 3; r > 0; r--) {
+                ctx.beginPath();
+                ctx.ellipse(kx, ky, 4 + r * 4, 2 + r * 2, Math.random() * 0.5, 0, Math.PI * 2);
+                ctx.strokeStyle = grainColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateStoneTexture(ctx, width, height, baseColor, speckleColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Speckles - more and bolder
+        for (var i = 0; i < 300; i++) {
+            ctx.globalAlpha = 0.15 + Math.random() * 0.28;
+            ctx.fillStyle = Math.random() > 0.5 ? speckleColor : baseColor;
+            var size = 1 + Math.random() * 5;
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Subtle cracks
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = speckleColor;
+        ctx.lineWidth = 0.8;
+        for (var i = 0; i < 5; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width, y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.3;
+                y += (Math.random() - 0.5) * height * 0.3;
                 ctx.lineTo(x, y);
             }
             ctx.stroke();
@@ -845,27 +1451,698 @@ const DICE = (function() {
         ctx.globalAlpha = 1.0;
     }
     
-    function generateStoneTexture(ctx, width, height, baseColor, speckleColor) {
-        // Fill with base color
+    function generateLeatherTexture(ctx, width, height, baseColor, grainColor) {
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, width, height);
         
-        // Add random speckles
-        for (var i = 0; i < 200; i++) {
-            ctx.globalAlpha = 0.1 + Math.random() * 0.2;
-            ctx.fillStyle = Math.random() > 0.5 ? speckleColor : baseColor;
-            var size = 1 + Math.random() * 4;
+        // Leather grain: bold irregular bumps
+        ctx.globalAlpha = 0.18;
+        for (var i = 0; i < 400; i++) {
+            ctx.fillStyle = Math.random() > 0.35 ? grainColor : baseColor;
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            var w = 2 + Math.random() * 7;
+            var h = 2 + Math.random() * 5;
+            ctx.beginPath();
+            ctx.ellipse(x, y, w, h, Math.random() * Math.PI, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Crease lines - stronger
+        ctx.strokeStyle = grainColor;
+        ctx.globalAlpha = 0.14;
+        ctx.lineWidth = 0.8;
+        for (var i = 0; i < 16; i++) {
+            ctx.beginPath();
+            var x = Math.random() * width;
+            var y = Math.random() * height;
+            ctx.moveTo(x, y);
+            for (var j = 0; j < 4; j++) {
+                x += (Math.random() - 0.5) * width * 0.35;
+                y += (Math.random() - 0.5) * height * 0.35;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function generateMetalBrushedTexture(ctx, width, height, baseColor, brushColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Brushed metal: dense horizontal lines
+        ctx.globalAlpha = 0.1;
+        for (var i = 0; i < 120; i++) {
+            ctx.strokeStyle = Math.random() > 0.5 ? brushColor : baseColor;
+            ctx.lineWidth = 0.5 + Math.random() * 1.5;
+            ctx.beginPath();
+            var y = (i / 120) * height + (Math.random() - 0.5) * 6;
+            ctx.moveTo(0, y);
+            for (var x = 0; x < width; x += 5) {
+                y += (Math.random() - 0.5) * 1.5;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Strong highlight streak
+        var grad = ctx.createLinearGradient(0, 0, width, height * 0.3);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.35, 'rgba(255,255,255,0.1)');
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+        grad.addColorStop(0.65, 'rgba(255,255,255,0.1)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Galaxy/Nebula Texture
+    function generateGalaxyTexture(ctx, width, height, baseColor, nebulaColor1, nebulaColor2) {
+        // Dunkler Weltraum-Hintergrund
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Nebula-Wolken: Mehrere überlagerte Radial-Gradienten
+        var blobs = [
+            { x: 0.3, y: 0.4, r: 0.5, color: nebulaColor1, alpha: 0.35 },
+            { x: 0.7, y: 0.6, r: 0.4, color: nebulaColor2, alpha: 0.3 },
+            { x: 0.5, y: 0.3, r: 0.35, color: nebulaColor1, alpha: 0.2 },
+            { x: 0.2, y: 0.7, r: 0.3, color: nebulaColor2, alpha: 0.25 }
+        ];
+        
+        for (var i = 0; i < blobs.length; i++) {
+            var b = blobs[i];
+            var cx = b.x * width + (Math.random() - 0.5) * width * 0.15;
+            var cy = b.y * height + (Math.random() - 0.5) * height * 0.15;
+            var rad = b.r * Math.min(width, height);
+            
+            var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+            grad.addColorStop(0, b.color);
+            grad.addColorStop(0.4, b.color);
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            ctx.globalAlpha = b.alpha;
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Sterne: Viele kleine weiße Punkte
+        ctx.globalAlpha = 1.0;
+        for (var i = 0; i < 60; i++) {
+            var brightness = 0.3 + Math.random() * 0.7;
+            var size = 0.5 + Math.random() * 1.5;
+            ctx.globalAlpha = brightness;
+            ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Ein paar hellere Sterne mit Glow
+        for (var i = 0; i < 5; i++) {
+            var sx = Math.random() * width;
+            var sy = Math.random() * height;
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(sx, sy, 4 + Math.random() * 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1, 0, Math.PI * 2);
             ctx.fill();
         }
         
         ctx.globalAlpha = 1.0;
     }
     
-    function create_dice_materials(face_labels, size, margin, useGradient) {
+    // RIFT PRO: Lava-Cracks Texture
+    function generateLavaCracksTexture(ctx, width, height, baseColor, crackColor, glowColor) {
+        // Dunkle Basis
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtile Stein-Textur im Hintergrund
+        ctx.globalAlpha = 0.08;
+        for (var i = 0; i < 80; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#333' : '#111';
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, 2 + Math.random() * 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Lava-Risse zeichnen: Verzweigende leuchtende Linien
+        function drawCrack(startX, startY, angle, length, thickness, depth) {
+            if (depth <= 0 || length < 5) return;
+            
+            var x = startX;
+            var y = startY;
+            var segments = Math.floor(length / 8);
+            
+            // Glow Layer (breiterer, transparenterer Strich)
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = glowColor || crackColor;
+            ctx.lineWidth = thickness * 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            
+            var points = [{x: x, y: y}];
+            for (var i = 0; i < segments; i++) {
+                angle += (Math.random() - 0.5) * 1.2;
+                var step = 6 + Math.random() * 10;
+                x += Math.cos(angle) * step;
+                y += Math.sin(angle) * step;
+                points.push({x: x, y: y});
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Heller Kern
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = crackColor;
+            ctx.lineWidth = thickness;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (var i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            
+            // Weißer Innenkern für extra Hitze
+            ctx.globalAlpha = 0.4;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = thickness * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (var i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            
+            // Verzweigungen
+            if (depth > 1) {
+                for (var i = 0; i < 2; i++) {
+                    var branchIdx = Math.floor(Math.random() * points.length);
+                    var branchAngle = angle + (Math.random() - 0.5) * 2.5;
+                    drawCrack(points[branchIdx].x, points[branchIdx].y, branchAngle, 
+                              length * 0.5, thickness * 0.6, depth - 1);
+                }
+            }
+        }
+        
+        // 3-4 Hauptrisse von verschiedenen Seiten
+        drawCrack(0, height * 0.3, 0.3, width * 0.7, 2.5, 3);
+        drawCrack(width, height * 0.6, Math.PI + 0.5, width * 0.6, 2, 3);
+        drawCrack(width * 0.5, 0, Math.PI / 2 + 0.3, height * 0.5, 1.8, 2);
+        drawCrack(width * 0.3, height, -Math.PI / 2 - 0.2, height * 0.4, 1.5, 2);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Frost/Ice Crystal Texture
+    function generateFrostTexture(ctx, width, height, baseColor, crystalColor, accentColor) {
+        // Eisige Basis
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Subtiler radialer Gradient für Tiefe
+        var centerGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width * 0.7);
+        centerGrad.addColorStop(0, 'rgba(255,255,255,0.1)');
+        centerGrad.addColorStop(1, 'rgba(0,0,0,0.05)');
+        ctx.fillStyle = centerGrad;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Eiskristall-Äste zeichnen
+        function drawFrostBranch(x, y, angle, length, thickness, depth) {
+            if (depth <= 0 || length < 3) return;
+            
+            var endX = x + Math.cos(angle) * length;
+            var endY = y + Math.sin(angle) * length;
+            
+            // Glow
+            ctx.globalAlpha = 0.15;
+            ctx.strokeStyle = accentColor || crystalColor;
+            ctx.lineWidth = thickness * 2.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Hauptlinie
+            ctx.globalAlpha = 0.5 + depth * 0.1;
+            ctx.strokeStyle = crystalColor;
+            ctx.lineWidth = thickness;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Highlight
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = thickness * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            
+            // Verzweigungen in 60°-Winkeln (Schneekristall-Muster)
+            if (depth > 1) {
+                var branches = 2 + Math.floor(Math.random() * 2);
+                for (var i = 0; i < branches; i++) {
+                    var pos = 0.3 + Math.random() * 0.5;
+                    var bx = x + (endX - x) * pos;
+                    var by = y + (endY - y) * pos;
+                    var bAngle = angle + (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 3 + (Math.random() - 0.5) * 0.4);
+                    drawFrostBranch(bx, by, bAngle, length * 0.45, thickness * 0.6, depth - 1);
+                }
+            }
+        }
+        
+        // Mehrere Kristall-Ursprünge
+        for (var i = 0; i < 4; i++) {
+            var sx = Math.random() * width;
+            var sy = Math.random() * height;
+            var numArms = 3 + Math.floor(Math.random() * 3);
+            for (var a = 0; a < numArms; a++) {
+                var angle = (a / numArms) * Math.PI * 2 + Math.random() * 0.3;
+                drawFrostBranch(sx, sy, angle, width * 0.25, 1.5, 3);
+            }
+        }
+        
+        // Glitzerpunkte
+        for (var i = 0; i < 30; i++) {
+            ctx.globalAlpha = 0.3 + Math.random() * 0.5;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(Math.random() * width, Math.random() * height, 0.5 + Math.random() * 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Border/Frame Texture
+    function generateBorderTexture(ctx, width, height, baseColor, borderColor) {
+        // Basis-Farbe
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        var borderWidth = Math.max(8, width * 0.06);
+        var inset = borderWidth * 0.5;
+        
+        // Äußerer Rahmen Glow
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth * 2;
+        ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+        
+        // Hauptrahmen
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(inset + borderWidth * 0.5, inset + borderWidth * 0.5, 
+                        width - inset * 2 - borderWidth, height - inset * 2 - borderWidth);
+        
+        // Innerer Highlight-Strich
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = borderWidth * 0.2;
+        var innerInset = inset + borderWidth * 0.3;
+        ctx.strokeRect(innerInset, innerInset, width - innerInset * 2, height - innerInset * 2);
+        
+        // Eckverzierungen (kleine Dreiecke in den Ecken)
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = borderColor;
+        var cs = borderWidth * 1.2;
+        // Oben-links
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(cs, 0); ctx.lineTo(0, cs); ctx.closePath(); ctx.fill();
+        // Oben-rechts
+        ctx.beginPath(); ctx.moveTo(width, 0); ctx.lineTo(width - cs, 0); ctx.lineTo(width, cs); ctx.closePath(); ctx.fill();
+        // Unten-links
+        ctx.beginPath(); ctx.moveTo(0, height); ctx.lineTo(cs, height); ctx.lineTo(0, height - cs); ctx.closePath(); ctx.fill();
+        // Unten-rechts
+        ctx.beginPath(); ctx.moveTo(width, height); ctx.lineTo(width - cs, height); ctx.lineTo(width, height - cs); ctx.closePath(); ctx.fill();
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Lightning/Blitz Texture
+    function generateLightningTexture(ctx, width, height, baseColor, boltColor, glowColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        function drawBolt(x1, y1, x2, y2, thickness, depth) {
+            if (depth <= 0) return;
+            
+            var midX = (x1 + x2) / 2 + (Math.random() - 0.5) * Math.abs(x2 - x1) * 0.5;
+            var midY = (y1 + y2) / 2 + (Math.random() - 0.5) * Math.abs(y2 - y1) * 0.5;
+            
+            if (depth === 1) {
+                // Glow layer
+                ctx.globalAlpha = 0.2;
+                ctx.strokeStyle = glowColor || boltColor;
+                ctx.lineWidth = thickness * 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(midX, midY); ctx.lineTo(x2, y2); ctx.stroke();
+                
+                // Main bolt
+                ctx.globalAlpha = 0.85;
+                ctx.strokeStyle = boltColor;
+                ctx.lineWidth = thickness;
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(midX, midY); ctx.lineTo(x2, y2); ctx.stroke();
+                
+                // Hot core
+                ctx.globalAlpha = 0.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = thickness * 0.3;
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(midX, midY); ctx.lineTo(x2, y2); ctx.stroke();
+                return;
+            }
+            
+            drawBolt(x1, y1, midX, midY, thickness, depth - 1);
+            drawBolt(midX, midY, x2, y2, thickness, depth - 1);
+            
+            // Branch
+            if (Math.random() > 0.4) {
+                var bAngle = Math.atan2(y2 - y1, x2 - x1) + (Math.random() > 0.5 ? 1 : -1) * (0.4 + Math.random() * 0.8);
+                var bLen = Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) * 0.3;
+                drawBolt(midX, midY, midX + Math.cos(bAngle) * bLen, midY + Math.sin(bAngle) * bLen, thickness * 0.6, depth - 1);
+            }
+        }
+        
+        // 2-3 main bolts crossing the face
+        drawBolt(width * 0.1, 0, width * 0.8, height, 2.0, 4);
+        drawBolt(width * 0.9, height * 0.1, width * 0.2, height * 0.9, 1.5, 3);
+        if (Math.random() > 0.3) drawBolt(0, height * 0.5, width, height * 0.4, 1.2, 3);
+        
+        // Ambient electric glow spots
+        for (var i = 0; i < 4; i++) {
+            var gx = Math.random() * width, gy = Math.random() * height;
+            var gRad = ctx.createRadialGradient(gx, gy, 0, gx, gy, 15 + Math.random() * 20);
+            gRad.addColorStop(0, glowColor || boltColor);
+            gRad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = gRad;
+            ctx.fillRect(0, 0, width, height);
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Dragon Scale Texture
+    function generateDragonScaleTexture(ctx, width, height, baseColor, scaleColor, highlightColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        var scaleW = width / 6;
+        var scaleH = height / 5;
+        
+        for (var row = -1; row < 7; row++) {
+            for (var col = -1; col < 8; col++) {
+                var x = col * scaleW + (row % 2 ? scaleW * 0.5 : 0);
+                var y = row * scaleH * 0.75;
+                
+                // Scale shape (rounded arch)
+                ctx.beginPath();
+                ctx.moveTo(x, y + scaleH);
+                ctx.quadraticCurveTo(x, y, x + scaleW / 2, y);
+                ctx.quadraticCurveTo(x + scaleW, y, x + scaleW, y + scaleH);
+                ctx.closePath();
+                
+                // Scale fill with subtle variation
+                var variation = 0.85 + Math.random() * 0.3;
+                ctx.globalAlpha = 0.25 * variation;
+                ctx.fillStyle = scaleColor;
+                ctx.fill();
+                
+                // Scale edge
+                ctx.globalAlpha = 0.35;
+                ctx.strokeStyle = scaleColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Highlight on top edge
+                ctx.globalAlpha = 0.15;
+                ctx.strokeStyle = highlightColor || '#ffffff';
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(x + scaleW * 0.15, y + scaleH * 0.3);
+                ctx.quadraticCurveTo(x + scaleW / 2, y - scaleH * 0.05, x + scaleW * 0.85, y + scaleH * 0.3);
+                ctx.stroke();
+            }
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Runic/Arcane Texture
+    function generateRunicTexture(ctx, width, height, baseColor, runeColor, glowColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Faint magic circle in center
+        var cx = width / 2, cy = height / 2;
+        var circleR = Math.min(width, height) * 0.35;
+        
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = runeColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cy, circleR, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, circleR * 0.7, 0, Math.PI * 2); ctx.stroke();
+        
+        // Inscribed polygon
+        ctx.globalAlpha = 0.1;
+        var sides = 5 + Math.floor(Math.random() * 3);
+        ctx.beginPath();
+        for (var i = 0; i <= sides; i++) {
+            var angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+            var px = cx + Math.cos(angle) * circleR * 0.85;
+            var py = cy + Math.sin(angle) * circleR * 0.85;
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        
+        // Random rune-like symbols scattered
+        function drawRune(rx, ry, size) {
+            var type = Math.floor(Math.random() * 6);
+            ctx.save();
+            ctx.translate(rx, ry);
+            ctx.rotate(Math.random() * Math.PI * 2);
+            ctx.beginPath();
+            
+            switch(type) {
+                case 0: // Vertical with cross
+                    ctx.moveTo(0, -size); ctx.lineTo(0, size);
+                    ctx.moveTo(-size*0.5, -size*0.3); ctx.lineTo(size*0.5, size*0.3);
+                    break;
+                case 1: // Triangle
+                    ctx.moveTo(0, -size); ctx.lineTo(size*0.7, size*0.5); ctx.lineTo(-size*0.7, size*0.5); ctx.closePath();
+                    break;
+                case 2: // Diamond
+                    ctx.moveTo(0, -size); ctx.lineTo(size*0.5, 0); ctx.lineTo(0, size); ctx.lineTo(-size*0.5, 0); ctx.closePath();
+                    break;
+                case 3: // Arrow
+                    ctx.moveTo(0, -size); ctx.lineTo(0, size);
+                    ctx.moveTo(-size*0.4, -size*0.4); ctx.lineTo(0, -size); ctx.lineTo(size*0.4, -size*0.4);
+                    break;
+                case 4: // Zigzag
+                    ctx.moveTo(-size*0.5, -size); ctx.lineTo(size*0.5, -size*0.3);
+                    ctx.lineTo(-size*0.5, size*0.3); ctx.lineTo(size*0.5, size);
+                    break;
+                case 5: // Circle with dot
+                    ctx.arc(0, 0, size * 0.6, 0, Math.PI * 2);
+                    ctx.moveTo(2, 0); ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                    break;
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        // Glow pass for runes
+        ctx.strokeStyle = glowColor || runeColor;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.06;
+        for (var i = 0; i < 8; i++) {
+            drawRune(Math.random() * width, Math.random() * height, 6 + Math.random() * 10);
+        }
+        
+        // Sharp pass
+        ctx.strokeStyle = runeColor;
+        ctx.lineWidth = 0.8;
+        ctx.globalAlpha = 0.25;
+        for (var i = 0; i < 8; i++) {
+            drawRune(Math.random() * width, Math.random() * height, 6 + Math.random() * 10);
+        }
+        
+        // Center glow
+        var centerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, circleR);
+        centerGlow.addColorStop(0, glowColor || runeColor);
+        centerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = centerGlow;
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Circuit Board Texture
+    function generateCircuitTexture(ctx, width, height, baseColor, traceColor, glowColor) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+        
+        var gridSize = Math.min(width, height) / 8;
+        
+        function drawTrace(startX, startY, length) {
+            var x = startX, y = startY;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            
+            for (var i = 0; i < length; i++) {
+                var dir = Math.floor(Math.random() * 4);
+                switch(dir) {
+                    case 0: x += gridSize; break;
+                    case 1: x -= gridSize; break;
+                    case 2: y += gridSize; break;
+                    case 3: y -= gridSize; break;
+                }
+                x = Math.max(0, Math.min(width, x));
+                y = Math.max(0, Math.min(height, y));
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Node/pad at end
+            ctx.beginPath();
+            ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Glow layer
+        ctx.strokeStyle = glowColor || traceColor;
+        ctx.fillStyle = glowColor || traceColor;
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.08;
+        for (var i = 0; i < 10; i++) {
+            drawTrace(Math.random() * width, Math.random() * height, 3 + Math.floor(Math.random() * 5));
+        }
+        
+        // Main traces
+        ctx.strokeStyle = traceColor;
+        ctx.fillStyle = traceColor;
+        ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.3;
+        for (var i = 0; i < 10; i++) {
+            drawTrace(Math.random() * width, Math.random() * height, 3 + Math.floor(Math.random() * 5));
+        }
+        
+        // Connection pads
+        ctx.globalAlpha = 0.25;
+        for (var i = 0; i < 6; i++) {
+            var px = Math.round(Math.random() * 6) * gridSize;
+            var py = Math.round(Math.random() * 6) * gridSize;
+            ctx.fillStyle = traceColor;
+            ctx.fillRect(px - 3, py - 3, 6, 6);
+        }
+        
+        // Subtle grid dots
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = traceColor;
+        for (var gx = 0; gx < width; gx += gridSize) {
+            for (var gy = 0; gy < height; gy += gridSize) {
+                ctx.beginPath();
+                ctx.arc(gx, gy, 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // RIFT PRO: Procedural Environment Map for reflective materials (Chrome, Crystal, Gems)
+    var _proceduralEnvMap = null;
+    function getProceduralEnvMap() {
+        if (_proceduralEnvMap) return _proceduralEnvMap;
+        
+        var size = 256;
+        var canvases = [];
+        
+        // 6 cube faces: +X, -X, +Y (top), -Y (bottom), +Z, -Z
+        for (var face = 0; face < 6; face++) {
+            var canvas = document.createElement('canvas');
+            canvas.width = canvas.height = size;
+            var ctx = canvas.getContext('2d');
+            
+            var grd;
+            if (face === 2) {
+                // +Y (top) - bright overhead light area
+                ctx.fillStyle = '#0a0c12';
+                ctx.fillRect(0, 0, size, size);
+                // Main overhead light - bright and focused
+                var spot = ctx.createRadialGradient(size * 0.45, size * 0.45, 0, size * 0.45, size * 0.45, size * 0.4);
+                spot.addColorStop(0, '#ffffff');
+                spot.addColorStop(0.15, '#e8eaf0');
+                spot.addColorStop(0.4, '#808898');
+                spot.addColorStop(0.7, '#303848');
+                spot.addColorStop(1, '#0a0c12');
+                ctx.fillStyle = spot;
+                ctx.fillRect(0, 0, size, size);
+                // Secondary fill light
+                var fill = ctx.createRadialGradient(size * 0.8, size * 0.3, 0, size * 0.8, size * 0.3, size * 0.25);
+                fill.addColorStop(0, 'rgba(200,210,230,0.6)');
+                fill.addColorStop(0.5, 'rgba(100,110,130,0.2)');
+                fill.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = fill;
+                ctx.fillRect(0, 0, size, size);
+            } else if (face === 3) {
+                // -Y (bottom) - dark ground, near black
+                grd = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.7);
+                grd.addColorStop(0, '#0e1018');
+                grd.addColorStop(1, '#040508');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, size, size);
+            } else {
+                // Sides - dark with distinct bright streak for specular pickup
+                ctx.fillStyle = '#08090e';
+                ctx.fillRect(0, 0, size, size);
+                // Vertical bright streak - different position per face
+                var xPos = size * (0.2 + (face * 0.15));
+                var streak = ctx.createLinearGradient(xPos - size * 0.12, 0, xPos + size * 0.12, 0);
+                streak.addColorStop(0, 'rgba(0,0,0,0)');
+                streak.addColorStop(0.3, 'rgba(60,70,90,0.4)');
+                streak.addColorStop(0.5, 'rgba(160,170,200,0.5)');
+                streak.addColorStop(0.7, 'rgba(60,70,90,0.4)');
+                streak.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = streak;
+                ctx.fillRect(0, 0, size, size);
+                // Top fade from bright ceiling
+                var topFade = ctx.createLinearGradient(0, 0, 0, size);
+                topFade.addColorStop(0, 'rgba(120,130,160,0.35)');
+                topFade.addColorStop(0.3, 'rgba(40,50,70,0.1)');
+                topFade.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = topFade;
+                ctx.fillRect(0, 0, size, size);
+            }
+            
+            canvases.push(canvas);
+        }
+        
+        _proceduralEnvMap = new THREE.CubeTexture(canvases);
+        _proceduralEnvMap.needsUpdate = true;
+        return _proceduralEnvMap;
+    }
+    
+    function create_dice_materials(face_labels, size, margin, useGradient, textYOffset) {
         // Default: use gradient if available (but can be disabled for d10)
         if (useGradient === undefined) useGradient = true;
+        if (textYOffset === undefined) textYOffset = 0;
         
         // RIFT: Determine background color - use middle gradient color if gradient disabled but available
         var backgroundColor = vars.dice_color;
@@ -890,11 +2167,56 @@ const DICE = (function() {
                     case 'marble':
                         generateMarbleTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
                         break;
+                    case 'crystal':
+                        generateCrystalTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'gem':
+                        generateGemTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'lava':
+                        generateLavaTexture(context, ts, ts, tex.baseColor || back_color, tex.glowColor || '#ff4400');
+                        break;
+                    case 'pearlescent':
+                        generatePearlescentTexture(context, ts, ts, tex.baseColor || back_color, tex.shimmerColor || '#ffccee');
+                        break;
+                    case 'toxic':
+                        generateToxicTexture(context, ts, ts, tex.baseColor || back_color, tex.neonColor || '#44ff44');
+                        break;
+                    case 'patina':
+                        generatePatinaTexture(context, ts, ts, tex.baseColor || back_color, tex.patinaColor || '#44aa88');
+                        break;
+                    case 'celestial':
+                        generateCelestialTexture(context, ts, ts, tex.baseColor || back_color, tex.highlightColor || '#ccccdd');
+                        break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
                         break;
                     case 'stone':
                         generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
+                        break;
+                    case 'leather':
+                        generateLeatherTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#2a1a0a');
+                        break;
+                    case 'metal':
+                        generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
+                        break;
+                    case 'galaxy':
+                        generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
+                        break;
+                    case 'frost':
+                        generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
+                        break;
+                    case 'border':
+                        generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
+                        break;
+                    case 'lightning':
+                        generateLightningTexture(context, ts, ts, tex.baseColor || '#0a0a0e', tex.boltColor || '#88aaff', tex.glowColor || '#4466ff');
+                        break;
+                    case 'dragonscale':
+                        generateDragonScaleTexture(context, ts, ts, tex.baseColor || '#1a0808', tex.scaleColor || '#660000', tex.highlightColor || '#ff4444');
+                        break;
+                    case 'runic':
+                        generateRunicTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.runeColor || '#ffd700', tex.glowColor || '#ffaa00');
                         break;
                     default:
                         context.fillStyle = back_color;
@@ -934,8 +2256,109 @@ const DICE = (function() {
             
             context.textAlign = "center";
             context.textBaseline = "middle";
-            context.fillStyle = color;
-            context.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            // RIFT: D10 kite-face text centering — shift text down slightly
+            if (textYOffset) {
+                context.translate(0, textYOffset * ts);
+            }
+            
+            // RIFT: Premium text styles
+            if (vars.dice_text_style === 'emboss') {
+                var cx = canvas.width / 2, cy = canvas.height / 2;
+                var off = ts * 0.02;
+                // Strong dark shadow below-right
+                context.fillStyle = 'rgba(0,0,0,0.7)';
+                context.fillText(text, cx + off, cy + off);
+                // Medium dark layer
+                context.fillStyle = 'rgba(0,0,0,0.35)';
+                context.fillText(text, cx + off * 0.5, cy + off * 0.5);
+                // Bright highlight top-left
+                context.fillStyle = 'rgba(255,255,255,0.6)';
+                context.fillText(text, cx - off * 0.6, cy - off * 0.6);
+                // Main text
+                context.fillStyle = color;
+                context.fillText(text, cx, cy);
+                // Top specular pass
+                context.save();
+                context.globalAlpha = 0.12;
+                context.fillStyle = '#ffffff';
+                context.fillText(text, cx - off * 0.2, cy - off * 0.2);
+                context.restore();
+            } else if (vars.dice_text_style === 'engrave') {
+                var cx = canvas.width / 2, cy = canvas.height / 2;
+                var off = ts * 0.014;
+                // Light edge top-left (light catching the carved edge)
+                context.fillStyle = 'rgba(255,255,255,0.35)';
+                context.fillText(text, cx - off, cy - off);
+                // Dark inner shadow bottom-right (depth of the carving)
+                context.fillStyle = 'rgba(0,0,0,0.45)';
+                context.fillText(text, cx + off * 0.6, cy + off * 0.6);
+                // Main text slightly darker than surface
+                context.fillStyle = color;
+                context.globalAlpha = 0.85;
+                context.fillText(text, cx, cy);
+                context.globalAlpha = 1.0;
+            } else if (vars.dice_text_style === 'neon') {
+                var neonColor = vars.dice_neon_color || color;
+                // Äußerer Glow (breit + transparent)
+                context.save();
+                context.shadowColor = neonColor;
+                context.shadowBlur = ts * 0.12;
+                context.shadowOffsetX = 0;
+                context.shadowOffsetY = 0;
+                context.fillStyle = neonColor;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                // Zweiter Glow-Pass für Intensität
+                context.shadowBlur = ts * 0.06;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                context.restore();
+                // Heller Kern
+                context.fillStyle = '#ffffff';
+                context.globalAlpha = 0.9;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                context.globalAlpha = 1.0;
+            } else if (vars.dice_text_style === 'metallic') {
+                var color2 = vars.dice_text_color2 || '#333333';
+                var cx = canvas.width / 2, cy = canvas.height / 2;
+                // Metallic via contrast layering (works at any size/angle)
+                // 1. Dark outer stroke (shadow edge of metal)
+                context.strokeStyle = color2;
+                context.lineWidth = ts * 0.035;
+                context.lineJoin = 'round';
+                context.strokeText(text, cx, cy);
+                // 2. Bright main fill (reflective surface)
+                context.fillStyle = color;
+                context.fillText(text, cx, cy);
+                // 3. Top-left highlight (specular catch)
+                context.save();
+                context.globalAlpha = 0.35;
+                context.globalCompositeOperation = 'lighter';
+                context.fillStyle = '#ffffff';
+                context.fillText(text, cx - ts * 0.008, cy - ts * 0.01);
+                context.restore();
+                // 4. Thin bright inner edge at top
+                context.save();
+                context.globalAlpha = 0.2;
+                context.strokeStyle = '#ffffff';
+                context.lineWidth = ts * 0.008;
+                context.lineJoin = 'round';
+                context.strokeText(text, cx, cy - ts * 0.005);
+                context.restore();
+            } else if (vars.dice_text_style === 'outline') {
+                var strokeColor = vars.dice_text_color2 || '#000000';
+                var cx = canvas.width / 2, cy = canvas.height / 2;
+                // Thick outer stroke
+                context.strokeStyle = strokeColor;
+                context.lineWidth = ts * 0.045;
+                context.lineJoin = 'round';
+                context.strokeText(text, cx, cy);
+                // Fill
+                context.fillStyle = color;
+                context.fillText(text, cx, cy);
+            } else {
+                context.fillStyle = color;
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+            }
             if (text == '6' || text == '9') {
                 context.fillText('  .', canvas.width / 2, canvas.height / 2);
             }
@@ -947,6 +2370,23 @@ const DICE = (function() {
         for (var i = 0; i < face_labels.length; ++i) {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_text_texture(face_labels[i], vars.label_color, backgroundColor) });
+            
+            // RIFT: Per-theme material overrides (metallic, glass, gem, etc.)
+            if (vars.dice_material_override) {
+                var ov = vars.dice_material_override;
+                if (ov.shininess !== undefined) matOptions.shininess = ov.shininess;
+                if (ov.specular !== undefined) matOptions.specular = ov.specular;
+                if (ov.emissive !== undefined) matOptions.emissive = ov.emissive;
+                if (ov.opacity !== undefined) matOptions.opacity = ov.opacity;
+                if (ov.transparent !== undefined) matOptions.transparent = ov.transparent;
+                if (ov.side !== undefined) matOptions.side = ov.side;
+                if (ov.shading !== undefined) matOptions.shading = ov.shading;
+                if (ov.depthWrite !== undefined) matOptions.depthWrite = ov.depthWrite;
+                if (ov.envMap) { matOptions.envMap = getProceduralEnvMap(); matOptions.combine = ov.combine || THREE.MixOperation; }
+                if (ov.reflectivity !== undefined) matOptions.reflectivity = ov.reflectivity;
+                if (ov.wireframe) matOptions.wireframe = true;
+                if (ov.flatShading) matOptions.flatShading = true;
+            }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
@@ -968,11 +2408,56 @@ const DICE = (function() {
                     case 'marble':
                         generateMarbleTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
                         break;
+                    case 'crystal':
+                        generateCrystalTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'gem':
+                        generateGemTexture(context, ts, ts, tex.baseColor || back_color, tex.veinColor || '#ffffff');
+                        break;
+                    case 'lava':
+                        generateLavaTexture(context, ts, ts, tex.baseColor || back_color, tex.glowColor || '#ff4400');
+                        break;
+                    case 'pearlescent':
+                        generatePearlescentTexture(context, ts, ts, tex.baseColor || back_color, tex.shimmerColor || '#ffccee');
+                        break;
+                    case 'toxic':
+                        generateToxicTexture(context, ts, ts, tex.baseColor || back_color, tex.neonColor || '#44ff44');
+                        break;
+                    case 'patina':
+                        generatePatinaTexture(context, ts, ts, tex.baseColor || back_color, tex.patinaColor || '#44aa88');
+                        break;
+                    case 'celestial':
+                        generateCelestialTexture(context, ts, ts, tex.baseColor || back_color, tex.highlightColor || '#ccccdd');
+                        break;
                     case 'wood':
                         generateWoodTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#3d2817');
                         break;
                     case 'stone':
                         generateStoneTexture(context, ts, ts, tex.baseColor || back_color, tex.speckleColor || '#666666');
+                        break;
+                    case 'leather':
+                        generateLeatherTexture(context, ts, ts, tex.baseColor || back_color, tex.grainColor || '#2a1a0a');
+                        break;
+                    case 'metal':
+                        generateMetalBrushedTexture(context, ts, ts, tex.baseColor || back_color, tex.brushColor || '#ffffff');
+                        break;
+                    case 'galaxy':
+                        generateGalaxyTexture(context, ts, ts, tex.baseColor || '#0a0a14', tex.nebulaColor1 || '#4400aa', tex.nebulaColor2 || '#0066cc');
+                        break;
+                    case 'frost':
+                        generateFrostTexture(context, ts, ts, tex.baseColor || '#e8f0f8', tex.crystalColor || '#88ccee', tex.accentColor || '#aaddff');
+                        break;
+                    case 'border':
+                        generateBorderTexture(context, ts, ts, tex.baseColor || back_color, tex.borderColor || '#ffd700');
+                        break;
+                    case 'lightning':
+                        generateLightningTexture(context, ts, ts, tex.baseColor || '#0a0a0e', tex.boltColor || '#88aaff', tex.glowColor || '#4466ff');
+                        break;
+                    case 'dragonscale':
+                        generateDragonScaleTexture(context, ts, ts, tex.baseColor || '#1a0808', tex.scaleColor || '#660000', tex.highlightColor || '#ff4444');
+                        break;
+                    case 'runic':
+                        generateRunicTexture(context, ts, ts, tex.baseColor || '#0a0a0a', tex.runeColor || '#ffd700', tex.glowColor || '#ffaa00');
                         break;
                     default:
                         context.fillStyle = back_color;
@@ -1009,10 +2494,85 @@ const DICE = (function() {
             
             context.textAlign = "center";
             context.textBaseline = "middle";
-            context.fillStyle = color;
+            
+            // RIFT: D4 text with style support
             for (var i in text) {
-                context.fillText(text[i], canvas.width / 2,
-                        canvas.height / 2 - ts * 0.3);
+                var cx = canvas.width / 2, cy = canvas.height / 2 - ts * 0.3;
+                
+                if (vars.dice_text_style === 'emboss') {
+                    var off = ts * 0.02;
+                    context.fillStyle = 'rgba(0,0,0,0.7)';
+                    context.fillText(text[i], cx + off, cy + off);
+                    context.fillStyle = 'rgba(0,0,0,0.35)';
+                    context.fillText(text[i], cx + off * 0.5, cy + off * 0.5);
+                    context.fillStyle = 'rgba(255,255,255,0.6)';
+                    context.fillText(text[i], cx - off * 0.6, cy - off * 0.6);
+                    context.fillStyle = color;
+                    context.fillText(text[i], cx, cy);
+                    context.save();
+                    context.globalAlpha = 0.12;
+                    context.fillStyle = '#ffffff';
+                    context.fillText(text[i], cx - off * 0.2, cy - off * 0.2);
+                    context.restore();
+                } else if (vars.dice_text_style === 'engrave') {
+                    var off = ts * 0.014;
+                    context.fillStyle = 'rgba(255,255,255,0.35)';
+                    context.fillText(text[i], cx - off, cy - off);
+                    context.fillStyle = 'rgba(0,0,0,0.45)';
+                    context.fillText(text[i], cx + off * 0.6, cy + off * 0.6);
+                    context.fillStyle = color;
+                    context.globalAlpha = 0.85;
+                    context.fillText(text[i], cx, cy);
+                    context.globalAlpha = 1.0;
+                } else if (vars.dice_text_style === 'neon') {
+                    var neonColor = vars.dice_neon_color || color;
+                    context.save();
+                    context.shadowColor = neonColor;
+                    context.shadowBlur = ts * 0.12;
+                    context.shadowOffsetX = 0; context.shadowOffsetY = 0;
+                    context.fillStyle = neonColor;
+                    context.fillText(text[i], cx, cy);
+                    context.shadowBlur = ts * 0.06;
+                    context.fillText(text[i], cx, cy);
+                    context.restore();
+                    context.fillStyle = '#ffffff';
+                    context.globalAlpha = 0.9;
+                    context.fillText(text[i], cx, cy);
+                    context.globalAlpha = 1.0;
+                } else if (vars.dice_text_style === 'metallic') {
+                    var color2 = vars.dice_text_color2 || '#333333';
+                    context.strokeStyle = color2;
+                    context.lineWidth = ts * 0.035;
+                    context.lineJoin = 'round';
+                    context.strokeText(text[i], cx, cy);
+                    context.fillStyle = color;
+                    context.fillText(text[i], cx, cy);
+                    context.save();
+                    context.globalAlpha = 0.35;
+                    context.globalCompositeOperation = 'lighter';
+                    context.fillStyle = '#ffffff';
+                    context.fillText(text[i], cx - ts * 0.008, cy - ts * 0.01);
+                    context.restore();
+                    context.save();
+                    context.globalAlpha = 0.2;
+                    context.strokeStyle = '#ffffff';
+                    context.lineWidth = ts * 0.008;
+                    context.lineJoin = 'round';
+                    context.strokeText(text[i], cx, cy - ts * 0.005);
+                    context.restore();
+                } else if (vars.dice_text_style === 'outline') {
+                    var strokeColor = vars.dice_text_color2 || '#000000';
+                    context.strokeStyle = strokeColor;
+                    context.lineWidth = ts * 0.045;
+                    context.lineJoin = 'round';
+                    context.strokeText(text[i], cx, cy);
+                    context.fillStyle = color;
+                    context.fillText(text[i], cx, cy);
+                } else {
+                    context.fillStyle = color;
+                    context.fillText(text[i], cx, cy);
+                }
+                
                 context.translate(canvas.width / 2, canvas.height / 2);
                 context.rotate(Math.PI * 2 / 3);
                 context.translate(-canvas.width / 2, -canvas.height / 2);
@@ -1025,6 +2585,22 @@ const DICE = (function() {
         for (var i = 0; i < labels.length; ++i) {
             var matOptions = $t.copyto(vars.material_options,
                 { map: create_d4_text(labels[i], vars.label_color, vars.dice_color) });
+            
+            if (vars.dice_material_override) {
+                var ov = vars.dice_material_override;
+                if (ov.shininess !== undefined) matOptions.shininess = ov.shininess;
+                if (ov.specular !== undefined) matOptions.specular = ov.specular;
+                if (ov.emissive !== undefined) matOptions.emissive = ov.emissive;
+                if (ov.opacity !== undefined) matOptions.opacity = ov.opacity;
+                if (ov.transparent !== undefined) matOptions.transparent = ov.transparent;
+                if (ov.side !== undefined) matOptions.side = ov.side;
+                if (ov.shading !== undefined) matOptions.shading = ov.shading;
+                if (ov.depthWrite !== undefined) matOptions.depthWrite = ov.depthWrite;
+                if (ov.envMap) { matOptions.envMap = getProceduralEnvMap(); matOptions.combine = ov.combine || THREE.MixOperation; }
+                if (ov.reflectivity !== undefined) matOptions.reflectivity = ov.reflectivity;
+                if (ov.wireframe) matOptions.wireframe = true;
+                if (ov.flatShading) matOptions.flatShading = true;
+            }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
         }
@@ -1053,16 +2629,115 @@ const DICE = (function() {
     }
 
     function create_d10_geometry(radius) {
-        var a = Math.PI * 2 / 10, k = Math.cos(a), h = 0.105, v = -1;
+        var a = Math.PI * 2 / 10, h = 0.105;
         var vertices = [];
         for (var i = 0, b = 0; i < 10; ++i, b += a)
             vertices.push([Math.cos(b), Math.sin(b), h * (i % 2 ? 1 : -1)]);
-        vertices.push([0, 0, -1]); vertices.push([0, 0, 1]);
-        var faces = [[5, 7, 11, 0], [4, 2, 10, 1], [1, 3, 11, 2], [0, 8, 10, 3], [7, 9, 11, 4],
-                [8, 6, 10, 5], [9, 1, 11, 6], [2, 0, 10, 7], [3, 5, 11, 8], [6, 4, 10, 9],
-                [1, 0, 2, v], [1, 2, 3, v], [3, 2, 4, v], [3, 4, 5, v], [5, 4, 6, v],
-                [5, 6, 7, v], [7, 6, 8, v], [7, 8, 9, v], [9, 8, 0, v], [9, 0, 1, v]];
-        return create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
+        vertices.push([0, 0, -1]); // 10 = Südpol
+        vertices.push([0, 0, 1]);  // 11 = Nordpol
+        
+        // RIFT FIX: Kite-Faces als 4-Eck-Quads statt 20 separate Dreiecke.
+        // Jedes Quad = Pol → Ring-A → Ring-B → anderer Pol.
+        // make_geom fan-trianguliert: 2 Triangles pro Quad, GLEICHER materialIndex.
+        // → Textur/Gradient nahtlos über gesamte Kite-Fläche.
+        var faces = [
+            [11, 5, 6, 7, 0],   // Kite 0: N-Pol, ring5(up), ring6(down), ring7(up)
+            [10, 4, 3, 2, 1],   // Kite 1: S-Pol, ring4(down), ring3(up), ring2(down)
+            [11, 1, 2, 3, 2],   // Kite 2: N-Pol, ring1(up), ring2(down), ring3(up)
+            [10, 0, 9, 8, 3],   // Kite 3: S-Pol, ring0(down), ring9(up), ring8(down)
+            [11, 7, 8, 9, 4],   // Kite 4: N-Pol, ring7(up), ring8(down), ring9(up)
+            [10, 8, 7, 6, 5],   // Kite 5: S-Pol, ring8(down), ring7(up), ring6(down)
+            [11, 9, 0, 1, 6],   // Kite 6: N-Pol, ring9(up), ring0(down), ring1(up)
+            [10, 2, 1, 0, 7],   // Kite 7: S-Pol, ring2(down), ring1(up), ring0(down)
+            [11, 3, 4, 5, 8],   // Kite 8: N-Pol, ring3(up), ring4(down), ring5(up)
+            [10, 6, 5, 4, 9],   // Kite 9: S-Pol, ring6(down), ring5(up), ring4(down)
+        ];
+        var geom = create_geom(vertices, faces, radius, 0, Math.PI * 6 / 5, 0.945);
+        
+        // RIFT FIX: Kite-UV-Korrektur
+        // make_geom setzt reguläre Quadrat-UVs (aa=π/2), aber die Kite-Fläche ist
+        // höher als breit → Text wird verzerrt. Fix: UVs aus echten 3D-Positionen
+        // berechnen, damit gleiche Abstände in UV = gleiche Abstände auf der Fläche.
+        var faceGroups = {};
+        for (var i = 0; i < geom.faces.length; i++) {
+            var mi = geom.faces[i].materialIndex;
+            if (mi === 0) continue; // Chamfer-Flächen überspringen
+            if (!faceGroups[mi]) faceGroups[mi] = [];
+            faceGroups[mi].push(i);
+        }
+        
+        for (var mi in faceGroups) {
+            var triIndices = faceGroups[mi];
+            
+            // Sammle einzigartige Vertices dieser Kite-Fläche (2 Tris → 4 Verts)
+            var vertMap = {}; // vertex-index → position im Array
+            var verts = [];
+            for (var t = 0; t < triIndices.length; t++) {
+                var face = geom.faces[triIndices[t]];
+                var abc = [face.a, face.b, face.c];
+                for (var v = 0; v < 3; v++) {
+                    var vi = abc[v];
+                    if (vertMap[vi] === undefined) {
+                        vertMap[vi] = verts.length;
+                        verts.push(geom.vertices[vi]);
+                    }
+                }
+            }
+            
+            // Face-Zentrum
+            var center = new THREE.Vector3(0, 0, 0);
+            for (var v = 0; v < verts.length; v++) center.add(verts[v]);
+            center.divideScalar(verts.length);
+            
+            // Face-Normale (vom ersten Triangle)
+            var normal = geom.faces[triIndices[0]].normal.clone().normalize();
+            
+            // Lokales 2D-Koordinatensystem auf der Face-Plane
+            // "Oben" = Richtung zum Pol-Vertex (höchstes |z|) → konsistente Orientierung
+            var poleVi = -1, maxAbsZ = -1;
+            for (var vi in vertMap) {
+                var absZ = Math.abs(geom.vertices[vi].z);
+                if (absZ > maxAbsZ) { maxAbsZ = absZ; poleVi = parseInt(vi); }
+            }
+            var toPole = new THREE.Vector3().subVectors(geom.vertices[poleVi], center);
+            // Auf Face-Plane projizieren
+            var yAxis = toPole.clone().sub(normal.clone().multiplyScalar(toPole.dot(normal))).normalize();
+            var xAxis = new THREE.Vector3().crossVectors(yAxis, normal).normalize();
+            
+            // Alle Vertices in 2D projizieren
+            var coords = {};
+            var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (var vi in vertMap) {
+                var rel = new THREE.Vector3().subVectors(geom.vertices[vi], center);
+                var x = rel.dot(xAxis);
+                var y = rel.dot(yAxis);
+                coords[vi] = { x: x, y: y };
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+            }
+            
+            // UV-Mapping: Auf [0,1] skalieren MIT korrektem Aspect-Ratio
+            var w = maxX - minX, h = maxY - minY;
+            var scale = Math.max(w, h);
+            var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+            
+            // UVs auf Triangle-Faces anwenden
+            for (var t = 0; t < triIndices.length; t++) {
+                var fi = triIndices[t];
+                var face = geom.faces[fi];
+                var abc = [face.a, face.b, face.c];
+                var uvs = [];
+                for (var v = 0; v < 3; v++) {
+                    var u0 = (coords[abc[v]].x - cx) / scale + 0.5;
+                    var v0 = (coords[abc[v]].y - cy) / scale + 0.5;
+                    uvs.push(new THREE.Vector2(u0, v0));
+                }
+                geom.faceVertexUvs[0][fi] = uvs;
+            }
+        }
+        
+        geom.uvsNeedUpdate = true;
+        return geom;
     }
 
     function create_d12_geometry(radius) {
@@ -1338,16 +3013,6 @@ const DICE = (function() {
         // RIFT: Global sound toggle
         if (window.RIFT_DICE_SOUND === false) return;
         if (soundVolume === 0) return;
-        // RIFT: Read user volume settings from localStorage
-        try {
-            var s = JSON.parse(localStorage.getItem('rift_settings') || '{}');
-            if (s.muteAll === true) return;
-            var master = (s.masterVolume != null ? s.masterVolume : 80) / 100;
-            var dice = (s.diceVolume != null ? s.diceVolume : 100) / 100;
-            soundVolume = soundVolume * master * dice;
-            if (soundVolume <= 0) return;
-            if (soundVolume > 1) soundVolume = 1;
-        } catch(e) {}
         const audio = document.createElement('audio');
         outerContainer.appendChild(audio);
         audio.src = 'assets/libs/dice/assets/nc93322.mp3'; //RIFT: adjusted path
@@ -1380,9 +3045,8 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.4);
                 break;
             case 'd10':
-                // D10: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, false);
+                materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0, true, 0.08);
                 break;
             case 'd12':
                 geometry = create_d12_geometry(vars.scale * 0.9);
@@ -1393,9 +3057,8 @@ const DICE = (function() {
                 materials = create_dice_materials(CONSTS.standart_d20_dice_face_labels, vars.scale / 2, 1.0);
                 break;
             case 'd100':
-                // D100: disable gradient to avoid visible seams
                 geometry = create_d10_geometry(vars.scale * 0.9);
-                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, false);
+                materials = create_dice_materials(CONSTS.standart_d100_dice_face_labels, vars.scale / 2, 1.5, true, 0.08);
                 break;
             default:
                 vars.scale = originalScale;
@@ -1407,6 +3070,32 @@ const DICE = (function() {
         const material = new THREE.MeshFaceMaterial(materials);
         const mesh = new THREE.Mesh(geometry, material);
         mesh.castShadow = true;
+        
+        // RIFT: Wireframe edge overlay for preview (same as rolling dice)
+        if (vars.dice_material_override && vars.dice_material_override.wireframeEdges) {
+            var edgeColor = vars.dice_material_override.wireframeEdgeColor || 0x00ffcc;
+            var edgeOpacity = vars.dice_material_override.wireframeEdgeOpacity || 0.8;
+            try {
+                if (THREE.EdgesGeometry && THREE.LineSegments) {
+                    var edges = new THREE.EdgesGeometry(geometry, 15);
+                    var lineMat = new THREE.LineBasicMaterial({ 
+                        color: edgeColor, 
+                        transparent: true, 
+                        opacity: edgeOpacity,
+                        linewidth: 2
+                    });
+                    var wireframe = new THREE.LineSegments(edges, lineMat);
+                    mesh.add(wireframe);
+                }
+            } catch(e) {
+                // Fallback: add wireframe overlay on material
+                if (mesh.material && mesh.material.materials) {
+                    mesh.material.materials.forEach(function(m) {
+                        if (m.map) { m.wireframe = true; m.wireframeLinewidth = 1; }
+                    });
+                }
+            }
+        }
         
         return mesh;
     };
