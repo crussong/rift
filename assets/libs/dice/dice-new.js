@@ -653,6 +653,20 @@ const DICE = (function() {
             vars.dice_neon_color = null;
         }
         
+        // RIFT: Theme→Glow bridge - themes can force glow on/off
+        if (materialOverride && materialOverride.themeGlow) {
+            vars.dice_glow = true;
+            vars.dice_glow_color = materialOverride.themeGlowColor || color;
+            vars.dice_glow_intensity = materialOverride.themeGlowIntensity || 2.0;
+            vars._themeGlowActive = true;
+        } else if (vars._themeGlowActive) {
+            // Theme had glow but new theme doesn't - restore user setting
+            vars.dice_glow = vars._userGlowSetting || false;
+            vars.dice_glow_color = vars._userGlowColor || null;
+            vars.dice_glow_intensity = vars._userGlowIntensity || 2.0;
+            vars._themeGlowActive = false;
+        }
+        
         // RIFT: Nur automatisch Label-Farbe wählen wenn KEINE manuelle Farbe gesetzt ist
         if (!manualLabelColor) {
             var baseColor = texture ? texture.baseColor : (gradient ? gradient.colors[0] : color);
@@ -737,6 +751,10 @@ const DICE = (function() {
         vars.dice_glow = enabled;
         if (color !== undefined) vars.dice_glow_color = color;
         if (intensity !== undefined) vars.dice_glow_intensity = intensity;
+        // Save user preference (for restore after theme-glow)
+        vars._userGlowSetting = enabled;
+        vars._userGlowColor = vars.dice_glow_color;
+        vars._userGlowIntensity = vars.dice_glow_intensity;
         
         // Material Cache löschen
         clearMaterialCache();
@@ -2038,7 +2056,7 @@ const DICE = (function() {
     function getProceduralEnvMap() {
         if (_proceduralEnvMap) return _proceduralEnvMap;
         
-        var size = 128;
+        var size = 256;
         var canvases = [];
         
         // 6 cube faces: +X, -X, +Y (top), -Y (bottom), +Z, -Z
@@ -2049,46 +2067,52 @@ const DICE = (function() {
             
             var grd;
             if (face === 2) {
-                // +Y (top) - bright area simulating overhead light/sky
-                grd = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.7);
-                grd.addColorStop(0, '#e0e4f0');
-                grd.addColorStop(0.3, '#a0a8b8');
-                grd.addColorStop(0.7, '#505868');
-                grd.addColorStop(1, '#303840');
-                ctx.fillStyle = grd;
+                // +Y (top) - bright overhead light area
+                ctx.fillStyle = '#0a0c12';
                 ctx.fillRect(0, 0, size, size);
-                // Add soft overhead glow (no sharp spot)
-                var spot = ctx.createRadialGradient(size * 0.4, size * 0.4, 0, size * 0.4, size * 0.4, size * 0.35);
-                spot.addColorStop(0, 'rgba(255,255,255,0.3)');
-                spot.addColorStop(0.5, 'rgba(255,255,255,0.1)');
-                spot.addColorStop(1, 'rgba(255,255,255,0)');
+                // Main overhead light - bright and focused
+                var spot = ctx.createRadialGradient(size * 0.45, size * 0.45, 0, size * 0.45, size * 0.45, size * 0.4);
+                spot.addColorStop(0, '#ffffff');
+                spot.addColorStop(0.15, '#e8eaf0');
+                spot.addColorStop(0.4, '#808898');
+                spot.addColorStop(0.7, '#303848');
+                spot.addColorStop(1, '#0a0c12');
                 ctx.fillStyle = spot;
                 ctx.fillRect(0, 0, size, size);
+                // Secondary fill light
+                var fill = ctx.createRadialGradient(size * 0.8, size * 0.3, 0, size * 0.8, size * 0.3, size * 0.25);
+                fill.addColorStop(0, 'rgba(200,210,230,0.6)');
+                fill.addColorStop(0.5, 'rgba(100,110,130,0.2)');
+                fill.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = fill;
+                ctx.fillRect(0, 0, size, size);
             } else if (face === 3) {
-                // -Y (bottom) - dark ground/table surface
+                // -Y (bottom) - dark ground, near black
                 grd = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.7);
-                grd.addColorStop(0, '#1a1c22');
-                grd.addColorStop(1, '#08090c');
+                grd.addColorStop(0, '#0e1018');
+                grd.addColorStop(1, '#040508');
                 ctx.fillStyle = grd;
                 ctx.fillRect(0, 0, size, size);
             } else {
-                // Sides - gradient from bright (top) to dark (bottom) with subtle variation
-                grd = ctx.createLinearGradient(0, 0, 0, size);
-                grd.addColorStop(0, '#6a7080');
-                grd.addColorStop(0.3, '#404850');
-                grd.addColorStop(0.6, '#282c34');
-                grd.addColorStop(1, '#101218');
-                ctx.fillStyle = grd;
+                // Sides - dark with distinct bright streak for specular pickup
+                ctx.fillStyle = '#08090e';
                 ctx.fillRect(0, 0, size, size);
-                // Subtle horizontal variation per face for non-uniform look
-                var hShift = (face * 37) % 100; // pseudo-random per face
-                var hGlow = ctx.createRadialGradient(
-                    size * (0.3 + hShift / 200), size * 0.25, 0,
-                    size * 0.5, size * 0.4, size * 0.5
-                );
-                hGlow.addColorStop(0, 'rgba(140,150,170,0.15)');
-                hGlow.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = hGlow;
+                // Vertical bright streak - different position per face
+                var xPos = size * (0.2 + (face * 0.15));
+                var streak = ctx.createLinearGradient(xPos - size * 0.12, 0, xPos + size * 0.12, 0);
+                streak.addColorStop(0, 'rgba(0,0,0,0)');
+                streak.addColorStop(0.3, 'rgba(60,70,90,0.4)');
+                streak.addColorStop(0.5, 'rgba(160,170,200,0.5)');
+                streak.addColorStop(0.7, 'rgba(60,70,90,0.4)');
+                streak.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = streak;
+                ctx.fillRect(0, 0, size, size);
+                // Top fade from bright ceiling
+                var topFade = ctx.createLinearGradient(0, 0, 0, size);
+                topFade.addColorStop(0, 'rgba(120,130,160,0.35)');
+                topFade.addColorStop(0.3, 'rgba(40,50,70,0.1)');
+                topFade.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = topFade;
                 ctx.fillRect(0, 0, size, size);
             }
             
@@ -2275,22 +2299,30 @@ const DICE = (function() {
             } else if (vars.dice_text_style === 'metallic') {
                 var color2 = vars.dice_text_color2 || '#333333';
                 var cx = canvas.width / 2, cy = canvas.height / 2;
-                // Realistic metal: single smooth specular arc
-                // Like light reflecting off a curved metal surface
-                var grad = context.createLinearGradient(cx, cy - ts * 0.22, cx, cy + ts * 0.22);
-                grad.addColorStop(0, color2);          // dark top edge
-                grad.addColorStop(0.25, color);         // main color
-                grad.addColorStop(0.42, color);         // hold main
-                grad.addColorStop(0.50, '#ffffff');      // single bright specular band
-                grad.addColorStop(0.58, color);         // back to main
-                grad.addColorStop(0.8, color2);          // darken toward bottom
-                grad.addColorStop(1, color);             // slight rim light at bottom
-                // Drop shadow for depth
-                context.fillStyle = 'rgba(0,0,0,0.35)';
-                context.fillText(text, cx + ts * 0.008, cy + ts * 0.01);
-                // Main metallic fill
-                context.fillStyle = grad;
+                // Metallic via contrast layering (works at any size/angle)
+                // 1. Dark outer stroke (shadow edge of metal)
+                context.strokeStyle = color2;
+                context.lineWidth = ts * 0.035;
+                context.lineJoin = 'round';
+                context.strokeText(text, cx, cy);
+                // 2. Bright main fill (reflective surface)
+                context.fillStyle = color;
                 context.fillText(text, cx, cy);
+                // 3. Top-left highlight (specular catch)
+                context.save();
+                context.globalAlpha = 0.35;
+                context.globalCompositeOperation = 'lighter';
+                context.fillStyle = '#ffffff';
+                context.fillText(text, cx - ts * 0.008, cy - ts * 0.01);
+                context.restore();
+                // 4. Thin bright inner edge at top
+                context.save();
+                context.globalAlpha = 0.2;
+                context.strokeStyle = '#ffffff';
+                context.lineWidth = ts * 0.008;
+                context.lineJoin = 'round';
+                context.strokeText(text, cx, cy - ts * 0.005);
+                context.restore();
             } else if (vars.dice_text_style === 'outline') {
                 var strokeColor = vars.dice_text_color2 || '#000000';
                 var cx = canvas.width / 2, cy = canvas.height / 2;
@@ -2331,6 +2363,8 @@ const DICE = (function() {
                 if (ov.depthWrite !== undefined) matOptions.depthWrite = ov.depthWrite;
                 if (ov.envMap) { matOptions.envMap = getProceduralEnvMap(); matOptions.combine = ov.combine || THREE.MixOperation; }
                 if (ov.reflectivity !== undefined) matOptions.reflectivity = ov.reflectivity;
+                if (ov.wireframe) matOptions.wireframe = true;
+                if (ov.flatShading) matOptions.flatShading = true;
             }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
@@ -2486,18 +2520,25 @@ const DICE = (function() {
                     context.globalAlpha = 1.0;
                 } else if (vars.dice_text_style === 'metallic') {
                     var color2 = vars.dice_text_color2 || '#333333';
-                    var grad = context.createLinearGradient(cx, cy - ts * 0.22, cx, cy + ts * 0.22);
-                    grad.addColorStop(0, color2);
-                    grad.addColorStop(0.25, color);
-                    grad.addColorStop(0.42, color);
-                    grad.addColorStop(0.50, '#ffffff');
-                    grad.addColorStop(0.58, color);
-                    grad.addColorStop(0.8, color2);
-                    grad.addColorStop(1, color);
-                    context.fillStyle = 'rgba(0,0,0,0.35)';
-                    context.fillText(text[i], cx + ts * 0.008, cy + ts * 0.01);
-                    context.fillStyle = grad;
+                    context.strokeStyle = color2;
+                    context.lineWidth = ts * 0.035;
+                    context.lineJoin = 'round';
+                    context.strokeText(text[i], cx, cy);
+                    context.fillStyle = color;
                     context.fillText(text[i], cx, cy);
+                    context.save();
+                    context.globalAlpha = 0.35;
+                    context.globalCompositeOperation = 'lighter';
+                    context.fillStyle = '#ffffff';
+                    context.fillText(text[i], cx - ts * 0.008, cy - ts * 0.01);
+                    context.restore();
+                    context.save();
+                    context.globalAlpha = 0.2;
+                    context.strokeStyle = '#ffffff';
+                    context.lineWidth = ts * 0.008;
+                    context.lineJoin = 'round';
+                    context.strokeText(text[i], cx, cy - ts * 0.005);
+                    context.restore();
                 } else if (vars.dice_text_style === 'outline') {
                     var strokeColor = vars.dice_text_color2 || '#000000';
                     context.strokeStyle = strokeColor;
@@ -2536,6 +2577,8 @@ const DICE = (function() {
                 if (ov.depthWrite !== undefined) matOptions.depthWrite = ov.depthWrite;
                 if (ov.envMap) { matOptions.envMap = getProceduralEnvMap(); matOptions.combine = ov.combine || THREE.MixOperation; }
                 if (ov.reflectivity !== undefined) matOptions.reflectivity = ov.reflectivity;
+                if (ov.wireframe) matOptions.wireframe = true;
+                if (ov.flatShading) matOptions.flatShading = true;
             }
             
             materials.push(new THREE.MeshPhongMaterial(matOptions));
