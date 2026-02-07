@@ -594,10 +594,10 @@
                         </div>
                     </div>
                     
-                    <!-- ═══ Widget: Pinned Notes ═══ -->
+                    <!-- ═══ Widget: Quick Notes ═══ -->
                     <div class="widget" id="pinnedNotesWidget">
                         <div class="widget__header">
-                            <h2 class="widget__title">Pinned Notes</h2>
+                            <h2 class="widget__title">Quick Notes</h2>
                             <button class="widget__action" id="addNoteBtn" onclick="HubNotes.openAddDialog()">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                 Notiz
@@ -862,7 +862,7 @@
                 }
                 
                 partyEmpty.style.display = 'none';
-                partyList.style.display = 'flex';
+                partyList.style.display = '';
                 
                 partyList.innerHTML = members.map(member => {
                     const isYou = member.id === currentUserId || member.id === currentUserData.uid;
@@ -880,8 +880,10 @@
                     
                     return `
                         <div class="party-avatar" title="${name}${isYou ? ' (Du)' : ''}${isGM ? ' – Spielleiter' : ''}">
-                            <div class="party-avatar__img" style="background:${color};">
-                                ${avatar ? `<img src="${avatar}" alt="">` : initial}
+                            <div class="party-avatar__img-wrap">
+                                <div class="party-avatar__img" style="background:${color};">
+                                    ${avatar ? `<img src="${avatar}" alt="">` : initial}
+                                </div>
                                 <span class="party-avatar__status ${isOnline ? 'party-avatar__status--online' : ''}"></span>
                             </div>
                             <span class="party-avatar__name">${shortName}</span>
@@ -2483,14 +2485,30 @@
                 'cyberpunk': 'sheet-cyberpunk.html'
             }[char.ruleset] || 'sheet-worldsapart.html';
             
+            // Portrait
+            const portrait = char.portrait || '';
+            const portraitSrc = (portrait.startsWith('data:') || portrait.startsWith('http'))
+                ? portrait
+                : portrait ? `assets/img/rift_chars/hero_card/${portrait}.png` : '';
+            
+            // Character info: Rasse · Alter · Geschlecht
+            const data = char.data || {};
+            const infoParts = [
+                char.race || data.race || data.rasse || '',
+                data.age || data.alter || '',
+                data.gender || data.geschlecht || ''
+            ].filter(Boolean);
+            const infoStr = infoParts.join(' · ') || char.class || data.role || '';
+            
             return `
                 <a href="${sheetUrl}?id=${char.id}" class="widget__item character-item ${isMain ? 'character-item--main' : ''}">
                     <div class="character-item__portrait" style="background: linear-gradient(135deg, ${isMain ? '#FFC107' : '#7c3aed'} 0%, ${isMain ? '#FF8F00' : '#4c1d95'} 100%);">
+                        ${portraitSrc ? `<img src="${portraitSrc}" alt="" onerror="this.style.display='none'">` : ''}
                         <span class="character-item__initial">${isMain ? '★' : (char.name ? char.name.charAt(0).toUpperCase() : '?')}</span>
                     </div>
                     <div class="widget__item-info">
                         <span class="character-item__name">${isMain ? '★ ' : ''}${char.name || 'Unbenannt'}</span>
-                        <span class="widget__item-meta">${char.race || char.class || char.data?.role || ''}</span>
+                        <span class="widget__item-meta">${escapeHtml(infoStr)}</span>
                     </div>
                 </a>
             `;
@@ -2566,6 +2584,10 @@
                         const isCrit = roll.critical === 'success';
                         const isFumble = roll.critical === 'failure';
                         const ago = timeAgo(roll.timestamp);
+                        const playerColor = roll.color || '#8B5CF6';
+                        
+                        // Color: crit=green, fumble=red, normal=player profile color
+                        const highlightStyle = isCrit ? 'color:#22c55e;font-weight:700;' : isFumble ? 'color:#ef4444;font-weight:700;' : `color:${playerColor};font-weight:600;`;
                         
                         return `
                             <div class="feed__item">
@@ -2573,7 +2595,7 @@
                                     <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0-1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034.57 2.22.57 3.2.032l6.804-4.302c.98-.537 1.623-1.618 1.623-2.793v-7.284a3.223 3.223 0 0 0-1.29-2.594l-6.964-4.135a3.33 3.33 0 0 0-3.216 0z"/></svg>
                                 </div>
                                 <div class="feed__content">
-                                    <span class="feed__text"><strong>${escapeHtml(name)}</strong> würfelt ${escapeHtml(dice)}: <span class="feed__highlight" style="${isCrit ? 'color:#22c55e;font-weight:700;' : isFumble ? 'color:#ef4444;font-weight:700;' : ''}">${total}${isCrit ? ' ★' : isFumble ? ' ✗' : ''}</span></span>
+                                    <span class="feed__text"><strong>${escapeHtml(name)}</strong> würfelt ${escapeHtml(dice)}: <span class="feed__highlight" style="${highlightStyle}">${total}${isCrit ? ' ★' : isFumble ? ' ✗' : ''}</span></span>
                                     <span class="feed__time">${ago}</span>
                                 </div>
                             </div>`;
@@ -2627,9 +2649,32 @@
                             const color = msg.senderColor || '#8B5CF6';
                             const initial = name.charAt(0).toUpperCase();
                             const avatar = msg.senderAvatar || '';
-                            const text = msg.text || (msg.imageUrl ? '📷 Bild' : (msg.gifUrl ? 'GIF' : ''));
+                            
+                            // Build text with SVG icons instead of emojis
+                            let text = msg.text || '';
+                            if (!text) {
+                                if (msg.imageUrl) {
+                                    text = '<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" style="vertical-align:-2px;margin-right:3px;opacity:0.7;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21h14a2 2 0 0 0 2-2v-4z"/></svg>Bild';
+                                } else if (msg.gifUrl) {
+                                    text = '<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" style="vertical-align:-2px;margin-right:3px;opacity:0.7;"><rect x="2" y="4" width="20" height="16" rx="2"/><text x="12" y="14.5" text-anchor="middle" font-size="7" font-weight="700" fill="#1a1a1a">GIF</text></svg>GIF';
+                                } else if (msg.youtubeUrl) {
+                                    text = '<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" style="vertical-align:-2px;margin-right:3px;opacity:0.7;"><path d="M23 9.71a8.5 8.5 0 0 0-.91-4.13 2.92 2.92 0 0 0-1.72-1.12A69.4 69.4 0 0 0 12 4a69.4 69.4 0 0 0-8.37.46A2.92 2.92 0 0 0 1.91 5.58 8.5 8.5 0 0 0 1 9.71a44.4 44.4 0 0 0 0 4.58 8.5 8.5 0 0 0 .91 4.13 2.92 2.92 0 0 0 1.72 1.12A69.4 69.4 0 0 0 12 20a69.4 69.4 0 0 0 8.37-.46 2.92 2.92 0 0 0 1.72-1.12 8.5 8.5 0 0 0 .91-4.13 44.4 44.4 0 0 0 0-4.58zM9.74 14.85V9.15l5.47 2.85z"/></svg>Video';
+                                }
+                            } else {
+                                // Check if text contains a youtube link
+                                if (text.match(/youtu\.?be/i)) {
+                                    text = '<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" style="vertical-align:-2px;margin-right:3px;opacity:0.7;"><path d="M23 9.71a8.5 8.5 0 0 0-.91-4.13 2.92 2.92 0 0 0-1.72-1.12A69.4 69.4 0 0 0 12 4a69.4 69.4 0 0 0-8.37.46A2.92 2.92 0 0 0 1.91 5.58 8.5 8.5 0 0 0 1 9.71a44.4 44.4 0 0 0 0 4.58 8.5 8.5 0 0 0 .91 4.13 2.92 2.92 0 0 0 1.72 1.12A69.4 69.4 0 0 0 12 20a69.4 69.4 0 0 0 8.37-.46 2.92 2.92 0 0 0 1.72-1.12 8.5 8.5 0 0 0 .91-4.13 44.4 44.4 0 0 0 0-4.58zM9.74 14.85V9.15l5.47 2.85z"/></svg>Video';
+                                }
+                            }
+                            
+                            // Whisper icon instead of emoji
+                            const whisperIcon = msg.isWhisper ? ' <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11" style="vertical-align:-1px;opacity:0.5;"><path d="M12 1C8.7 1 6 3.7 6 7v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-2V7c0-3.3-2.7-6-6-6zm0 2c2.2 0 4 1.8 4 4v2H8V7c0-2.2 1.8-4 4-4zm0 12a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>' : '';
+                            
                             const ts = msg.clientTimestamp || (msg.timestamp?.toMillis ? msg.timestamp.toMillis() : null);
                             const ago = timeAgo(ts);
+                            
+                            // Use innerHTML for text since we inject SVG icons
+                            const safeText = msg.text ? escapeHtml(text) : text;
                             
                             return `
                                 <div class="chat-preview__msg">
@@ -2637,8 +2682,8 @@
                                         ${avatar ? `<img src="${avatar}" alt="">` : initial}
                                     </div>
                                     <div class="chat-preview__body">
-                                        <span class="chat-preview__name">${escapeHtml(name)}${msg.isWhisper ? ' 🤫' : ''}</span>
-                                        <span class="chat-preview__text">${escapeHtml(text)}</span>
+                                        <span class="chat-preview__name">${escapeHtml(name)}${whisperIcon}</span>
+                                        <span class="chat-preview__text">${safeText}</span>
                                     </div>
                                     <span class="chat-preview__time">${ago}</span>
                                 </div>`;
@@ -2651,7 +2696,7 @@
             setTimeout(subscribe, 1500);
         })();
         
-        // ──── Pinned Notes ────
+        // ──── Quick Notes ────
         var HubNotes = (function() {
             const list = document.getElementById('pinnedNotesList');
             const empty = document.getElementById('notesEmpty');
@@ -2670,27 +2715,30 @@
                     const notes = [];
                     snap.forEach(child => notes.push({ id: child.key, ...child.val() }));
                     notes.reverse();
+                    const display = notes.slice(0, 4); // Max 4
                     
-                    if (notes.length === 0) {
+                    if (display.length === 0) {
                         list.style.display = 'none';
                         empty.style.display = 'flex';
                         return;
                     }
                     
                     empty.style.display = 'none';
-                    list.style.display = 'flex';
+                    list.style.display = ''; // Let CSS handle flex-direction: column
                     
                     const currentUid = firebase.auth()?.currentUser?.uid;
                     
-                    list.innerHTML = notes.map(note => `
-                        <div class="pinned-note">
+                    list.innerHTML = display.map(note => {
+                        const noteColor = note.authorColor || '#8B5CF6';
+                        return `
+                        <div class="pinned-note" style="border-left-color: ${noteColor};">
                             <div class="pinned-note__text">
                                 ${escapeHtml(note.text)}
-                                <div class="pinned-note__meta">${note.authorName || 'Anonym'} · ${timeAgo(note.createdAt)}</div>
+                                <div class="pinned-note__meta">${escapeHtml(note.authorName || 'Anonym')} · ${timeAgo(note.createdAt)}</div>
                             </div>
                             ${(note.authorId === currentUid) ? `<button class="pinned-note__delete" onclick="HubNotes.remove('${note.id}')" title="Löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
-                        </div>
-                    `).join('');
+                        </div>`;
+                    }).join('');
                 });
             }
             
@@ -2730,7 +2778,9 @@
                 notesRef.push({
                     text: text,
                     authorId: user?.uid || 'anon',
-                    authorName: user?.displayName || userData.displayName || userData.name || 'Anonym',
+                    // Use RIFT displayName first (e.g. "Crussong"), fallback to Firebase Auth name
+                    authorName: userData.displayName || userData.name || user?.displayName || 'Anonym',
+                    authorColor: userData.color || '#8B5CF6',
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 });
                 
