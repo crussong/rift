@@ -892,7 +892,46 @@
         .party-card__class {
             font-size: 13px;
             color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .party-card__meta {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        
+        .party-card__attrs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
             margin-bottom: 8px;
+        }
+        
+        .party-card__attr {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px 6px;
+            min-width: 32px;
+            line-height: 1;
+        }
+        
+        .party-card__attr strong {
+            font-size: 13px;
+            color: var(--text);
+            font-weight: 700;
+        }
+        
+        .party-card__attr small {
+            font-size: 8px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 1px;
         }
         
         .party-card__hp {
@@ -1107,7 +1146,7 @@
            ======================================== */
         .gm-bar {
             position: fixed;
-            bottom: 24px;
+            bottom: calc(var(--dock-height, 72px) + 24px);
             left: 50%;
             transform: translateX(-50%);
             background: var(--bg-elevated);
@@ -1122,6 +1161,11 @@
         
         .gm-bar--visible {
             display: flex;
+        }
+        
+        /* Extra bottom padding when gm-bar is visible */
+        .page-session .main__content {
+            padding-bottom: 120px;
         }
         
         .gm-bar__btn {
@@ -2125,6 +2169,7 @@
                             <option value="10">10 Teilnehmer</option>
                             <option value="12">12 Teilnehmer</option>
                         </select>
+                        <p class="settings-group__hint" id="maxPlayersHint" style="display:none; font-size:12px; color: #f0d060; margin-top:6px;"></p>
                     </div>
                     
                     <div class="settings-group">
@@ -3018,6 +3063,35 @@
                 const hpPercent = char.maxHp ? Math.round((char.hp / char.maxHp) * 100) : 100;
                 const hpClass = hpPercent > 60 ? 'high' : hpPercent > 30 ? 'mid' : 'low';
                 
+                // Build meta line: Race · Age · Gender
+                const metaParts = [];
+                if (char.race) metaParts.push(char.race);
+                if (char.age) metaParts.push(char.age + ' J.');
+                if (char.gender) metaParts.push(char.gender);
+                const metaLine = metaParts.join(' · ');
+                
+                // Build attributes row
+                let attrsHtml = '';
+                if (char.attributes) {
+                    const ruleset = char.ruleset || sessionData?.ruleset || '';
+                    let attrMap = {};
+                    if (ruleset === 'worldsapart') {
+                        attrMap = { power: 'STÄ', agility: 'GES', endurance: 'KON', mind: 'INT', presence: 'CHA' };
+                    } else if (ruleset === '5e2024') {
+                        attrMap = { strength: 'STR', dexterity: 'DEX', constitution: 'CON', intelligence: 'INT', wisdom: 'WIS', charisma: 'CHA' };
+                    } else if (ruleset === 'htbah') {
+                        attrMap = { strength: 'STÄ', dexterity: 'GES', intelligence: 'INT', charisma: 'CHA' };
+                    } else if (ruleset === 'cyberpunk') {
+                        attrMap = { int: 'INT', ref: 'REF', dex: 'GES', tech: 'TECH', cool: 'COOL', will: 'WILL', luck: 'LUCK', move: 'MOVE', body: 'BODY', emp: 'EMP' };
+                    }
+                    const entries = Object.entries(attrMap).filter(([k]) => char.attributes[k] !== undefined);
+                    if (entries.length > 0) {
+                        attrsHtml = '<div class="party-card__attrs">' + entries.map(([k, label]) => 
+                            `<span class="party-card__attr"><strong>${char.attributes[k]}</strong><small>${label}</small></span>`
+                        ).join('') + '</div>';
+                    }
+                }
+                
                 html += `
                     <div class="party-card" data-char-id="${char.id}">
                         <div class="party-card__portrait party-card__portrait--has-char" style="--char-color: ${char.color || '#8B5CF6'};">
@@ -3026,7 +3100,9 @@
                         </div>
                         <div class="party-card__info">
                             <div class="party-card__name">${visibility.hideCharacterNames ? (player.name || 'Spieler') : (char.name || 'Unbenannt')}</div>
-                            <div class="party-card__class">${char.class || char.profession || 'Abenteurer'}${visibility.showLevel && char.level ? ` · Lvl ${char.level}` : ''}</div>
+                            <div class="party-card__class">${char.role || char.class || 'Abenteurer'}${visibility.showLevel && char.level ? ` · Lvl ${char.level}` : ''}</div>
+                            ${metaLine ? `<div class="party-card__meta">${metaLine}</div>` : ''}
+                            ${attrsHtml}
                             ${visibility.showPartyHp && visibility.hpStyle !== 'hidden' ? `
                                 <div class="party-card__hp">
                                     ${visibility.hpStyle !== 'percent' ? `
@@ -3042,7 +3118,7 @@
                                 </div>
                             ` : ''}
                         </div>
-                        <div class="party-card__player">${player.name || 'Spieler'}</div>
+                        <div class="party-card__player">${player.name || char.playerName || 'Spieler'}</div>
                         ${isGM ? `
                             <div class="party-card__actions">
                                 <button class="party-card__action-btn" onclick="editPartyMember('${char.id}')" title="Bearbeiten">
@@ -3858,15 +3934,22 @@
             }
             
             // Build party character entry
+            const charData = selectedChar.data || {};
             const partyChar = {
                 id: charId,
                 name: selectedChar.name || 'Unbenannt',
-                class: selectedChar.class || selectedChar.profession || selectedChar.data?.role || 'Abenteurer',
+                class: selectedChar.class || selectedChar.profession || charData.role || 'Abenteurer',
+                race: charData.race || selectedChar.race || '',
+                age: charData.age || '',
+                gender: charData.gender || '',
+                role: charData.role || selectedChar.class || '',
                 level: selectedChar.level || 1,
                 portrait: selectedChar.portrait || selectedChar.avatar || null,
                 color: selectedChar.color || '#8B5CF6',
-                hp: selectedChar.data?.status?.health || selectedChar.data?.health?.current || 100,
-                maxHp: selectedChar.data?.status?.maxHealth || selectedChar.data?.health?.max || 100,
+                hp: charData.status?.health || charData.health?.current || 100,
+                maxHp: charData.status?.maxHealth || charData.health?.max || 100,
+                attributes: charData.attributes || null,
+                ruleset: selectedChar.ruleset || sessionData.ruleset || '',
                 playerId: userId,
                 playerName: userName,
                 ownerId: userId,
@@ -3906,7 +3989,7 @@
             }
             
             // Re-render party section
-            renderSession();
+            renderSessionPage();
             
             // Show success
             RIFT?.ui?.Toast?.success(`${selectedChar.name} zugewiesen!`);
@@ -3944,6 +4027,27 @@
             document.getElementById('settingsCurrentSession').value = sessionData.currentSession || 1;
             document.getElementById('settingsSessionCount').value = sessionData.sessionCount || 1;
             document.getElementById('settingsMaxPlayers').value = sessionData.maxPlayers || 4;
+            
+            // Pro/Free gating for max participants
+            const maxParticipantsLimit = (typeof RIFT !== 'undefined' && RIFT.pro) ? RIFT.pro.getLimit('participantsPerSession') : 6;
+            const maxPlayersSelect = document.getElementById('settingsMaxPlayers');
+            const hint = document.getElementById('maxPlayersHint');
+            Array.from(maxPlayersSelect.options).forEach(opt => {
+                const val = parseInt(opt.value);
+                if (val > maxParticipantsLimit) {
+                    opt.disabled = true;
+                    opt.textContent = opt.textContent.replace(/ 🔒$/, '') + ' 🔒';
+                } else {
+                    opt.disabled = false;
+                    opt.textContent = opt.textContent.replace(/ 🔒$/, '');
+                }
+            });
+            if (maxParticipantsLimit < 12 && hint) {
+                hint.style.display = 'block';
+                hint.textContent = `Free: max. ${maxParticipantsLimit} Teilnehmer. Mit RIFT Pro bis zu 12.`;
+            } else if (hint) {
+                hint.style.display = 'none';
+            }
             document.getElementById('settingsHpStyle').value = sessionData.visibility?.hpStyle || 'bar-numbers';
             
             // Detect voice type

@@ -433,7 +433,18 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Max. Teilnehmer</label>
-                            <input type="number" class="form-input" id="sessionMaxPlayers" min="1" max="12" value="4">
+                            <select class="form-input" id="sessionMaxPlayers">
+                                <option value="2">2 Teilnehmer</option>
+                                <option value="3">3 Teilnehmer</option>
+                                <option value="4" selected>4 Teilnehmer</option>
+                                <option value="5">5 Teilnehmer</option>
+                                <option value="6">6 Teilnehmer</option>
+                                <option value="7">7 Teilnehmer</option>
+                                <option value="8">8 Teilnehmer</option>
+                                <option value="10">10 Teilnehmer</option>
+                                <option value="12">12 Teilnehmer</option>
+                            </select>
+                            <p class="form-hint" id="maxPlayersCreateHint" style="display:none; color:#f0d060; margin-top:4px;"></p>
                         </div>
                     </div>
                     
@@ -1153,6 +1164,20 @@
                 document.getElementById('sessionVoiceLink').value = '';
                 document.getElementById('sessionCount').value = '1';
                 document.getElementById('sessionMaxPlayers').value = '4';
+                
+                // Pro/Free gating for max participants
+                if (typeof RIFT !== 'undefined' && RIFT.pro) {
+                    const maxLimit = RIFT.pro.getLimit('participantsPerSession');
+                    const sel = document.getElementById('sessionMaxPlayers');
+                    const hint = document.getElementById('maxPlayersCreateHint');
+                    Array.from(sel.options).forEach(opt => {
+                        const val = parseInt(opt.value);
+                        if (val > maxLimit) { opt.disabled = true; opt.textContent = opt.textContent.replace(/ 🔒$/, '') + ' 🔒'; }
+                        else { opt.disabled = false; opt.textContent = opt.textContent.replace(/ 🔒$/, ''); }
+                    });
+                    if (maxLimit < 12 && hint) { hint.style.display = 'block'; hint.textContent = `Free: max. ${maxLimit}. Mit RIFT Pro bis zu 12.`; }
+                    else if (hint) { hint.style.display = 'none'; }
+                }
                 document.getElementById('sessionTime').value = '20:00';
                 document.getElementById('sessionRecurring').value = 'once';
                 document.getElementById('sessionDuration').value = '3';
@@ -1179,6 +1204,14 @@
         
         // Alias for backwards compatibility
         function openCreateModal() {
+            // Check session creation limit
+            if (typeof RIFT !== 'undefined' && RIFT.pro) {
+                const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+                const activeSessions = sessions.filter(s => s.status !== 'ended').length;
+                if (!RIFT.pro.checkLimitOrUpsell('activeSessions', activeSessions, 'Session-Limit erreicht. Upgrade auf RIFT Pro für unbegrenzte Sessions.')) {
+                    return;
+                }
+            }
             openSessionModal(null);
         }
         
