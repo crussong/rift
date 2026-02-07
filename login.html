@@ -671,46 +671,161 @@
             try {
                 const doc = await firebase.firestore().collection('admin').doc('landing_config').get();
                 if (!doc.exists) return;
-                const config = doc.data();
+                const c = doc.data();
                 
-                // Pro teaser background
-                const pro = config.proTeaser;
+                // ── Custom HTML (Head) ──
+                if (c.customHead) {
+                    const div = document.createElement('div');
+                    div.innerHTML = c.customHead;
+                    Array.from(div.children).forEach(el => document.head.appendChild(el.cloneNode(true)));
+                }
+                
+                // ── Custom CSS ──
+                if (c.customCss) {
+                    const s = document.createElement('style'); s.textContent = c.customCss; document.head.appendChild(s);
+                }
+                
+                // ── Custom HTML (Body) ──
+                if (c.customBody) {
+                    const div = document.createElement('div');
+                    div.innerHTML = c.customBody;
+                    Array.from(div.children).forEach(el => document.body.insertBefore(el.cloneNode(true), document.body.firstChild));
+                }
+                
+                // ── Background Orbs ──
+                const orbs = c.orbs || {};
+                if (orbs.enabled === false) {
+                    document.querySelectorAll('.bg__gradient').forEach(el => el.style.display = 'none');
+                } else {
+                    const orbEls = [document.querySelector('.bg__gradient--1'), document.querySelector('.bg__gradient--2'), document.querySelector('.bg__gradient--3')];
+                    const colors = [orbs.color1, orbs.color2, orbs.color3];
+                    const sizes = [orbs.size1, orbs.size2, orbs.size3];
+                    const defaultColors = ['rgba(255, 50, 70, 0.07)', 'rgba(100, 60, 255, 0.05)', 'rgba(255, 140, 50, 0.03)'];
+                    const defaultSizes = [50, 40, 35];
+                    orbEls.forEach((el, i) => {
+                        if (!el) return;
+                        if (colors[i]) {
+                            // Convert hex to rgba with appropriate opacity
+                            const hex = colors[i].replace('#', '');
+                            const r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+                            const alphas = [0.07, 0.05, 0.03];
+                            el.style.background = `rgba(${r},${g},${b},${alphas[i]})`;
+                        }
+                        if (sizes[i]) { el.style.width = sizes[i] + 'vw'; el.style.height = sizes[i] + 'vw'; }
+                    });
+                    if (orbs.blur) document.querySelectorAll('.bg__gradient').forEach(el => el.style.filter = `blur(${orbs.blur}px)`);
+                    if (orbs.opacity !== undefined && orbs.opacity !== 100) {
+                        document.querySelectorAll('.bg__gradient').forEach(el => el.style.opacity = orbs.opacity / 100);
+                    }
+                }
+                
+                // ── Noise Overlay ──
+                const noise = c.noise || {};
+                const noiseEl = document.querySelector('.bg__noise');
+                if (noiseEl) {
+                    if (noise.enabled === false) { noiseEl.style.display = 'none'; }
+                    else {
+                        if (noise.opacity !== undefined) noiseEl.style.opacity = noise.opacity / 100;
+                        if (noise.url) noiseEl.style.backgroundImage = `url(${noise.url})`;
+                    }
+                }
+                
+                // ── Page Background Image/Video ──
+                const pbg = c.pageBg || {};
+                if (pbg.enabled && (pbg.url || pbg.videoUrl || pbg.gradient)) {
+                    const bgEl = document.querySelector('.bg');
+                    if (bgEl) {
+                        const opacity = (pbg.opacity ?? 15) / 100;
+                        const blur = pbg.blur ?? 0;
+                        const blend = pbg.blendMode || 'normal';
+                        const baseStyle = `position:absolute;inset:0;z-index:0;opacity:${opacity};filter:blur(${blur}px);mix-blend-mode:${blend};`;
+                        let html = '';
+                        if (pbg.type === 'video' && pbg.videoUrl) {
+                            html = `<video autoplay muted loop playsinline style="${baseStyle}width:100%;height:100%;object-fit:cover;"><source src="${pbg.videoUrl}"></video>`;
+                        } else if (pbg.type === 'gradient' && pbg.gradient) {
+                            html = `<div style="${baseStyle}background:${pbg.gradient};"></div>`;
+                        } else if (pbg.url) {
+                            html = `<img src="${pbg.url}" style="${baseStyle}width:100%;height:100%;object-fit:${pbg.fit||'cover'};object-position:${pbg.pos||'center'};" alt="">`;
+                        }
+                        if (html) bgEl.insertAdjacentHTML('afterbegin', html);
+                    }
+                }
+                
+                // ── Hero Overrides ──
+                const hero = c.hero || {};
+                if (hero.logoUrl) { const logo = document.querySelector('.hero__logo img'); if (logo) logo.src = hero.logoUrl; }
+                if (hero.logoWidth) { const logo = document.querySelector('.hero__logo'); if (logo) logo.style.width = hero.logoWidth; }
+                if (hero.line1) { const lines = document.querySelectorAll('.hero__h1-line'); if (lines[0]) lines[0].textContent = hero.line1; }
+                if (hero.line2) { const lines = document.querySelectorAll('.hero__h1-line'); if (lines[1]) lines[1].textContent = hero.line2; }
+                if (hero.subtitle) { const sub = document.querySelector('.hero__sub'); if (sub) sub.textContent = hero.subtitle; }
+                if (hero.gradColor1 && hero.gradColor2) {
+                    const accent = document.querySelector('.hero__h1-line--accent');
+                    if (accent) accent.style.backgroundImage = `linear-gradient(135deg, ${hero.gradColor1}, ${hero.gradColor2})`;
+                }
+                // Hero BG image
+                const hbg = hero.bg || {};
+                if (hbg.enabled && hbg.url) {
+                    const heroSec = document.querySelector('.hero');
+                    if (heroSec) {
+                        const opacity = (hbg.opacity ?? 8) / 100;
+                        heroSec.insertAdjacentHTML('afterbegin', `<img src="${hbg.url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${hbg.pos||'center'};opacity:${opacity};pointer-events:none;z-index:0;" alt="">`);
+                    }
+                }
+                
+                // ── Section Visibility ──
+                const vis = c.visibility || {};
+                if (vis.features === false) { const el = document.querySelector('.features'); if (el) el.style.display = 'none'; }
+                if (vis.systems === false) { const el = document.querySelector('.systems'); if (el) el.style.display = 'none'; }
+                if (vis.opensource === false) { const el = document.querySelector('.opensource'); if (el) el.style.display = 'none'; }
+                if (vis.proTeaser === false) { const el = document.querySelector('.pro-teaser'); if (el) el.style.display = 'none'; }
+                
+                // ── Scroll Settings ──
+                const scroll = c.scroll || {};
+                if (scroll.stickyBar === 'hidden') { const bar = document.getElementById('stickyBar'); if (bar) bar.style.display = 'none'; }
+                
+                // ── Fullscreen Overlay ──
+                const fo = c.fullOverlay || {};
+                if (fo.enabled && fo.value) {
+                    const opacity = (fo.opacity ?? 30) / 100;
+                    let bg = '';
+                    if (fo.type === 'image') bg = `url(${fo.value})`;
+                    else if (fo.type === 'gradient' || fo.type === 'css') bg = fo.value;
+                    else bg = fo.value;
+                    const div = document.createElement('div');
+                    div.style.cssText = `position:fixed;inset:0;z-index:1;pointer-events:none;opacity:${opacity};background:${bg};`;
+                    document.body.appendChild(div);
+                }
+                
+                // ── Floating Overlays ──
+                (c.overlays || []).forEach(o => {
+                    if (!o) return;
+                    const opacity = (o.opacity ?? 15) / 100;
+                    const anim = o.animation ? `animation:${o.animation};` : '';
+                    const base = `position:fixed;top:${o.top||'0'};left:${o.left||'0'};width:${o.width||'auto'};opacity:${opacity};z-index:${o.zIndex||1};pointer-events:none;${anim}`;
+                    let html = '';
+                    if (o.type === 'image' && o.url) html = `<img src="${o.url}" style="${base}" alt="">`;
+                    else if (o.html) html = `<div style="${base}">${o.html}</div>`;
+                    if (html) document.body.insertAdjacentHTML('beforeend', html);
+                });
+                
+                // ── Pro Teaser Background ──
+                const pro = c.proTeaser || {};
                 const bgContainer = document.getElementById('proTeaser-bg');
-                if (pro && pro.enabled && bgContainer && pro.type !== 'none') {
+                if (pro.enabled && bgContainer && pro.type !== 'none') {
                     const opacity = (pro.opacity ?? 10) / 100;
                     const blur = pro.blur ?? 0;
                     const blend = pro.blendMode || 'normal';
                     const anim = pro.animation ? `animation:${pro.animation};` : '';
                     const base = `position:absolute;inset:0;opacity:${opacity};filter:blur(${blur}px);mix-blend-mode:${blend};${anim}`;
-                    
                     let html = '';
-                    if (pro.type === 'image' && pro.imageUrl) {
-                        html = `<img src="${pro.imageUrl}" style="${base}width:100%;height:100%;object-fit:${pro.imageFit||'cover'};object-position:${pro.imagePos||'center'};" alt="">`;
-                    } else if (pro.type === 'video' && pro.videoUrl) {
-                        html = `<video autoplay muted loop playsinline style="${base}width:100%;height:100%;object-fit:cover;"><source src="${pro.videoUrl}"></video>`;
-                    } else if (pro.type === 'gradient' && pro.gradient) {
-                        html = `<div style="${base}background:${pro.gradient};"></div>`;
-                    } else if (pro.type === 'html' && pro.customHtml) {
-                        html = `<div style="${base}">${pro.customHtml}</div>`;
-                    }
-                    if (pro.overlayColor) {
-                        html += `<div style="position:absolute;inset:0;background:${pro.overlayColor};pointer-events:none;"></div>`;
-                    }
+                    if (pro.type === 'image' && pro.imageUrl) html = `<img src="${pro.imageUrl}" style="${base}width:100%;height:100%;object-fit:${pro.imageFit||'cover'};object-position:${pro.imagePos||'center'};" alt="">`;
+                    else if (pro.type === 'video' && pro.videoUrl) html = `<video autoplay muted loop playsinline style="${base}width:100%;height:100%;object-fit:cover;"><source src="${pro.videoUrl}"></video>`;
+                    else if (pro.type === 'gradient' && pro.gradient) html = `<div style="${base}background:${pro.gradient};"></div>`;
+                    else if (pro.type === 'html' && pro.customHtml) html = `<div style="${base}">${pro.customHtml}</div>`;
+                    if (pro.overlayColor) html += `<div style="position:absolute;inset:0;background:${pro.overlayColor};pointer-events:none;"></div>`;
                     bgContainer.innerHTML = html;
                 }
                 
-                // Hero subtitle override
-                if (config.heroSubtitle) {
-                    const sub = document.querySelector('.hero__sub');
-                    if (sub) sub.textContent = config.heroSubtitle;
-                }
-                
-                // Custom CSS injection
-                if (config.customCss) {
-                    const style = document.createElement('style');
-                    style.textContent = config.customCss;
-                    document.head.appendChild(style);
-                }
             } catch(e) {
                 console.warn('Landing config load failed:', e);
             }
