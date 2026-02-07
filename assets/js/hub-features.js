@@ -314,15 +314,39 @@ class HeroCarousel {
             const charFlip = slide.characterFlip ? 'scaleX(-1)' : '';
             const charAnchor = slide.characterAnchor || 'bottom';
             
+            // New features
+            const shadowEnabled = slide.characterShadow !== false;
+            const shadowColor = slide.characterShadowColor || 'rgba(0,0,0,0.6)';
+            const shadowBlur = slide.characterShadowBlur ?? 24;
+            const shadowX = slide.characterShadowX ?? 0;
+            const shadowY = slide.characterShadowY ?? 4;
+            const rotationRange = slide.characterRotation ?? 0; // ±degrees
+            const parallaxStrength = slide.characterParallax ?? 0; // 0-30 px
+            const entryAnim = slide.characterEntry || 'fade'; // fade, slide-up, slide-left, zoom
+            const glowColor = slide.characterGlow || ''; // empty = no glow
+            const glowSize = slide.characterGlowSize ?? 40;
+            const floatAnim = slide.characterFloat || 'none'; // none, gentle, breathe
+            
             const charEl = document.createElement('div');
-            charEl.className = `hero-carousel__character${index === 0 ? ' active' : ''}`;
+            charEl.className = `hero-carousel__character hero-carousel__character--entry-${entryAnim}${index === 0 ? ' active' : ''}`;
+            if (floatAnim !== 'none') {
+                charEl.classList.add(`hero-carousel__character--${floatAnim}`);
+            }
             charEl.dataset.slideIndex = index;
             charEl.dataset.hoverScale = charHoverScale;
             charEl.dataset.baseScale = charScale;
             charEl.dataset.flip = slide.characterFlip ? '1' : '0';
             charEl.dataset.anchor = charAnchor;
+            charEl.dataset.parallax = parallaxStrength;
             
-            // Position relative to the wrapper (same size as carousel)
+            // Random rotation within range
+            let rotation = 0;
+            if (rotationRange > 0) {
+                rotation = (Math.random() * 2 - 1) * rotationRange;
+                charEl.dataset.rotation = rotation.toFixed(2);
+            }
+            
+            // Position
             let posStyle = `left: ${charX}%;`;
             if (charAnchor === 'bottom') {
                 posStyle += ` bottom: ${charY}%;`;
@@ -332,36 +356,96 @@ class HeroCarousel {
                 posStyle += ` top: 50%;`;
             }
             
+            // Shadow
+            if (shadowEnabled) {
+                posStyle += ` filter: drop-shadow(${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor});`;
+            } else {
+                posStyle += ` filter: none;`;
+            }
+            
             charEl.style.cssText = posStyle;
             
-            // Compute max-height in px from carousel height
+            // Build inner HTML
             const carouselH = this.container.offsetHeight || 300;
             const maxPx = Math.round(carouselH * charMaxH / 100);
-            charEl.innerHTML = `<img src="${slide.characterImg}" alt="" draggable="false" style="max-height: ${maxPx}px;">`;
             
-            // Set initial transform
-            const baseTransform = this.getCharTransform(charAnchor, charScale / 100, charFlip);
+            // Glow element (behind image)
+            let glowHtml = '';
+            if (glowColor) {
+                glowHtml = `<div class="hero-carousel__character-glow" style="background: ${glowColor}; width: ${glowSize * 2}px; height: ${glowSize * 2}px;"></div>`;
+            }
+            
+            charEl.innerHTML = `${glowHtml}<img src="${slide.characterImg}" alt="" draggable="false" style="max-height: ${maxPx}px;">`;
+            
+            // Set initial transform (including rotation)
+            const baseTransform = this.getCharTransform(charAnchor, charScale / 100, charFlip, rotation);
             charEl.style.transform = baseTransform;
+            charEl.dataset.baseTransform = baseTransform;
             
             // Hover effect
             charEl.addEventListener('mouseenter', () => {
-                charEl.style.transform = this.getCharTransform(charAnchor, charHoverScale / 100, charFlip);
+                charEl.style.transform = this.getCharTransform(charAnchor, charHoverScale / 100, charFlip, rotation);
             });
             charEl.addEventListener('mouseleave', () => {
-                charEl.style.transform = this.getCharTransform(charAnchor, charScale / 100, charFlip);
+                charEl.style.transform = this.getCharTransform(charAnchor, charScale / 100, charFlip, rotation);
             });
             
             this.wrapper.appendChild(charEl);
             this.characterEls.push(charEl);
         });
+        
+        // Init parallax
+        this.initParallax();
     }
     
-    getCharTransform(anchor, scale, flip) {
+    getCharTransform(anchor, scale, flip, rotation = 0) {
         const flipStr = flip ? ' scaleX(-1)' : '';
+        const rotStr = rotation ? ` rotate(${rotation}deg)` : '';
         if (anchor === 'center') {
-            return `translate(-50%, -50%) scale(${scale})${flipStr}`;
+            return `translate(-50%, -50%) scale(${scale})${rotStr}${flipStr}`;
         }
-        return `translateX(-50%) scale(${scale})${flipStr}`;
+        return `translateX(-50%) scale(${scale})${rotStr}${flipStr}`;
+    }
+    
+    initParallax() {
+        // Check if any character has parallax
+        const hasParallax = this.characterEls.some(el => el && parseFloat(el.dataset.parallax) > 0);
+        if (!hasParallax) return;
+        
+        // Remove previous listener if any
+        if (this._parallaxHandler) {
+            this.wrapper.removeEventListener('mousemove', this._parallaxHandler);
+        }
+        
+        this._parallaxHandler = (e) => {
+            const rect = this.wrapper.getBoundingClientRect();
+            // Normalized mouse position: -1 to 1
+            const mx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+            const my = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+            
+            this.characterEls.forEach(charEl => {
+                if (!charEl || !charEl.classList.contains('active')) return;
+                const strength = parseFloat(charEl.dataset.parallax) || 0;
+                if (strength === 0) return;
+                
+                const offsetX = mx * strength;
+                const offsetY = my * strength * 0.5;
+                charEl.style.setProperty('--parallax-x', `${offsetX}px`);
+                charEl.style.setProperty('--parallax-y', `${offsetY}px`);
+            });
+        };
+        
+        // Reset on mouse leave
+        this._parallaxLeaveHandler = () => {
+            this.characterEls.forEach(charEl => {
+                if (!charEl) return;
+                charEl.style.setProperty('--parallax-x', '0px');
+                charEl.style.setProperty('--parallax-y', '0px');
+            });
+        };
+        
+        this.wrapper.addEventListener('mousemove', this._parallaxHandler);
+        this.wrapper.addEventListener('mouseleave', this._parallaxLeaveHandler);
     }
     
     parseVideoUrl(url, startTime = 0) {
