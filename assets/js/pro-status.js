@@ -352,7 +352,7 @@ function showUpsell(reason, opts = {}) {
     
     // Default: use toast if available, link to riftpro.html
     if (typeof showToast === 'function') {
-        showToast(`⭐ ${reason}`, 'info');
+        showToast(reason, 'info');
     }
     
     // Custom handler (pages can set RIFT.pro.onUpsell)
