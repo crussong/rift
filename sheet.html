@@ -801,19 +801,6 @@
             opacity: 0.3;
         }
         
-        .char-card--locked .char-card__lock-badge {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            width: 22px;
-            height: 22px;
-        }
-        
-        .char-card--locked .char-card__lock-badge img {
-            width: 100%;
-            height: 100%;
-        }
-        
         .char-card--locked .char-card__empty-text strong {
             color: rgba(188, 162, 76, 0.5);
         }
@@ -1397,6 +1384,32 @@
             updateCounts();
             renderHero();
             renderCharacters();
+            
+            // Re-render when Pro status loads (async from Firebase)
+            if (window.RIFT?.pro?.onStatusChange) {
+                RIFT.pro.onStatusChange(() => {
+                    renderCharacters();
+                    renderHero();
+                });
+            } else {
+                // Pro system might not be loaded yet, wait for it
+                const proCheck = setInterval(() => {
+                    if (window.RIFT?.pro?.onStatusChange) {
+                        clearInterval(proCheck);
+                        RIFT.pro.onStatusChange(() => {
+                            renderCharacters();
+                            renderHero();
+                        });
+                        // If already initialized, re-render now
+                        if (RIFT.pro.initialized) {
+                            renderCharacters();
+                            renderHero();
+                        }
+                    }
+                }, 200);
+                // Stop checking after 10s
+                setTimeout(() => clearInterval(proCheck), 10000);
+            }
         });
         
         // Setup tab clicks
@@ -1711,9 +1724,6 @@
                             <rect x="5" y="11" width="14" height="10" rx="2"/>
                             <path d="M8 11V7a4 4 0 1 1 8 0v4"/>
                         </svg>
-                        <div class="char-card__lock-badge">
-                            <img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="PRO">
-                        </div>
                     </div>
                     <div class="char-card__empty-text">
                         <strong>PRO Slot</strong>
