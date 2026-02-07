@@ -237,9 +237,35 @@ class HeroCarousel {
             const showDescription = slide.showDescription !== false;
             const showCta = slide.showCta !== false;
             
+            // Character Overlay
+            let characterHtml = '';
+            if (slide.characterImg) {
+                const charX = slide.characterX ?? 75;
+                const charY = slide.characterY ?? 0;
+                const charScale = slide.characterScale ?? 100;
+                const charHoverScale = slide.characterHoverScale ?? 110;
+                const charMaxH = slide.characterMaxHeight ?? 120;
+                const charFlip = slide.characterFlip ? 'scaleX(-1)' : '';
+                const charAnchor = slide.characterAnchor || 'bottom';
+                
+                let posStyle = `left: ${charX}%;`;
+                if (charAnchor === 'bottom') {
+                    posStyle += ` bottom: ${charY}%; transform: translateX(-50%) scale(${charScale / 100}) ${charFlip};`;
+                } else if (charAnchor === 'top') {
+                    posStyle += ` top: ${charY}%; transform: translateX(-50%) scale(${charScale / 100}) ${charFlip};`;
+                } else {
+                    posStyle += ` top: 50%; transform: translate(-50%, -50%) scale(${charScale / 100}) ${charFlip};`;
+                }
+                
+                characterHtml = `<div class="hero-carousel__character" style="${posStyle}" data-hover-scale="${charHoverScale}" data-base-scale="${charScale}" data-flip="${slide.characterFlip ? '1' : '0'}" data-anchor="${charAnchor}">
+                    <img src="${slide.characterImg}" alt="" draggable="false" style="max-height: ${charMaxH}%;">
+                </div>`;
+            }
+            
             slideEl.innerHTML = `
                 ${bgHtml}
                 <div class="hero-carousel__overlay" style="${overlayStyle}"></div>
+                ${characterHtml}
                 <div class="hero-carousel__content">
                     ${showBadge ? `<span class="hero-carousel__badge ${badgeClass}">
                         ${liveIndicator}
@@ -282,6 +308,32 @@ class HeroCarousel {
         
         // Apply video playback speeds
         this.initVideoSpeeds();
+        
+        // Character overlay hover effects
+        this.initCharacterHovers();
+    }
+    
+    initCharacterHovers() {
+        this.container.querySelectorAll('.hero-carousel__character').forEach(charEl => {
+            const baseScale = parseFloat(charEl.dataset.baseScale) / 100;
+            const hoverScale = parseFloat(charEl.dataset.hoverScale) / 100;
+            const flip = charEl.dataset.flip === '1' ? ' scaleX(-1)' : '';
+            const anchor = charEl.dataset.anchor;
+            
+            const getTransform = (scale) => {
+                if (anchor === 'center') {
+                    return `translate(-50%, -50%) scale(${scale})${flip}`;
+                }
+                return `translateX(-50%) scale(${scale})${flip}`;
+            };
+            
+            charEl.addEventListener('mouseenter', () => {
+                charEl.style.transform = getTransform(hoverScale);
+            });
+            charEl.addEventListener('mouseleave', () => {
+                charEl.style.transform = getTransform(baseScale);
+            });
+        });
     }
     
     parseVideoUrl(url, startTime = 0) {
