@@ -1387,21 +1387,30 @@
             
             // Initialize Pro status from Firebase auth
             // (app.js handles this on other pages, but sheet.html doesn't load app.js)
-            if (typeof firebase !== 'undefined' && firebase.auth) {
-                firebase.auth().onAuthStateChanged(async (user) => {
-                    if (user && window.RIFT?.pro?.init) {
-                        try {
-                            await RIFT.pro.init(user.uid);
-                            console.log('[Sheet] Pro initialized:', RIFT.pro.isPro);
-                            // Re-render with correct limits
-                            renderCharacters();
-                            renderHero();
-                        } catch (e) {
-                            console.warn('[Sheet] Pro init failed:', e);
-                        }
+            (async () => {
+                try {
+                    // Initialize Firebase first (lazy init)
+                    if (window.RIFT?.firebase?.init) {
+                        await RIFT.firebase.init();
                     }
-                });
-            }
+                    if (typeof firebase !== 'undefined' && firebase.auth) {
+                        firebase.auth().onAuthStateChanged(async (user) => {
+                            if (user && window.RIFT?.pro?.init) {
+                                try {
+                                    await RIFT.pro.init(user.uid);
+                                    console.log('[Sheet] Pro initialized:', RIFT.pro.isPro);
+                                    renderCharacters();
+                                    renderHero();
+                                } catch (e) {
+                                    console.warn('[Sheet] Pro init failed:', e);
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn('[Sheet] Firebase init failed:', e);
+                }
+            })();
         });
         
         // Setup tab clicks
