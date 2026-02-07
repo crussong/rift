@@ -694,6 +694,9 @@ const CharacterStorage = {
             
             console.log('[CharacterStorage] Set main character:', charId, 'for ruleset:', targetRuleset);
             
+            // Notify listeners (e.g. Dock HeroCard)
+            window.dispatchEvent(new CustomEvent('rift-main-character-changed', { detail: { charId, ruleset: targetRuleset } }));
+            
             // Sync to Firebase user profile
             this.syncMainCharacterToFirebase(targetRuleset, charId);
             

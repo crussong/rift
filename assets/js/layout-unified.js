@@ -988,7 +988,7 @@ async function initDockCharacterCard() {
     const roomCode = localStorage.getItem('rift_current_room');
     console.log('[DockChar] Room code:', roomCode || 'none');
     
-    // Try multiple sources for character data (same as Hub CharPanel)
+    // Try multiple sources for character data
     let charData = null;
     let charId = null;
     
@@ -1000,25 +1000,8 @@ async function initDockCharacterCard() {
         return true;
     };
     
-    // Source 1: worldsapart_character_v5 (most reliable for local characters)
-    try {
-        const localData = localStorage.getItem('worldsapart_character_v5');
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            if (isValidCharacter(parsed)) {
-                charData = parsed;
-                charId = charData.id || 'local';
-                console.log('[DockChar] Loaded from worldsapart_character_v5:', charData.name);
-            } else {
-                console.log('[DockChar] worldsapart_character_v5 exists but is invalid/empty');
-            }
-        }
-    } catch (e) {
-        console.warn('[DockChar] worldsapart_character_v5 error:', e);
-    }
-    
-    // Source 2: CharacterStorage as fallback
-    if (!charData && typeof CharacterStorage !== 'undefined') {
+    // Source 1: CharacterStorage Main Character (respects "Main" setting)
+    if (typeof CharacterStorage !== 'undefined') {
         // Get session ruleset
         let ruleset = 'worldsapart';
         const activeSessionData = localStorage.getItem('rift_active_session');
@@ -1035,15 +1018,15 @@ async function initDockCharacterCard() {
             } catch (e) {}
         }
         
-        // Try main character
+        // Try main character for ruleset
         const mainChar = CharacterStorage.getMainCharacter(ruleset);
         if (isValidCharacter(mainChar)) {
             charData = mainChar;
             charId = mainChar.id;
-            console.log('[DockChar] Loaded from CharacterStorage:', charData.name);
+            console.log('[DockChar] Loaded main character from CharacterStorage:', charData.name);
         }
         
-        // Fallback: first valid character
+        // Fallback: first valid character from any ruleset
         if (!charData) {
             const all = CharacterStorage.getAll();
             const chars = Object.values(all).filter(isValidCharacter);
@@ -1052,6 +1035,23 @@ async function initDockCharacterCard() {
                 charId = charData.id;
                 console.log('[DockChar] Loaded first valid character:', charData.name);
             }
+        }
+    }
+    
+    // Source 2: Legacy localStorage fallback (worldsapart_character_v5)
+    if (!charData) {
+        try {
+            const localData = localStorage.getItem('worldsapart_character_v5');
+            if (localData) {
+                const parsed = JSON.parse(localData);
+                if (isValidCharacter(parsed)) {
+                    charData = parsed;
+                    charId = charData.id || 'local';
+                    console.log('[DockChar] Loaded from worldsapart_character_v5 fallback:', charData.name);
+                }
+            }
+        } catch (e) {
+            console.warn('[DockChar] worldsapart_character_v5 error:', e);
         }
     }
     
@@ -1066,8 +1066,8 @@ async function initDockCharacterCard() {
     
     // Subscribe to localStorage changes for real-time updates
     window.addEventListener('storage', (e) => {
-        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5') {
-            console.log('[DockChar] Characters updated, refreshing...');
+        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5' || e.key === 'rift_main_characters') {
+            console.log('[DockChar] Characters/main updated, refreshing...');
             initDockCharacterCard();
         }
     });
@@ -1075,6 +1075,12 @@ async function initDockCharacterCard() {
     // Subscribe to same-tab character saves (custom event)
     window.addEventListener('rift-character-saved', (e) => {
         console.log('[DockChar] Character saved in same tab, refreshing...');
+        initDockCharacterCard();
+    });
+    
+    // Subscribe to main character changes (same tab)
+    window.addEventListener('rift-main-character-changed', (e) => {
+        console.log('[DockChar] Main character changed, refreshing...');
         initDockCharacterCard();
     });
 }
