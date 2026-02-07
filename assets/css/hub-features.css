@@ -138,18 +138,103 @@
 .hero-carousel__character {
     position: absolute;
     z-index: 10;
-    pointer-events: auto;
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
-    filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.6));
-    opacity: 0;
     pointer-events: none;
+    opacity: 0;
+    /* Parallax via CSS custom properties */
+    translate: var(--parallax-x, 0px) var(--parallax-y, 0px);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.5s ease,
+                filter 0.4s ease,
+                translate 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    --parallax-x: 0px;
+    --parallax-y: 0px;
 }
 
-.hero-carousel__character.active {
+/* ── Entry animations (inactive → active) ── */
+
+/* Fade (default) */
+.hero-carousel__character--entry-fade {
+    opacity: 0;
+}
+.hero-carousel__character--entry-fade.active {
     opacity: 1;
+}
+
+/* Slide Up */
+.hero-carousel__character--entry-slide-up {
+    opacity: 0;
+    margin-bottom: -40px;
+}
+.hero-carousel__character--entry-slide-up.active {
+    opacity: 1;
+    margin-bottom: 0;
+}
+
+/* Slide Left (from right) */
+.hero-carousel__character--entry-slide-left {
+    opacity: 0;
+    margin-left: 60px;
+}
+.hero-carousel__character--entry-slide-left.active {
+    opacity: 1;
+    margin-left: 0;
+}
+
+/* Zoom In */
+.hero-carousel__character--entry-zoom {
+    opacity: 0;
+}
+.hero-carousel__character--entry-zoom.active {
+    opacity: 1;
+}
+
+/* Active state base */
+.hero-carousel__character.active {
     pointer-events: auto;
 }
 
+/* ── Idle animations ── */
+
+/* Gentle float (up/down) */
+.hero-carousel__character--gentle {
+    animation: charFloat 4s ease-in-out infinite;
+}
+
+/* Breathing (brightness pulse on image, not parent - avoids filter conflict) */
+.hero-carousel__character--breathe img {
+    animation: charBreathe 3.5s ease-in-out infinite;
+}
+
+@keyframes charFloat {
+    0%, 100% { margin-top: 0; }
+    50% { margin-top: -8px; }
+}
+
+@keyframes charBreathe {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.08); }
+}
+
+/* ── Glow element ── */
+.hero-carousel__character-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.5;
+    z-index: -1;
+    pointer-events: none;
+    animation: charGlowPulse 3s ease-in-out infinite;
+}
+
+@keyframes charGlowPulse {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.65; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+/* ── Character image ── */
 .hero-carousel__character img {
     display: block;
     height: auto;
@@ -157,6 +242,8 @@
     object-fit: contain;
     user-select: none;
     -webkit-user-drag: none;
+    position: relative;
+    z-index: 1;
 }
 
 /* Slide Content - linksbündig mit Abstand zu den Pfeilen */
