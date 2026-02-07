@@ -1042,6 +1042,48 @@ async function initDockCharacterCard() {
                 console.log('[DockChar] Loaded first valid character:', charData.name);
             }
         }
+        
+        // CharacterStorage wraps details in .data - flatten for dock access
+        // Sheet saves: { name, level, data: { attributes, status: {health, moral}, fokus, ... } }
+        // Dock expects: { name, level, attributes, health: {current, max}, fokus, ... }
+        if (charData && charData.data) {
+            const d = charData.data;
+            // Attributes
+            if (d.attributes && !charData.attributes) charData.attributes = d.attributes;
+            // Health/Moral: CharacterStorage stores as flat numbers in data.status
+            if (d.status) {
+                if (!charData.health) {
+                    charData.health = { current: d.status.health ?? 100, max: d.status.maxHealth ?? d.status.maxHp ?? 100 };
+                }
+                if (!charData.moral) {
+                    charData.moral = { current: d.status.moral ?? 100, max: d.status.maxMoral ?? 100 };
+                }
+            }
+            // Fokus, Schwäche, Zweite Chance
+            if (d.fokus && !charData.fokus) charData.fokus = d.fokus;
+            if (d.schwaeche && !charData.schwaeche) charData.schwaeche = d.schwaeche;
+            if (d.secondChance && !charData.secondChance) charData.secondChance = d.secondChance;
+            // Character info
+            if (d.race && !charData.race) charData.race = d.race;
+            if (d.age && !charData.age) charData.age = d.age;
+            if (d.gender && !charData.gender) charData.gender = d.gender;
+            if (d.role && !charData.role) charData.role = d.role;
+            if (d.crew && !charData.crew) charData.crew = d.crew;
+            if (d.weapon && !charData.weapon) charData.weapon = d.weapon;
+            if (d.currency !== undefined && !charData.currency) charData.currency = d.currency;
+            if (d.currencyType && !charData.currencyType) charData.currencyType = d.currencyType;
+            // Portrait URL (custom portrait stored inside data)
+            if (d.portrait && !charData.portraitUrl) {
+                const p = d.portrait;
+                if (p.startsWith && (p.startsWith('http') || p.startsWith('data:'))) {
+                    charData.portraitUrl = p;
+                }
+            }
+            console.log('[DockChar] Flattened CharacterStorage data:', { 
+                attrs: !!charData.attributes, health: charData.health, 
+                fokus: !!charData.fokus, schwaeche: charData.schwaeche 
+            });
+        }
     }
     
     // Source 2: Legacy localStorage fallback (worldsapart_character_v5)
