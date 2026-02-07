@@ -478,6 +478,103 @@ function createUnifiedMeganav() {
                 </div>
             </div>
             
+            <!-- Erste Schritte -->
+            <div class="meganav__item">
+                Erste Schritte
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                
+                <div class="meganav__dropdown meganav__dropdown--wide">
+                    <div class="meganav__dropdown-section-title">Loslegen</div>
+                    <div class="meganav__dropdown-grid meganav__dropdown-grid--guide">
+                        <a href="sheet.html?new=true" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z"/><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z"/><path d="M17 3a1 1 0 0 1 1 1v1h1a1 1 0 0 1 0 2h-1v1a1 1 0 0 1 -2 0v-1h-1a1 1 0 0 1 0 -2h1v-1a1 1 0 0 1 1 -1"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">Charakter erstellen</div>
+                                <div class="meganav__dropdown-card-desc">Wähle ein Regelwerk und erstelle deinen Helden</div>
+                            </div>
+                        </a>
+                        <a href="sessions.html?new=true" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(251, 146, 60, 0.15); color: #fb923c;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.324 .001l.318 .004l.616 .017l.299 .013l.579 .034l.553 .046c4.785 .464 6.732 2.411 7.196 7.196l.046 .553l.034 .579c.005 .098 .01 .198 .013 .299l.017 .616l.005 .642l-.005 .642l-.017 .616l-.013 .299l-.034 .579l-.046 .553c-.464 4.785 -2.411 6.732 -7.196 7.196l-.553 .046l-.579 .034c-.098 .005 -.198 .01 -.299 .013l-.616 .017l-.642 .005l-.642 -.005l-.616 -.017l-.299 -.013l-.579 -.034l-.553 -.046c-4.785 -.464 -6.732 -2.411 -7.196 -7.196l-.046 -.553l-.034 -.579a28.058 28.058 0 0 1 -.013 -.299l-.017 -.616l-.004 -.318l-.001 -.324l.001 -.324l.004 -.318l.017 -.616l.013 -.299l.034 -.579l.046 -.553c.464 -4.785 2.411 -6.732 7.196 -7.196l.553 -.046l.579 -.034c.098 -.005 .198 -.01 .299 -.013l.616 -.017l.318 -.004l.324 -.001zm0 6a1 1 0 0 0 -1 1v2h-2l-.117 .007a1 1 0 0 0 .117 1.993h2v2l.007 .117a1 1 0 0 0 1.993 -.117v-2h2l.117 -.007a1 1 0 0 0 -.117 -1.993h-2v-2l-.007 -.117a1 1 0 0 0 -.993 -.883"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">Session erstellen</div>
+                                <div class="meganav__dropdown-card-desc">Starte ein neues Abenteuer mit deiner Gruppe</div>
+                            </div>
+                        </a>
+                        <a href="dice.html" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(234, 179, 8, 0.15); color: #eab308;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0 -1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034 .57 2.22 .57 3.2 .032l6.804 -4.302c.98 -.537 1.623 -1.618 1.623 -2.793v-7.284l-.005 -.204a3.223 3.223 0 0 0 -1.284 -2.39l-.107 -.075l-.007 -.007a1.074 1.074 0 0 0 -.181 -.133l-6.776 -3.995a3.33 3.33 0 0 0 -3.216 0z"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">Würfel rollen</div>
+                                <div class="meganav__dropdown-card-desc">3D-Würfel mit Themes und Effekten</div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="meganav__dropdown-divider"></div>
+                    <div class="meganav__dropdown-section-title">Entdecken</div>
+                    <div class="meganav__dropdown-grid meganav__dropdown-grid--guide">
+                        <a href="chat.html" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(34, 197, 94, 0.15); color: #22c55e;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.821 4.91c3.899 -2.765 9.468 -2.539 13.073 .535c3.667 3.129 4.168 8.238 1.152 11.898c-2.841 3.447 -7.965 4.583 -12.231 2.805l-.233 -.101l-4.374 .931l-.04 .006l-.035 .007h-.018l-.022 .005h-.038l-.033 .004l-.021 -.001l-.023 .001l-.033 -.003h-.035l-.022 -.004l-.022 -.002l-.035 -.007l-.034 -.005l-.016 -.004l-.024 -.005l-.049 -.016l-.024 -.005l-.011 -.005l-.022 -.007l-.045 -.02l-.03 -.012l-.011 -.006l-.014 -.006l-.031 -.018l-.045 -.024l-.016 -.011l-.037 -.026l-.04 -.027l-.002 -.004l-.013 -.009l-.043 -.04l-.025 -.02l-.006 -.007l-.056 -.062l-.013 -.014l-.011 -.014l-.039 -.056l-.014 -.019l-.005 -.01l-.042 -.073l-.007 -.012l-.004 -.008l-.007 -.012l-.014 -.038l-.02 -.042l-.004 -.016l-.004 -.01l-.017 -.061l-.007 -.018l-.002 -.015l-.005 -.019l-.005 -.033l-.008 -.042l-.002 -.031l-.003 -.01v-.016l-.004 -.054l.001 -.036l.001 -.023l.002 -.053l.004 -.025v-.019l.008 -.035l.005 -.034l.005 -.02l.004 -.02l.018 -.06l.003 -.013l1.15 -3.45l-.022 -.037c-2.21 -3.747 -1.209 -8.391 2.413 -11.119z"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">Gruppen-Chat</div>
+                                <div class="meganav__dropdown-card-desc">Schreibe mit deiner Party in Echtzeit</div>
+                            </div>
+                        </a>
+                        <a href="whiteboard.html" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2zm0 12a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-2a2 2 0 0 1 2 -2zm10 -4a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2zm0 -8a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-2a2 2 0 0 1 2 -2z"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">Whiteboard</div>
+                                <div class="meganav__dropdown-card-desc">Zeichne Battle Maps und Skizzen</div>
+                            </div>
+                        </a>
+                        <a href="map.html" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">Karten</div>
+                                <div class="meganav__dropdown-card-desc">Interaktive Weltkarten mit Markern</div>
+                            </div>
+                        </a>
+                        <a href="gm.html" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-.218 0 -.432 .002 -.642 .005l-.616 .017l-.299 .013l-.579 .034l-.553 .046c-4.785 .464 -6.732 2.411 -7.196 7.196l-.046 .553l-.034 .579a28.058 28.058 0 0 0 -.013 .299l-.017 .616l-.004 .318l-.001 .324c0 .218 .002 .432 .005 .642l.017 .616l.013 .299l.034 .579l.046 .553c.464 4.785 2.411 6.732 7.196 7.196l.553 .046l.579 .034c.098 .005 .198 .01 .299 .013l.616 .017l.642 .005l.642 -.005l.616 -.017l.299 -.013l.579 -.034l.553 -.046c4.785 -.464 6.732 -2.411 7.196 -7.196l.046 -.553l.034 -.579c.005 -.098 .01 -.198 .013 -.299l.017 -.616l.005 -.642l-.005 -.642l-.017 -.616l-.013 -.299l-.034 -.579l-.046 -.553c-.464 -4.785 -2.411 -6.732 -7.196 -7.196l-.553 -.046l-.579 -.034a28.058 28.058 0 0 0 -.299 -.013l-.616 -.017l-.318 -.004l-.324 -.001zm2 5a1 1 0 0 1 .993 .883l.007 .117v2.586l1.293 -1.293a1 1 0 0 1 1.32 -.083l.094 .083a1 1 0 0 1 .083 1.32l-.083 .094l-3 3a1 1 0 0 1 -1.32 .083l-.094 -.083l-3 -3a1 1 0 0 1 1.32 -1.497l.094 .083l1.293 1.293v-2.586a1 1 0 0 1 1 -1z"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">GM Control Center</div>
+                                <div class="meganav__dropdown-card-desc">Spielleiter-Werkzeuge und Broadcasts</div>
+                            </div>
+                        </a>
+                        <a href="roadmap.html" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 2a1 1 0 0 1 .707 .293l5 5a1 1 0 0 1 .293 .707v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-14a3 3 0 0 1 3 -3zm-2 8h-4a1 1 0 0 0 0 2h4a1 1 0 0 0 0 -2m1 4h-5a1 1 0 0 0 0 2h5a1 1 0 0 0 0 -2"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">Roadmap</div>
+                                <div class="meganav__dropdown-card-desc">Was kommt als Nächstes für RIFT</div>
+                            </div>
+                        </a>
+                        <a href="riftpro.html" class="meganav__dropdown-card meganav__guide-card">
+                            <div class="meganav__dropdown-card-icon" style="background: rgba(188, 162, 77, 0.15); color: #bca24d;">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.939 5.955l6.572 .955l-4.756 4.635l1.123 6.545l-5.878 -3.09l-5.878 3.09l1.123 -6.545l-4.756 -4.635l6.572 -.955z"/></svg>
+                            </div>
+                            <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-title">RIFT PRO</div>
+                                <div class="meganav__dropdown-card-desc">Premium-Features und exklusive Themes</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
             <div class="meganav__spacer"></div>
             
             <!-- Social Links -->
