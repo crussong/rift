@@ -395,9 +395,9 @@
         /* RIFT: Body scroll lock when popup is open */
         body.popup-open {
             overflow: hidden !important;
-            position: fixed;
-            width: 100%;
-            height: 100%;
+        }
+        html.popup-open {
+            overflow: hidden !important;
         }
         
         /* RIFT: Settings Preview - neben dem Popup */
@@ -1715,7 +1715,16 @@
             // INITIALIZATION
             // ========================================
             
+            _initialized: false,
+            _initRetries: 0,
+            
             init() {
+                // Guard against double initialization
+                if (this._initialized) {
+                    console.warn('[DiceRoller] Already initialized, skipping');
+                    return;
+                }
+                
                 console.log('[DiceRoller] Initializing...');
                 
                 const container = document.getElementById('diceArena');
@@ -1724,11 +1733,18 @@
                     return;
                 }
                 
-                // Wait for container to have dimensions
+                // Wait for container to have dimensions (max 10 retries)
                 if (container.clientWidth === 0 || container.clientHeight === 0) {
+                    this._initRetries++;
+                    if (this._initRetries > 10) {
+                        console.error('[DiceRoller] Container never got dimensions after 10 retries');
+                        return;
+                    }
                     setTimeout(() => this.init(), 200);
                     return;
                 }
+                
+                this._initialized = true;
                 
                 // Initialize 3D Dice
                 if (typeof DICE !== 'undefined') {
@@ -2360,6 +2376,10 @@
             // ========================================
             
             initThemes() {
+                // Guard against double init
+                if (this._themesInitialized) return;
+                this._themesInitialized = true;
+                
                 // Theme buttons (alte + neue)
                 document.querySelectorAll('.dice-theme-btn, .dice-theme-card').forEach(btn => {
                     btn.addEventListener('click', (e) => {
@@ -2610,6 +2630,10 @@
             // ========================================
             
             initSettings() {
+                // Guard against double init
+                if (this._settingsInitialized) return;
+                this._settingsInitialized = true;
+                
                 const settingsBtn = document.getElementById('settingsBtn');
                 const settingsPopup = document.getElementById('settingsPopup');
                 const settingsClose = document.getElementById('settingsClose');
@@ -2636,23 +2660,16 @@
                             // Open overlay behind popup
                             const overlay = document.getElementById('diceSettingsOverlay');
                             if (overlay) overlay.classList.add('open');
-                            // RIFT: Body scroll lock mit Position-Speicherung
-                            this.savedScrollY = window.scrollY;
-                            document.body.style.top = `-${this.savedScrollY}px`;
+                            // RIFT: Scroll lock
                             document.body.classList.add('popup-open');
+                            document.documentElement.classList.add('popup-open');
                             // RIFT: Preview öffnen
                             const preview = document.getElementById('settingsPreviewContainer');
                             if (preview) preview.classList.add('open');
                         }
                     });
                     
-                    settingsClose?.addEventListener('click', () => {
-                        settingsPopup.classList.remove('open');
-                        settingsBtn.classList.remove('active');
-                        // Close overlay
-                        const overlay = document.getElementById('diceSettingsOverlay');
-                        if (overlay) overlay.classList.remove('open');
-                    });
+                    // settingsClose onclick in HTML already calls DiceRoller.closeAllPopups()
                 }
                 
                 // Stats Button
@@ -5701,12 +5718,9 @@
                 // Only close overlay if ALL popups are closed
                 if (!except) {
                     document.getElementById('diceSettingsOverlay')?.classList.remove('open');
-                    // RIFT: Body scroll lock entfernen und Position wiederherstellen
+                    // RIFT: Scroll lock entfernen
                     document.body.classList.remove('popup-open');
-                    document.body.style.top = '';
-                    if (this.savedScrollY !== undefined) {
-                        window.scrollTo(0, this.savedScrollY);
-                    }
+                    document.documentElement.classList.remove('popup-open');
                 }
             },
             
