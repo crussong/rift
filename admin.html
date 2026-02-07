@@ -1308,6 +1308,23 @@
                 grid-template-columns: 1fr !important;
             }
         }
+        
+        /* Landing Page Admin */
+        .lp-type-btn {
+            padding: 8px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lp-type-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+        .lp-type-btn.active { background: rgba(240,208,96,0.1); border-color: rgba(240,208,96,0.3); color: #f0d060; }
+        .form-label-sm { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+        .lp-settings-group { padding: 16px; background: var(--bg-input); border-radius: 10px; border: 1px solid var(--border); }
     </style>
 </head>
 <body>
@@ -1384,6 +1401,10 @@
                         <button class="admin-tab" onclick="switchTab('faq')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                             <span>FAQ</span>
+                        </button>
+                        <button class="admin-tab" onclick="switchTab('landingPage')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            <span>Landing Page</span>
                         </button>
                     </div>
                 </div>
@@ -3341,6 +3362,197 @@
                 </div>
             </div>
             
+            <!-- ═══════════════════════════════════════
+                 LANDING PAGE CONFIG
+                 ═══════════════════════════════════════ -->
+            <div class="admin-page" id="page-landingPage">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-header__title">Landing Page</h1>
+                        <p class="page-header__subtitle">Hintergrund, Effekte und Inhalte der Login-Seite konfigurieren</p>
+                    </div>
+                    <button class="btn btn--primary" onclick="LandingAdmin.save()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Speichern
+                    </button>
+                </div>
+
+                <!-- PRO TEASER SECTION -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card__header">
+                        <h2 class="card__title">
+                            <span style="background: linear-gradient(135deg, #f0d060, #bca24c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">PRO</span>
+                            Teaser Hintergrund
+                        </h2>
+                        <label class="toggle" style="gap:8px;">
+                            <input type="checkbox" id="lp-pro-bg-enabled" checked>
+                            <span class="toggle__slider"></span>
+                            <span style="font-size:12px;color:var(--text-muted);">Aktiv</span>
+                        </label>
+                    </div>
+                    <div class="card__body" style="padding:24px;">
+                        
+                        <!-- Background Type -->
+                        <div style="margin-bottom:20px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Hintergrund-Typ</label>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button class="lp-type-btn active" data-type="none" onclick="LandingAdmin.setType('none',this)">Keiner</button>
+                                <button class="lp-type-btn" data-type="image" onclick="LandingAdmin.setType('image',this)">Bild</button>
+                                <button class="lp-type-btn" data-type="video" onclick="LandingAdmin.setType('video',this)">Video</button>
+                                <button class="lp-type-btn" data-type="gradient" onclick="LandingAdmin.setType('gradient',this)">Gradient</button>
+                                <button class="lp-type-btn" data-type="html" onclick="LandingAdmin.setType('html',this)">Custom HTML</button>
+                            </div>
+                        </div>
+
+                        <!-- Image Settings -->
+                        <div class="lp-settings-group" id="lp-settings-image" style="display:none;">
+                            <div style="margin-bottom:14px;">
+                                <label class="form-label-sm">Bild-URL</label>
+                                <input type="text" class="form-input" id="lp-pro-bg-image" placeholder="https://... oder /assets/img/...">
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                                <div>
+                                    <label class="form-label-sm">Object-Fit</label>
+                                    <select class="form-select" id="lp-pro-bg-image-fit">
+                                        <option value="cover">Cover</option>
+                                        <option value="contain">Contain</option>
+                                        <option value="fill">Fill</option>
+                                        <option value="none">None (Originalmaße)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label-sm">Position</label>
+                                    <select class="form-select" id="lp-pro-bg-image-pos">
+                                        <option value="center">Center</option>
+                                        <option value="top">Top</option>
+                                        <option value="bottom">Bottom</option>
+                                        <option value="left">Left</option>
+                                        <option value="right">Right</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Video Settings -->
+                        <div class="lp-settings-group" id="lp-settings-video" style="display:none;">
+                            <div style="margin-bottom:14px;">
+                                <label class="form-label-sm">Video-URL (mp4)</label>
+                                <input type="text" class="form-input" id="lp-pro-bg-video" placeholder="https://... (mp4, webm)">
+                            </div>
+                        </div>
+
+                        <!-- Gradient Settings -->
+                        <div class="lp-settings-group" id="lp-settings-gradient" style="display:none;">
+                            <div style="margin-bottom:14px;">
+                                <label class="form-label-sm">CSS Gradient</label>
+                                <input type="text" class="form-input" id="lp-pro-bg-gradient" placeholder="radial-gradient(circle at 50% 0%, rgba(240,208,96,0.15), transparent 70%)">
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                                <button class="btn btn--ghost" style="font-size:11px;padding:6px 12px;" onclick="LandingAdmin.presetGradient('radial-gradient(circle at 50% 0%, rgba(240,208,96,0.15), transparent 70%)')">Gold Glow</button>
+                                <button class="btn btn--ghost" style="font-size:11px;padding:6px 12px;" onclick="LandingAdmin.presetGradient('radial-gradient(ellipse at 30% 80%, rgba(255,70,85,0.1), transparent 60%)')">Red Accent</button>
+                                <button class="btn btn--ghost" style="font-size:11px;padding:6px 12px;" onclick="LandingAdmin.presetGradient('linear-gradient(135deg, rgba(240,208,96,0.08) 0%, rgba(139,92,246,0.06) 100%)')">Gold → Purple</button>
+                                <button class="btn btn--ghost" style="font-size:11px;padding:6px 12px;" onclick="LandingAdmin.presetGradient('conic-gradient(from 180deg, rgba(240,208,96,0.08), rgba(255,70,85,0.06), rgba(240,208,96,0.08))')">Conic</button>
+                            </div>
+                        </div>
+
+                        <!-- Custom HTML -->
+                        <div class="lp-settings-group" id="lp-settings-html" style="display:none;">
+                            <div style="margin-bottom:14px;">
+                                <label class="form-label-sm">Custom HTML (wird in Container injiziert)</label>
+                                <textarea class="form-input" id="lp-pro-bg-html" rows="6" style="font-family:monospace;font-size:12px;resize:vertical;" placeholder='<div style="position:absolute;inset:0;background:..."></div>&#10;<img src="..." style="...">'></textarea>
+                            </div>
+                            <p style="font-size:11px;color:var(--text-muted);line-height:1.5;">Container ist <code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;">position:absolute; inset:0; overflow:hidden;</code> — nutze absolute Positionierung für Elemente.</p>
+                        </div>
+
+                        <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">
+
+                        <!-- Universal Settings -->
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+                            <div>
+                                <label class="form-label-sm">Deckkraft</label>
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <input type="range" id="lp-pro-bg-opacity" min="0" max="100" value="10" style="flex:1;" oninput="document.getElementById('lp-pro-bg-opacity-val').textContent=this.value+'%'">
+                                    <span id="lp-pro-bg-opacity-val" style="font-size:12px;color:var(--text-muted);min-width:36px;">10%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="form-label-sm">Blur (px)</label>
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <input type="range" id="lp-pro-bg-blur" min="0" max="40" value="0" style="flex:1;" oninput="document.getElementById('lp-pro-bg-blur-val').textContent=this.value+'px'">
+                                    <span id="lp-pro-bg-blur-val" style="font-size:12px;color:var(--text-muted);min-width:36px;">0px</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="form-label-sm">Blend-Mode</label>
+                                <select class="form-select" id="lp-pro-bg-blend">
+                                    <option value="normal">Normal</option>
+                                    <option value="screen">Screen</option>
+                                    <option value="overlay">Overlay</option>
+                                    <option value="multiply">Multiply</option>
+                                    <option value="soft-light">Soft Light</option>
+                                    <option value="color-dodge">Color Dodge</option>
+                                    <option value="luminosity">Luminosity</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+                            <div>
+                                <label class="form-label-sm">Overlay-Farbe (optional)</label>
+                                <input type="text" class="form-input" id="lp-pro-overlay-color" placeholder="rgba(0,0,0,0.3) oder transparent">
+                            </div>
+                            <div>
+                                <label class="form-label-sm">CSS Animation (optional)</label>
+                                <input type="text" class="form-input" id="lp-pro-bg-animation" placeholder="pulse 4s ease-in-out infinite">
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- LIVE PREVIEW -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card__header">
+                        <h2 class="card__title">Vorschau</h2>
+                        <button class="btn btn--ghost" style="font-size:12px;" onclick="LandingAdmin.refreshPreview()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            Aktualisieren
+                        </button>
+                    </div>
+                    <div class="card__body" style="padding:0;">
+                        <div id="lp-preview" style="position:relative;height:200px;border-radius:0 0 12px 12px;overflow:hidden;background:linear-gradient(135deg, rgba(240,208,96,0.03), rgba(188,162,76,0.02));border-top:1px solid var(--border);">
+                            <div id="lp-preview-bg" style="position:absolute;inset:0;overflow:hidden;"></div>
+                            <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;height:100%;text-align:center;padding:20px;">
+                                <div>
+                                    <span style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#f0d060,#bca24c);border-radius:100px;font-size:9px;font-weight:800;color:#1a1200;letter-spacing:0.1em;margin-bottom:8px;">PRO</span>
+                                    <div style="font-size:20px;font-weight:700;color:#f0f0f0;margin-bottom:4px;">RIFT Pro</div>
+                                    <div style="font-size:12px;color:rgba(255,255,255,0.4);">Vorschau des Hintergrund-Effekts</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADDITIONAL LANDING PAGE SETTINGS -->
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">Allgemeine Einstellungen</h2>
+                    </div>
+                    <div class="card__body" style="padding:24px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                            <div>
+                                <label class="form-label-sm">Hero Subtitle Override (leer = Standard)</label>
+                                <input type="text" class="form-input" id="lp-hero-subtitle" placeholder="Standard-Text aus i18n">
+                            </div>
+                            <div>
+                                <label class="form-label-sm">Custom CSS (wird in &lt;style&gt; injiziert)</label>
+                                <textarea class="form-input" id="lp-custom-css" rows="3" style="font-family:monospace;font-size:12px;resize:vertical;" placeholder=".pro-teaser__inner { border-color: ... }"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
         </main>
     </div>
     
@@ -3705,276 +3917,6 @@
                             <input type="checkbox" id="carouselAutoplay" checked>
                             <span>Autoplay aktiviert</span>
                         </label>
-                    </div>
-                </div>
-                
-                <!-- Character Overlay Section -->
-                <div class="form-section-header" style="cursor: pointer;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('.toggle-arrow').style.transform = this.nextElementSibling.style.display === 'none' ? '' : 'rotate(180deg)';">
-                    <span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><path d="M12 2a5 5 0 1 1-5 5l.005-.217A5 5 0 0 1 12 2m2 12h-4a5 5 0 0 0-5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a5 5 0 0 0-5-5"/></svg>
-                        Charakter-Overlay
-                        <span id="charOverlayIndicator" style="color: var(--green); font-size: 8px; margin-left: 6px;">●</span>
-                    </span>
-                    <svg class="toggle-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s;"><path d="M6 9l6 6 6-6"/></svg>
-                </div>
-                
-                <div id="charOverlayFields" style="display: none;">
-                    
-                    <!-- Display Mode & Overflow (per-slide, not per-layer) -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Anzeige-Modus</label>
-                            <select class="form-select" id="slideCharDisplay">
-                                <option value="all">Alle Layer gleichzeitig</option>
-                                <option value="random">Zufällig einer pro Aufruf</option>
-                                <option value="sequence">Abwechselnd (Reihenfolge)</option>
-                            </select>
-                            <p class="form-hint">Nur relevant bei mehreren Layern</p>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Overflow / Ränder</label>
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                <label class="form-checkbox" style="flex: 1 0 45%;">
-                                    <input type="checkbox" id="slideCharOvTop" checked>
-                                    <span>↑ Oben raus</span>
-                                </label>
-                                <label class="form-checkbox" style="flex: 1 0 45%;">
-                                    <input type="checkbox" id="slideCharOvBottom">
-                                    <span>↓ Unten raus</span>
-                                </label>
-                                <label class="form-checkbox" style="flex: 1 0 45%;">
-                                    <input type="checkbox" id="slideCharOvLeft">
-                                    <span>← Links raus</span>
-                                </label>
-                                <label class="form-checkbox" style="flex: 1 0 45%;">
-                                    <input type="checkbox" id="slideCharOvRight">
-                                    <span>→ Rechts raus</span>
-                                </label>
-                            </div>
-                            <p class="form-hint">Aktiviert = Charakter darf über diesen Rand hinausragen</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Layer Tabs -->
-                    <div style="display: flex; gap: 6px; margin-bottom: 16px; margin-top: 8px;">
-                        <button type="button" class="carousel-type-tab active" id="charLayerTab0" onclick="CarouselAdmin.switchCharLayer(0)">
-                            Layer 1 <span id="charLayerDot0" style="color: var(--green); font-size: 8px; margin-left: 3px;">●</span>
-                        </button>
-                        <button type="button" class="carousel-type-tab" id="charLayerTab1" onclick="CarouselAdmin.switchCharLayer(1)">
-                            Layer 2 <span id="charLayerDot1" style="color: var(--green); font-size: 8px; margin-left: 3px; display: none;">●</span>
-                        </button>
-                        <button type="button" class="carousel-type-tab" id="charLayerTab2" onclick="CarouselAdmin.switchCharLayer(2)">
-                            Layer 3 <span id="charLayerDot2" style="color: var(--green); font-size: 8px; margin-left: 3px; display: none;">●</span>
-                        </button>
-                        <button type="button" class="btn btn--ghost btn--small" style="margin-left: auto; font-size: 11px; color: var(--red);" onclick="CarouselAdmin.clearCharLayer()">Layer leeren</button>
-                    </div>
-                    
-                    <!-- Per-Layer fields (same form, content swapped via JS) -->
-                    <div id="charLayerForm">
-                        <div class="form-group">
-                            <label class="form-label">Bild-URL <span>(PNG mit Transparenz)</span></label>
-                            <input type="text" class="form-input" id="slideCharImg" placeholder="assets/img/carousel/char-wizard.png" oninput="CarouselAdmin.updateCharPreview()">
-                            <p class="form-hint">Ausgeschnittener Charakter als PNG. Wird über dem Hintergrund angezeigt.</p>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Position X <span>(0=links, 100=rechts)</span></label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharX" min="0" max="100" step="1" value="75" style="flex: 1;" oninput="document.getElementById('slideCharXNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharXNum" min="0" max="100" value="75" style="width: 64px; text-align: center;" oninput="document.getElementById('slideCharX').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">%</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Position Y <span>(Offset vom Anker)</span></label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharY" min="-30" max="50" step="1" value="0" style="flex: 1;" oninput="document.getElementById('slideCharYNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharYNum" min="-30" max="50" value="0" style="width: 64px; text-align: center;" oninput="document.getElementById('slideCharY').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">%</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Größe</label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharScale" min="20" max="200" step="5" value="100" style="flex: 1;" oninput="document.getElementById('slideCharScaleNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharScaleNum" min="20" max="200" step="5" value="100" style="width: 64px; text-align: center;" oninput="document.getElementById('slideCharScale').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">%</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Hover-Zoom <span>(sanft, 100=kein Zoom)</span></label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharHover" min="100" max="120" step="1" value="105" style="flex: 1;" oninput="document.getElementById('slideCharHoverNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharHoverNum" min="100" max="120" step="1" value="105" style="width: 64px; text-align: center;" oninput="document.getElementById('slideCharHover').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">%</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Max. Höhe <span>(% der Carousel-Höhe)</span></label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharMaxH" min="30" max="250" step="5" value="120" style="flex: 1;" oninput="document.getElementById('slideCharMaxHNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharMaxHNum" min="30" max="250" step="5" value="120" style="width: 64px; text-align: center;" oninput="document.getElementById('slideCharMaxH').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">%</span>
-                                </div>
-                                <p class="form-hint">>100% = Charakter ragt über Carousel hinaus</p>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Anker</label>
-                                <select class="form-select" id="slideCharAnchor">
-                                    <option value="bottom">Unten (Füße am Boden)</option>
-                                    <option value="center">Mitte</option>
-                                    <option value="top">Oben</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-checkbox">
-                                <input type="checkbox" id="slideCharFlip">
-                                <span>Horizontal spiegeln</span>
-                            </label>
-                        </div>
-                        
-                        <!-- Schatten -->
-                        <div class="form-section-header" style="margin-top: 16px; font-size: 12px; padding: 6px 0; border: none; color: var(--text-muted);">
-                            <span>Schatten</span>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-checkbox">
-                                <input type="checkbox" id="slideCharShadow" checked onchange="document.getElementById('charShadowFields').style.display = this.checked ? 'block' : 'none'">
-                                <span>Drop-Shadow aktiviert</span>
-                            </label>
-                        </div>
-                        
-                        <div id="charShadowFields">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label">Farbe</label>
-                                    <select class="form-select" id="slideCharShadowColor">
-                                        <option value="rgba(0,0,0,0.6)">Schwarz</option>
-                                        <option value="rgba(0,0,0,0.9)">Schwarz (stark)</option>
-                                        <option value="rgba(139,92,246,0.5)">Lila</option>
-                                        <option value="rgba(59,130,246,0.5)">Blau</option>
-                                        <option value="rgba(255,70,85,0.5)">Rot</option>
-                                        <option value="rgba(255,200,50,0.4)">Gold</option>
-                                        <option value="rgba(0,255,170,0.4)">Cyan</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Blur</label>
-                                    <div style="display: flex; gap: 8px; align-items: center;">
-                                        <input type="range" class="form-range" id="slideCharShadowBlur" min="0" max="60" step="2" value="24" style="flex: 1;" oninput="document.getElementById('slideCharShadowBlurNum').value = this.value">
-                                        <input type="number" class="form-input" id="slideCharShadowBlurNum" min="0" max="60" value="24" style="width: 56px; text-align: center;" oninput="document.getElementById('slideCharShadowBlur').value = this.value">
-                                        <span style="color: var(--text-muted); font-size: 12px;">px</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label">Offset X</label>
-                                    <div style="display: flex; gap: 8px; align-items: center;">
-                                        <input type="range" class="form-range" id="slideCharShadowX" min="-20" max="20" step="1" value="0" style="flex: 1;" oninput="document.getElementById('slideCharShadowXNum').value = this.value">
-                                        <input type="number" class="form-input" id="slideCharShadowXNum" min="-20" max="20" value="0" style="width: 56px; text-align: center;" oninput="document.getElementById('slideCharShadowX').value = this.value">
-                                        <span style="color: var(--text-muted); font-size: 12px;">px</span>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Offset Y</label>
-                                    <div style="display: flex; gap: 8px; align-items: center;">
-                                        <input type="range" class="form-range" id="slideCharShadowY" min="-20" max="20" step="1" value="4" style="flex: 1;" oninput="document.getElementById('slideCharShadowYNum').value = this.value">
-                                        <input type="number" class="form-input" id="slideCharShadowYNum" min="-20" max="20" value="4" style="width: 56px; text-align: center;" oninput="document.getElementById('slideCharShadowY').value = this.value">
-                                        <span style="color: var(--text-muted); font-size: 12px;">px</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Effekte -->
-                        <div class="form-section-header" style="margin-top: 16px; font-size: 12px; padding: 6px 0; border: none; color: var(--text-muted);">
-                            <span>Effekte &amp; Animation</span>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Eintrittanimation</label>
-                                <select class="form-select" id="slideCharEntry">
-                                    <option value="fade">Einblenden</option>
-                                    <option value="slide-up">Von unten</option>
-                                    <option value="slide-left">Von rechts</option>
-                                    <option value="zoom">Zoom-In</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Idle-Animation</label>
-                                <select class="form-select" id="slideCharFloat">
-                                    <option value="none">Keine</option>
-                                    <option value="gentle">Sanftes Schweben</option>
-                                    <option value="breathe">Atmen (Brightness-Puls)</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Zufalls-Rotation <span>(±Grad, 0=aus)</span></label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharRotation" min="0" max="15" step="1" value="0" style="flex: 1;" oninput="document.getElementById('slideCharRotationNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharRotationNum" min="0" max="15" value="0" style="width: 56px; text-align: center;" oninput="document.getElementById('slideCharRotation').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">°</span>
-                                </div>
-                                <p class="form-hint">Charakter wird bei jedem Laden zufällig um ±X° rotiert</p>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Parallax <span>(Maus-Follow, 0=aus)</span></label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharParallax" min="0" max="30" step="1" value="0" style="flex: 1;" oninput="document.getElementById('slideCharParallaxNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharParallaxNum" min="0" max="30" value="0" style="width: 56px; text-align: center;" oninput="document.getElementById('slideCharParallax').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">px</span>
-                                </div>
-                                <p class="form-hint">Charakter bewegt sich leicht mit dem Mauszeiger</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Glow / Aura -->
-                        <div class="form-section-header" style="margin-top: 16px; font-size: 12px; padding: 6px 0; border: none; color: var(--text-muted);">
-                            <span>Glow / Aura</span>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Glow-Farbe <span>(leer = kein Glow)</span></label>
-                                <select class="form-select" id="slideCharGlow">
-                                    <option value="">Kein Glow</option>
-                                    <option value="rgba(139,92,246,0.6)">Lila</option>
-                                    <option value="rgba(59,130,246,0.6)">Blau</option>
-                                    <option value="rgba(255,70,85,0.5)">Rot</option>
-                                    <option value="rgba(255,200,50,0.5)">Gold</option>
-                                    <option value="rgba(0,255,170,0.5)">Cyan / Mint</option>
-                                    <option value="rgba(255,255,255,0.3)">Weiß (soft)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Glow-Größe</label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="range" class="form-range" id="slideCharGlowSize" min="20" max="120" step="5" value="40" style="flex: 1;" oninput="document.getElementById('slideCharGlowSizeNum').value = this.value">
-                                    <input type="number" class="form-input" id="slideCharGlowSizeNum" min="20" max="120" value="40" style="width: 56px; text-align: center;" oninput="document.getElementById('slideCharGlowSize').value = this.value">
-                                    <span style="color: var(--text-muted); font-size: 12px;">px</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div><!-- /charLayerForm -->
-                    
-                    <div id="charPreviewBox" style="display: none; margin-top: 8px; background: var(--bg-input); border-radius: 8px; padding: 12px; text-align: center;">
-                        <img id="charPreviewImg" style="max-height: 100px; opacity: 0.8;" alt="Vorschau">
-                        <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Vorschau</p>
                     </div>
                 </div>
                 
@@ -5399,8 +5341,153 @@
                 ProAdmin.loadThemeGating('dice');
             } else if (tabId === 'proLimits') {
                 ProAdmin.loadLimits();
+            } else if (tabId === 'landingPage') {
+                LandingAdmin.load();
             }
         }
+        
+        // ========================================
+        // LANDING PAGE ADMIN MODULE
+        // ========================================
+        const LandingAdmin = {
+            config: null,
+            
+            async load() {
+                try {
+                    const doc = await firebase.firestore().collection('admin').doc('landing_config').get();
+                    this.config = doc.exists ? doc.data() : {};
+                    this.populateForm(this.config);
+                    this.refreshPreview();
+                } catch(e) {
+                    console.error('LandingAdmin.load error:', e);
+                }
+            },
+            
+            populateForm(c) {
+                const pro = c.proTeaser || {};
+                document.getElementById('lp-pro-bg-enabled').checked = pro.enabled !== false;
+                
+                // Set type
+                const type = pro.type || 'none';
+                document.querySelectorAll('.lp-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+                document.querySelectorAll('.lp-settings-group').forEach(g => g.style.display = 'none');
+                const group = document.getElementById('lp-settings-' + type);
+                if (group) group.style.display = 'block';
+                
+                // Fill fields
+                document.getElementById('lp-pro-bg-image').value = pro.imageUrl || '';
+                document.getElementById('lp-pro-bg-image-fit').value = pro.imageFit || 'cover';
+                document.getElementById('lp-pro-bg-image-pos').value = pro.imagePos || 'center';
+                document.getElementById('lp-pro-bg-video').value = pro.videoUrl || '';
+                document.getElementById('lp-pro-bg-gradient').value = pro.gradient || '';
+                document.getElementById('lp-pro-bg-html').value = pro.customHtml || '';
+                
+                const opacity = pro.opacity ?? 10;
+                document.getElementById('lp-pro-bg-opacity').value = opacity;
+                document.getElementById('lp-pro-bg-opacity-val').textContent = opacity + '%';
+                
+                const blur = pro.blur ?? 0;
+                document.getElementById('lp-pro-bg-blur').value = blur;
+                document.getElementById('lp-pro-bg-blur-val').textContent = blur + 'px';
+                
+                document.getElementById('lp-pro-bg-blend').value = pro.blendMode || 'normal';
+                document.getElementById('lp-pro-overlay-color').value = pro.overlayColor || '';
+                document.getElementById('lp-pro-bg-animation').value = pro.animation || '';
+                
+                // General settings
+                document.getElementById('lp-hero-subtitle').value = c.heroSubtitle || '';
+                document.getElementById('lp-custom-css').value = c.customCss || '';
+            },
+            
+            setType(type, btn) {
+                document.querySelectorAll('.lp-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.lp-settings-group').forEach(g => g.style.display = 'none');
+                const group = document.getElementById('lp-settings-' + type);
+                if (group) group.style.display = 'block';
+            },
+            
+            presetGradient(val) {
+                document.getElementById('lp-pro-bg-gradient').value = val;
+                this.refreshPreview();
+            },
+            
+            getFormData() {
+                const activeType = document.querySelector('.lp-type-btn.active')?.dataset.type || 'none';
+                return {
+                    proTeaser: {
+                        enabled: document.getElementById('lp-pro-bg-enabled').checked,
+                        type: activeType,
+                        imageUrl: document.getElementById('lp-pro-bg-image').value.trim(),
+                        imageFit: document.getElementById('lp-pro-bg-image-fit').value,
+                        imagePos: document.getElementById('lp-pro-bg-image-pos').value,
+                        videoUrl: document.getElementById('lp-pro-bg-video').value.trim(),
+                        gradient: document.getElementById('lp-pro-bg-gradient').value.trim(),
+                        customHtml: document.getElementById('lp-pro-bg-html').value,
+                        opacity: parseInt(document.getElementById('lp-pro-bg-opacity').value),
+                        blur: parseInt(document.getElementById('lp-pro-bg-blur').value),
+                        blendMode: document.getElementById('lp-pro-bg-blend').value,
+                        overlayColor: document.getElementById('lp-pro-overlay-color').value.trim(),
+                        animation: document.getElementById('lp-pro-bg-animation').value.trim()
+                    },
+                    heroSubtitle: document.getElementById('lp-hero-subtitle').value.trim(),
+                    customCss: document.getElementById('lp-custom-css').value.trim(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedBy: firebase.auth().currentUser?.email || 'unknown'
+                };
+            },
+            
+            buildBgHtml(pro) {
+                if (!pro || !pro.enabled || pro.type === 'none') return '';
+                
+                const opacity = (pro.opacity ?? 10) / 100;
+                const blur = pro.blur ?? 0;
+                const blend = pro.blendMode || 'normal';
+                const anim = pro.animation ? `animation:${pro.animation};` : '';
+                const baseStyle = `position:absolute;inset:0;opacity:${opacity};filter:blur(${blur}px);mix-blend-mode:${blend};${anim}`;
+                
+                let html = '';
+                
+                if (pro.type === 'image' && pro.imageUrl) {
+                    html = `<img src="${pro.imageUrl}" style="${baseStyle}width:100%;height:100%;object-fit:${pro.imageFit||'cover'};object-position:${pro.imagePos||'center'};" alt="">`;
+                } else if (pro.type === 'video' && pro.videoUrl) {
+                    html = `<video autoplay muted loop playsinline style="${baseStyle}width:100%;height:100%;object-fit:cover;"><source src="${pro.videoUrl}"></video>`;
+                } else if (pro.type === 'gradient' && pro.gradient) {
+                    html = `<div style="${baseStyle}background:${pro.gradient};"></div>`;
+                } else if (pro.type === 'html' && pro.customHtml) {
+                    html = `<div style="${baseStyle}">${pro.customHtml}</div>`;
+                }
+                
+                if (pro.overlayColor) {
+                    html += `<div style="position:absolute;inset:0;background:${pro.overlayColor};pointer-events:none;"></div>`;
+                }
+                
+                return html;
+            },
+            
+            refreshPreview() {
+                const data = this.getFormData();
+                const previewBg = document.getElementById('lp-preview-bg');
+                previewBg.innerHTML = this.buildBgHtml(data.proTeaser);
+            },
+            
+            async save() {
+                try {
+                    const data = this.getFormData();
+                    await firebase.firestore().collection('admin').doc('landing_config').set(data, { merge: true });
+                    
+                    // Show success toast
+                    const toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#22C55E;color:white;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;animation:fadeIn 0.3s;';
+                    toast.textContent = '✓ Landing Page Config gespeichert';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                } catch(e) {
+                    console.error('LandingAdmin.save error:', e);
+                    alert('Fehler beim Speichern: ' + e.message);
+                }
+            }
+        };
         
         // ========================================
         // CAROUSEL ADMIN MODULE
@@ -5410,8 +5497,6 @@
             editingId: null,
             pendingBgImage: null,
             currentCollection: 'hub_slides',
-            charLayers: [null, null, null],
-            charCurrentLayer: 0,
             
             collectionNames: {
                 'hub_slides': 'Hub-Startseite',
@@ -5508,7 +5593,6 @@
                                 <span>${slide.autoplay || 6}s</span>
                                 ${slide.videoUrl ? '<span>🎬 Video</span>' : ''}
                                 ${slide.countdownDate ? '<span>⏰ Countdown</span>' : ''}
-                                ${slide.characterImg ? '<span>🧙 Charakter</span>' : (slide.characterLayers && slide.characterLayers !== '[null,null,null]' ? '<span>🧙 Charakter</span>' : '')}
                                 ${slide.active === false ? '<span style="color: var(--yellow);">Inaktiv</span>' : ''}
                             </div>
                         </div>
@@ -5620,39 +5704,6 @@
                 document.getElementById('carouselShowDots').checked = slide?.carouselShowDots !== false;
                 document.getElementById('carouselAutoplay').checked = slide?.carouselAutoplay !== false;
                 
-                // Character overlay - Layer system
-                this.charLayers = this.parseLayersFromSlide(slide || {});
-                this.charCurrentLayer = 0;
-                
-                // Display mode & overflow
-                document.getElementById('slideCharDisplay').value = slide?.characterDisplay || 'all';
-                document.getElementById('slideCharOvTop').checked = slide?.characterOverflowTop !== false;
-                document.getElementById('slideCharOvBottom').checked = slide?.characterOverflowBottom || false;
-                document.getElementById('slideCharOvLeft').checked = slide?.characterOverflowLeft || false;
-                document.getElementById('slideCharOvRight').checked = slide?.characterOverflowRight || false;
-                
-                // Load Layer 1 into form
-                this.setCharLayerToForm(this.charLayers[0]);
-                
-                // Update all layer tab dots
-                for (let i = 0; i < 3; i++) {
-                    const tab = document.getElementById('charLayerTab' + i);
-                    const dot = document.getElementById('charLayerDot' + i);
-                    if (tab) tab.classList.toggle('active', i === 0);
-                    if (dot) dot.style.display = (this.charLayers[i] && this.charLayers[i].img) ? 'inline' : 'none';
-                }
-                
-                // Character preview & indicator
-                this.updateCharPreview();
-                
-                // Auto-open section if any character layer is configured
-                const hasAnyChar = this.charLayers.some(l => l && l.img);
-                if (hasAnyChar) {
-                    document.getElementById('charOverlayFields').style.display = 'block';
-                } else {
-                    document.getElementById('charOverlayFields').style.display = 'none';
-                }
-                
                 modal.classList.add('active');
                 
                 // Init event handlers
@@ -5700,162 +5751,6 @@
                 };
             },
             
-            updateCharPreview() {
-                const url = document.getElementById('slideCharImg').value.trim();
-                const indicator = document.getElementById('charOverlayIndicator');
-                const previewBox = document.getElementById('charPreviewBox');
-                const previewImg = document.getElementById('charPreviewImg');
-                
-                // Main indicator: any layer has image
-                const anyHasImg = this.charLayers.some(l => l && l.img) || url;
-                indicator.style.display = anyHasImg ? 'inline' : 'none';
-                
-                if (url) {
-                    previewBox.style.display = 'block';
-                    previewImg.src = url;
-                    previewImg.onerror = () => { previewBox.style.display = 'none'; };
-                } else {
-                    previewBox.style.display = 'none';
-                }
-                // Update dot for current layer
-                const dot = document.getElementById('charLayerDot' + this.charCurrentLayer);
-                if (dot) dot.style.display = url ? 'inline' : 'none';
-            },
-            
-            // === Layer Management ===
-            
-            getDefaultLayer() {
-                return {
-                    img: '', x: 75, y: 0, scale: 100, hoverScale: 105, maxHeight: 120,
-                    anchor: 'bottom', flip: false,
-                    shadow: true, shadowColor: 'rgba(0,0,0,0.6)', shadowBlur: 24, shadowX: 0, shadowY: 4,
-                    entry: 'fade', float: 'none', rotation: 0, parallax: 0,
-                    glow: '', glowSize: 40
-                };
-            },
-            
-            getCharLayerFromForm() {
-                return {
-                    img: document.getElementById('slideCharImg').value.trim(),
-                    x: parseInt(document.getElementById('slideCharX').value) || 75,
-                    y: parseInt(document.getElementById('slideCharY').value) || 0,
-                    scale: parseInt(document.getElementById('slideCharScale').value) || 100,
-                    hoverScale: parseInt(document.getElementById('slideCharHover').value) || 105,
-                    maxHeight: parseInt(document.getElementById('slideCharMaxH').value) || 120,
-                    anchor: document.getElementById('slideCharAnchor').value || 'bottom',
-                    flip: document.getElementById('slideCharFlip').checked,
-                    shadow: document.getElementById('slideCharShadow').checked,
-                    shadowColor: document.getElementById('slideCharShadowColor').value,
-                    shadowBlur: parseInt(document.getElementById('slideCharShadowBlur').value) || 24,
-                    shadowX: parseInt(document.getElementById('slideCharShadowX').value) || 0,
-                    shadowY: parseInt(document.getElementById('slideCharShadowY').value) || 4,
-                    entry: document.getElementById('slideCharEntry').value || 'fade',
-                    float: document.getElementById('slideCharFloat').value || 'none',
-                    rotation: parseInt(document.getElementById('slideCharRotation').value) || 0,
-                    parallax: parseInt(document.getElementById('slideCharParallax').value) || 0,
-                    glow: document.getElementById('slideCharGlow').value || '',
-                    glowSize: parseInt(document.getElementById('slideCharGlowSize').value) || 40
-                };
-            },
-            
-            setCharLayerToForm(layer) {
-                const l = layer || this.getDefaultLayer();
-                document.getElementById('slideCharImg').value = l.img || '';
-                document.getElementById('slideCharX').value = l.x ?? 75;
-                document.getElementById('slideCharXNum').value = l.x ?? 75;
-                document.getElementById('slideCharY').value = l.y ?? 0;
-                document.getElementById('slideCharYNum').value = l.y ?? 0;
-                document.getElementById('slideCharScale').value = l.scale ?? 100;
-                document.getElementById('slideCharScaleNum').value = l.scale ?? 100;
-                document.getElementById('slideCharHover').value = l.hoverScale ?? 105;
-                document.getElementById('slideCharHoverNum').value = l.hoverScale ?? 105;
-                document.getElementById('slideCharMaxH').value = l.maxHeight ?? 120;
-                document.getElementById('slideCharMaxHNum').value = l.maxHeight ?? 120;
-                document.getElementById('slideCharAnchor').value = l.anchor || 'bottom';
-                document.getElementById('slideCharFlip').checked = l.flip || false;
-                document.getElementById('slideCharShadow').checked = l.shadow !== false;
-                document.getElementById('slideCharShadowColor').value = l.shadowColor || 'rgba(0,0,0,0.6)';
-                document.getElementById('slideCharShadowBlur').value = l.shadowBlur ?? 24;
-                document.getElementById('slideCharShadowBlurNum').value = l.shadowBlur ?? 24;
-                document.getElementById('slideCharShadowX').value = l.shadowX ?? 0;
-                document.getElementById('slideCharShadowXNum').value = l.shadowX ?? 0;
-                document.getElementById('slideCharShadowY').value = l.shadowY ?? 4;
-                document.getElementById('slideCharShadowYNum').value = l.shadowY ?? 4;
-                document.getElementById('charShadowFields').style.display = l.shadow !== false ? 'block' : 'none';
-                document.getElementById('slideCharEntry').value = l.entry || 'fade';
-                document.getElementById('slideCharFloat').value = l.float || 'none';
-                document.getElementById('slideCharRotation').value = l.rotation ?? 0;
-                document.getElementById('slideCharRotationNum').value = l.rotation ?? 0;
-                document.getElementById('slideCharParallax').value = l.parallax ?? 0;
-                document.getElementById('slideCharParallaxNum').value = l.parallax ?? 0;
-                document.getElementById('slideCharGlow').value = l.glow || '';
-                document.getElementById('slideCharGlowSize').value = l.glowSize ?? 40;
-                document.getElementById('slideCharGlowSizeNum').value = l.glowSize ?? 40;
-                this.updateCharPreview();
-            },
-            
-            switchCharLayer(n) {
-                // Save current layer
-                const currentData = this.getCharLayerFromForm();
-                this.charLayers[this.charCurrentLayer] = currentData.img ? currentData : null;
-                
-                // Switch
-                this.charCurrentLayer = n;
-                
-                // Update tabs
-                for (let i = 0; i < 3; i++) {
-                    const tab = document.getElementById('charLayerTab' + i);
-                    if (tab) tab.classList.toggle('active', i === n);
-                }
-                
-                // Load layer data
-                this.setCharLayerToForm(this.charLayers[n]);
-                
-                // Update all dots
-                for (let i = 0; i < 3; i++) {
-                    const dot = document.getElementById('charLayerDot' + i);
-                    if (dot) dot.style.display = (this.charLayers[i] && this.charLayers[i].img) ? 'inline' : 'none';
-                }
-                // Current layer dot follows form
-                this.updateCharPreview();
-            },
-            
-            clearCharLayer() {
-                this.charLayers[this.charCurrentLayer] = null;
-                this.setCharLayerToForm(null);
-                const dot = document.getElementById('charLayerDot' + this.charCurrentLayer);
-                if (dot) dot.style.display = 'none';
-            },
-            
-            // Build layers array from slide data (backward compat)
-            parseLayersFromSlide(slide) {
-                // New format: characterLayers JSON string
-                if (slide.characterLayers) {
-                    try {
-                        const parsed = typeof slide.characterLayers === 'string' 
-                            ? JSON.parse(slide.characterLayers) 
-                            : slide.characterLayers;
-                        return [parsed[0] || null, parsed[1] || null, parsed[2] || null];
-                    } catch(e) { /* fall through */ }
-                }
-                // Legacy: flat fields → Layer 1
-                if (slide.characterImg) {
-                    return [{
-                        img: slide.characterImg, x: slide.characterX ?? 75, y: slide.characterY ?? 0,
-                        scale: slide.characterScale ?? 100, hoverScale: slide.characterHoverScale ?? 105,
-                        maxHeight: slide.characterMaxHeight ?? 120, anchor: slide.characterAnchor || 'bottom',
-                        flip: slide.characterFlip || false,
-                        shadow: slide.characterShadow !== false, shadowColor: slide.characterShadowColor || 'rgba(0,0,0,0.6)',
-                        shadowBlur: slide.characterShadowBlur ?? 24, shadowX: slide.characterShadowX ?? 0,
-                        shadowY: slide.characterShadowY ?? 4,
-                        entry: slide.characterEntry || 'fade', float: slide.characterFloat || 'none',
-                        rotation: slide.characterRotation ?? 0, parallax: slide.characterParallax ?? 0,
-                        glow: slide.characterGlow || '', glowSize: slide.characterGlowSize ?? 40
-                    }, null, null];
-                }
-                return [null, null, null];
-            },
-            
             closeEditor() {
                 document.getElementById('carouselModal').classList.remove('active');
                 this.editingId = null;
@@ -5901,19 +5796,6 @@
                     carouselShowTabs: document.getElementById('carouselShowTabs').checked,
                     carouselShowDots: document.getElementById('carouselShowDots').checked,
                     carouselAutoplay: document.getElementById('carouselAutoplay').checked,
-                    // Character overlay - save current layer first, then serialize all
-                    characterLayers: (() => {
-                        const currentData = this.getCharLayerFromForm();
-                        this.charLayers[this.charCurrentLayer] = currentData.img ? currentData : null;
-                        // Filter: only include layers with images
-                        const layers = this.charLayers.map(l => (l && l.img) ? l : null);
-                        return JSON.stringify(layers);
-                    })(),
-                    characterDisplay: document.getElementById('slideCharDisplay').value || 'all',
-                    characterOverflowTop: document.getElementById('slideCharOvTop').checked,
-                    characterOverflowBottom: document.getElementById('slideCharOvBottom').checked,
-                    characterOverflowLeft: document.getElementById('slideCharOvLeft').checked,
-                    characterOverflowRight: document.getElementById('slideCharOvRight').checked,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 
