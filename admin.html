@@ -2702,6 +2702,10 @@
                         <h1 class="page-header__title">RIFT Pro – Übersicht</h1>
                         <p class="page-header__subtitle">Subscriber-Dashboard, Kennzahlen und aktive Abonnements</p>
                     </div>
+                    <button class="btn btn--primary" onclick="ProAdmin.openGrantModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                        Pro vergeben
+                    </button>
                 </div>
                 
                 <!-- KPI Stats -->
@@ -4288,6 +4292,65 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
     
+    <!-- Pro Grant Modal -->
+    <div class="modal" id="proGrantModal">
+        <div class="modal__content" style="max-width:520px;">
+            <div class="modal__header">
+                <h3 class="modal__title">Pro-Status vergeben</h3>
+                <button class="btn btn--ghost" onclick="ProAdmin.closeGrantModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal__body">
+                <!-- User Lookup -->
+                <div class="form-group">
+                    <label class="form-label">Benutzer suchen</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" class="form-input" id="proGrantSearch" placeholder="UID, Email oder Anzeigename…" style="flex:1;">
+                        <button class="btn btn--secondary btn--small" onclick="ProAdmin.lookupUser()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            Suchen
+                        </button>
+                    </div>
+                    <div id="proGrantUserResult" style="margin-top:12px;"></div>
+                </div>
+                
+                <!-- Plan Selection -->
+                <div class="form-group">
+                    <label class="form-label">Plan</label>
+                    <select class="form-select" id="proGrantPlan">
+                        <option value="gift">Geschenk (Admin)</option>
+                        <option value="monthly">Monatlich</option>
+                        <option value="yearly">Jährlich</option>
+                        <option value="trial">Trial</option>
+                    </select>
+                </div>
+                
+                <!-- Expiry -->
+                <div class="form-group">
+                    <label class="form-label">Ablaufdatum <span style="color:var(--text-muted);">(optional – leer = unbegrenzt)</span></label>
+                    <input type="date" class="form-input" id="proGrantExpiry">
+                </div>
+                
+                <!-- Note -->
+                <div class="form-group">
+                    <label class="form-label">Notiz <span style="color:var(--text-muted);">(intern)</span></label>
+                    <input type="text" class="form-input" id="proGrantNote" placeholder="z.B. Beta-Tester, Gewinnspiel…">
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="ProAdmin.closeGrantModal()">Abbrechen</button>
+                <button class="btn btn--primary" id="proGrantSubmitBtn" onclick="ProAdmin.grantPro()" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    Pro vergeben
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -5058,6 +5121,8 @@
                 QuotesAdmin.load();
             } else if (tabId === 'announcements') {
                 AnnouncementsAdmin.load();
+            } else if (tabId === 'proOverview') {
+                ProAdmin.loadSubscribers();
             } else if (tabId === 'proFeatureFlags') {
                 ProAdmin.loadFeatureFlags();
             } else if (tabId === 'proThemeGating') {
@@ -6080,6 +6145,350 @@
             openPromoEditor() { showToast('Promo-Editor kommt bald', 'error'); },
             openPipelineEditor() { showToast('Pipeline-Editor kommt bald', 'error'); },
             openLicenseEditor() { showToast('Lizenz-Editor kommt bald', 'error'); },
+            
+            // ========================================
+            // SUBSCRIBER MANAGEMENT
+            // ========================================
+            _subscribers: [],
+            _selectedGrantUid: null,
+            
+            async loadSubscribers() {
+                const tbody = document.getElementById('proSubTableBody');
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Lade Subscriber...</td></tr>';
+                
+                try {
+                    const snapshot = await db.collection('pro_subscribers').get();
+                    this._subscribers = [];
+                    
+                    let active = 0, monthly = 0, yearly = 0, trial = 0, gift = 0, newThisWeek = 0;
+                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    
+                    snapshot.forEach(doc => {
+                        const data = { id: doc.id, ...doc.data() };
+                        this._subscribers.push(data);
+                        
+                        if (data.active) {
+                            active++;
+                            if (data.plan === 'monthly') monthly++;
+                            else if (data.plan === 'yearly') yearly++;
+                            else if (data.plan === 'trial') trial++;
+                            else if (data.plan === 'gift') gift++;
+                            
+                            const since = data.since?.toDate ? data.since.toDate() : (data.grantedAt?.toDate ? data.grantedAt.toDate() : null);
+                            if (since && since > weekAgo) newThisWeek++;
+                        }
+                    });
+                    
+                    // Update KPI cards
+                    document.getElementById('proStatActive').textContent = active;
+                    document.getElementById('proStatMonthly').textContent = monthly;
+                    document.getElementById('proStatYearly').textContent = yearly;
+                    document.getElementById('proStatNewWeek').textContent = newThisWeek;
+                    
+                    const mrrVal = (monthly * 2.99) + (yearly * (29.99 / 12));
+                    document.getElementById('proStatMRR').textContent = mrrVal.toFixed(2) + ' €';
+                    
+                    this._renderSubscriberTable();
+                } catch (e) {
+                    console.error('[ProAdmin] Load subscribers error:', e);
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--red);">Fehler beim Laden: ' + e.message + '</td></tr>';
+                }
+            },
+            
+            _renderSubscriberTable(filter, search) {
+                filter = filter || document.getElementById('proSubFilter').value;
+                search = search || document.getElementById('proSubSearch').value.toLowerCase();
+                
+                const tbody = document.getElementById('proSubTableBody');
+                let filtered = this._subscribers;
+                
+                // Apply filter
+                if (filter !== 'all') {
+                    filtered = filtered.filter(s => s.plan === filter);
+                }
+                
+                // Apply search
+                if (search) {
+                    filtered = filtered.filter(s => {
+                        return (s.uid || s.id || '').toLowerCase().includes(search) ||
+                               (s.email || '').toLowerCase().includes(search) ||
+                               (s.displayName || '').toLowerCase().includes(search);
+                    });
+                }
+                
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Keine Subscriber gefunden</td></tr>';
+                    return;
+                }
+                
+                // Sort: active first, then by date desc
+                filtered.sort((a, b) => {
+                    if (a.active && !b.active) return -1;
+                    if (!a.active && b.active) return 1;
+                    const dateA = a.grantedAt?.toDate?.() || a.since?.toDate?.() || new Date(0);
+                    const dateB = b.grantedAt?.toDate?.() || b.since?.toDate?.() || new Date(0);
+                    return dateB - dateA;
+                });
+                
+                tbody.innerHTML = filtered.map(sub => {
+                    const uid = sub.uid || sub.id;
+                    const name = sub.displayName || sub.email || uid;
+                    const sinceDate = sub.since?.toDate ? sub.since.toDate() : (sub.grantedAt?.toDate ? sub.grantedAt.toDate() : null);
+                    const sinceStr = sinceDate ? sinceDate.toLocaleDateString('de-DE') : '–';
+                    const expiresDate = sub.expiresAt?.toDate ? sub.expiresAt.toDate() : null;
+                    const expiresStr = expiresDate ? expiresDate.toLocaleDateString('de-DE') : 'Unbegrenzt';
+                    
+                    const planLabels = { monthly: 'Monatlich', yearly: 'Jährlich', trial: 'Trial', gift: 'Geschenk' };
+                    const planLabel = planLabels[sub.plan] || sub.plan || '–';
+                    
+                    const statusBadge = sub.active
+                        ? '<span style="display:inline-block;padding:3px 10px;background:rgba(117,171,93,0.15);color:#75ab5d;font-size:11px;font-weight:700;border-radius:100px;">Aktiv</span>'
+                        : '<span style="display:inline-block;padding:3px 10px;background:rgba(255,82,82,0.15);color:#ff5252;font-size:11px;font-weight:700;border-radius:100px;">Inaktiv</span>';
+                    
+                    const actionBtn = sub.active
+                        ? `<button class="btn btn--ghost btn--small" style="color:var(--red);font-size:12px;" onclick="ProAdmin.revokePro('${uid}','${name.replace(/'/g, "\\'")}')">Entziehen</button>`
+                        : `<button class="btn btn--ghost btn--small" style="color:#bca24c;font-size:12px;" onclick="ProAdmin.reactivatePro('${uid}')">Reaktivieren</button>`;
+                    
+                    return `<tr>
+                        <td>
+                            <div style="font-weight:600;color:var(--text);">${this._escHtml(name)}</div>
+                            <div style="font-size:11px;color:var(--text-muted);font-family:monospace;">${uid}</div>
+                            ${sub.note ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">📝 ${this._escHtml(sub.note)}</div>` : ''}
+                        </td>
+                        <td>${planLabel}</td>
+                        <td>${statusBadge}</td>
+                        <td>${sinceStr}</td>
+                        <td>${expiresStr}</td>
+                        <td>${actionBtn}</td>
+                    </tr>`;
+                }).join('');
+            },
+            
+            _escHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            },
+            
+            // ========================================
+            // GRANT PRO
+            // ========================================
+            openGrantModal() {
+                this._selectedGrantUid = null;
+                document.getElementById('proGrantSearch').value = '';
+                document.getElementById('proGrantUserResult').innerHTML = '';
+                document.getElementById('proGrantPlan').value = 'gift';
+                document.getElementById('proGrantExpiry').value = '';
+                document.getElementById('proGrantNote').value = '';
+                document.getElementById('proGrantSubmitBtn').disabled = true;
+                document.getElementById('proGrantModal').classList.add('active');
+            },
+            
+            closeGrantModal() {
+                document.getElementById('proGrantModal').classList.remove('active');
+            },
+            
+            async lookupUser() {
+                const query = document.getElementById('proGrantSearch').value.trim();
+                const resultDiv = document.getElementById('proGrantUserResult');
+                
+                if (!query) {
+                    resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Gib eine UID, Email oder einen Namen ein.</p>';
+                    return;
+                }
+                
+                resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Suche...</p>';
+                
+                try {
+                    let results = [];
+                    
+                    // Try exact UID match first
+                    const uidDoc = await db.collection('users').doc(query).get();
+                    if (uidDoc.exists) {
+                        results.push({ uid: query, ...uidDoc.data() });
+                    }
+                    
+                    // Search by email
+                    if (results.length === 0) {
+                        const emailSnap = await db.collection('users').where('email', '==', query).limit(5).get();
+                        emailSnap.forEach(doc => results.push({ uid: doc.id, ...doc.data() }));
+                    }
+                    
+                    // Search by displayName (case-sensitive, Firestore limitation)
+                    if (results.length === 0) {
+                        const nameSnap = await db.collection('users').where('displayName', '==', query).limit(5).get();
+                        nameSnap.forEach(doc => results.push({ uid: doc.id, ...doc.data() }));
+                    }
+                    
+                    // Deduplicate
+                    const seen = new Set();
+                    results = results.filter(r => {
+                        if (seen.has(r.uid)) return false;
+                        seen.add(r.uid);
+                        return true;
+                    });
+                    
+                    if (results.length === 0) {
+                        resultDiv.innerHTML = `
+                            <p style="color:var(--text-muted);font-size:13px;">Kein Benutzer gefunden.</p>
+                            <p style="color:var(--text-muted);font-size:12px;margin-top:4px;">Tipp: Direkte UID wird immer gefunden. Email-Suche ist exakt (Groß/Kleinschreibung beachten).</p>
+                        `;
+                        this._selectedGrantUid = null;
+                        document.getElementById('proGrantSubmitBtn').disabled = true;
+                        return;
+                    }
+                    
+                    resultDiv.innerHTML = results.map(u => {
+                        const hasPro = u.pro?.active === true;
+                        const proBadge = hasPro ? '<span style="display:inline-block;padding:2px 8px;background:rgba(188,162,76,0.15);color:#bca24c;font-size:10px;font-weight:700;border-radius:100px;margin-left:8px;">PRO</span>' : '';
+                        return `
+                            <div class="pro-grant-user-result" data-uid="${u.uid}" onclick="ProAdmin.selectGrantUser('${u.uid}')" 
+                                 style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;transition:all 0.2s;margin-bottom:6px;">
+                                <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+                                    ${u.photoURL ? `<img src="${u.photoURL}" style="width:100%;height:100%;object-fit:cover;">` : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--text-muted);"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`}
+                                </div>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-weight:600;color:var(--text);font-size:14px;">${this._escHtml(u.displayName || u.email || 'Unbekannt')}${proBadge}</div>
+                                    <div style="font-size:11px;color:var(--text-muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;">${u.uid}</div>
+                                    ${u.email ? `<div style="font-size:11px;color:var(--text-muted);">${this._escHtml(u.email)}</div>` : ''}
+                                </div>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--text-muted);flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    // Auto-select if only one result
+                    if (results.length === 1) {
+                        this.selectGrantUser(results[0].uid);
+                    }
+                    
+                } catch (e) {
+                    console.error('[ProAdmin] User lookup error:', e);
+                    resultDiv.innerHTML = '<p style="color:var(--red);font-size:13px;">Fehler bei der Suche: ' + e.message + '</p>';
+                }
+            },
+            
+            selectGrantUser(uid) {
+                this._selectedGrantUid = uid;
+                document.getElementById('proGrantSubmitBtn').disabled = false;
+                
+                // Highlight selected
+                document.querySelectorAll('.pro-grant-user-result').forEach(el => {
+                    el.style.borderColor = el.dataset.uid === uid ? '#bca24c' : 'rgba(255,255,255,0.08)';
+                    el.style.background = el.dataset.uid === uid ? 'rgba(188,162,76,0.06)' : 'transparent';
+                });
+            },
+            
+            async grantPro() {
+                const uid = this._selectedGrantUid;
+                if (!uid) {
+                    showToast('Kein Benutzer ausgewählt', 'error');
+                    return;
+                }
+                
+                const plan = document.getElementById('proGrantPlan').value;
+                const expiryVal = document.getElementById('proGrantExpiry').value;
+                const note = document.getElementById('proGrantNote').value.trim();
+                
+                const proData = {
+                    active: true,
+                    plan: plan,
+                    since: firebase.firestore.FieldValue.serverTimestamp(),
+                    grantedBy: currentUser.uid,
+                    grantedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    expiresAt: expiryVal ? firebase.firestore.Timestamp.fromDate(new Date(expiryVal + 'T23:59:59')) : null,
+                };
+                
+                try {
+                    // Write to user document
+                    await db.collection('users').doc(uid).set({ pro: proData }, { merge: true });
+                    
+                    // Fetch user info for subscriber record
+                    const userDoc = await db.collection('users').doc(uid).get();
+                    const userData = userDoc.exists ? userDoc.data() : {};
+                    
+                    // Write to pro_subscribers
+                    await db.collection('pro_subscribers').doc(uid).set({
+                        ...proData,
+                        uid: uid,
+                        email: userData.email || '',
+                        displayName: userData.displayName || '',
+                        photoURL: userData.photoURL || '',
+                        note: note,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    }, { merge: true });
+                    
+                    showToast(`Pro vergeben an ${userData.displayName || userData.email || uid}`);
+                    this.closeGrantModal();
+                    this.loadSubscribers();
+                    
+                } catch (e) {
+                    console.error('[ProAdmin] Grant Pro error:', e);
+                    showToast('Fehler: ' + e.message, 'error');
+                }
+            },
+            
+            // ========================================
+            // REVOKE / REACTIVATE PRO
+            // ========================================
+            async revokePro(uid, displayName) {
+                if (!confirm(`Pro-Status von "${displayName}" wirklich entziehen?`)) return;
+                
+                try {
+                    await db.collection('users').doc(uid).set({
+                        pro: {
+                            active: false,
+                            revokedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            revokedBy: currentUser.uid,
+                        }
+                    }, { merge: true });
+                    
+                    await db.collection('pro_subscribers').doc(uid).update({
+                        active: false,
+                        revokedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        revokedBy: currentUser.uid,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    });
+                    
+                    showToast(`Pro entzogen: ${displayName}`);
+                    this.loadSubscribers();
+                } catch (e) {
+                    console.error('[ProAdmin] Revoke error:', e);
+                    showToast('Fehler: ' + e.message, 'error');
+                }
+            },
+            
+            async reactivatePro(uid) {
+                try {
+                    const subDoc = await db.collection('pro_subscribers').doc(uid).get();
+                    const subData = subDoc.exists ? subDoc.data() : {};
+                    
+                    const proData = {
+                        active: true,
+                        plan: subData.plan || 'gift',
+                        since: subData.since || firebase.firestore.FieldValue.serverTimestamp(),
+                        grantedBy: currentUser.uid,
+                        grantedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        expiresAt: subData.expiresAt || null,
+                    };
+                    
+                    await db.collection('users').doc(uid).set({ pro: proData }, { merge: true });
+                    await db.collection('pro_subscribers').doc(uid).update({
+                        active: true,
+                        revokedAt: firebase.firestore.FieldValue.deleteField(),
+                        revokedBy: firebase.firestore.FieldValue.deleteField(),
+                        grantedBy: currentUser.uid,
+                        grantedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    });
+                    
+                    showToast(`Pro reaktiviert: ${uid}`);
+                    this.loadSubscribers();
+                } catch (e) {
+                    console.error('[ProAdmin] Reactivate error:', e);
+                    showToast('Fehler: ' + e.message, 'error');
+                }
+            },
         };
         
         // ========================================
@@ -6149,6 +6558,7 @@
                 CarouselAdmin.closeEditor();
                 FeaturesAdmin.closeEditor();
                 AnnouncementsAdmin.closeEditor();
+                ProAdmin.closeGrantModal();
             }
         });
         
@@ -6187,6 +6597,21 @@
             if (e.target.id === 'announcementModal') {
                 AnnouncementsAdmin.closeEditor();
             }
+        });
+        
+        document.getElementById('proGrantModal').addEventListener('click', (e) => {
+            if (e.target.id === 'proGrantModal') {
+                ProAdmin.closeGrantModal();
+            }
+        });
+        
+        // Pro subscriber filter & search
+        document.getElementById('proSubFilter').addEventListener('change', () => ProAdmin._renderSubscriberTable());
+        document.getElementById('proSubSearch').addEventListener('input', () => ProAdmin._renderSubscriberTable());
+        
+        // Enter key in grant search
+        document.getElementById('proGrantSearch').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); ProAdmin.lookupUser(); }
         });
         
         // ========================================
