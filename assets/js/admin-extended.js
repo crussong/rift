@@ -2115,6 +2115,7 @@ const ArenaThemesAdmin = {
             this.themes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             this.render();
             this.updateStats();
+            this.populateSetFilter();
             console.log('[Admin] Loaded', this.themes.length, 'arena themes');
         } catch (e) {
             console.warn('Arena themes collection not accessible:', e.message);
@@ -2136,11 +2137,34 @@ const ArenaThemesAdmin = {
         const tierColors = { free: '#22C55E', pro: '#bca24d' };
         const tierLabels = { free: 'Free', pro: 'Pro' };
         
-        c.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;">' +
-            this.themes.map(t => {
+        // Group by set
+        const grouped = {};
+        this.themes.forEach(t => {
+            const setName = t.set || 'Ohne Set';
+            if (!grouped[setName]) grouped[setName] = [];
+            grouped[setName].push(t);
+        });
+        
+        const sortedSets = Object.keys(grouped).sort((a, b) => {
+            if (a === 'Ohne Set') return 1;
+            if (b === 'Ohne Set') return -1;
+            return a.localeCompare(b);
+        });
+        
+        let html = '';
+        sortedSets.forEach(setName => {
+            const themes = grouped[setName];
+            html += '<div style="margin-bottom:24px;">' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);">' +
+                '<span style="font-weight:600;font-size:15px;color:var(--text);">' + setName + '</span>' +
+                '<span style="font-size:12px;color:var(--text-muted);">' + themes.length + ' Theme' + (themes.length !== 1 ? 's' : '') + '</span>' +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;">';
+            
+            themes.forEach(t => {
                 const rawTier = t.tier || 'free';
                 const tier = (rawTier === 'silver' || rawTier === 'gold') ? 'pro' : rawTier;
-                return '<div style="background:var(--bg-elevated);border-radius:12px;overflow:hidden;position:relative;">' +
+                html += '<div style="background:var(--bg-elevated);border-radius:12px;overflow:hidden;position:relative;">' +
                     '<div style="aspect-ratio:16/9;background:url(\'' + (t.imageUrl || '') + '\') center/cover;position:relative;">' +
                     '<span style="position:absolute;top:8px;left:8px;background:' + tierColors[tier] + ';color:white;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;">' + tierLabels[tier] + '</span>' +
                     '</div>' +
@@ -2151,7 +2175,12 @@ const ArenaThemesAdmin = {
                     '<button class="btn btn--ghost btn--small" onclick="ArenaThemesAdmin.openEditor(\'' + t.id + '\')" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
                     '<button class="btn btn--ghost btn--small" onclick="ArenaThemesAdmin.delete(\'' + t.id + '\')" style="color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' +
                     '</div></div></div>';
-            }).join('') + '</div>';
+            });
+            
+            html += '</div></div>';
+        });
+        
+        c.innerHTML = html;
     },
     
     updateStats() {
@@ -2163,17 +2192,26 @@ const ArenaThemesAdmin = {
     filter() {
         const search = document.getElementById('arenaThemeSearch').value.toLowerCase();
         const tierFilter = document.getElementById('arenaThemeTierFilter').value;
+        const setFilter = document.getElementById('arenaThemeSetFilter')?.value || '';
         const filtered = this.themes.filter(t => {
             const matchSearch = !search || (t.name || '').toLowerCase().includes(search) || (t.themeId || '').toLowerCase().includes(search);
-            if (!tierFilter) return matchSearch;
             const rawTier = t.tier || 'free';
             const mappedTier = (rawTier === 'silver' || rawTier === 'gold') ? 'pro' : rawTier;
-            return matchSearch && mappedTier === tierFilter;
+            const matchTier = !tierFilter || mappedTier === tierFilter;
+            const matchSet = !setFilter || (t.set || '') === setFilter;
+            return matchSearch && matchTier && matchSet;
         });
         const orig = this.themes;
         this.themes = filtered;
         this.render();
         this.themes = orig;
+    },
+    
+    populateSetFilter() {
+        const sel = document.getElementById('arenaThemeSetFilter');
+        if (!sel) return;
+        const sets = this.getExistingSets();
+        sel.innerHTML = '<option value="">Alle Sets</option>' + sets.map(s => '<option value="' + s + '">' + s + '</option>').join('');
     },
     
     openEditor(id = null) {
@@ -2199,6 +2237,10 @@ const ArenaThemesAdmin = {
             '<div class="form-group" style="flex:1;"><label class="form-label">Reihenfolge</label>' +
             '<input type="number" class="form-input" id="themeOrder" value="' + (theme?.order || 0) + '" min="0"></div>' +
             '</div>' +
+            '<div class="form-group"><label class="form-label">Set / Kategorie</label>' +
+            '<input type="text" class="form-input" id="themeSet" list="themeSetList" value="' + (theme?.set || '') + '" placeholder="z.B. Dragonscale, Nature, Classic...">' +
+            '<datalist id="themeSetList">' + ArenaThemesAdmin.getExistingSets().map(s => '<option value="' + s + '">').join('') + '</datalist>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Manuell eingeben oder vorhandenes Set wählen</div></div>' +
             '<div class="form-group"><label class="form-label">Bild URL</label>' +
             '<div style="display:flex;gap:8px;">' +
             '<input type="text" class="form-input" id="themeImageUrl" value="' + (theme?.imageUrl || '') + '" placeholder="https://..." style="flex:1;">' +
@@ -2225,6 +2267,12 @@ const ArenaThemesAdmin = {
                 container.style.display = 'none';
             }
         });
+    },
+    
+    getExistingSets() {
+        const sets = new Set();
+        this.themes.forEach(t => { if (t.set) sets.add(t.set); });
+        return [...sets].sort();
     },
     
     uploadImage() {
@@ -2264,6 +2312,7 @@ const ArenaThemesAdmin = {
         const tier = document.getElementById('themeTier').value;
         const order = parseInt(document.getElementById('themeOrder').value) || 0;
         const imageUrl = document.getElementById('themeImageUrl').value.trim();
+        const set = document.getElementById('themeSet').value.trim();
         
         if (!themeId) {
             showToast('Theme ID erforderlich', 'error');
@@ -2283,6 +2332,7 @@ const ArenaThemesAdmin = {
                 themeId: themeId,
                 name: name,
                 tier: tier,
+                set: set || null,
                 order: order,
                 imageUrl: imageUrl,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
