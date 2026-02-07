@@ -298,104 +298,164 @@ class HeroCarousel {
     buildCharacters() {
         // Remove any existing character overlays
         this.wrapper.querySelectorAll('.hero-carousel__character').forEach(el => el.remove());
-        this.characterEls = [];
+        this.characterEls = []; // Array of arrays: characterEls[slideIndex] = [el, el, ...]
+        this._overflowData = {};
         
         this.slidesData.forEach((slide, index) => {
-            if (!slide.characterImg) {
-                this.characterEls.push(null);
+            // Parse layers (backward compat + new format)
+            const layers = this.parseCharacterLayers(slide);
+            const activeLayers = layers.filter(l => l !== null);
+            
+            if (activeLayers.length === 0) {
+                this.characterEls.push([]);
                 return;
             }
             
-            const charX = slide.characterX ?? 75;
-            const charY = slide.characterY ?? 0;
-            const charScale = slide.characterScale ?? 100;
-            const charHoverScale = slide.characterHoverScale ?? 105;
-            const charMaxH = slide.characterMaxHeight ?? 120;
-            const charFlip = slide.characterFlip ? 'scaleX(-1)' : '';
-            const charAnchor = slide.characterAnchor || 'bottom';
+            // Display mode
+            const displayMode = slide.characterDisplay || 'all';
+            let layersToShow = [];
             
-            // New features
-            const shadowEnabled = slide.characterShadow !== false;
-            const shadowColor = slide.characterShadowColor || 'rgba(0,0,0,0.6)';
-            const shadowBlur = slide.characterShadowBlur ?? 24;
-            const shadowX = slide.characterShadowX ?? 0;
-            const shadowY = slide.characterShadowY ?? 4;
-            const rotationRange = slide.characterRotation ?? 0; // ±degrees
-            const parallaxStrength = slide.characterParallax ?? 0; // 0-30 px
-            const entryAnim = slide.characterEntry || 'fade'; // fade, slide-up, slide-left, zoom
-            const glowColor = slide.characterGlow || ''; // empty = no glow
-            const glowSize = slide.characterGlowSize ?? 40;
-            const floatAnim = slide.characterFloat || 'none'; // none, gentle, breathe
-            
-            const charEl = document.createElement('div');
-            charEl.className = `hero-carousel__character hero-carousel__character--entry-${entryAnim}${index === 0 ? ' active' : ''}`;
-            if (floatAnim !== 'none') {
-                charEl.classList.add(`hero-carousel__character--${floatAnim}`);
-            }
-            charEl.dataset.slideIndex = index;
-            charEl.dataset.hoverScale = charHoverScale;
-            charEl.dataset.baseScale = charScale;
-            charEl.dataset.flip = slide.characterFlip ? '1' : '0';
-            charEl.dataset.anchor = charAnchor;
-            charEl.dataset.parallax = parallaxStrength;
-            
-            // Random rotation within range
-            let rotation = 0;
-            if (rotationRange > 0) {
-                rotation = (Math.random() * 2 - 1) * rotationRange;
-                charEl.dataset.rotation = rotation.toFixed(2);
-            }
-            
-            // Position
-            let posStyle = `left: ${charX}%;`;
-            if (charAnchor === 'bottom') {
-                posStyle += ` bottom: ${charY}%;`;
-            } else if (charAnchor === 'top') {
-                posStyle += ` top: ${charY}%;`;
+            if (displayMode === 'random') {
+                layersToShow = [activeLayers[Math.floor(Math.random() * activeLayers.length)]];
             } else {
-                posStyle += ` top: 50%;`;
+                // 'all' and 'sequence' both build all layers
+                // sequence hides all but one, cycled in goTo
+                layersToShow = activeLayers;
             }
             
-            // Shadow
-            if (shadowEnabled) {
-                posStyle += ` filter: drop-shadow(${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor});`;
-            } else {
-                posStyle += ` filter: none;`;
-            }
+            // Store display mode for goTo
+            if (!this._displayModes) this._displayModes = {};
+            this._displayModes[index] = displayMode;
             
-            charEl.style.cssText = posStyle;
+            // Overflow
+            this._overflowData[index] = {
+                top: slide.characterOverflowTop !== false,
+                bottom: slide.characterOverflowBottom || false,
+                left: slide.characterOverflowLeft || false,
+                right: slide.characterOverflowRight || false
+            };
             
-            // Build inner HTML
-            const carouselH = this.container.offsetHeight || 300;
-            const maxPx = Math.round(carouselH * charMaxH / 100);
-            
-            // Glow element (behind image)
-            let glowHtml = '';
-            if (glowColor) {
-                glowHtml = `<div class="hero-carousel__character-glow" style="background: ${glowColor}; width: ${glowSize * 2}px; height: ${glowSize * 2}px;"></div>`;
-            }
-            
-            charEl.innerHTML = `${glowHtml}<img src="${slide.characterImg}" alt="" draggable="false" style="max-height: ${maxPx}px;">`;
-            
-            // Set initial transform (including rotation)
-            const baseTransform = this.getCharTransform(charAnchor, charScale / 100, charFlip, rotation);
-            charEl.style.transform = baseTransform;
-            charEl.dataset.baseTransform = baseTransform;
-            
-            // Hover effect
-            charEl.addEventListener('mouseenter', () => {
-                charEl.style.transform = this.getCharTransform(charAnchor, charHoverScale / 100, charFlip, rotation);
-            });
-            charEl.addEventListener('mouseleave', () => {
-                charEl.style.transform = this.getCharTransform(charAnchor, charScale / 100, charFlip, rotation);
+            const slideEls = [];
+            layersToShow.forEach((layer, layerIdx) => {
+                // For sequence mode: only first layer visible initially
+                const isVisible = (displayMode === 'sequence') ? (layerIdx === 0) : true;
+                const charEl = this.buildSingleCharacter(layer, index, layerIdx, index === 0 && isVisible);
+                if (displayMode === 'sequence' && !isVisible) {
+                    charEl.classList.add('hero-carousel__character--seq-hidden');
+                }
+                this.wrapper.appendChild(charEl);
+                slideEls.push(charEl);
             });
             
-            this.wrapper.appendChild(charEl);
-            this.characterEls.push(charEl);
+            this.characterEls.push(slideEls);
         });
         
-        // Init parallax
+        this.applyOverflow(0);
         this.initParallax();
+    }
+    
+    parseCharacterLayers(slide) {
+        if (slide.characterLayers) {
+            try {
+                const parsed = typeof slide.characterLayers === 'string'
+                    ? JSON.parse(slide.characterLayers) : slide.characterLayers;
+                return [parsed[0] || null, parsed[1] || null, parsed[2] || null];
+            } catch(e) { /* fall through */ }
+        }
+        // Legacy flat fields
+        if (slide.characterImg) {
+            return [{
+                img: slide.characterImg, x: slide.characterX ?? 75, y: slide.characterY ?? 0,
+                scale: slide.characterScale ?? 100, hoverScale: slide.characterHoverScale ?? 105,
+                maxHeight: slide.characterMaxHeight ?? 120, anchor: slide.characterAnchor || 'bottom',
+                flip: slide.characterFlip || false,
+                shadow: slide.characterShadow !== false, shadowColor: slide.characterShadowColor || 'rgba(0,0,0,0.6)',
+                shadowBlur: slide.characterShadowBlur ?? 24, shadowX: slide.characterShadowX ?? 0, shadowY: slide.characterShadowY ?? 4,
+                entry: slide.characterEntry || 'fade', float: slide.characterFloat || 'none',
+                rotation: slide.characterRotation ?? 0, parallax: slide.characterParallax ?? 0,
+                glow: slide.characterGlow || '', glowSize: slide.characterGlowSize ?? 40
+            }, null, null];
+        }
+        return [null, null, null];
+    }
+    
+    buildSingleCharacter(layer, slideIndex, layerIndex, isActive) {
+        const charFlip = layer.flip ? 'scaleX(-1)' : '';
+        const charAnchor = layer.anchor || 'bottom';
+        const rotationRange = layer.rotation ?? 0;
+        const entryAnim = layer.entry || 'fade';
+        const floatAnim = layer.float || 'none';
+        const hoverScale = layer.hoverScale ?? 105;
+        const baseScale = layer.scale ?? 100;
+        
+        const charEl = document.createElement('div');
+        charEl.className = `hero-carousel__character hero-carousel__character--entry-${entryAnim}${isActive ? ' active' : ''}`;
+        if (floatAnim !== 'none') charEl.classList.add(`hero-carousel__character--${floatAnim}`);
+        charEl.dataset.slideIndex = slideIndex;
+        charEl.dataset.layerIndex = layerIndex;
+        charEl.dataset.hoverScale = hoverScale;
+        charEl.dataset.baseScale = baseScale;
+        charEl.dataset.flip = layer.flip ? '1' : '0';
+        charEl.dataset.anchor = charAnchor;
+        charEl.dataset.parallax = layer.parallax ?? 0;
+        
+        let rotation = 0;
+        if (rotationRange > 0) {
+            rotation = (Math.random() * 2 - 1) * rotationRange;
+            charEl.dataset.rotation = rotation.toFixed(2);
+        }
+        
+        let posStyle = `left: ${layer.x ?? 75}%;`;
+        if (charAnchor === 'bottom') posStyle += ` bottom: ${layer.y ?? 0}%;`;
+        else if (charAnchor === 'top') posStyle += ` top: ${layer.y ?? 0}%;`;
+        else posStyle += ` top: 50%;`;
+        
+        if (layer.shadow !== false) {
+            posStyle += ` filter: drop-shadow(${layer.shadowX ?? 0}px ${layer.shadowY ?? 4}px ${layer.shadowBlur ?? 24}px ${layer.shadowColor || 'rgba(0,0,0,0.6)'});`;
+        } else {
+            posStyle += ` filter: none;`;
+        }
+        
+        charEl.style.cssText = posStyle;
+        
+        const carouselH = this.container.offsetHeight || 300;
+        const maxPx = Math.round(carouselH * (layer.maxHeight ?? 120) / 100);
+        
+        let glowHtml = '';
+        if (layer.glow) {
+            glowHtml = `<div class="hero-carousel__character-glow" style="background: ${layer.glow}; width: ${(layer.glowSize ?? 40) * 2}px; height: ${(layer.glowSize ?? 40) * 2}px;"></div>`;
+        }
+        
+        charEl.innerHTML = `${glowHtml}<img src="${layer.img}" alt="" draggable="false" style="max-height: ${maxPx}px;">`;
+        
+        const baseTransform = this.getCharTransform(charAnchor, baseScale / 100, charFlip, rotation);
+        charEl.style.transform = baseTransform;
+        charEl.dataset.baseTransform = baseTransform;
+        
+        charEl.addEventListener('mouseenter', () => {
+            charEl.style.transform = this.getCharTransform(charAnchor, hoverScale / 100, charFlip, rotation);
+        });
+        charEl.addEventListener('mouseleave', () => {
+            charEl.style.transform = this.getCharTransform(charAnchor, baseScale / 100, charFlip, rotation);
+        });
+        
+        return charEl;
+    }
+    
+    applyOverflow(slideIndex) {
+        const ov = this._overflowData && this._overflowData[slideIndex];
+        if (!ov) { this.wrapper.style.clipPath = ''; return; }
+        
+        const top = ov.top ? '-500px' : '0';
+        const right = ov.right ? '-500px' : '0';
+        const bottom = ov.bottom ? '-500px' : '0';
+        const left = ov.left ? '-500px' : '0';
+        
+        if (ov.top && ov.right && ov.bottom && ov.left) {
+            this.wrapper.style.clipPath = '';
+        } else {
+            this.wrapper.style.clipPath = `inset(${top} ${right} ${bottom} ${left})`;
+        }
     }
     
     getCharTransform(anchor, scale, flip, rotation = 0) {
@@ -408,37 +468,31 @@ class HeroCarousel {
     }
     
     initParallax() {
-        // Check if any character has parallax
-        const hasParallax = this.characterEls.some(el => el && parseFloat(el.dataset.parallax) > 0);
+        // Flatten characterEls for parallax
+        const allChars = this.characterEls.flat().filter(Boolean);
+        const hasParallax = allChars.some(el => parseFloat(el.dataset.parallax) > 0);
         if (!hasParallax) return;
         
-        // Remove previous listener if any
         if (this._parallaxHandler) {
             this.wrapper.removeEventListener('mousemove', this._parallaxHandler);
         }
         
         this._parallaxHandler = (e) => {
             const rect = this.wrapper.getBoundingClientRect();
-            // Normalized mouse position: -1 to 1
             const mx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
             const my = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
             
-            this.characterEls.forEach(charEl => {
-                if (!charEl || !charEl.classList.contains('active')) return;
+            allChars.forEach(charEl => {
+                if (!charEl.classList.contains('active')) return;
                 const strength = parseFloat(charEl.dataset.parallax) || 0;
                 if (strength === 0) return;
-                
-                const offsetX = mx * strength;
-                const offsetY = my * strength * 0.5;
-                charEl.style.setProperty('--parallax-x', `${offsetX}px`);
-                charEl.style.setProperty('--parallax-y', `${offsetY}px`);
+                charEl.style.setProperty('--parallax-x', `${mx * strength}px`);
+                charEl.style.setProperty('--parallax-y', `${my * strength * 0.5}px`);
             });
         };
         
-        // Reset on mouse leave
         this._parallaxLeaveHandler = () => {
-            this.characterEls.forEach(charEl => {
-                if (!charEl) return;
+            allChars.forEach(charEl => {
                 charEl.style.setProperty('--parallax-x', '0px');
                 charEl.style.setProperty('--parallax-y', '0px');
             });
@@ -547,10 +601,31 @@ class HeroCarousel {
             dot.classList.toggle('active', i === index);
         });
         
-        // Update character overlays
-        this.characterEls.forEach((charEl, i) => {
-            if (charEl) charEl.classList.toggle('active', i === index);
+        // Update character overlays (array of arrays)
+        this.characterEls.forEach((slideChars, i) => {
+            if (!slideChars || !slideChars.length) return;
+            const isActive = i === index;
+            
+            // Sequence mode: cycle which layer is visible when slide becomes active
+            if (isActive && this._displayModes && this._displayModes[i] === 'sequence' && slideChars.length > 1) {
+                if (!this._seqCounters) this._seqCounters = {};
+                if (typeof this._seqCounters[i] === 'undefined') this._seqCounters[i] = 0;
+                else this._seqCounters[i]++;
+                
+                const seqIdx = this._seqCounters[i] % slideChars.length;
+                slideChars.forEach((charEl, li) => {
+                    charEl.classList.toggle('active', true);
+                    charEl.classList.toggle('hero-carousel__character--seq-hidden', li !== seqIdx);
+                });
+            } else {
+                slideChars.forEach(charEl => {
+                    if (charEl) charEl.classList.toggle('active', isActive);
+                });
+            }
         });
+        
+        // Update overflow clip-path for this slide
+        this.applyOverflow(index);
         
         this.currentIndex = index;
         
