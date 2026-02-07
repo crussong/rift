@@ -10,6 +10,13 @@
 class HeroCarousel {
     constructor(container) {
         this.container = container;
+        
+        // Wrap carousel in a container that allows character overflow
+        this.wrapper = document.createElement('div');
+        this.wrapper.className = 'hero-carousel-wrap';
+        container.parentNode.insertBefore(this.wrapper, container);
+        this.wrapper.appendChild(container);
+        
         this.slidesContainer = container.querySelector('#carouselSlides') || container.querySelector('.hero-carousel__slides');
         this.tabsContainer = container.querySelector('#carouselTabs') || container.querySelector('.hero-carousel__tabs');
         this.dotsContainer = container.querySelector('#carouselDots') || container.querySelector('.hero-carousel__dots');
@@ -23,6 +30,7 @@ class HeroCarousel {
         this.autoPlayInterval = null;
         this.autoPlayDelay = 6000;
         this.slidesData = [];
+        this.characterEls = []; // Character overlays (outside carousel)
         
         this.init();
     }
@@ -70,9 +78,9 @@ class HeroCarousel {
             if (e.key === 'ArrowRight') this.next();
         });
         
-        // Pause on hover
-        this.container.addEventListener('mouseenter', () => this.stopAutoPlay());
-        this.container.addEventListener('mouseleave', () => this.startAutoPlay());
+        // Pause on hover (wrapper includes character overlays)
+        this.wrapper.addEventListener('mouseenter', () => this.stopAutoPlay());
+        this.wrapper.addEventListener('mouseleave', () => this.startAutoPlay());
         
         // Touch swipe
         this.initTouchSwipe();
@@ -237,35 +245,9 @@ class HeroCarousel {
             const showDescription = slide.showDescription !== false;
             const showCta = slide.showCta !== false;
             
-            // Character Overlay
-            let characterHtml = '';
-            if (slide.characterImg) {
-                const charX = slide.characterX ?? 75;
-                const charY = slide.characterY ?? 0;
-                const charScale = slide.characterScale ?? 100;
-                const charHoverScale = slide.characterHoverScale ?? 110;
-                const charMaxH = slide.characterMaxHeight ?? 120;
-                const charFlip = slide.characterFlip ? 'scaleX(-1)' : '';
-                const charAnchor = slide.characterAnchor || 'bottom';
-                
-                let posStyle = `left: ${charX}%;`;
-                if (charAnchor === 'bottom') {
-                    posStyle += ` bottom: ${charY}%; transform: translateX(-50%) scale(${charScale / 100}) ${charFlip};`;
-                } else if (charAnchor === 'top') {
-                    posStyle += ` top: ${charY}%; transform: translateX(-50%) scale(${charScale / 100}) ${charFlip};`;
-                } else {
-                    posStyle += ` top: 50%; transform: translate(-50%, -50%) scale(${charScale / 100}) ${charFlip};`;
-                }
-                
-                characterHtml = `<div class="hero-carousel__character" style="${posStyle}" data-hover-scale="${charHoverScale}" data-base-scale="${charScale}" data-flip="${slide.characterFlip ? '1' : '0'}" data-anchor="${charAnchor}">
-                    <img src="${slide.characterImg}" alt="" draggable="false" style="max-height: ${charMaxH}%;">
-                </div>`;
-            }
-            
             slideEl.innerHTML = `
                 ${bgHtml}
                 <div class="hero-carousel__overlay" style="${overlayStyle}"></div>
-                ${characterHtml}
                 <div class="hero-carousel__content">
                     ${showBadge ? `<span class="hero-carousel__badge ${badgeClass}">
                         ${liveIndicator}
@@ -310,30 +292,76 @@ class HeroCarousel {
         this.initVideoSpeeds();
         
         // Character overlay hover effects
-        this.initCharacterHovers();
+        this.buildCharacters();
     }
     
-    initCharacterHovers() {
-        this.container.querySelectorAll('.hero-carousel__character').forEach(charEl => {
-            const baseScale = parseFloat(charEl.dataset.baseScale) / 100;
-            const hoverScale = parseFloat(charEl.dataset.hoverScale) / 100;
-            const flip = charEl.dataset.flip === '1' ? ' scaleX(-1)' : '';
-            const anchor = charEl.dataset.anchor;
+    buildCharacters() {
+        // Remove any existing character overlays
+        this.wrapper.querySelectorAll('.hero-carousel__character').forEach(el => el.remove());
+        this.characterEls = [];
+        
+        this.slidesData.forEach((slide, index) => {
+            if (!slide.characterImg) {
+                this.characterEls.push(null);
+                return;
+            }
             
-            const getTransform = (scale) => {
-                if (anchor === 'center') {
-                    return `translate(-50%, -50%) scale(${scale})${flip}`;
-                }
-                return `translateX(-50%) scale(${scale})${flip}`;
-            };
+            const charX = slide.characterX ?? 75;
+            const charY = slide.characterY ?? 0;
+            const charScale = slide.characterScale ?? 100;
+            const charHoverScale = slide.characterHoverScale ?? 105;
+            const charMaxH = slide.characterMaxHeight ?? 120;
+            const charFlip = slide.characterFlip ? 'scaleX(-1)' : '';
+            const charAnchor = slide.characterAnchor || 'bottom';
             
+            const charEl = document.createElement('div');
+            charEl.className = `hero-carousel__character${index === 0 ? ' active' : ''}`;
+            charEl.dataset.slideIndex = index;
+            charEl.dataset.hoverScale = charHoverScale;
+            charEl.dataset.baseScale = charScale;
+            charEl.dataset.flip = slide.characterFlip ? '1' : '0';
+            charEl.dataset.anchor = charAnchor;
+            
+            // Position relative to the wrapper (same size as carousel)
+            let posStyle = `left: ${charX}%;`;
+            if (charAnchor === 'bottom') {
+                posStyle += ` bottom: ${charY}%;`;
+            } else if (charAnchor === 'top') {
+                posStyle += ` top: ${charY}%;`;
+            } else {
+                posStyle += ` top: 50%;`;
+            }
+            
+            charEl.style.cssText = posStyle;
+            
+            // Compute max-height in px from carousel height
+            const carouselH = this.container.offsetHeight || 300;
+            const maxPx = Math.round(carouselH * charMaxH / 100);
+            charEl.innerHTML = `<img src="${slide.characterImg}" alt="" draggable="false" style="max-height: ${maxPx}px;">`;
+            
+            // Set initial transform
+            const baseTransform = this.getCharTransform(charAnchor, charScale / 100, charFlip);
+            charEl.style.transform = baseTransform;
+            
+            // Hover effect
             charEl.addEventListener('mouseenter', () => {
-                charEl.style.transform = getTransform(hoverScale);
+                charEl.style.transform = this.getCharTransform(charAnchor, charHoverScale / 100, charFlip);
             });
             charEl.addEventListener('mouseleave', () => {
-                charEl.style.transform = getTransform(baseScale);
+                charEl.style.transform = this.getCharTransform(charAnchor, charScale / 100, charFlip);
             });
+            
+            this.wrapper.appendChild(charEl);
+            this.characterEls.push(charEl);
         });
+    }
+    
+    getCharTransform(anchor, scale, flip) {
+        const flipStr = flip ? ' scaleX(-1)' : '';
+        if (anchor === 'center') {
+            return `translate(-50%, -50%) scale(${scale})${flipStr}`;
+        }
+        return `translateX(-50%) scale(${scale})${flipStr}`;
     }
     
     parseVideoUrl(url, startTime = 0) {
@@ -433,6 +461,11 @@ class HeroCarousel {
         // Update dots
         this.dots.forEach((dot, i) => {
             dot.classList.toggle('active', i === index);
+        });
+        
+        // Update character overlays
+        this.characterEls.forEach((charEl, i) => {
+            if (charEl) charEl.classList.toggle('active', i === index);
         });
         
         this.currentIndex = index;
