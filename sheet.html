@@ -769,6 +769,130 @@
             font-size: 12px;
         }
         
+        /* Locked Pro Slot */
+        .char-card--locked {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            min-height: 132px;
+            opacity: 0.35;
+            cursor: default;
+            filter: grayscale(0.5) brightness(0.7);
+            transition: opacity 0.2s ease, filter 0.2s ease;
+        }
+        
+        .char-card--locked:hover {
+            opacity: 0.7;
+            filter: none;
+        }
+        
+        .char-card--locked .char-card__portrait {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px dashed rgba(188, 162, 76, 0.25);
+            position: relative;
+        }
+        
+        .char-card--locked .char-card__portrait svg {
+            opacity: 0.3;
+        }
+        
+        .char-card--locked .char-card__lock-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 22px;
+            height: 22px;
+        }
+        
+        .char-card--locked .char-card__lock-badge img {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .char-card--locked .char-card__empty-text strong {
+            color: rgba(188, 162, 76, 0.5);
+        }
+        
+        .char-card--locked .char-card__empty-text span {
+            color: rgba(188, 162, 76, 0.4);
+        }
+        
+        /* Pro gate tooltip on locked slots */
+        .char-card--locked .pro-gate-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) scale(0.95);
+            background: #1a1a1a;
+            border: 1px solid rgba(188, 162, 76, 0.35);
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+        
+        .char-card--locked .pro-gate-tooltip::before {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            height: 14px;
+        }
+        
+        .char-card--locked .pro-gate-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(188, 162, 76, 0.35);
+        }
+        
+        .char-card--locked:hover .pro-gate-tooltip {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) scale(1);
+        }
+        
+        .pro-gate-tooltip__badge {
+            height: 22px;
+            width: auto;
+            flex-shrink: 0;
+        }
+        
+        .pro-gate-tooltip__divider {
+            width: 1px;
+            height: 16px;
+            background: rgba(255,255,255,0.12);
+            flex-shrink: 0;
+        }
+        
+        .pro-gate-tooltip__link {
+            color: rgba(255,255,255,0.55);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+        
+        .pro-gate-tooltip__link:hover {
+            color: #e8d48b;
+        }
+        
         /* ========================================
            RESPONSIVE
            ======================================== */
@@ -1262,6 +1386,11 @@
             return 2; // Safe default (Free tier)
         }
         
+        // Always show Pro-tier number of slots for display
+        function getDisplaySlots() {
+            return 5; // Pro max - always show all 5 slots
+        }
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             setupTabs();
@@ -1366,9 +1495,16 @@
                 html += renderCharCard(char);
             });
             
-            // Render empty slots
-            for (let i = count; i < getMaxChars(); i++) {
+            // Render empty slots (usable)
+            const maxUsable = getMaxChars();
+            for (let i = count; i < maxUsable; i++) {
                 html += renderEmptySlot(i === count); // First empty slot is clickable
+            }
+            
+            // Render locked Pro slots (for Free users)
+            const displaySlots = getDisplaySlots();
+            for (let i = maxUsable; i < displaySlots; i++) {
+                html += renderLockedSlot();
             }
             
             document.getElementById('charGrid').innerHTML = html;
@@ -1562,6 +1698,31 @@
                     <div class="char-card__empty-text">
                         <strong>Freier Platz</strong>
                         <span>${isClickable ? 'Klicken zum Erstellen' : 'Slot verfügbar'}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderLockedSlot() {
+            return `
+                <div class="char-card char-card--locked">
+                    <div class="char-card__portrait">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                            <rect x="5" y="11" width="14" height="10" rx="2"/>
+                            <path d="M8 11V7a4 4 0 1 1 8 0v4"/>
+                        </svg>
+                        <div class="char-card__lock-badge">
+                            <img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="PRO">
+                        </div>
+                    </div>
+                    <div class="char-card__empty-text">
+                        <strong>PRO Slot</strong>
+                        <span>Mit RIFT Pro verfügbar</span>
+                    </div>
+                    <div class="pro-gate-tooltip">
+                        <img class="pro-gate-tooltip__badge" src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="RIFT Pro" draggable="false">
+                        <div class="pro-gate-tooltip__divider"></div>
+                        <a class="pro-gate-tooltip__link" href="riftpro.html">Mehr erfahren</a>
                     </div>
                 </div>
             `;
