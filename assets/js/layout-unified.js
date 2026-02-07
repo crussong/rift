@@ -263,6 +263,7 @@ function createUnifiedTopnav() {
                                 : userData.initial}
                         </div>
                         <span class="topnav__user-name" id="userName">${userData.name}</span>
+                        <a href="https://rift-app.com/settings#pro" class="topnav__pro-badge" id="topnavProBadge" title="RIFT PRO" style="display:none;" onclick="event.stopPropagation();">PRO</a>
                     </div>
                     <div class="topnav__dropdown topnav__dropdown--user">
                         <div class="topnav__dropdown-user-header">
@@ -822,6 +823,9 @@ function initUnifiedLayout() {
     
     // Initialize banner system
     initBannerSystem();
+    
+    // Initialize Pro badge in TopNav
+    initProBadge();
     
     console.log('[RIFT] Unified layout initialized');
 }
@@ -2503,6 +2507,33 @@ const BannerSystem = {
 // Initialize Banner System when layout is ready
 function initBannerSystem() {
     BannerSystem.init();
+}
+
+// ============================================================
+// PRO BADGE IN TOPNAV
+// ============================================================
+function initProBadge() {
+    const badge = document.getElementById('topnavProBadge');
+    if (!badge) return;
+    
+    function updateBadge(state) {
+        badge.style.display = state.isPro ? 'inline-flex' : 'none';
+    }
+    
+    // If RIFT.pro is already available, subscribe
+    if (window.RIFT && window.RIFT.pro && typeof window.RIFT.pro.onStatusChange === 'function') {
+        window.RIFT.pro.onStatusChange(updateBadge);
+    } else {
+        // Wait for pro-status.js to initialize (it loads after layout)
+        const checkInterval = setInterval(() => {
+            if (window.RIFT && window.RIFT.pro && typeof window.RIFT.pro.onStatusChange === 'function') {
+                clearInterval(checkInterval);
+                window.RIFT.pro.onStatusChange(updateBadge);
+            }
+        }, 200);
+        // Stop checking after 10s
+        setTimeout(() => clearInterval(checkInterval), 10000);
+    }
 }
 
 // Make functions globally available
