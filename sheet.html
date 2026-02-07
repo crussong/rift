@@ -1385,30 +1385,22 @@
             renderHero();
             renderCharacters();
             
-            // Re-render when Pro status loads (async from Firebase)
-            if (window.RIFT?.pro?.onStatusChange) {
-                RIFT.pro.onStatusChange(() => {
-                    renderCharacters();
-                    renderHero();
-                });
-            } else {
-                // Pro system might not be loaded yet, wait for it
-                const proCheck = setInterval(() => {
-                    if (window.RIFT?.pro?.onStatusChange) {
-                        clearInterval(proCheck);
-                        RIFT.pro.onStatusChange(() => {
+            // Initialize Pro status from Firebase auth
+            // (app.js handles this on other pages, but sheet.html doesn't load app.js)
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                firebase.auth().onAuthStateChanged(async (user) => {
+                    if (user && window.RIFT?.pro?.init) {
+                        try {
+                            await RIFT.pro.init(user.uid);
+                            console.log('[Sheet] Pro initialized:', RIFT.pro.isPro);
+                            // Re-render with correct limits
                             renderCharacters();
                             renderHero();
-                        });
-                        // If already initialized, re-render now
-                        if (RIFT.pro.initialized) {
-                            renderCharacters();
-                            renderHero();
+                        } catch (e) {
+                            console.warn('[Sheet] Pro init failed:', e);
                         }
                     }
-                }, 200);
-                // Stop checking after 10s
-                setTimeout(() => clearInterval(proCheck), 10000);
+                });
             }
         });
         
