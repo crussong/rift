@@ -2585,11 +2585,6 @@
                                     <option value="pro">Pro</option>
                                 </select>
                             </div>
-                            <div class="form-group" style="margin: 0;">
-                                <select class="form-select" id="arenaThemeSetFilter" onchange="ArenaThemesAdmin.filter()">
-                                    <option value="">Alle Sets</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -3710,6 +3705,76 @@
                             <input type="checkbox" id="carouselAutoplay" checked>
                             <span>Autoplay aktiviert</span>
                         </label>
+                    </div>
+                </div>
+                
+                <!-- Character Overlay Section -->
+                <div class="form-section-header" style="cursor: pointer;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('.toggle-arrow').style.transform = this.nextElementSibling.style.display === 'none' ? '' : 'rotate(180deg)';">
+                    <span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><path d="M12 2a5 5 0 1 1-5 5l.005-.217A5 5 0 0 1 12 2m2 12h-4a5 5 0 0 0-5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a5 5 0 0 0-5-5"/></svg>
+                        Charakter-Overlay
+                        <span id="charOverlayIndicator" style="color: var(--green); font-size: 8px; margin-left: 6px;">●</span>
+                    </span>
+                    <svg class="toggle-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s;"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                
+                <div id="charOverlayFields" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Bild-URL <span>(PNG mit Transparenz)</span></label>
+                        <input type="text" class="form-input" id="slideCharImg" placeholder="assets/img/carousel/char-wizard.png">
+                        <p class="form-hint">Ausgeschnittener Charakter als PNG. Wird über dem Hintergrund angezeigt.</p>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Position X: <span id="charXValue">75%</span></label>
+                            <input type="range" class="form-range" id="slideCharX" min="0" max="100" value="75" oninput="document.getElementById('charXValue').textContent = this.value + '%'">
+                            <p class="form-hint">0% = ganz links, 100% = ganz rechts</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Position Y: <span id="charYValue">0%</span></label>
+                            <input type="range" class="form-range" id="slideCharY" min="-20" max="50" value="0" oninput="document.getElementById('charYValue').textContent = this.value + '%'">
+                            <p class="form-hint">Offset vom Anker</p>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Größe: <span id="charScaleValue">100%</span></label>
+                            <input type="range" class="form-range" id="slideCharScale" min="30" max="200" value="100" oninput="document.getElementById('charScaleValue').textContent = this.value + '%'">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Hover-Zoom: <span id="charHoverValue">110%</span></label>
+                            <input type="range" class="form-range" id="slideCharHover" min="100" max="150" value="110" oninput="document.getElementById('charHoverValue').textContent = this.value + '%'">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Max. Höhe: <span id="charMaxHValue">120%</span></label>
+                            <input type="range" class="form-range" id="slideCharMaxH" min="50" max="200" value="120" oninput="document.getElementById('charMaxHValue').textContent = this.value + '%'">
+                            <p class="form-hint">>100% = Charakter ragt aus Carousel</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Anker</label>
+                            <select class="form-select" id="slideCharAnchor">
+                                <option value="bottom">Unten (Füße am Boden)</option>
+                                <option value="center">Mitte</option>
+                                <option value="top">Oben</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="slideCharFlip">
+                            <span>Horizontal spiegeln</span>
+                        </label>
+                    </div>
+                    
+                    <div id="charPreviewBox" style="display: none; margin-top: 8px; background: var(--bg-input); border-radius: 8px; padding: 12px; text-align: center;">
+                        <img id="charPreviewImg" style="max-height: 100px; opacity: 0.8;" alt="Vorschau">
+                        <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Vorschau</p>
                     </div>
                 </div>
                 
@@ -5241,6 +5306,7 @@
                                 <span>${slide.autoplay || 6}s</span>
                                 ${slide.videoUrl ? '<span>🎬 Video</span>' : ''}
                                 ${slide.countdownDate ? '<span>⏰ Countdown</span>' : ''}
+                                ${slide.characterImg ? '<span>🧙 Charakter</span>' : ''}
                                 ${slide.active === false ? '<span style="color: var(--yellow);">Inaktiv</span>' : ''}
                             </div>
                         </div>
@@ -5352,6 +5418,40 @@
                 document.getElementById('carouselShowDots').checked = slide?.carouselShowDots !== false;
                 document.getElementById('carouselAutoplay').checked = slide?.carouselAutoplay !== false;
                 
+                // Character overlay
+                document.getElementById('slideCharImg').value = slide?.characterImg || '';
+                document.getElementById('slideCharX').value = slide?.characterX ?? 75;
+                document.getElementById('slideCharY').value = slide?.characterY ?? 0;
+                document.getElementById('slideCharScale').value = slide?.characterScale ?? 100;
+                document.getElementById('slideCharHover').value = slide?.characterHoverScale ?? 110;
+                document.getElementById('slideCharMaxH').value = slide?.characterMaxHeight ?? 120;
+                document.getElementById('slideCharAnchor').value = slide?.characterAnchor || 'bottom';
+                document.getElementById('slideCharFlip').checked = slide?.characterFlip || false;
+                
+                // Update range labels
+                document.getElementById('charXValue').textContent = (slide?.characterX ?? 75) + '%';
+                document.getElementById('charYValue').textContent = (slide?.characterY ?? 0) + '%';
+                document.getElementById('charScaleValue').textContent = (slide?.characterScale ?? 100) + '%';
+                document.getElementById('charHoverValue').textContent = (slide?.characterHoverScale ?? 110) + '%';
+                document.getElementById('charMaxHValue').textContent = (slide?.characterMaxHeight ?? 120) + '%';
+                
+                // Character preview & indicator
+                const charImg = slide?.characterImg || '';
+                const charIndicator = document.getElementById('charOverlayIndicator');
+                const charPreviewBox = document.getElementById('charPreviewBox');
+                charIndicator.style.display = charImg ? 'inline' : 'none';
+                if (charImg) {
+                    charPreviewBox.style.display = 'block';
+                    document.getElementById('charPreviewImg').src = charImg;
+                } else {
+                    charPreviewBox.style.display = 'none';
+                }
+                
+                // Auto-open section if character is configured
+                if (charImg) {
+                    document.getElementById('charOverlayFields').style.display = 'block';
+                }
+                
                 modal.classList.add('active');
                 
                 // Init event handlers
@@ -5444,6 +5544,15 @@
                     carouselShowTabs: document.getElementById('carouselShowTabs').checked,
                     carouselShowDots: document.getElementById('carouselShowDots').checked,
                     carouselAutoplay: document.getElementById('carouselAutoplay').checked,
+                    // Character overlay
+                    characterImg: document.getElementById('slideCharImg').value.trim() || null,
+                    characterX: parseInt(document.getElementById('slideCharX').value) || 75,
+                    characterY: parseInt(document.getElementById('slideCharY').value) || 0,
+                    characterScale: parseInt(document.getElementById('slideCharScale').value) || 100,
+                    characterHoverScale: parseInt(document.getElementById('slideCharHover').value) || 110,
+                    characterMaxHeight: parseInt(document.getElementById('slideCharMaxH').value) || 120,
+                    characterAnchor: document.getElementById('slideCharAnchor').value || 'bottom',
+                    characterFlip: document.getElementById('slideCharFlip').checked,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 
