@@ -18,6 +18,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
+        /* Arena Theme Set Labels */
+        .dice-arena-set-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.45);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 4px 4px;
+            margin-top: 8px;
+        }
+        .dice-arena-set-label:first-child { margin-top: 0; }
         /* Back to Sheet Button */
         .back-to-sheet-btn {
             display: inline-flex;
@@ -3105,15 +3116,12 @@
                     if (tier === 'free') {
                         tiers.free.themes.push(t);
                     } else {
-                        // silver, gold, pro all map to pro
                         tiers.pro.themes.push(t);
                     }
                 });
                 
-                // Get current theme for active state
                 const currentTheme = this.currentArenaTheme || 'rift';
                 
-                // Build HTML
                 let html = '';
                 
                 ['free', 'pro'].forEach(tierKey => {
@@ -3130,23 +3138,40 @@
                                 ${badgeContent}
                                 <span class="tier-count">${tier.themes.length} Theme${tier.themes.length !== 1 ? 's' : ''}</span>
                             </div>
-                            <div class="dice-arena-theme-grid">
                     `;
                     
+                    // Group by set within tier
+                    const setGroups = {};
                     tier.themes.forEach(t => {
-                        const isActive = t.themeId === currentTheme ? ' active' : '';
-                        html += `
-                            <button class="dice-arena-theme-card${isActive}" data-arena-theme="${t.themeId}" onclick="DiceRoller.setArenaTheme('${t.themeId}')">
-                                <div class="dice-arena-theme-preview dice-arena-theme-preview--${t.themeId}"></div>
-                                <span>${t.name || t.themeId}</span>
-                            </button>
-                        `;
+                        const setName = t.set || '';
+                        if (!setGroups[setName]) setGroups[setName] = [];
+                        setGroups[setName].push(t);
                     });
                     
-                    html += `
-                            </div>
-                        </div>
-                    `;
+                    const sortedSets = Object.keys(setGroups).sort((a, b) => {
+                        if (!a) return 1;
+                        if (!b) return -1;
+                        return a.localeCompare(b);
+                    });
+                    
+                    sortedSets.forEach(setName => {
+                        if (setName) {
+                            html += `<div class="dice-arena-set-label">${setName}</div>`;
+                        }
+                        html += `<div class="dice-arena-theme-grid">`;
+                        setGroups[setName].forEach(t => {
+                            const isActive = t.themeId === currentTheme ? ' active' : '';
+                            html += `
+                                <button class="dice-arena-theme-card${isActive}" data-arena-theme="${t.themeId}" onclick="DiceRoller.setArenaTheme('${t.themeId}')">
+                                    <div class="dice-arena-theme-preview dice-arena-theme-preview--${t.themeId}"></div>
+                                    <span>${t.name || t.themeId}</span>
+                                </button>
+                            `;
+                        });
+                        html += `</div>`;
+                    });
+                    
+                    html += `</div>`;
                 });
                 
                 container.innerHTML = html;

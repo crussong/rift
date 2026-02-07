@@ -64,7 +64,18 @@
         .chat-header__left { display: flex; align-items: center; gap: 14px; }
         .chat-header__icon { width: 48px; height: 48px; border-radius: 14px; background: #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; overflow: hidden; transition: all 0.2s; }
         .chat-header__icon:hover { background: #3a3a3a; }
+        .chat-header__icon--gm-empty { border: 2px dashed rgba(255,255,255,0.25); background: transparent; cursor: pointer; }
+        .chat-header__icon--gm-empty:hover { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); }
+        .chat-header__icon--gm-has-img { cursor: pointer; }
+        .chat-header__icon--gm-has-img:hover { opacity: 0.8; }
         .chat-header__icon img { width: 100%; height: 100%; object-fit: cover; }
+        .chat-header__icon--gm-empty { border: 2px dashed rgba(255,255,255,0.25); background: transparent; cursor: pointer; }
+        .chat-header__icon--gm-empty:hover { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); }
+        .chat-header__icon--gm-empty svg { width: 20px; height: 20px; color: rgba(255,255,255,0.35); }
+        .chat-header__icon--gm-empty:hover svg { color: rgba(255,255,255,0.6); }
+        .chat-header__icon--gm-has-img { cursor: pointer; position: relative; }
+        .chat-header__icon--gm-has-img::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.2s; border-radius: 14px; }
+        .chat-header__icon--gm-has-img:hover::after { opacity: 1; }
         .chat-header__title { font-size: 20px; font-weight: 700; color: #fff; }
         .chat-header__sub { font-size: 13px; color: #666; margin-top: 3px; }
         .chat-header__actions { display: flex; gap: 8px; }
@@ -442,14 +453,22 @@
             ref() { return firebase.firestore().collection('rooms').doc(this.roomCode); },
             
             render() {
-                const iconContent = this.roomImage 
-                    ? `<img src="${this.roomImage}" alt="">` 
-                    : `<i class="ti ti-message-circle-filled"></i>`;
-                // GM kann klicken zum Bild hochladen
-                const iconClick = this.isGM ? `onclick="RIFTChat.triggerImageUpload()"` : '';
-                const iconStyle = this.isGM ? `style="cursor:pointer;" title="Bild ändern (Klick)"` : '';
+                let iconHtml;
+                if (this.isGM) {
+                    if (this.roomImage) {
+                        iconHtml = `<div class="chat-header__icon chat-header__icon--gm-has-img" id="chatHeaderIcon" title="Bild ändern"><img src="${this.roomImage}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`;
+                    } else {
+                        iconHtml = `<div class="chat-header__icon chat-header__icon--gm-empty" id="chatHeaderIcon" title="Bild hochladen"><i class="ti ti-plus" style="font-size:18px;color:rgba(255,255,255,0.35);"></i></div>`;
+                    }
+                } else {
+                    if (this.roomImage) {
+                        iconHtml = `<div class="chat-header__icon"><img src="${this.roomImage}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`;
+                    } else {
+                        iconHtml = `<div class="chat-header__icon"><i class="ti ti-message-circle-filled"></i></div>`;
+                    }
+                }
                 document.getElementById('chatPage').innerHTML = `
-                    <input type="file" id="roomImageInput" accept="image/*" style="display:none" onchange="RIFTChat.uploadRoomImage(event)">
+                    <input type="file" id="roomImageInput" accept="image/*" style="display:none">
                     <div class="chat-container">
                         <div class="chat-users">
                             <div class="chat-users__header"><div class="chat-users__title"><i class="ti ti-users-group"></i> Teilnehmer <span class="chat-users__count" id="onlineCount">0 online</span></div></div>
@@ -458,7 +477,7 @@
                         <div class="chat-main">
                             <div class="chat-header">
                                 <div class="chat-header__left">
-                                    <div class="chat-header__icon" ${iconClick} ${iconStyle}>${iconContent}</div>
+                                    ${iconHtml}
                                     <div><div class="chat-header__title">Gruppen-Chat</div><div class="chat-header__sub">Raum ${this.roomCode.replace(/(.{3})(.{3})/, '$1-$2')}</div></div>
                                 </div>
                                 <div class="chat-header__actions">
@@ -506,12 +525,18 @@
                         </div>
                     </div>`;
                 this.renderPickerContent(); this.renderMessages(); this.renderUsers();
+                // Bind GM image upload via addEventListener (inline onclick doesn't work reliably on re-rendered DOM)
+                if (this.isGM) {
+                    const icon = document.getElementById('chatHeaderIcon');
+                    const fileInput = document.getElementById('roomImageInput');
+                    if (icon && fileInput) {
+                        icon.addEventListener('click', () => fileInput.click());
+                        fileInput.addEventListener('change', (e) => RIFTChat.uploadRoomImage(e));
+                    }
+                }
             },
             
-            triggerImageUpload() {
-                if (!this.isGM) return;
-                document.getElementById('roomImageInput')?.click();
-            },
+            // triggerImageUpload replaced by addEventListener in render()
             
             showNoRoom() { document.getElementById('chatPage').innerHTML = `<div class="chat-noroom"><div class="chat-noroom__icon"><i class="ti ti-message-circle-filled"></i></div><div class="chat-noroom__title">Kein Raum aktiv</div><div class="chat-noroom__text">Tritt einem Raum bei, um den Chat zu nutzen.</div><a href="login.html" class="chat-noroom__btn">Raum beitreten</a></div>`; },
             
