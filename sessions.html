@@ -24,6 +24,7 @@
         body.auth-ready .app { opacity: 1; transition: opacity 0.15s ease; }
         body.auth-ready .sheet-container { opacity: 1; transition: opacity 0.15s ease; }
         body.auth-ready main { opacity: 1; transition: opacity 0.15s ease; }
+        select option:disabled { color: #555; opacity: 0.4; }
     </style>
 </head>
 <body>
@@ -1045,6 +1046,35 @@
         
         let editingSessionId = null;
         
+        // Pro/Free gating helper for max participants selects
+        function applyMaxPlayersGating(selectId, hintId) {
+            const sel = document.getElementById(selectId);
+            const hint = hintId ? document.getElementById(hintId) : null;
+            if (!sel) return;
+            
+            const pro = (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) ? RIFT.pro : null;
+            if (!pro) {
+                Array.from(sel.options).forEach(opt => { opt.disabled = false; });
+                if (hint) hint.style.display = 'none';
+                return;
+            }
+            
+            const limit = pro.getLimit('participantsPerSession');
+            const comparison = pro.getLimitComparison('participantsPerSession');
+            
+            Array.from(sel.options).forEach(opt => {
+                const val = parseInt(opt.value);
+                opt.disabled = val > limit;
+            });
+            
+            if (!pro.isPro && hint) {
+                hint.style.display = 'block';
+                hint.innerHTML = `Free: max. ${comparison.free} Teilnehmer · <a href="riftpro.html" style="color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;"><img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="Pro" style="height:14px;vertical-align:middle;"> Bis zu ${comparison.pro === Infinity ? '∞' : comparison.pro}</a>`;
+            } else if (hint) {
+                hint.style.display = 'none';
+            }
+        }
+        
         function openSessionModal(sessionToEdit = null) {
             editingSessionId = sessionToEdit?.id || null;
             
@@ -1166,18 +1196,7 @@
                 document.getElementById('sessionMaxPlayers').value = '4';
                 
                 // Pro/Free gating for max participants
-                if (typeof RIFT !== 'undefined' && RIFT.pro) {
-                    const maxLimit = RIFT.pro.getLimit('participantsPerSession');
-                    const sel = document.getElementById('sessionMaxPlayers');
-                    const hint = document.getElementById('maxPlayersCreateHint');
-                    Array.from(sel.options).forEach(opt => {
-                        const val = parseInt(opt.value);
-                        if (val > maxLimit) { opt.disabled = true; opt.textContent = opt.textContent.replace(/ 🔒$/, '') + ' 🔒'; }
-                        else { opt.disabled = false; opt.textContent = opt.textContent.replace(/ 🔒$/, ''); }
-                    });
-                    if (maxLimit < 12 && hint) { hint.style.display = 'block'; hint.textContent = `Free: max. ${maxLimit}. Mit RIFT Pro bis zu 12.`; }
-                    else if (hint) { hint.style.display = 'none'; }
-                }
+                applyMaxPlayersGating('sessionMaxPlayers', 'maxPlayersCreateHint');
                 document.getElementById('sessionTime').value = '20:00';
                 document.getElementById('sessionRecurring').value = 'once';
                 document.getElementById('sessionDuration').value = '3';
@@ -1204,11 +1223,13 @@
         
         // Alias for backwards compatibility
         function openCreateModal() {
-            // Check session creation limit
-            if (typeof RIFT !== 'undefined' && RIFT.pro) {
-                const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+            // Check session creation limit (use Firebase sessions if available)
+            if (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) {
+                const sessions = (typeof firebaseSessions !== 'undefined' && firebaseSessions.length > 0)
+                    ? firebaseSessions
+                    : JSON.parse(localStorage.getItem('rift_sessions') || '[]');
                 const activeSessions = sessions.filter(s => s.status !== 'ended').length;
-                if (!RIFT.pro.checkLimitOrUpsell('activeSessions', activeSessions, 'Session-Limit erreicht. Upgrade auf RIFT Pro für unbegrenzte Sessions.')) {
+                if (!RIFT.pro.checkLimitOrUpsell('sessionsPerRoom', activeSessions, 'Session-Limit erreicht. Mit RIFT Pro mehr Sessions erstellen.')) {
                     return;
                 }
             }
@@ -2003,6 +2024,19 @@
             }
             upcomingCount.textContent = `${upcoming.length} geplant`;
             
+            // Show session slot info with Pro/Free limits
+            const pro = (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) ? RIFT.pro : null;
+            if (pro) {
+                const maxSessions = pro.getLimit('sessionsPerRoom');
+                const allActive = sessions.filter(s => s.status !== 'ended').length;
+                if (maxSessions !== Infinity) {
+                    upcomingCount.innerHTML = `${allActive} / ${maxSessions} Slots belegt`;
+                    if (!pro.isPro && allActive >= maxSessions) {
+                        upcomingCount.innerHTML += ` · <a href="riftpro.html" style="color:var(--text-muted);font-size:11px;display:inline-flex;align-items:center;gap:3px;"><img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="Pro" style="height:12px;"> Mehr</a>`;
+                    }
+                }
+            }
+            
             // TODO: Render past sessions similarly
         }
         
@@ -2046,6 +2080,14 @@
             // Load full session data
             const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
             const fullSession = sessions.find(s => s.id === activeSessionData.id);
+            
+            // Hide GM actions for non-GM players
+            const currentUserId = firebase?.auth()?.currentUser?.uid || localStorage.getItem('rift_user_uid') || null;
+            const isSessionGM = fullSession && currentUserId && fullSession.ownerId === currentUserId;
+            if (!isSessionGM) {
+                const gmActions = document.getElementById('activeSessionGmActions');
+                if (gmActions) gmActions.style.display = 'none';
+            }
             
             // Set link to session page
             const goToActiveBtn = document.getElementById('goToActiveSessionBtn');
@@ -2307,6 +2349,20 @@
             
             // Update counts
             document.getElementById('upcomingCount').textContent = `${upcoming.length} geplant`;
+            
+            // Show session slot info
+            const pro2 = (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) ? RIFT.pro : null;
+            if (pro2) {
+                const maxSessions2 = pro2.getLimit('sessionsPerRoom');
+                const allActive2 = sessions.filter(s => s.status !== 'ended').length;
+                if (maxSessions2 !== Infinity) {
+                    const countEl = document.getElementById('upcomingCount');
+                    countEl.innerHTML = `${allActive2} / ${maxSessions2} Slots belegt`;
+                    if (!pro2.isPro && allActive2 >= maxSessions2) {
+                        countEl.innerHTML += ` · <a href="riftpro.html" style="color:var(--text-muted);font-size:11px;display:inline-flex;align-items:center;gap:3px;"><img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="Pro" style="height:12px;"> Mehr</a>`;
+                    }
+                }
+            }
             
             // Render upcoming
             const upcomingContainer = document.getElementById('upcomingSessions');
