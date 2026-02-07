@@ -2539,14 +2539,19 @@
                 if (!roomCode) return;
                 
                 const db = firebase.database();
-                const ref = db.ref('rooms/' + roomCode + '/diceRolls');
+                const ref = db.ref('rooms/' + roomCode + '/dice_rolls');
                 
-                ref.orderByChild('timestamp').limitToLast(5).on('value', snap => {
+                ref.orderByChild('timestamp').limitToLast(10).on('value', snap => {
                     const rolls = [];
-                    snap.forEach(child => rolls.push(child.val()));
+                    snap.forEach(child => {
+                        const val = child.val();
+                        // Only show completed rolls, not start animations
+                        if (val.phase === 'complete' && !val.secret) rolls.push(val);
+                    });
                     rolls.reverse();
+                    const display = rolls.slice(0, 5);
                     
-                    if (rolls.length === 0) {
+                    if (display.length === 0) {
                         list.style.display = 'none';
                         empty.style.display = 'flex';
                         return;
@@ -2555,12 +2560,12 @@
                     empty.style.display = 'none';
                     list.style.display = 'flex';
                     
-                    list.innerHTML = rolls.map(roll => {
-                        const name = roll.userName || roll.characterName || 'Unbekannt';
-                        const total = roll.total || roll.result || '?';
-                        const dice = roll.dice || roll.diceType || '?';
-                        const isCrit = roll.isCrit || (roll.diceType === 'd20' && parseInt(total) === 20);
-                        const isFumble = roll.diceType === 'd20' && parseInt(total) === 1;
+                    list.innerHTML = display.map(roll => {
+                        const name = roll.player || roll.userName || 'Unbekannt';
+                        const total = roll.total ?? '?';
+                        const dice = roll.notation || roll.dice || '?';
+                        const isCrit = roll.critical === 'success';
+                        const isFumble = roll.critical === 'failure';
                         const ago = timeAgo(roll.timestamp);
                         
                         return `
@@ -2569,7 +2574,7 @@
                                     <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0-1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034.57 2.22.57 3.2.032l6.804-4.302c.98-.537 1.623-1.618 1.623-2.793v-7.284a3.223 3.223 0 0 0-1.29-2.594l-6.964-4.135a3.33 3.33 0 0 0-3.216 0z"/></svg>
                                 </div>
                                 <div class="feed__content">
-                                    <span class="feed__text"><strong>${name}</strong> würfelt ${dice}: <span class="feed__highlight" style="${isCrit ? 'color:#22c55e;font-weight:700;' : isFumble ? 'color:#ef4444;font-weight:700;' : ''}">${total}${isCrit ? ' ★' : isFumble ? ' ✗' : ''}</span></span>
+                                    <span class="feed__text"><strong>${escapeHtml(name)}</strong> würfelt ${escapeHtml(dice)}: <span class="feed__highlight" style="${isCrit ? 'color:#22c55e;font-weight:700;' : isFumble ? 'color:#ef4444;font-weight:700;' : ''}">${total}${isCrit ? ' ★' : isFumble ? ' ✗' : ''}</span></span>
                                     <span class="feed__time">${ago}</span>
                                 </div>
                             </div>`;
@@ -2580,7 +2585,7 @@
             setTimeout(subscribe, 1500);
         })();
         
-        // ──── Chat Preview ────
+        // ──── Chat Preview (Firestore) ────
         (function HubChat() {
             const list = document.getElementById('chatPreviewList');
             const empty = document.getElementById('chatPreviewEmpty');
@@ -2591,46 +2596,57 @@
                 const roomCode = localStorage.getItem('rift_current_room');
                 if (!roomCode) return;
                 
-                const db = firebase.database();
-                const ref = db.ref('rooms/' + roomCode + '/chat/messages');
+                // Chat uses Firestore: rooms/{roomCode}/chat
+                const roomRef = firebase.firestore().collection('rooms').doc(roomCode);
+                const currentUid = firebase.auth()?.currentUser?.uid;
                 
-                ref.orderByChild('timestamp').limitToLast(4).on('value', snap => {
-                    const msgs = [];
-                    snap.forEach(child => msgs.push(child.val()));
-                    msgs.reverse();
-                    
-                    if (msgs.length === 0) {
-                        list.style.display = 'none';
-                        empty.style.display = 'flex';
-                        if (footer) footer.style.display = 'none';
-                        return;
-                    }
-                    
-                    empty.style.display = 'none';
-                    list.style.display = 'flex';
-                    if (footer) footer.style.display = '';
-                    
-                    list.innerHTML = msgs.map(msg => {
-                        const name = msg.userName || msg.displayName || 'Anonym';
-                        const color = msg.userColor || '#8B5CF6';
-                        const initial = name.charAt(0).toUpperCase();
-                        const avatar = msg.userAvatar || msg.photoURL || '';
-                        const text = msg.text || msg.message || '';
-                        const ago = timeAgo(msg.timestamp);
+                roomRef.collection('chat')
+                    .orderBy('timestamp', 'desc')
+                    .limit(8)
+                    .onSnapshot(snap => {
+                        const msgs = [];
+                        snap.docs.forEach(doc => {
+                            const m = doc.data();
+                            if (m.deleted) return;
+                            if (m.isWhisper && m.whisperTo !== currentUid && m.senderId !== currentUid) return;
+                            if (msgs.length < 4) msgs.push(m);
+                        });
                         
-                        return `
-                            <div class="chat-preview__msg">
-                                <div class="chat-preview__avatar" style="background:${color};">
-                                    ${avatar ? `<img src="${avatar}" alt="">` : initial}
-                                </div>
-                                <div class="chat-preview__body">
-                                    <span class="chat-preview__name">${name}</span>
-                                    <span class="chat-preview__text">${escapeHtml(text)}</span>
-                                </div>
-                                <span class="chat-preview__time">${ago}</span>
-                            </div>`;
-                    }).join('');
-                });
+                        if (msgs.length === 0) {
+                            list.style.display = 'none';
+                            empty.style.display = 'flex';
+                            if (footer) footer.style.display = 'none';
+                            return;
+                        }
+                        
+                        empty.style.display = 'none';
+                        list.style.display = 'flex';
+                        if (footer) footer.style.display = '';
+                        
+                        list.innerHTML = msgs.map(msg => {
+                            const name = msg.senderName || 'Anonym';
+                            const color = msg.senderColor || '#8B5CF6';
+                            const initial = name.charAt(0).toUpperCase();
+                            const avatar = msg.senderAvatar || '';
+                            const text = msg.text || (msg.imageUrl ? '📷 Bild' : (msg.gifUrl ? 'GIF' : ''));
+                            const ts = msg.clientTimestamp || (msg.timestamp?.toMillis ? msg.timestamp.toMillis() : null);
+                            const ago = timeAgo(ts);
+                            
+                            return `
+                                <div class="chat-preview__msg">
+                                    <div class="chat-preview__avatar" style="background:${color};">
+                                        ${avatar ? `<img src="${avatar}" alt="">` : initial}
+                                    </div>
+                                    <div class="chat-preview__body">
+                                        <span class="chat-preview__name">${escapeHtml(name)}${msg.isWhisper ? ' 🤫' : ''}</span>
+                                        <span class="chat-preview__text">${escapeHtml(text)}</span>
+                                    </div>
+                                    <span class="chat-preview__time">${ago}</span>
+                                </div>`;
+                        }).join('');
+                    }, err => {
+                        console.warn('[Hub] Chat preview error:', err);
+                    });
             }
             
             setTimeout(subscribe, 1500);
