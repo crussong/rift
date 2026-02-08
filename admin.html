@@ -4757,6 +4757,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
     <script>
         // ========================================
@@ -7940,8 +7941,9 @@
                 if (!grid) return;
                 
                 try {
-                    const snap = await firebase.firestore().collection('whiteboard_library_tokens').get();
-                    this.tokens = snap.docs.map(doc => ({ ...doc.data(), _key: doc.id }));
+                    const snap = await firebase.database().ref('whiteboard/library/tokens').once('value');
+                    const data = snap.val() || {};
+                    this.tokens = Object.keys(data).map(k => ({ ...data[k], _key: k }));
                     
                     if (this.tokens.length === 0) {
                         grid.innerHTML = '';
@@ -8045,9 +8047,9 @@
                 
                 try {
                     if (this.editingKey) {
-                        await firebase.firestore().collection('whiteboard_library_tokens').doc(this.editingKey).set(token);
+                        await firebase.database().ref('whiteboard/library/tokens/' + this.editingKey).set(token);
                     } else {
-                        await firebase.firestore().collection('whiteboard_library_tokens').add(token);
+                        await firebase.database().ref('whiteboard/library/tokens').push(token);
                     }
                     this.hideModal();
                     this.load();
@@ -8060,7 +8062,7 @@
                 const t = this.tokens[idx];
                 if (!t || !confirm('Token "' + (t.name || '') + '" aus der Library löschen?')) return;
                 try {
-                    await firebase.firestore().collection('whiteboard_library_tokens').doc(t._key).delete();
+                    await firebase.database().ref('whiteboard/library/tokens/' + t._key).remove();
                     this.load();
                 } catch(err) {
                     alert('Fehler: ' + err.message);

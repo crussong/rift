@@ -2474,8 +2474,8 @@ const WB = {
                 else if (action === 'unlink' && token) {
                     const linkedId = token._linkedTo;
                     const other = this.tokens.find(t => t.id === linkedId);
-                    delete token._linkedTo;
-                    if (other && other._linkedTo === token.id) delete other._linkedTo;
+                    token._linkedTo = null;
+                    if (other && other._linkedTo === token.id) other._linkedTo = null;
                     this.syncToken(token);
                     if (other) this.syncToken(other);
                     this.render();
@@ -4860,10 +4860,12 @@ const WB = {
     // ==================== RIFT TOKEN LIBRARY ====================
     renderTokenLibrary(grid) {
         grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Lade RIFT Library...</p>';
+        if (!this.db) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Keine Datenbankverbindung</p>'; return; }
         
-        firebase.firestore().collection('whiteboard_library_tokens').get().then(snap => {
-            const libTokens = snap.docs.map(doc => ({ ...doc.data(), _libKey: doc.id }));
-            if (libTokens.length === 0) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Noch keine Tokens in der Library</p>'; return; }
+        this.db.ref('whiteboard/library/tokens').once('value').then(snap => {
+            const data = snap.val();
+            if (!data) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Noch keine Tokens in der Library</p>'; return; }
+            const libTokens = Object.keys(data).map(k => ({ ...data[k], _libKey: k }));
             const sizeLabels = { 44: 'S', 70: 'M', 140: 'L(2x2)', 210: 'XL(3x3)', 280: 'XXL(4x4)' };
             const typeColors = { player: '#8b5cf6', npc: '#3b82f6', monster: '#ef4444', hidden: '#6b7280' };
             
@@ -5091,6 +5093,13 @@ const WB = {
         
         overlay.querySelector('#bestiarySearchBtn').onclick = doSearch;
         searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+        let _bestiaryDebounce = null;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(_bestiaryDebounce);
+            const q = searchInput.value.trim();
+            if (q.length < 2) { results.innerHTML = ''; return; }
+            _bestiaryDebounce = setTimeout(doSearch, 350);
+        });
         searchInput.focus();
     },
     
@@ -5122,7 +5131,7 @@ const WB = {
     
     // ==================== TOKEN LINKS ====================
     renderTokenLinks() {
-        const ctx = this.uiCtx;
+        const ctx = this.mainCtx;
         if (!this.tokens || this.tokens.length === 0) return;
         
         const drawn = new Set();
@@ -6260,7 +6269,13 @@ const WB = {
         if (undoToken) {
             this.undoToken();
         } else if (strokeAction) {
-            if (strokeAction.type === 'stroke') this.strokes = this.strokes.filter(s => s.id !== strokeAction.data.id);
+            if (strokeAction.type === 'stroke') {
+                this.strokes = this.strokes.filter(s => s.id !== strokeAction.data.id);
+                // Also remove from Firebase to prevent re-sync
+                if (this.db && this.roomCode) {
+                    this.db.ref('whiteboard/' + this.roomCode + '/strokes/' + strokeAction.data.id).remove();
+                }
+            }
             this.historyIdx--;
             this.render();
             this.toast('Rückgängig');
@@ -6277,7 +6292,10 @@ const WB = {
         } else if (hasStrokeRedo) {
             this.historyIdx++;
             const action = this.history[this.historyIdx];
-            if (action.type === 'stroke') this.strokes.push(action.data);
+            if (action.type === 'stroke') {
+                this.strokes.push(action.data);
+                this.syncStroke(action.data);
+            }
             this.render();
             this.toast('Wiederholt');
         }
