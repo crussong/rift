@@ -4860,11 +4860,10 @@ const WB = {
     // ==================== RIFT TOKEN LIBRARY ====================
     renderTokenLibrary(grid) {
         grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Lade RIFT Library...</p>';
-        if (!this.db) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Keine Datenbankverbindung</p>'; return; }
         
-        this.db.ref('whiteboard/library/tokens').once('value').then(snap => {
-            const data = snap.val();
-            if (!data) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Noch keine Tokens in der Library</p>'; return; }
+        firebase.firestore().collection('admin').doc('token_library').get().then(doc => {
+            const data = doc.exists ? (doc.data().tokens || {}) : {};
+            if (Object.keys(data).length === 0) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Noch keine Tokens in der Library</p>'; return; }
             const libTokens = Object.keys(data).map(k => ({ ...data[k], _libKey: k }));
             const sizeLabels = { 44: 'S', 70: 'M', 140: 'L(2x2)', 210: 'XL(3x3)', 280: 'XXL(4x4)' };
             const typeColors = { player: '#8b5cf6', npc: '#3b82f6', monster: '#ef4444', hidden: '#6b7280' };

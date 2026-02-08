@@ -7966,8 +7966,8 @@
                 if (!grid) return;
                 
                 try {
-                    const snap = await firebase.database().ref('whiteboard/library/tokens').once('value');
-                    const data = snap.val() || {};
+                    const doc = await firebase.firestore().collection('admin').doc('token_library').get();
+                    const data = doc.exists ? (doc.data().tokens || {}) : {};
                     this.tokens = Object.keys(data).map(k => ({ ...data[k], _key: k }));
                     
                     if (this.tokens.length === 0) {
@@ -8237,9 +8237,14 @@
                 
                 try {
                     if (this.editingKey) {
-                        await firebase.database().ref('whiteboard/library/tokens/' + this.editingKey).set(token);
+                        await firebase.firestore().collection('admin').doc('token_library').set({
+                            tokens: { [this.editingKey]: token }
+                        }, { merge: true });
                     } else {
-                        await firebase.database().ref('whiteboard/library/tokens').push(token);
+                        const key = 'tok_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                        await firebase.firestore().collection('admin').doc('token_library').set({
+                            tokens: { [key]: token }
+                        }, { merge: true });
                     }
                     this.hideModal();
                     this.load();
@@ -8252,7 +8257,9 @@
                 const t = this.tokens[idx];
                 if (!t || !confirm('Token "' + (t.name || '') + '" aus der Library löschen?')) return;
                 try {
-                    await firebase.database().ref('whiteboard/library/tokens/' + t._key).remove();
+                    await firebase.firestore().collection('admin').doc('token_library').update({
+                        ['tokens.' + t._key]: firebase.firestore.FieldValue.delete()
+                    });
                     this.load();
                 } catch(err) {
                     alert('Fehler: ' + err.message);
