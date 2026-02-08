@@ -967,12 +967,13 @@
         }
         
         .party-card__player {
-            background: var(--bg-card);
+            background: var(--player-color, var(--bg-card));
             padding: 4px 10px;
             border-radius: 4px;
             font-size: 11px;
-            color: var(--text-dim);
-            align-self: flex-start;
+            color: #fff;
+            align-self: center;
+            text-align: center;
         }
         
         .party-card__empty-text {
@@ -2172,7 +2173,6 @@
                             <option value="7">7 Teilnehmer</option>
                             <option value="8">8 Teilnehmer</option>
                             <option value="10">10 Teilnehmer</option>
-                            <option value="12">12 Teilnehmer</option>
                         </select>
                         <p class="settings-group__hint" id="maxPlayersHint" style="display:none; font-size:12px; color: #f0d060; margin-top:6px;"></p>
                     </div>
@@ -3095,7 +3095,7 @@
                                 </div>
                             ` : ''}
                         </div>
-                        <div class="party-card__player">${player.name || char.playerName || 'Spieler'}</div>
+                        <div class="party-card__player" style="--player-color: ${char.color || '#8B5CF6'}40; color: ${char.color || '#8B5CF6'};">${player.name || char.playerName || 'Spieler'}</div>
                         ${isGM ? `
                             <div class="party-card__actions">
                                 <button class="party-card__action-btn" onclick="removePartyMember('${char.id}')" title="Entfernen">
@@ -4021,9 +4021,24 @@
             if (!sel) return;
             
             const pro = (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) ? RIFT.pro : null;
+            
+            // Always enforce absolute max of 10 (Pro limit)
+            const absoluteMax = 10;
+            Array.from(sel.options).forEach(opt => {
+                const val = parseInt(opt.value);
+                if (val > absoluteMax) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                }
+            });
+            
             if (!pro) {
-                // Pro not initialized - don't gate, will be applied on re-open
-                Array.from(sel.options).forEach(opt => { opt.disabled = false; });
+                Array.from(sel.options).forEach(opt => {
+                    const val = parseInt(opt.value);
+                    if (val <= absoluteMax) opt.disabled = false;
+                });
                 if (hint) hint.style.display = 'none';
                 return;
             }
@@ -4033,7 +4048,13 @@
             
             Array.from(sel.options).forEach(opt => {
                 const val = parseInt(opt.value);
-                opt.disabled = val > limit;
+                if (val > absoluteMax) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.disabled = val > limit;
+                    opt.style.display = '';
+                }
             });
             
             if (!pro.isPro && hint) {
@@ -4553,21 +4574,44 @@
                 let merged = [...existingParty];
                 let changed = false;
                 
+                // Build a map of member IDs to their session character data
+                const memberSessionMap = new Map();
                 for (const member of members) {
-                    // Skip members without character data for this session
+                    memberSessionMap.set(member.id, member);
+                }
+                
+                // REMOVE characters whose member doc no longer has sessionCharacter for this session
+                const beforeCount = merged.length;
+                merged = merged.filter(c => {
+                    if (!c.ownerId) return true; // Keep chars without owner (shouldn't happen)
+                    const member = memberSessionMap.get(c.ownerId);
+                    if (!member) return true; // Member not found — keep (might be offline)
+                    // If member doc exists but has no sessionCharacter or different sessionId → player removed their char
+                    if (member.sessionId !== undefined && member.sessionId !== sessionData.id) return false;
+                    if (member.sessionCharacter === undefined && member.sessionId === undefined && member.assignedCharacterId === undefined) {
+                        // Member doc has no session data at all — character was removed
+                        return false;
+                    }
+                    return true;
+                });
+                if (merged.length !== beforeCount) {
+                    changed = true;
+                    console.log('[Session] Removed', beforeCount - merged.length, 'chars (member docs cleared)');
+                }
+                
+                // ADD/UPDATE characters from member docs
+                for (const member of members) {
                     if (!member.sessionCharacter || member.sessionId !== sessionData.id) continue;
                     
                     const charData = member.sessionCharacter;
                     const existingIdx = merged.findIndex(c => c.ownerId === member.id);
                     
                     if (existingIdx >= 0) {
-                        // Update existing entry if member doc is newer
                         if (charData.assignedAt > (merged[existingIdx].assignedAt || 0)) {
                             merged[existingIdx] = charData;
                             changed = true;
                         }
                     } else {
-                        // Add new character from member doc
                         merged.push(charData);
                         changed = true;
                     }
@@ -4575,7 +4619,7 @@
                 
                 if (changed) {
                     sessionData.partyCharacters = merged;
-                    console.log('[Session] Merged', merged.length, 'party characters from member docs');
+                    console.log('[Session] Merged party:', merged.length, 'characters');
                     
                     // If GM, persist the merged data back to Firebase session doc
                     if (isGM) {

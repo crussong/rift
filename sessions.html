@@ -452,7 +452,6 @@
                                 <option value="7">7 Teilnehmer</option>
                                 <option value="8">8 Teilnehmer</option>
                                 <option value="10">10 Teilnehmer</option>
-                                <option value="12">12 Teilnehmer</option>
                             </select>
                             <p class="form-hint" id="maxPlayersCreateHint" style="display:none; color:#f0d060; margin-top:4px;"></p>
                         </div>
@@ -1044,6 +1043,16 @@
         // Start initialization
         setTimeout(initFirebaseSessions, 500);
         
+        // Re-render when Pro status initializes (to update slot counts)
+        function waitForProAndRerender() {
+            if (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) {
+                renderSessions();
+            } else {
+                setTimeout(waitForProAndRerender, 1000);
+            }
+        }
+        setTimeout(waitForProAndRerender, 1500);
+        
         // ========================================
         // INDEXEDDB FOR COVER IMAGES
         // ========================================
@@ -1117,8 +1126,24 @@
             if (!sel) return;
             
             const pro = (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) ? RIFT.pro : null;
+            
+            // Always enforce absolute max of 10 (Pro limit)
+            const absoluteMax = 10;
+            Array.from(sel.options).forEach(opt => {
+                const val = parseInt(opt.value);
+                if (val > absoluteMax) {
+                    opt.style.display = 'none'; // Hide completely
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                }
+            });
+            
             if (!pro) {
-                Array.from(sel.options).forEach(opt => { opt.disabled = false; });
+                Array.from(sel.options).forEach(opt => {
+                    const val = parseInt(opt.value);
+                    if (val <= absoluteMax) opt.disabled = false;
+                });
                 if (hint) hint.style.display = 'none';
                 return;
             }
@@ -1128,7 +1153,13 @@
             
             Array.from(sel.options).forEach(opt => {
                 const val = parseInt(opt.value);
-                opt.disabled = val > limit;
+                if (val > absoluteMax) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.disabled = val > limit;
+                    opt.style.display = '';
+                }
             });
             
             if (!pro.isPro && hint) {
@@ -2103,14 +2134,13 @@
             
             // Show session slot info with Pro/Free limits
             const pro = (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) ? RIFT.pro : null;
-            if (pro) {
-                const maxSessions = pro.getLimit('sessionsPerRoom');
-                const allActive = sessions.filter(s => s.status !== 'ended').length;
-                if (maxSessions !== Infinity) {
-                    upcomingCount.innerHTML = `${allActive} / ${maxSessions} Slots belegt`;
-                    if (!pro.isPro && allActive >= maxSessions) {
-                        upcomingCount.innerHTML += ` · <a href="riftpro.html" style="color:var(--text-muted);font-size:11px;display:inline-flex;align-items:center;gap:3px;"><img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="Pro" style="height:12px;"> Mehr</a>`;
-                    }
+            const maxSessions = pro ? pro.getLimit('sessionsPerRoom') : 2; // Default Free: 2
+            const allActive = sessions.filter(s => s.status !== 'ended').length;
+            
+            if (maxSessions !== Infinity) {
+                upcomingCount.innerHTML = `${allActive} / ${maxSessions} Slots belegt`;
+                if ((!pro || !pro.isPro) && allActive >= maxSessions) {
+                    upcomingCount.innerHTML += ` · <a href="riftpro.html" style="color:var(--text-muted);font-size:11px;display:inline-flex;align-items:center;gap:3px;"><img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="Pro" style="height:12px;"> Mehr</a>`;
                 }
             }
             
@@ -2451,16 +2481,14 @@
             
             // Show session slot info
             const pro2 = (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) ? RIFT.pro : null;
-            if (pro2) {
-                const maxSessions2 = pro2.getLimit('sessionsPerRoom');
-                const allActive2 = sessions.filter(s => s.status !== 'ended').length;
-                if (maxSessions2 !== Infinity) {
-                    const countEl = document.getElementById('upcomingCount');
-                    countEl.innerHTML = `${allActive2} / ${maxSessions2} Slots belegt`;
-                    if (!pro2.isPro && allActive2 >= maxSessions2) {
+            const maxSessions2 = pro2 ? pro2.getLimit('sessionsPerRoom') : 2;
+            const allActive2 = sessions.filter(s => s.status !== 'ended').length;
+            if (maxSessions2 !== Infinity) {
+                const countEl = document.getElementById('upcomingCount');
+                countEl.innerHTML = `${allActive2} / ${maxSessions2} Slots belegt`;
+                if ((!pro2 || !pro2.isPro) && allActive2 >= maxSessions2) {
                         countEl.innerHTML += ` · <a href="riftpro.html" style="color:var(--text-muted);font-size:11px;display:inline-flex;align-items:center;gap:3px;"><img src="assets/rift_pro/img/svg/rift_pro_badge02_gold.svg" alt="Pro" style="height:12px;"> Mehr</a>`;
                     }
-                }
             }
             
             // Render upcoming
