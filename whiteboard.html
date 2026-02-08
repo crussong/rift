@@ -445,7 +445,20 @@
                             <button class="wb-layer-tab active" data-layer="main">Zeichnen</button>
                             <button class="wb-layer-tab" data-layer="token">Token</button>
                             <button class="wb-layer-tab wb-layer-tab--fog" data-layer="fog" id="fogTab">Nebel</button>
-                            <button class="wb-btn" id="fogRevealBtn" title="Nebel aufdecken (nur Radierer im Nebel-Modus)" style="display:none;background:rgba(34,197,94,0.3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></button>
+                            <div id="fogControls" style="display:none;align-items:center;gap:4px;margin-left:4px">
+                                <button class="wb-btn fog-mode-btn active" id="fogPlaceBtn" title="Nebel setzen" style="background:rgba(239,68,68,0.25);border:1px solid rgba(239,68,68,0.4);font-size:10px;padding:4px 8px">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>Setzen
+                                </button>
+                                <button class="wb-btn fog-mode-btn" id="fogRevealBtn" title="Nebel aufdecken" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);font-size:10px;padding:4px 8px">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>Aufdecken
+                                </button>
+                                <button class="wb-btn" id="fogAllBtn" title="Alles mit Nebel bedecken" style="font-size:10px;padding:4px 8px;opacity:0.6">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="22" height="22"/><line x1="1" y1="1" x2="23" y2="23"/></svg>Alles
+                                </button>
+                                <button class="wb-btn" id="fogClearAllBtn" title="Allen Nebel entfernen" style="font-size:10px;padding:4px 8px;opacity:0.6">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Leeren
+                                </button>
+                            </div>
                         </div>
                         <div class="wb-toolbar__divider"></div>
                         <div class="wb-toolbar__group" id="alwaysAllowed">
@@ -1104,7 +1117,10 @@ const WB = {
             btn.dataset.color = this.userColor;
             btn.style.background = this.userColor;
             btn.onclick = () => this.setColor(this.userColor);
-            p.insertBefore(btn, p.firstChild);
+            // Insert after last color button, not before chevron
+            const lastColorBtn = [...p.querySelectorAll('.wb-color-btn')].pop();
+            if (lastColorBtn && lastColorBtn.nextSibling) p.insertBefore(btn, lastColorBtn.nextSibling);
+            else p.appendChild(btn);
         }
     },
     
@@ -1115,28 +1131,97 @@ const WB = {
                 document.querySelectorAll('.wb-layer-tab').forEach(x => x.classList.remove('active'));
                 t.classList.add('active');
                 this.layer = t.dataset.layer;
-                // Show fog reveal hint when on fog layer
-                const revealBtn = document.getElementById('fogRevealBtn');
-                if (revealBtn) {
-                    revealBtn.style.display = (this.layer === 'fog' && this.isGM) ? 'flex' : 'none';
+                // Toggle fog controls visibility
+                const fogControls = document.getElementById('fogControls');
+                if (fogControls) {
+                    fogControls.style.display = (this.layer === 'fog' && this.isGM) ? 'flex' : 'none';
+                }
+                // Auto-switch to rect tool when entering fog mode
+                if (this.layer === 'fog' && this.isGM) {
+                    this._fogMode = this._fogMode || 'place';
+                    document.querySelectorAll('[data-tool]').forEach(x => x.classList.remove('active'));
+                    document.querySelector('[data-tool="rect"]')?.classList.add('active');
+                    this.tool = 'rect';
+                    this.fill = true;
+                    document.getElementById('fillToggle')?.classList.add('active');
+                    this.updateCursor();
+                    this.toast(this._fogMode === 'place' ? 'Nebel: Rechteck ziehen um Nebel zu setzen' : 'Nebel: Rechteck ziehen um aufzudecken');
                 }
             };
         });
         
-        // Fog reveal button just switches to eraser for convenience
+        // Fog Place button
+        const fogPlaceBtn = document.getElementById('fogPlaceBtn');
+        if (fogPlaceBtn) {
+            fogPlaceBtn.onclick = () => {
+                this._fogMode = 'place';
+                document.querySelectorAll('.fog-mode-btn').forEach(b => b.classList.remove('active'));
+                fogPlaceBtn.classList.add('active');
+                // Switch to rect tool
+                document.querySelectorAll('[data-tool]').forEach(x => x.classList.remove('active'));
+                document.querySelector('[data-tool="rect"]')?.classList.add('active');
+                this.tool = 'rect';
+                this.fill = true;
+                this.updateCursor();
+                this.toast('Nebel setzen: Rechteck ziehen');
+            };
+        }
+        
+        // Fog Reveal button
         const fogRevealBtn = document.getElementById('fogRevealBtn');
         if (fogRevealBtn) {
             fogRevealBtn.onclick = () => {
-                // Switch to fog layer and eraser tool
-                document.querySelectorAll('.wb-layer-tab').forEach(x => x.classList.remove('active'));
-                document.getElementById('fogTab').classList.add('active');
-                this.layer = 'fog';
-                
+                this._fogMode = 'reveal';
+                document.querySelectorAll('.fog-mode-btn').forEach(b => b.classList.remove('active'));
+                fogRevealBtn.classList.add('active');
+                // Switch to rect tool (will use destination-out)
                 document.querySelectorAll('[data-tool]').forEach(x => x.classList.remove('active'));
-                document.querySelector('[data-tool="eraser"]').classList.add('active');
-                this.tool = 'eraser';
+                document.querySelector('[data-tool="rect"]')?.classList.add('active');
+                this.tool = 'rect';
+                this.fill = true;
                 this.updateCursor();
-                this.toast('Nebel aufdecken: Male um Nebel zu entfernen');
+                this.toast('Nebel aufdecken: Rechteck ziehen');
+            };
+        }
+        
+        // Fog cover all
+        const fogAllBtn = document.getElementById('fogAllBtn');
+        if (fogAllBtn) {
+            fogAllBtn.onclick = () => {
+                if (!confirm('Gesamte Map mit Nebel bedecken?')) return;
+                const ctx = this.fogCtx;
+                ctx.fillStyle = 'rgba(0,0,0,0.95)';
+                ctx.fillRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
+                // Save as a full-cover stroke
+                const stroke = {
+                    id: 'fog-all-' + Date.now(), layer: 'fog', tool: 'rect',
+                    color: 'rgba(0,0,0,0.95)', size: 1, fill: true,
+                    start: { x: -10000, y: -10000 }, end: { x: 10000, y: 10000 },
+                    userId: this.userId, ts: Date.now()
+                };
+                this.strokes.push(stroke);
+                this.syncStroke(stroke);
+                this.toast('Gesamte Map mit Nebel bedeckt');
+            };
+        }
+        
+        // Fog clear all
+        const fogClearAllBtn = document.getElementById('fogClearAllBtn');
+        if (fogClearAllBtn) {
+            fogClearAllBtn.onclick = () => {
+                if (!confirm('Allen Nebel entfernen?')) return;
+                // Save fog stroke IDs before removing
+                const fogStrokeIds = this.strokes.filter(s => s.layer === 'fog').map(s => s.id);
+                this.strokes = this.strokes.filter(s => s.layer !== 'fog');
+                // Remove fog strokes from Firebase
+                if (this.db && this.roomCode) {
+                    fogStrokeIds.forEach(id => {
+                        this.db.ref('whiteboard/' + this.roomCode + '/strokes/' + id).remove();
+                    });
+                }
+                this.fogCtx.clearRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
+                this.render();
+                this.toast('Nebel entfernt');
             };
         }
         
@@ -1756,6 +1841,10 @@ const WB = {
         if (this.tool === 'ruler') {
             document.getElementById('rulerInfo').style.display = 'none';
             this.renderUI();
+            // Clear ruler from Firebase
+            if (this.db && this.roomCode) {
+                this.db.ref('whiteboard/' + this.roomCode + '/ruler/' + this.userId).remove();
+            }
         }
         
         if (!this.isDrawing) return;
@@ -1764,12 +1853,15 @@ const WB = {
         if (this.currentPath.length < 2) return;
         
         const end = this.currentPath[this.currentPath.length - 1];
+        const isFogReveal = this.layer === 'fog' && this._fogMode === 'reveal';
+        const isFogPlace = this.layer === 'fog' && this._fogMode !== 'reveal';
         const stroke = {
             id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
             layer: this.layer, tool: this.tool,
-            color: this.tool === 'eraser' ? '#0a0a0a' : this.color,
+            color: this.tool === 'eraser' ? '#0a0a0a' : (isFogPlace ? 'rgba(0,0,0,0.95)' : (isFogReveal ? 'rgba(255,255,255,1)' : this.color)),
             size: this.tool === 'eraser' ? this.size * 4 : this.size,
-            fill: this.fill,
+            fill: (isFogPlace || isFogReveal) ? true : this.fill,
+            fogReveal: isFogReveal || undefined,
             path: ['pen', 'eraser'].includes(this.tool) ? [...this.currentPath] : null,
             start: this.startPoint, end: end,
             userId: this.userId, ts: Date.now()
@@ -2395,7 +2487,9 @@ const WB = {
     // ==================== DRAWING ====================
     drawLivePen(p) {
         const ctx = this.layer === 'fog' ? this.fogCtx : this.mainCtx;
-        ctx.strokeStyle = this.layer === 'fog' ? 'rgba(0,0,0,0.85)' : this.color;
+        const isFogReveal = this.layer === 'fog' && this._fogMode === 'reveal';
+        if (isFogReveal) ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = this.layer === 'fog' ? (isFogReveal ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,0.95)') : this.color;
         ctx.lineWidth = this.size;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -2406,6 +2500,7 @@ const WB = {
             ctx.lineTo(p.x * this.zoom + this.panX, p.y * this.zoom + this.panY);
             ctx.stroke();
         }
+        if (isFogReveal) ctx.globalCompositeOperation = 'source-over';
     },
     
     eraseLive(p) {
@@ -2472,6 +2567,7 @@ const WB = {
         this.updateGrid();
         if (this.selected) this.updateSelectBox();
         if (this._remoteCursors) this.renderRemoteCursors(this._remoteCursors);
+        if (this._remoteRulers) this.renderRemoteRulers();
     },
     
     renderBg() {
@@ -2713,8 +2809,10 @@ const WB = {
     },
     
     drawStroke(ctx, s) {
-        ctx.strokeStyle = s.color;
-        ctx.fillStyle = s.color;
+        // Fog reveal strokes use destination-out to cut through fog
+        if (s.fogReveal) ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = s.fogReveal ? 'rgba(255,255,255,1)' : s.color;
+        ctx.fillStyle = s.fogReveal ? 'rgba(255,255,255,1)' : s.color;
         ctx.lineWidth = s.size;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -2758,6 +2856,7 @@ const WB = {
         } else {
             this.drawShape(ctx, s);
         }
+        if (s.fogReveal) ctx.globalCompositeOperation = 'source-over';
     },
     
     drawShape(ctx, s) {
@@ -2785,9 +2884,11 @@ const WB = {
     },
     
     drawShapePreview(ctx, start, end) {
-        ctx.strokeStyle = this.color;
-        ctx.fillStyle = this.color + '40';
-        ctx.lineWidth = this.size;
+        const isFogReveal = this.layer === 'fog' && this._fogMode === 'reveal';
+        const isFogPlace = this.layer === 'fog' && this._fogMode !== 'reveal';
+        ctx.strokeStyle = isFogReveal ? '#22c55e' : (isFogPlace ? 'rgba(0,0,0,0.7)' : this.color);
+        ctx.fillStyle = isFogReveal ? 'rgba(34,197,94,0.25)' : (isFogPlace ? 'rgba(0,0,0,0.5)' : this.color + '40');
+        ctx.lineWidth = isFogReveal || isFogPlace ? 2 : this.size;
         ctx.setLineDash([5, 5]);
         const sx = start.x * this.zoom + this.panX, sy = start.y * this.zoom + this.panY;
         const ex = end.x * this.zoom + this.panX, ey = end.y * this.zoom + this.panY;
@@ -2861,14 +2962,14 @@ const WB = {
     showRuler(start, end) {
         const dx = end.rawX - start.rawX, dy = end.rawY - start.rawY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const grids = Math.round(dist / this.gridSize);
+        const grids = dist / this.gridSize;
         const ft = grids * 5;
-        const meters = (ft * 0.3048).toFixed(1);
+        const meters = ft * 0.3048;
         const info = document.getElementById('rulerInfo');
         info.style.display = 'block';
         info.style.left = (end.sx + 15) + 'px';
         info.style.top = (end.sy - 15) + 'px';
-        info.innerHTML = `<strong>${grids}</strong> Felder<br><span style="opacity:0.7;font-size:12px">${ft} ft / ${meters} m</span><br><span style="opacity:0.4;font-size:10px">${Math.round(dist)}px</span>`;
+        info.innerHTML = `<strong>${grids.toFixed(1)}</strong> Felder<br><span style="opacity:0.7;font-size:12px">${ft.toFixed(1)} ft / ${meters.toFixed(1)} m</span><br><span style="opacity:0.4;font-size:10px">${Math.round(dist)}px</span>`;
         
         const ctx = this.uiCtx;
         ctx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
@@ -2880,6 +2981,19 @@ const WB = {
         ctx.lineTo(end.rawX * this.zoom + this.panX, end.rawY * this.zoom + this.panY);
         ctx.stroke();
         ctx.setLineDash([]);
+        
+        // Sync ruler to Firebase so players can see it
+        if (this.db && this.roomCode) {
+            const now = Date.now();
+            if (!this._lastRulerSync || now - this._lastRulerSync > 80) {
+                this._lastRulerSync = now;
+                this.db.ref('whiteboard/' + this.roomCode + '/ruler/' + this.userId).set({
+                    sx: start.rawX, sy: start.rawY, ex: end.rawX, ey: end.rawY,
+                    grids: grids.toFixed(1), ft: ft.toFixed(1), meters: meters.toFixed(1),
+                    name: this.userName, color: this.userColor, ts: now
+                });
+            }
+        }
     },
     
     setupStamps() {
@@ -3961,6 +4075,7 @@ const WB = {
         window.addEventListener('beforeunload', () => {
             if (this.db && this.roomCode) {
                 this.db.ref('whiteboard/' + this.roomCode + '/cursors/' + this.userId).remove();
+                this.db.ref('whiteboard/' + this.roomCode + '/ruler/' + this.userId).remove();
             }
         });
     },
@@ -4696,7 +4811,8 @@ const WB = {
                 this.db.ref(base + '/pings').remove(),
                 this.db.ref(base + '/background').remove(),
                 this.db.ref(base + '/cursors').remove(),
-                this.db.ref(base + '/focus').remove()
+                this.db.ref(base + '/focus').remove(),
+                this.db.ref(base + '/ruler').remove()
             ]).catch(e => console.warn('[WB] Wipe error:', e));
         }
         this.isClearing = false;
@@ -5020,7 +5136,8 @@ const WB = {
                 this.db.ref(base + '/pings').remove(),
                 this.db.ref(base + '/background').remove(),
                 this.db.ref(base + '/cursors').remove(),
-                this.db.ref(base + '/focus').remove()
+                this.db.ref(base + '/focus').remove(),
+                this.db.ref(base + '/ruler').remove()
             ])
                 .then(() => {
                     console.log('[WB] ✅ Firebase data REMOVED for room:', this.roomCode);
@@ -5381,6 +5498,7 @@ const WB = {
         const focusRef = this.db.ref('whiteboard/' + this.roomCode + '/focus');
         const gridRef = this.db.ref('whiteboard/' + this.roomCode + '/gridSettings');
         const imagesRef = this.db.ref('whiteboard/' + this.roomCode + '/images');
+        const rulerRef = this.db.ref('whiteboard/' + this.roomCode + '/ruler');
         
         // Track initial load to ignore cached child_added events
         let strokesInitialized = false;
@@ -5545,6 +5663,12 @@ const WB = {
             this.renderImages();
         });
         
+        // Remote rulers: render other users' ruler lines
+        rulerRef.on('value', snap => {
+            this._remoteRulers = snap.val() || {};
+            this.renderRemoteRulers();
+        });
+        
         // Track refs for cleanup
         this.firebaseListeners = [
             { ref: strokesRef, event: 'value' },
@@ -5555,7 +5679,8 @@ const WB = {
             { ref: lockRef, event: 'value' },
             { ref: focusRef, event: 'value' },
             { ref: gridRef, event: 'value' },
-            { ref: imagesRef, event: 'value' }
+            { ref: imagesRef, event: 'value' },
+            { ref: rulerRef, event: 'value' }
         ];
     },
     
@@ -5596,6 +5721,37 @@ const WB = {
         ping.appendChild(dot);
         document.getElementById('canvasWrapper').appendChild(ping);
         setTimeout(() => ping.remove(), 1500);
+    },
+    
+    renderRemoteRulers() {
+        // Remove old ruler overlays
+        document.querySelectorAll('.wb-remote-ruler').forEach(el => el.remove());
+        if (!this._remoteRulers) return;
+        
+        const wrapper = document.getElementById('canvasWrapper');
+        for (const [uid, r] of Object.entries(this._remoteRulers)) {
+            if (uid === this.userId) continue;
+            if (!r || !r.sx || Date.now() - r.ts > 10000) continue;
+            
+            // Draw ruler line on a temporary SVG overlay
+            const x1 = r.sx * this.zoom + this.panX;
+            const y1 = r.sy * this.zoom + this.panY;
+            const x2 = r.ex * this.zoom + this.panX;
+            const y2 = r.ey * this.zoom + this.panY;
+            
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.classList.add('wb-remote-ruler');
+            svg.setAttribute('style', 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:140');
+            svg.innerHTML = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${r.color || '#fbbf24'}" stroke-width="3" stroke-dasharray="10 5" opacity="0.7"/>`;
+            wrapper.appendChild(svg);
+            
+            // Label at endpoint
+            const label = document.createElement('div');
+            label.className = 'wb-remote-ruler';
+            label.style.cssText = `position:absolute;left:${x2 + 12}px;top:${y2 - 12}px;background:rgba(0,0,0,0.85);color:${r.color || '#fbbf24'};padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;pointer-events:none;z-index:141;border:1px solid ${r.color || '#fbbf24'};white-space:nowrap`;
+            label.innerHTML = `${r.name}: ${r.grids} Felder (${r.ft} ft)`;
+            wrapper.appendChild(label);
+        }
     },
     
     toast(msg) {
