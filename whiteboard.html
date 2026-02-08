@@ -608,6 +608,10 @@
                                 <label class="wb-token-edit__label">Reichweite (Felder)</label>
                                 <input type="number" class="wb-token-edit__input" id="createTokenRange" placeholder="1" min="0">
                             </div>
+                            <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">Initiative</label>
+                                <input type="number" class="wb-token-edit__input" id="createTokenInit" placeholder="--" min="0">
+                            </div>
                         </div>
                         
                         <!-- Size Presets -->
@@ -1113,6 +1117,19 @@ const WB = {
                 this.updateCursor();
                 if (this.tool !== 'polygon') this.finishPolygon();
                 if (this.tool !== 'select') this.deselect();
+                
+                // Auto snap control: off for drawing tools, restore for others
+                const drawTools = ['pen', 'line', 'rect', 'circle', 'arrow', 'polygon', 'text', 'eraser'];
+                const snapToggle = document.getElementById('snapToggle');
+                if (drawTools.includes(this.tool)) {
+                    if (this._snapAutoOff === undefined) this._snapAutoOff = this.snap;
+                    this.snap = false;
+                    snapToggle.classList.remove('active');
+                } else if (this._snapAutoOff !== undefined) {
+                    this.snap = this._snapAutoOff;
+                    snapToggle.classList.toggle('active', this.snap);
+                    delete this._snapAutoOff;
+                }
             };
         });
         
@@ -1777,7 +1794,6 @@ const WB = {
             html += `<button class="wb-context-item" data-action="ctx-create-token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>Token erstellen</button>`;
             html += `<div class="wb-context-divider"></div>`;
             html += `<button class="wb-context-item" data-action="ctx-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Bild/Prop einfügen</button>`;
-            html += `<button class="wb-context-item" data-action="ctx-sticker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>Sticker</button>`;
             html += `<div class="wb-context-divider"></div>`;
             html += `<button class="wb-context-item" data-action="ctx-ping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/></svg>Ping</button>`;
             html += `<button class="wb-context-item" data-action="ctx-focus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Fokus</button>`;
@@ -1795,12 +1811,6 @@ const WB = {
                     else if (action === 'ctx-image') {
                         this._pendingImagePos = wp;
                         document.getElementById('imageOverlay').classList.add('visible');
-                    }
-                    else if (action === 'ctx-sticker') {
-                        this._pendingStampPos = wp;
-                        document.getElementById('stampsPanel').classList.add('visible');
-                        this.tool = 'stamp';
-                        document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === 'stamp'));
                     }
                     else if (action === 'ctx-ping') this.createPing(p.rx, p.ry, wp.x, wp.y);
                     else if (action === 'ctx-focus') this.createFocus(wp.x, wp.y, p.rx, p.ry);
@@ -2402,6 +2412,7 @@ const WB = {
             el.draggable = false;
             el.ondragstart = () => false;
             el.onmousedown = e => {
+                if (e.button !== 0) return; // Only left-click
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.tool === 'select') {
@@ -2415,6 +2426,33 @@ const WB = {
     },
     
     renderTokens() {
+        // Process remote token animations
+        const now = performance.now();
+        let needsRerender = false;
+        this.tokens.forEach(t => {
+            if (t._animTarget) {
+                const elapsed = now - t._animTime;
+                const progress = Math.min(1, elapsed / t._animDuration);
+                // Ease out cubic for smooth deceleration
+                const ease = 1 - Math.pow(1 - progress, 3);
+                t.x = t._animStart.x + (t._animTarget.x - t._animStart.x) * ease;
+                t.y = t._animStart.y + (t._animTarget.y - t._animStart.y) * ease;
+                if (progress >= 1) {
+                    t.x = t._animTarget.x;
+                    t.y = t._animTarget.y;
+                    delete t._animTarget;
+                    delete t._animStart;
+                    delete t._animTime;
+                    delete t._animDuration;
+                } else {
+                    needsRerender = true;
+                }
+            }
+        });
+        if (needsRerender) {
+            requestAnimationFrame(() => this.renderTokens());
+        }
+        
         const c = document.getElementById('tokensContainer');
         c.innerHTML = '';
         this.tokens.forEach((t, i) => {
@@ -2489,6 +2527,7 @@ const WB = {
             el.draggable = false;
             el.ondragstart = () => false;
             el.onmousedown = e => {
+                if (e.button !== 0) return; // Only left-click starts drag
                 e.preventDefault();
                 e.stopPropagation();
                 this.hideTokenTooltip();
@@ -2585,12 +2624,14 @@ const WB = {
         ctx.lineJoin = 'round';
         
         if (s.tool === 'pen' || s.tool === 'eraser') {
+            if (s.tool === 'eraser') ctx.globalCompositeOperation = 'destination-out';
             if (s.path && s.path.length > 1) {
                 ctx.beginPath();
                 ctx.moveTo(s.path[0].x * this.zoom + this.panX, s.path[0].y * this.zoom + this.panY);
                 s.path.forEach(p => ctx.lineTo(p.x * this.zoom + this.panX, p.y * this.zoom + this.panY));
                 ctx.stroke();
             }
+            if (s.tool === 'eraser') ctx.globalCompositeOperation = 'source-over';
         } else if (s.tool === 'text') {
             const fontSize = (s.size * 4 + 12) * this.zoom;
             ctx.font = fontSize + 'px sans-serif';
@@ -2846,6 +2887,7 @@ const WB = {
         document.getElementById('createTokenAc').value = '';
         document.getElementById('createTokenSpeed').value = '';
         document.getElementById('createTokenRange').value = '';
+        document.getElementById('createTokenInit').value = '';
         document.getElementById('createTokenNotes').value = '';
         document.getElementById('createTokenAffiliation').value = '';
         document.getElementById('createTokenItems').value = '';
@@ -2901,7 +2943,7 @@ const WB = {
             userId: this.userId,
             hp: opts.hp || 0,
             maxHp: opts.maxHp || 0,
-            initiative: null,
+            initiative: opts.initiative !== undefined ? opts.initiative : null,
             ac: opts.ac || 10,
             speed: opts.speed || 6,
             range: opts.range || 1,
@@ -3525,6 +3567,7 @@ const WB = {
                 ac: parseInt(document.getElementById('createTokenAc').value) || 10,
                 speed: parseInt(document.getElementById('createTokenSpeed').value) || 6,
                 range: parseInt(document.getElementById('createTokenRange').value) || 1,
+                initiative: document.getElementById('createTokenInit').value !== '' ? parseInt(document.getElementById('createTokenInit').value) : null,
                 type: activeType?.dataset.type || 'player',
                 notes: document.getElementById('createTokenNotes').value || '',
                 affiliation: document.getElementById('createTokenAffiliation').value || '',
@@ -3634,6 +3677,7 @@ const WB = {
         document.getElementById('createTokenAc').value = template.ac || '';
         document.getElementById('createTokenSpeed').value = template.speed || '';
         document.getElementById('createTokenRange').value = template.range || '';
+        document.getElementById('createTokenInit').value = template.initiative ?? '';
         document.getElementById('createTokenNotes').value = template.notes || '';
         document.getElementById('createTokenAffiliation').value = template.affiliation || '';
         document.getElementById('createTokenItems').value = template.items || '';
@@ -3648,12 +3692,14 @@ const WB = {
         });
         
         // Update portrait preview
-        const preview = document.getElementById('tokenPreview');
+        const preview = document.getElementById('tokenPortraitPreview');
         if (preview) {
             if (template.img) {
                 preview.innerHTML = `<img src="${template.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                preview.style.borderColor = template.borderColor || '#8b5cf6';
             } else {
                 preview.style.background = template.color || '#8b5cf6';
+                preview.style.borderColor = template.borderColor || '#8b5cf6';
                 preview.innerHTML = '';
             }
         }
@@ -4218,6 +4264,7 @@ const WB = {
                 ac: parseInt(document.getElementById('createTokenAc').value) || 10,
                 speed: parseInt(document.getElementById('createTokenSpeed').value) || 6,
                 range: parseInt(document.getElementById('createTokenRange').value) || 1,
+                initiative: document.getElementById('createTokenInit').value !== '' ? parseInt(document.getElementById('createTokenInit').value) : null,
                 type: activeType?.dataset.type || 'player',
                 notes: document.getElementById('createTokenNotes').value || '',
                 affiliation: document.getElementById('createTokenAffiliation').value || '',
@@ -4813,7 +4860,7 @@ const WB = {
             const toolMap = { p: 'pen', l: 'line', r: 'rect', c: 'circle', a: 'arrow', t: 'text', e: 'eraser', v: 'select', m: 'ruler', f: 'focus' };
             const _key = e.key.toLowerCase();
             if (toolMap[_key]) {
-                if (this.toolbarLocked && !this.isGM && !['v', 'm'].includes(_key)) return;
+                if (this.toolbarLocked && !this.isGM && !['v', 'm', 'f'].includes(_key)) return;
                 document.querySelector(`[data-tool="${toolMap[_key]}"]`)?.click();
             }
             
@@ -4891,36 +4938,38 @@ const WB = {
         // Track initial load to ignore cached child_added events
         let strokesInitialized = false;
         
-        // Strokes: Use value listener to get current state, then switch to child events
-        strokesRef.once('value').then(() => {
-            strokesInitialized = true;
-            console.log('[WB] Strokes listener initialized');
-        });
-        
-        // Strokes: child_added - only for NEW strokes after init
-        strokesRef.on('child_added', snap => {
+        // Strokes: Full value listener for reliable sync (initial load + updates)
+        strokesRef.on('value', snap => {
             if (this.isClearing) return;
-            if (!strokesInitialized) return; // Skip initial sync
+            const data = snap.val();
             
-            const s = snap.val();
-            if (s && s.userId !== this.userId && !this.strokes.find(x => x.id === s.id)) {
-                this.strokes.push(s);
-                this.render();
-                console.log('[WB] Remote stroke added:', s.id);
-            }
-        });
-        
-        // Strokes: child_removed
-        strokesRef.on('child_removed', snap => {
-            const s = snap.val();
-            if (s) {
-                const idx = this.strokes.findIndex(x => x.id === s.id);
-                if (idx !== -1) {
-                    this.strokes.splice(idx, 1);
+            if (!data) {
+                if (this.strokes.length > 0) {
+                    this.strokes = [];
                     this.render();
-                    console.log('[WB] Remote stroke removed:', s.id);
                 }
+                strokesInitialized = true;
+                return;
             }
+            
+            const remoteStrokes = Object.values(data);
+            const remoteIds = remoteStrokes.map(s => s.id);
+            
+            // Remove strokes that no longer exist remotely (keep own pending strokes)
+            this.strokes = this.strokes.filter(s => {
+                if (s.userId === this.userId) return true;
+                return remoteIds.includes(s.id);
+            });
+            
+            // Add/update remote strokes
+            remoteStrokes.forEach(rs => {
+                if (!this.strokes.find(s => s.id === rs.id)) {
+                    this.strokes.push(rs);
+                }
+            });
+            
+            this.render();
+            strokesInitialized = true;
         });
         
         // Tokens: value listener with proper null handling
@@ -4947,11 +4996,26 @@ const WB = {
                 return remoteIds.includes(t.id);
             });
             
-            // Add/update remote tokens
+            // Add/update remote tokens with smooth interpolation
             Object.values(tokens).forEach(rt => {
                 const existing = this.tokens.find(t => t.id === rt.id);
                 if (existing) { 
-                    if (rt.userId !== this.userId) Object.assign(existing, rt); 
+                    if (rt.userId !== this.userId) {
+                        // Smooth interpolation for position changes
+                        const oldX = existing.x, oldY = existing.y;
+                        const newX = rt.x, newY = rt.y;
+                        Object.assign(existing, rt);
+                        const dx = newX - oldX, dy = newY - oldY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 2 && dist < 2000) {
+                            // Animate remote token movement
+                            existing.x = oldX; existing.y = oldY;
+                            existing._animTarget = { x: newX, y: newY };
+                            existing._animStart = { x: oldX, y: oldY };
+                            existing._animTime = performance.now();
+                            existing._animDuration = Math.min(500, Math.max(200, dist * 0.8));
+                        }
+                    }
                 } else {
                     this.tokens.push(rt);
                 }
@@ -5036,8 +5100,7 @@ const WB = {
         
         // Track refs for cleanup
         this.firebaseListeners = [
-            { ref: strokesRef, event: 'child_added' },
-            { ref: strokesRef, event: 'child_removed' },
+            { ref: strokesRef, event: 'value' },
             { ref: tokensRef, event: 'value' },
             { ref: pingsRef, event: 'child_added' },
             { ref: bgRef, event: 'value' },
