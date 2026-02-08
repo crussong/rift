@@ -330,7 +330,7 @@
                                     <span>Cover hochladen</span>
                                 </div>
                             </div>
-                            <button type="button" class="create-cover-upload__remove" id="createCoverRemove" style="display: none;">✕</button>
+                            <button type="button" class="create-cover-upload__remove" id="createCoverRemove" style="display: none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                         </div>
                     </div>
                     
@@ -947,6 +947,61 @@
         const currentRoomCode = localStorage.getItem('rift_current_room') || null;
         console.log('[Sessions] Current room code:', currentRoomCode);
         
+        // GM detection - only GM can create sessions
+        let isRoomGM = false;
+        
+        async function detectGMRole() {
+            // Check localStorage first
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            if (userData.isGM === true) {
+                isRoomGM = true;
+            }
+            
+            // Check room membership (more reliable)
+            if (currentRoomCode && typeof RIFT !== 'undefined' && RIFT.rooms?.getCurrentMembership) {
+                try {
+                    const membership = await RIFT.rooms.getCurrentMembership(currentRoomCode);
+                    if (membership) {
+                        isRoomGM = membership.isGM === true;
+                    }
+                } catch (e) {
+                    console.warn('[Sessions] Could not check room membership:', e);
+                }
+            }
+            
+            console.log('[Sessions] Is GM:', isRoomGM);
+            updateGMVisibility();
+        }
+        
+        function updateGMVisibility() {
+            // Create session button - only GM
+            const createBtn = document.getElementById('createSessionBtn');
+            if (createBtn) {
+                createBtn.style.display = isRoomGM ? '' : 'none';
+            }
+            
+            // Empty state create button
+            const emptyBtn = document.querySelector('.sessions-empty__btn');
+            if (emptyBtn && emptyBtn.textContent.trim() === 'Session planen') {
+                emptyBtn.style.display = isRoomGM ? '' : 'none';
+            }
+            
+            // Edit buttons on session cards - only GM
+            document.querySelectorAll('.session-card__edit-btn').forEach(btn => {
+                btn.style.display = isRoomGM ? '' : 'none';
+            });
+        }
+        
+        // Run after RIFT is ready
+        function initGMDetection() {
+            if (typeof RIFT !== 'undefined' && RIFT.rooms) {
+                detectGMRole();
+            } else {
+                setTimeout(initGMDetection, 500);
+            }
+        }
+        setTimeout(initGMDetection, 600);
+        
         // ========================================
         // FIREBASE SESSIONS SYNC
         // ========================================
@@ -1232,6 +1287,14 @@
         
         // Alias for backwards compatibility
         function openCreateModal() {
+            // Only GM can create sessions
+            if (!isRoomGM) {
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.info('Nur der Spielleiter kann Sessions erstellen.');
+                }
+                return;
+            }
+            
             // Check session creation limit (use Firebase sessions if available)
             if (typeof RIFT !== 'undefined' && RIFT.pro && RIFT.pro.initialized) {
                 const sessions = (typeof firebaseSessions !== 'undefined' && firebaseSessions.length > 0)
@@ -1253,6 +1316,7 @@
         
         // Edit session function (called from onclick)
         function editSession(sessionId) {
+            if (!isRoomGM) return;
             const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
             const sessionData = sessions.find(s => s.id === sessionId);
             
@@ -1980,6 +2044,8 @@
                                 ${sessionInfo ? `<span class="session-card__meta-divider"></span><span>${sessionInfo}</span>` : ''}
                                 <span class="session-card__meta-divider"></span>
                                 <span>${playerInfo}</span>
+                                <span class="session-card__meta-divider"></span>
+                                <span>GM: ${session.gm?.name || session.gmName || 'Game Master'}</span>
                             </div>
                         </div>
                         <h3 class="session-card__title">${session.name}</h3>
@@ -2048,7 +2114,29 @@
                 }
             }
             
-            // TODO: Render past sessions similarly
+            // Render past sessions
+            const pastContainer = document.getElementById('pastSessions');
+            const pastEmpty = document.getElementById('pastEmpty');
+            
+            if (pastContainer && pastEmpty) {
+                // Apply ruleset filter
+                const historyFilter = document.getElementById('historyFilter');
+                const filterValue = historyFilter?.value || 'all';
+                const filteredPast = filterValue === 'all' 
+                    ? past 
+                    : past.filter(s => s.ruleset === filterValue);
+                
+                if (filteredPast.length > 0) {
+                    pastEmpty.style.display = 'none';
+                    pastContainer.innerHTML = filteredPast.map(s => renderSessionCard(s, true)).join('');
+                } else {
+                    pastEmpty.style.display = 'flex';
+                    pastContainer.innerHTML = '';
+                }
+            }
+            
+            // Update GM visibility after render
+            if (typeof updateGMVisibility === 'function') updateGMVisibility();
         }
         
         // Load cover images from IndexedDB after rendering

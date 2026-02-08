@@ -1990,7 +1990,7 @@
                     </svg>
                     Session Einstellungen
                 </h2>
-                <button class="settings-modal__close" id="closeSessionSettingsModal">✕</button>
+                <button class="settings-modal__close" id="closeSessionSettingsModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             
             <div class="settings-modal__tabs">
@@ -2323,7 +2323,7 @@
         <div class="settings-modal__dialog" style="width: 500px;">
             <div class="settings-modal__header">
                 <h2 class="settings-modal__title">Cover zuschneiden</h2>
-                <button class="settings-modal__close" id="closeCoverCropperModal">✕</button>
+                <button class="settings-modal__close" id="closeCoverCropperModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <div style="padding: 24px; background: #000;">
                 <img id="coverCropperImage" style="max-width: 100%; display: block;">
@@ -2347,7 +2347,7 @@
                     </svg>
                     Charakter auswählen
                 </h2>
-                <button class="settings-modal__close" id="closeCharSelectModal">✕</button>
+                <button class="settings-modal__close" id="closeCharSelectModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <div class="settings-tab settings-tab--active" style="padding: 24px;">
                 <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">
@@ -2382,7 +2382,7 @@
                     </svg>
                     Link hinzufügen
                 </h2>
-                <button class="settings-modal__close" onclick="closeAddLinkModal()">✕</button>
+                <button class="settings-modal__close" onclick="closeAddLinkModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <div class="settings-tab settings-tab--active" style="padding: 24px;">
                 <div class="settings-group">
@@ -2734,6 +2734,8 @@
                 subtitleParts.push(`Session ${sessionData.currentSession || 1}/${sessionData.sessionCount}`);
             }
             subtitleParts.push(`${sessionData.maxPlayers || 4} Teilnehmer`);
+            const gmDisplayName = sessionData.gm?.name || sessionData.gmName || 'Game Master';
+            subtitleParts.push(`GM: ${gmDisplayName}`);
             
             // Party data
             const players = sessionData.players || [];
@@ -2921,7 +2923,7 @@
                             <a href="${link.url}" target="_blank" class="resource-btn">
                                 ${getCustomLinkIcon(link.icon)}
                                 <span>${link.title}</span>
-                                ${isGM ? `<button class="resource-btn__delete" onclick="event.preventDefault(); event.stopPropagation(); removeCustomLink(${index});">✕</button>` : ''}
+                                ${isGM ? `<button class="resource-btn__delete" onclick="event.preventDefault(); event.stopPropagation(); removeCustomLink(${index});"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
                             </a>
                         `).join('')}
                         
@@ -3096,12 +3098,6 @@
                         <div class="party-card__player">${player.name || char.playerName || 'Spieler'}</div>
                         ${isGM ? `
                             <div class="party-card__actions">
-                                <button class="party-card__action-btn" onclick="editPartyMember('${char.id}')" title="Bearbeiten">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                    </svg>
-                                </button>
                                 <button class="party-card__action-btn" onclick="removePartyMember('${char.id}')" title="Entfernen">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <line x1="18" y1="6" x2="6" y2="18"/>
@@ -3109,7 +3105,22 @@
                                     </svg>
                                 </button>
                             </div>
-                        ` : ''}
+                        ` : (char.ownerId === (firebase?.auth()?.currentUser?.uid) ? `
+                            <div class="party-card__actions">
+                                <button class="party-card__action-btn" onclick="openCharacterSelectModal()" title="Charakter tauschen">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                                        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                                    </svg>
+                                </button>
+                                <button class="party-card__action-btn" onclick="removeOwnCharacter()" title="Entfernen">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"/>
+                                        <line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        ` : '')}
                     </div>
                 `;
             });
@@ -3158,7 +3169,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
                             Beenden
                         </button>
-                        <button class="gm-bar__btn gm-bar__btn--secondary" onclick="openSettingsModal()">⚙️</button>
+                        <button class="gm-bar__btn gm-bar__btn--secondary" onclick="openSettingsModal()" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9H3"/></svg></button>
                     `;
                 case 'paused':
                     return `
@@ -3170,7 +3181,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
                             Beenden
                         </button>
-                        <button class="gm-bar__btn gm-bar__btn--secondary" onclick="openSettingsModal()">⚙️</button>
+                        <button class="gm-bar__btn gm-bar__btn--secondary" onclick="openSettingsModal()" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9H3"/></svg></button>
                     `;
                 case 'ended':
                     return `
@@ -3178,7 +3189,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                             Wiederaufnehmen
                         </button>
-                        <button class="gm-bar__btn gm-bar__btn--secondary" onclick="openSettingsModal()">⚙️</button>
+                        <button class="gm-bar__btn gm-bar__btn--secondary" onclick="openSettingsModal()" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9H3"/></svg></button>
                     `;
                 default:
                     return '';
@@ -3860,16 +3871,17 @@
                 list.innerHTML = sortedChars.map(char => {
                     const isAssigned = char.id === assignedCharId;
                     const isMain = char.id === mainCharId;
+                    const charPortrait = char.portrait || char.avatar || char.data?.portrait || char.data?.avatar || null;
                     return `
                     <div class="char-select-item ${isAssigned ? 'char-select-item--assigned' : ''} ${isMain ? 'char-select-item--main' : ''}" onclick="selectCharacterForSession('${char.id}')">
                         <div class="char-select-item__avatar" style="background-color: ${char.color || '#FF4655'}20; border-color: ${char.color || '#FF4655'}; color: ${char.color || '#FF4655'};">
-                            ${char.avatar ? `<img src="${char.avatar}" alt="">` : char.name?.charAt(0).toUpperCase()}
+                            ${charPortrait ? `<img src="${charPortrait}" alt="">` : char.name?.charAt(0).toUpperCase()}
                         </div>
                         <div class="char-select-item__info">
-                            <strong>${isMain ? '★ ' : ''}${char.name || 'Unbenannt'}</strong>
+                            <strong>${isMain ? '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" style="vertical-align:middle;margin-right:2px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' : ''}${char.name || 'Unbenannt'}</strong>
                             <span>${char.class || char.profession || char.data?.role || 'Charakter'} ${char.level ? `• Level ${char.level}` : ''}</span>
-                            ${isMain && !isAssigned ? '<span class="char-select-item__badge char-select-item__badge--main">★ Hauptcharakter</span>' : ''}
-                            ${isAssigned ? '<span class="char-select-item__badge">✓ Aktuell zugewiesen</span>' : ''}
+                            ${isMain && !isAssigned ? '<span class="char-select-item__badge char-select-item__badge--main"><svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10" style="vertical-align:middle;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Hauptcharakter</span>' : ''}
+                            ${isAssigned ? '<span class="char-select-item__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="10" height="10" style="vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Aktuell zugewiesen</span>' : ''}
                         </div>
                         <svg class="char-select-item__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="9 18 15 12 9 6"/>
@@ -4338,11 +4350,77 @@
             }
         }
         
-        function removePartyMember(charId) {
+        async function removeOwnCharacter() {
+            if (!confirm('Deinen Charakter aus dieser Session entfernen?')) return;
+            
+            const userId = firebase?.auth()?.currentUser?.uid;
+            if (!userId) return;
+            
+            sessionData.partyCharacters = (sessionData.partyCharacters || []).filter(c => c.ownerId !== userId);
+            
+            // Save locally
+            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+            const index = sessions.findIndex(s => s.id === sessionData.id);
+            if (index >= 0) sessions[index] = sessionData;
+            localStorage.setItem('rift_sessions', JSON.stringify(sessions));
+            
+            // Clear active char
+            const activeChars = JSON.parse(localStorage.getItem('rift_active_chars') || '{}');
+            delete activeChars[sessionData.id];
+            localStorage.setItem('rift_active_chars', JSON.stringify(activeChars));
+            
+            // Clear member doc
+            if (currentRoomCode) {
+                try {
+                    const db = RIFT.firebase.getFirestore();
+                    if (db) {
+                        const normalizedCode = currentRoomCode.replace('-', '').toUpperCase();
+                        await db.collection('rooms').doc(normalizedCode)
+                            .collection('members').doc(userId)
+                            .update({
+                                sessionCharacter: firebase.firestore.FieldValue.delete(),
+                                sessionId: firebase.firestore.FieldValue.delete(),
+                                assignedCharacterId: firebase.firestore.FieldValue.delete()
+                            });
+                    }
+                } catch (e) {
+                    console.warn('[Session] Could not clear own member doc:', e);
+                }
+            }
+            
+            renderSessionPage();
+            if (window.RIFT?.ui?.Toast) RIFT.ui.Toast.success('Charakter entfernt');
+        }
+        
+        async function removePartyMember(charId) {
             if (!confirm('Charakter aus der Party entfernen?')) return;
             
+            // Find the character to get the owner ID
+            const removedChar = (sessionData.partyCharacters || []).find(c => c.id === charId);
+            
             sessionData.partyCharacters = (sessionData.partyCharacters || []).filter(c => c.id !== charId);
-            saveSession();
+            await saveSession();
+            
+            // Clear the member doc's sessionCharacter so it doesn't get re-merged
+            if (removedChar?.ownerId && currentRoomCode) {
+                try {
+                    const db = RIFT.firebase.getFirestore();
+                    if (db) {
+                        const normalizedCode = currentRoomCode.replace('-', '').toUpperCase();
+                        await db.collection('rooms').doc(normalizedCode)
+                            .collection('members').doc(removedChar.ownerId)
+                            .update({
+                                sessionCharacter: firebase.firestore.FieldValue.delete(),
+                                sessionId: firebase.firestore.FieldValue.delete(),
+                                assignedCharacterId: firebase.firestore.FieldValue.delete()
+                            });
+                        console.log('[Session] Cleared member doc for:', removedChar.ownerId);
+                    }
+                } catch (e) {
+                    console.warn('[Session] Could not clear member doc:', e);
+                }
+            }
+            
             renderSessionPage();
             
             if (window.RIFT?.ui?.Toast) {
