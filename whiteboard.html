@@ -147,6 +147,17 @@
         #tokensContainer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
         #tokensContainer .wb-token { pointer-events: auto; }
         
+        /* Movement & Range Radius Indicators */
+        .wb-radius-indicator { position: absolute; border-radius: 50%; pointer-events: none; z-index: 45; display: none; transform: translate(-50%, -50%); }
+        .wb-radius-indicator.visible { display: block; }
+        .wb-radius-move { border: 2px dashed rgba(34,197,94,0.5); background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, rgba(34,197,94,0.02) 70%, transparent 100%); }
+        .wb-radius-move__label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(22,22,22,0.9); color: #22c55e; padding: 2px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; font-weight: 600; }
+        .wb-radius-range { border: 2px dotted rgba(239,68,68,0.4); background: radial-gradient(circle, rgba(239,68,68,0.04) 0%, transparent 100%); }
+        .wb-radius-origin { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6); pointer-events: none; z-index: 46; display: none; transform: translate(-50%, -50%); }
+        .wb-radius-origin.visible { display: block; }
+        .wb-radius-distance { position: absolute; pointer-events: none; z-index: 46; display: none; background: rgba(22,22,22,0.9); color: #fbbf24; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -8px; }
+        .wb-radius-distance.visible { display: block; }
+        
         .wb-text-input { position: fixed; background: rgba(0,0,0,0.95); border: 2px solid var(--accent, #8b5cf6); border-radius: 8px; padding: 10px 14px; color: white; font-size: 18px; min-width: 200px; outline: none; z-index: 1000; display: none; }
         
         .wb-zoom-controls { position: absolute; bottom: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; background: rgba(22,22,22,0.95); border-radius: 10px; padding: 6px; border: 1px solid rgba(255,255,255,0.1); z-index: 100; }
@@ -410,6 +421,9 @@
                         <canvas class="wb-canvas" id="uiCanvas"></canvas>
                         <div id="wbGrid"></div>
                         <div id="imagesContainer"></div>
+                        <div class="wb-radius-indicator wb-radius-move" id="moveRadius"><div class="wb-radius-move__label" id="moveRadiusLabel"></div></div>
+                        <div class="wb-radius-origin" id="moveOrigin"></div>
+                        <div class="wb-radius-distance" id="moveDistance"></div>
                         <div id="tokensContainer"></div>
                         <!-- Selection Box with Resize Handles -->
                         <div class="wb-select-box" id="selectBox">
@@ -496,6 +510,10 @@
                                 <label class="wb-token-edit__label">Bewegung (Felder)</label>
                                 <input type="number" class="wb-token-edit__input" id="createTokenSpeed" placeholder="6" min="0">
                             </div>
+                            <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">Reichweite (Felder)</label>
+                                <input type="number" class="wb-token-edit__input" id="createTokenRange" placeholder="1" min="0">
+                            </div>
                         </div>
                         
                         <!-- Size Presets -->
@@ -522,7 +540,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="wb-context-menu" id="contextMenu"><button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button><button class="wb-context-item" data-action="front"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>Nach vorne</button><button class="wb-context-item" data-action="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>Nach hinten</button><div class="wb-context-divider"></div><button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button><button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button></div>
+                <div class="wb-context-menu" id="contextMenu"></div>
                 
                 <!-- Token Sidebar -->
                 <div class="wb-token-sidebar" id="tokenSidebar">
@@ -560,6 +578,12 @@
                         </div>
                         
                         <input type="text" class="wb-modal__input" id="editTokenName" placeholder="Name...">
+                        
+                        <!-- Border Color -->
+                        <div style="margin-bottom:16px">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;text-transform:uppercase">Rahmenfarbe</div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap" id="editTokenBorderPicker"></div>
+                        </div>
                         
                         <div class="wb-token-edit">
                             <div class="wb-token-edit__field">
@@ -1335,6 +1359,10 @@ const WB = {
                 this.select(hit);
                 this.isDragging = true;
                 this.lastDragPoint = p;
+                if (hit.type === 'token') {
+                    this._dragOrigin = { x: hit.item.x, y: hit.item.y };
+                    this.showMoveRadius(hit.item);
+                }
             } else {
                 this.deselect();
             }
@@ -1380,6 +1408,8 @@ const WB = {
         if (this.isDragging) {
             this.isDragging = false;
             this.lastDragPoint = null;
+            this.hideMoveRadius();
+            this._dragOrigin = null;
             // Already synced in real-time via moveSelected()
             return;
         }
@@ -1449,14 +1479,83 @@ const WB = {
     onContext(e) {
         e.preventDefault();
         const p = this.getPoint(e);
-        const hit = this.hitTest(p);
-        if (hit) {
-            this.select(hit);
-            const m = document.getElementById('contextMenu');
-            m.style.left = e.clientX + 'px';
-            m.style.top = e.clientY + 'px';
-            m.classList.add('visible');
+        const hit = this.hitTest(p) || this._contextHit;
+        this._contextHit = null;
+        if (!hit) return;
+        
+        this.select(hit);
+        const m = document.getElementById('contextMenu');
+        const isToken = hit.type === 'token';
+        const token = isToken ? hit.item : null;
+        
+        // Build context menu dynamically
+        let html = '';
+        if (isToken) {
+            // Token-specific menu
+            html += `<button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button>`;
+            if (token.maxHp > 0) {
+                html += `<div class="wb-context-divider"></div>`;
+                html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 14px 4px 14px">
+                    <span style="font-size:12px;color:rgba(255,255,255,0.5);flex-shrink:0">HP ${token.hp}/${token.maxHp}</span>
+                    <div style="flex:1;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden">
+                        <div style="height:100%;width:${Math.max(0, Math.min(100, (token.hp / token.maxHp) * 100))}%;background:${(token.hp / token.maxHp) <= 0.25 ? '#ef4444' : (token.hp / token.maxHp) <= 0.5 ? '#f59e0b' : '#22c55e'};border-radius:2px"></div>
+                    </div>
+                </div>`;
+                html += `<button class="wb-context-item" data-action="damage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>Schaden</button>`;
+                html += `<button class="wb-context-item" data-action="heal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>Heilen</button>`;
+            }
+            html += `<div class="wb-context-divider"></div>`;
+            html += `<button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button>`;
+            html += `<button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button>`;
+        } else {
+            // Generic context menu for strokes/images
+            html += `<button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button>`;
+            html += `<button class="wb-context-item" data-action="front"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>Nach vorne</button>`;
+            html += `<button class="wb-context-item" data-action="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>Nach hinten</button>`;
+            html += `<div class="wb-context-divider"></div>`;
+            html += `<button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button>`;
+            html += `<button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button>`;
         }
+        
+        m.innerHTML = html;
+        
+        // Wire up action handlers
+        m.querySelectorAll('.wb-context-item').forEach(item => {
+            item.onclick = () => {
+                const action = item.dataset.action;
+                if (action === 'delete') this.deleteSelected();
+                else if (action === 'duplicate') this.duplicateSelected();
+                else if (action === 'front') this.moveToFront();
+                else if (action === 'back') this.moveToBack();
+                else if (action === 'edit') this.editSelected();
+                else if (action === 'damage' && token) {
+                    const amount = prompt('Schaden:', '1');
+                    if (amount && !isNaN(parseInt(amount))) {
+                        token.hp = Math.max(0, token.hp - parseInt(amount));
+                        this.syncToken(token);
+                        this.renderTokens();
+                        this.renderInitiative();
+                        this.renderTokenSidebar();
+                        this.toast(`${token.name}: -${parseInt(amount)} HP (${token.hp}/${token.maxHp})`);
+                    }
+                } else if (action === 'heal' && token) {
+                    const amount = prompt('Heilung:', '1');
+                    if (amount && !isNaN(parseInt(amount))) {
+                        token.hp = Math.min(token.maxHp || 999, token.hp + parseInt(amount));
+                        this.syncToken(token);
+                        this.renderTokens();
+                        this.renderInitiative();
+                        this.renderTokenSidebar();
+                        this.toast(`${token.name}: +${parseInt(amount)} HP (${token.hp}/${token.maxHp})`);
+                    }
+                }
+                m.classList.remove('visible');
+            };
+        });
+        
+        m.style.left = e.clientX + 'px';
+        m.style.top = e.clientY + 'px';
+        m.classList.add('visible');
     },
     
     // ==================== SELECTION ====================
@@ -1730,9 +1829,12 @@ const WB = {
             item.x += dx;
             item.y += dy;
             if (this.snap) {
-                item.x = Math.round((item.x - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX;
-                item.y = Math.round((item.y - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY;
+                // Snap token CENTER to field CENTER (not grid lines)
+                item.x = Math.floor((item.x - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+                item.y = Math.floor((item.y - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
             }
+            // Update move radius display
+            this.updateMoveRadius(item);
             // Real-time sync
             this.syncToken(item);
         }
@@ -2056,12 +2158,21 @@ const WB = {
                     this.select({ type: 'token', item: t, index: i });
                     this.isDragging = true;
                     this.lastDragPoint = this.getPoint(e);
+                    this._dragOrigin = { x: t.x, y: t.y };
+                    this.showMoveRadius(t);
                 }
             };
             el.ondblclick = e => {
                 e.preventDefault();
                 e.stopPropagation();
                 this.showTokenEditModal(t);
+            };
+            el.oncontextmenu = e => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Delegate to onContext with a hint for the token
+                this._contextHit = { type: 'token', item: t, index: i };
+                this.onContext(e);
             };
             c.appendChild(el);
         });
@@ -2358,6 +2469,7 @@ const WB = {
         document.getElementById('createTokenMaxHp').value = '';
         document.getElementById('createTokenAc').value = '';
         document.getElementById('createTokenSpeed').value = '';
+        document.getElementById('createTokenRange').value = '';
         document.getElementById('createTokenNotes').value = '';
         
         // Type buttons in creation modal
@@ -2383,10 +2495,17 @@ const WB = {
     
     createToken(name, color, x, y, borderColor, img, opts) {
         opts = opts || {};
+        let tx = x ?? (this.mainCanvas.width / 2 / this.zoom - this.panX / this.zoom);
+        let ty = y ?? (this.mainCanvas.height / 2 / this.zoom - this.panY / this.zoom);
+        // Snap to field center if grid snap is on
+        if (this.snap && this.gridSize) {
+            tx = Math.floor((tx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+            ty = Math.floor((ty - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+        }
         const t = {
             id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-            x: x ?? (this.mainCanvas.width / 2 / this.zoom - this.panX / this.zoom),
-            y: y ?? (this.mainCanvas.height / 2 / this.zoom - this.panY / this.zoom),
+            x: tx,
+            y: ty,
             size: opts.size || this.gridSize || 70,
             color: color || this.userColor,
             borderColor: borderColor || '#8b5cf6',
@@ -2441,6 +2560,22 @@ const WB = {
             btn.classList.toggle('active', token.status?.includes(status));
         });
         
+        // Border color picker
+        const borderPicker = document.getElementById('editTokenBorderPicker');
+        borderPicker.innerHTML = '';
+        const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280', '#ffffff'];
+        this._editBorderColor = token.borderColor || '#8b5cf6';
+        colors.forEach(c => {
+            const btn = document.createElement('button');
+            btn.style.cssText = `width:28px;height:28px;border-radius:50%;border:3px solid ${c === this._editBorderColor ? 'white' : 'transparent'};background:${c};cursor:pointer`;
+            btn.onclick = () => {
+                this._editBorderColor = c;
+                borderPicker.querySelectorAll('button').forEach(b => b.style.borderColor = 'transparent');
+                btn.style.borderColor = 'white';
+            };
+            borderPicker.appendChild(btn);
+        });
+        
         document.getElementById('tokenEditOverlay').classList.add('visible');
     },
     
@@ -2458,6 +2593,9 @@ const WB = {
         t.speed = parseInt(document.getElementById('editTokenSpeed').value) || 6;
         t.range = parseInt(document.getElementById('editTokenRange').value) || 1;
         t.notes = document.getElementById('editTokenNotes').value || '';
+        
+        // Border color
+        if (this._editBorderColor) t.borderColor = this._editBorderColor;
         
         // Get type
         const activeType = document.querySelector('#editTokenTypeGrid .wb-token-type-btn.active');
@@ -2645,6 +2783,79 @@ const WB = {
         this.renderTokens();
         this.renderInitiative();
         this.toast('Initiative zurückgesetzt');
+    },
+    
+    // ==================== MOVEMENT RADIUS ====================
+    showMoveRadius(token) {
+        if (!token.speed || !this.gridSize) return;
+        const radiusWorld = token.speed * this.gridSize;
+        const radiusPx = radiusWorld * this.zoom * 2;
+        
+        const el = document.getElementById('moveRadius');
+        const originEl = document.getElementById('moveOrigin');
+        const originX = token.x * this.zoom + this.panX;
+        const originY = token.y * this.zoom + this.panY;
+        
+        el.style.width = radiusPx + 'px';
+        el.style.height = radiusPx + 'px';
+        el.style.left = originX + 'px';
+        el.style.top = originY + 'px';
+        el.classList.add('visible');
+        
+        // Show origin marker
+        originEl.style.left = originX + 'px';
+        originEl.style.top = originY + 'px';
+        originEl.classList.add('visible');
+        
+        document.getElementById('moveRadiusLabel').textContent = `${token.speed} Felder`;
+        
+        // Hide distance initially
+        document.getElementById('moveDistance').classList.remove('visible');
+    },
+    
+    updateMoveRadius(token) {
+        if (!this._dragOrigin || !this.gridSize) return;
+        
+        const el = document.getElementById('moveRadius');
+        const originEl = document.getElementById('moveOrigin');
+        const distEl = document.getElementById('moveDistance');
+        
+        if (!el.classList.contains('visible')) return;
+        
+        // Origin stays at drag start position
+        const originX = this._dragOrigin.x * this.zoom + this.panX;
+        const originY = this._dragOrigin.y * this.zoom + this.panY;
+        el.style.left = originX + 'px';
+        el.style.top = originY + 'px';
+        originEl.style.left = originX + 'px';
+        originEl.style.top = originY + 'px';
+        
+        // Calculate distance moved in grid squares
+        const dx = token.x - this._dragOrigin.x;
+        const dy = token.y - this._dragOrigin.y;
+        const distWorld = Math.sqrt(dx * dx + dy * dy);
+        const distFields = Math.round(distWorld / this.gridSize);
+        
+        if (distFields > 0) {
+            const tokenScreenX = token.x * this.zoom + this.panX;
+            const tokenScreenY = token.y * this.zoom + this.panY;
+            distEl.style.left = tokenScreenX + 'px';
+            distEl.style.top = tokenScreenY + 'px';
+            
+            const maxFields = token.speed || 6;
+            const over = distFields > maxFields;
+            distEl.textContent = `${distFields} / ${maxFields} Felder`;
+            distEl.style.color = over ? '#ef4444' : distFields === maxFields ? '#f59e0b' : '#22c55e';
+            distEl.classList.add('visible');
+        } else {
+            distEl.classList.remove('visible');
+        }
+    },
+    
+    hideMoveRadius() {
+        document.getElementById('moveRadius').classList.remove('visible');
+        document.getElementById('moveOrigin').classList.remove('visible');
+        document.getElementById('moveDistance').classList.remove('visible');
     },
     
     // ==================== TOKEN SIDEBAR ====================
@@ -2877,6 +3088,7 @@ const WB = {
                 maxHp: parseInt(document.getElementById('createTokenMaxHp').value) || 0,
                 ac: parseInt(document.getElementById('createTokenAc').value) || 10,
                 speed: parseInt(document.getElementById('createTokenSpeed').value) || 6,
+                range: parseInt(document.getElementById('createTokenRange').value) || 1,
                 type: activeType?.dataset.type || 'player',
                 notes: document.getElementById('createTokenNotes').value || '',
                 size: activeSize ? parseInt(activeSize.dataset.size) : (this.gridSize || 70)
@@ -2948,17 +3160,7 @@ const WB = {
     
     // ==================== CONTEXT MENU ====================
     setupContextMenu() {
-        document.querySelectorAll('.wb-context-item').forEach(item => {
-            item.onclick = () => {
-                const action = item.dataset.action;
-                if (action === 'delete') this.deleteSelected();
-                else if (action === 'duplicate') this.duplicateSelected();
-                else if (action === 'front') this.moveToFront();
-                else if (action === 'back') this.moveToBack();
-                else if (action === 'edit') this.editSelected();
-                document.getElementById('contextMenu').classList.remove('visible');
-            };
-        });
+        // Context menu is now built dynamically in onContext()
     },
     
     editSelected() {
