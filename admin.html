@@ -7940,9 +7940,8 @@
                 if (!grid) return;
                 
                 try {
-                    const snap = await firebase.database().ref('whiteboard/library/tokens').once('value');
-                    const data = snap.val() || {};
-                    this.tokens = Object.keys(data).map(k => ({ ...data[k], _key: k }));
+                    const snap = await firebase.firestore().collection('whiteboard_library_tokens').get();
+                    this.tokens = snap.docs.map(doc => ({ ...doc.data(), _key: doc.id }));
                     
                     if (this.tokens.length === 0) {
                         grid.innerHTML = '';
@@ -8046,9 +8045,9 @@
                 
                 try {
                     if (this.editingKey) {
-                        await firebase.database().ref('whiteboard/library/tokens/' + this.editingKey).set(token);
+                        await firebase.firestore().collection('whiteboard_library_tokens').doc(this.editingKey).set(token);
                     } else {
-                        await firebase.database().ref('whiteboard/library/tokens').push(token);
+                        await firebase.firestore().collection('whiteboard_library_tokens').add(token);
                     }
                     this.hideModal();
                     this.load();
@@ -8061,7 +8060,7 @@
                 const t = this.tokens[idx];
                 if (!t || !confirm('Token "' + (t.name || '') + '" aus der Library löschen?')) return;
                 try {
-                    await firebase.database().ref('whiteboard/library/tokens/' + t._key).remove();
+                    await firebase.firestore().collection('whiteboard_library_tokens').doc(t._key).delete();
                     this.load();
                 } catch(err) {
                     alert('Fehler: ' + err.message);

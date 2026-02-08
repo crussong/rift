@@ -4823,13 +4823,10 @@ const WB = {
     // ==================== RIFT TOKEN LIBRARY ====================
     renderTokenLibrary(grid) {
         grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Lade RIFT Library...</p>';
-        if (!this.db) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Keine Datenbankverbindung</p>'; return; }
         
-        this.db.ref('whiteboard/library/tokens').once('value', snap => {
-            const data = snap.val();
-            if (!data) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Noch keine Tokens in der Library</p>'; return; }
-            
-            const libTokens = Object.keys(data).map(k => ({ ...data[k], _libKey: k }));
+        firebase.firestore().collection('whiteboard_library_tokens').get().then(snap => {
+            const libTokens = snap.docs.map(doc => ({ ...doc.data(), _libKey: doc.id }));
+            if (libTokens.length === 0) { grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Noch keine Tokens in der Library</p>'; return; }
             const sizeLabels = { 44: 'S', 70: 'M', 140: 'L(2x2)', 210: 'XL(3x3)', 280: 'XXL(4x4)' };
             const typeColors = { player: '#8b5cf6', npc: '#3b82f6', monster: '#ef4444', hidden: '#6b7280' };
             
@@ -4900,6 +4897,8 @@ const WB = {
                     if (t) { this.loadTokenFromLibrary(t); document.getElementById('tokenLibOverlay').classList.remove('visible'); }
                 };
             });
+        }).catch(err => {
+            grid.innerHTML = `<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Fehler: ${err.message}</p>`;
         });
     },
     
