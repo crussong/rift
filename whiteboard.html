@@ -417,6 +417,34 @@
             .wb-color-btn { width: 20px; height: 20px; }
             .wb-toggle { padding: 4px 8px; font-size: 10px; }
         }
+        /* Player tokens: default cursor */
+        body.player-mode .wb-token { cursor: default !important; }
+        /* Aura templates */
+        .wb-aura { position: absolute; pointer-events: none; z-index: 48; }
+        .wb-aura canvas { position: absolute; top: 0; left: 0; }
+        /* Map notes */
+        .wb-note { position: absolute; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 49; transition: transform 0.15s; border: 2px solid rgba(255,255,255,0.3); }
+        .wb-note:hover { transform: translate(-50%, -50%) scale(1.2); }
+        .wb-note svg { width: 16px; height: 16px; }
+        .wb-note__tooltip { position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background: rgba(22,22,22,0.95); color: white; padding: 8px 12px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; max-width: 250px; display: none; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 200; pointer-events: none; }
+        .wb-note:hover .wb-note__tooltip, .wb-note.show-tooltip .wb-note__tooltip { display: block; }
+        .wb-note--info { background: rgba(59,130,246,0.7); }
+        .wb-note--loot { background: rgba(251,191,36,0.7); }
+        .wb-note--trap { background: rgba(239,68,68,0.7); }
+        .wb-note--door { background: rgba(139,92,246,0.7); }
+        .wb-note--custom { background: rgba(107,114,128,0.7); }
+        /* Drag & drop overlay */
+        .wb-drop-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(139,92,246,0.15); border: 3px dashed rgba(139,92,246,0.6); display: none; align-items: center; justify-content: center; z-index: 500; pointer-events: none; }
+        .wb-drop-overlay.visible { display: flex; }
+        .wb-drop-overlay__label { background: rgba(22,22,22,0.9); color: white; padding: 16px 32px; border-radius: 12px; font-size: 18px; font-weight: 600; }
+        /* Aura tool panel */
+        .wb-aura-panel { position: absolute; top: 60px; right: 16px; background: rgba(22,22,22,0.95); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px; width: 220px; z-index: 160; display: none; }
+        .wb-aura-panel.visible { display: block; }
+        .wb-aura-panel label { font-size: 11px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 4px; margin-top: 8px; }
+        .wb-aura-panel select, .wb-aura-panel input { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: white; padding: 4px 8px; font-size: 13px; }
+        .wb-aura-panel .wb-aura-shapes { display: flex; gap: 4px; margin-top: 6px; }
+        .wb-aura-panel .wb-aura-shape { flex: 1; padding: 6px 4px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; text-align: center; font-size: 10px; color: rgba(255,255,255,0.6); transition: all 0.15s; }
+        .wb-aura-panel .wb-aura-shape.active { background: rgba(139,92,246,0.3); border-color: rgba(139,92,246,0.6); color: white; }
     </style>
 
     <!-- Auth Guard: Hide until authenticated -->
@@ -466,6 +494,7 @@
                             <button class="wb-btn" data-tool="ruler" title="Maßband (M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0z"/><path d="M14 8l-2 2M17 11l-2 2M8 5l-2 2"/></svg></button>
                             <button class="wb-btn" data-tool="ping" title="Ping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/></svg></button>
                             <button class="wb-btn" data-tool="focus" title="Fokus (F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></button>
+                            <button class="wb-btn" data-tool="aura" title="Bereich-Template"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="4 2"/><circle cx="12" cy="12" r="4"/></svg></button>
                         </div>
                         <div class="wb-toolbar__divider"></div>
                         <div class="wb-toolbar__group" data-collapse="insert">
@@ -536,6 +565,7 @@
                             <button class="wb-btn" id="toolbarLockBtn" title="Werkzeuge f. Spieler sperren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
                             <button class="wb-btn" id="effectsBtn" title="Effekte (GM Kontrollzentrum)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></button>
                             <button class="wb-btn" id="broadcastBtn" title="Broadcast (GM Kontrollzentrum)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg></button>
+                            <button class="wb-btn" id="noteBtn" title="Notiz setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
                             <button class="wb-btn wb-btn--danger" id="clearBtn" title="Whiteboard leeren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                         </div>
                     </div>
@@ -551,6 +581,8 @@
                         <div class="wb-radius-distance" id="moveDistance"></div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
+                        <div id="notesContainer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:49"></div>
+                        <div class="wb-drop-overlay" id="dropOverlay"><div class="wb-drop-overlay__label">Bild hier ablegen</div></div>
                         <div class="wb-token-tooltip" id="tokenTooltip"></div>
                         <!-- Selection Box with Resize Handles -->
                         <div class="wb-select-box" id="selectBox">
@@ -941,6 +973,63 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Aura Template Panel -->
+                <div class="wb-aura-panel" id="auraPanel">
+                    <div style="font-weight:600;font-size:13px;margin-bottom:4px">Bereich-Template</div>
+                    <div class="wb-aura-shapes" id="auraShapes">
+                        <div class="wb-aura-shape active" data-shape="sphere" title="Kugel/Kreis">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2"><circle cx="12" cy="12" r="9"/></svg><br>Kugel
+                        </div>
+                        <div class="wb-aura-shape" data-shape="cone" title="Kegel">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2"><path d="M12 3L3 21h18z"/></svg><br>Kegel
+                        </div>
+                        <div class="wb-aura-shape" data-shape="line" title="Linie">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2"><rect x="10" y="2" width="4" height="20"/></svg><br>Linie
+                        </div>
+                        <div class="wb-aura-shape" data-shape="cube" title="Würfel">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2"><rect x="3" y="3" width="18" height="18"/></svg><br>Würfel
+                        </div>
+                    </div>
+                    <label>Radius / Größe (ft)</label>
+                    <input type="number" id="auraRadius" value="20" min="5" step="5">
+                    <label>Farbe</label>
+                    <div style="display:flex;gap:4px;margin-top:4px" id="auraColors">
+                        <button class="wb-color-btn active" data-color="rgba(239,68,68,0.3)" style="background:#ef4444"></button>
+                        <button class="wb-color-btn" data-color="rgba(59,130,246,0.3)" style="background:#3b82f6"></button>
+                        <button class="wb-color-btn" data-color="rgba(34,197,94,0.3)" style="background:#22c55e"></button>
+                        <button class="wb-color-btn" data-color="rgba(251,191,36,0.3)" style="background:#fbbf24"></button>
+                        <button class="wb-color-btn" data-color="rgba(168,85,247,0.3)" style="background:#a855f7"></button>
+                        <button class="wb-color-btn" data-color="rgba(255,255,255,0.2)" style="background:#ffffff"></button>
+                    </div>
+                    <div style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4)">Klicke auf Map um zu platzieren. Kegel: Klicke Ursprung, ziehe Richtung.</div>
+                    <button class="wb-btn wb-btn--danger" id="auraClearBtn" style="margin-top:8px;width:100%;font-size:11px;padding:6px">Alle Templates entfernen</button>
+                </div>
+                
+                <!-- Note Creation Overlay -->
+                <div class="wb-overlay" id="noteOverlay">
+                    <div class="wb-modal__content" style="min-width:340px">
+                        <div class="wb-modal__title">Notiz erstellen</div>
+                        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Typ</label>
+                        <div style="display:flex;gap:6px;margin-bottom:12px" id="noteTypes">
+                            <button class="wb-btn active" data-type="info" style="background:rgba(59,130,246,0.4);flex:1;font-size:11px">Info</button>
+                            <button class="wb-btn" data-type="loot" style="background:rgba(251,191,36,0.3);flex:1;font-size:11px">Loot</button>
+                            <button class="wb-btn" data-type="trap" style="background:rgba(239,68,68,0.3);flex:1;font-size:11px">Falle</button>
+                            <button class="wb-btn" data-type="door" style="background:rgba(139,92,246,0.3);flex:1;font-size:11px">Tür</button>
+                            <button class="wb-btn" data-type="custom" style="background:rgba(107,114,128,0.3);flex:1;font-size:11px">Marker</button>
+                        </div>
+                        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Titel</label>
+                        <input type="text" class="wb-modal__input" id="noteTitle" placeholder="z.B. Geheimtür" style="margin-bottom:8px">
+                        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Beschreibung (GM only)</label>
+                        <textarea class="wb-modal__input" id="noteText" placeholder="Nur für GM sichtbar..." style="height:80px;resize:vertical"></textarea>
+                        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:rgba(255,255,255,0.6);cursor:pointer"><input type="checkbox" id="noteVisibleToPlayers" checked> Marker für Spieler sichtbar</label>
+                        <div class="wb-modal__actions" style="margin-top:12px">
+                            <button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('noteOverlay').classList.remove('visible')">Abbrechen</button>
+                            <button class="wb-upload-btn" id="noteSaveBtn">Platzieren</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="wb-toast" id="wbToast"></div>
                 </div>
             </div>
@@ -1061,6 +1150,12 @@ const WB = {
         this.userColor = u.color || '#8b5cf6';
         this.isGM = u.isGM || u.isCogm || false;
         
+        // For players: fog layer covers tokens so foggy areas hide them
+        if (!this.isGM) {
+            document.getElementById('fogCanvas').style.zIndex = '55'; // Above tokens (50)
+            document.body.classList.add('player-mode');
+        }
+        
         this.addUserColor();
         if (this.isGM) {
             document.getElementById('gmActions').style.display = 'flex';
@@ -1092,6 +1187,9 @@ const WB = {
         this.setupTokenTooltip();
         this.setupToolbarLock();
         this.setupTokenLibrary();
+        this.setupAura();
+        this.setupNotes();
+        this.setupDragDrop();
         
         if (this.roomCode) await this.connectFirebase();
         this.updateCursor();
@@ -1234,6 +1332,16 @@ const WB = {
                 if (this.tool !== 'polygon') this.finishPolygon();
                 if (this.tool !== 'select') this.deselect();
                 
+                // Toggle aura panel
+                const auraPanel = document.getElementById('auraPanel');
+                if (auraPanel) auraPanel.classList.toggle('visible', this.tool === 'aura');
+                
+                // Deactivate note placing mode when switching tools
+                if (this._placingNote) {
+                    this._placingNote = false;
+                    document.getElementById('noteBtn')?.classList.remove('active');
+                }
+                
                 // Auto snap control: off for drawing tools, restore for others
                 const drawTools = ['pen', 'line', 'rect', 'circle', 'arrow', 'polygon', 'text', 'eraser'];
                 const snapToggle = document.getElementById('snapToggle');
@@ -1303,9 +1411,11 @@ const WB = {
     updateCursor() {
         const w = document.getElementById('canvasWrapper');
         w.className = 'wb-canvas-wrapper';
+        w.style.cursor = '';
         if (this.tool === 'select') w.classList.add('tool-select');
         else if (this.tool === 'eraser') w.classList.add('tool-eraser');
         else if (this.tool === 'text') w.classList.add('tool-text');
+        else if (this.tool === 'aura') w.style.cursor = 'crosshair';
         // Disable token/image pointer-events for non-select tools
         const selectMode = this.tool === 'select';
         document.getElementById('tokensContainer')?.classList.toggle('no-interact', !selectMode);
@@ -1697,6 +1807,10 @@ const WB = {
             if (hit) {
                 this.select(hit);
                 if (hit.type === 'token') {
+                    if (!this.isGM) {
+                        // Players can only select tokens, not drag them
+                        return;
+                    }
                     // Token drag mode: draw line, teleport on release
                     this._tokenDrag = { token: hit.item, startX: hit.item.x, startY: hit.item.y, startScreen: { rx: p.rx, ry: p.ry } };
                     this._dragOrigin = { x: hit.item.x, y: hit.item.y };
@@ -1722,6 +1836,8 @@ const WB = {
         if (this.tool === 'focus') { this.createFocus(p.x, p.y, p.rx, p.ry); return; }
         if (this.tool === 'text') { this.showTextInput(p); return; }
         if (this.tool === 'stamp' && this.selectedStamp) { this.placeStamp(p); return; }
+        if (this.tool === 'aura') { this.placeAura(p); return; }
+        if (this._placingNote && this.isGM) { this.showNoteDialog(p); return; }
         if (this.tool === 'polygon') { this.polygonPoints.push(p); this.renderUI(); return; }
         
         this.isDrawing = true;
@@ -1767,10 +1883,18 @@ const WB = {
     },
     
     onUp(e) {
+        // Aura cone drag finish
+        if (this._auraDragging) {
+            const p = this.getPoint(e);
+            this.finishAuraDrag(p);
+            return;
+        }
+        
         // Token drag mode: teleport to destination
         if (this.isDragging && this._tokenDrag) {
             const p = this.getPoint(e);
             const t = this._tokenDrag.token;
+            const fromX = this._tokenDrag.startX, fromY = this._tokenDrag.startY;
             // Use raw (unsnapped) world coords, then snap to field CENTER once
             let targetX = p.rawX, targetY = p.rawY;
             if (this.snap && this.gridSize) {
@@ -1799,6 +1923,9 @@ const WB = {
                 // Animate token to new position
                 this.animateTokenMove(t, targetX, targetY);
             }
+            
+            // Track for undo
+            this.pushTokenUndo({ type: 'move', tokenId: t.id, from: { x: fromX, y: fromY }, to: { x: targetX, y: targetY } });
             
             this.renderInitiative();
             this.renderTokenSidebar();
@@ -2568,6 +2695,8 @@ const WB = {
         if (this.selected) this.updateSelectBox();
         if (this._remoteCursors) this.renderRemoteCursors(this._remoteCursors);
         if (this._remoteRulers) this.renderRemoteRulers();
+        if (this._auras) this.renderAuras();
+        if (this._notes) this.renderNotes();
     },
     
     renderBg() {
@@ -2724,6 +2853,9 @@ const WB = {
                 e.stopPropagation();
                 this.hideTokenTooltip();
                 
+                // Players cannot move tokens
+                if (!this.isGM) return;
+                
                 // If this token is part of a multi-selection, drag all
                 if (this.multiSelected.length > 1 && this.multiSelected.includes(t)) {
                     this._multiDrag = { tokens: [...this.multiSelected], origins: this.multiSelected.map(tk => ({ id: tk.id, x: tk.x, y: tk.y })) };
@@ -2744,11 +2876,12 @@ const WB = {
             el.ondblclick = e => {
                 e.preventDefault();
                 e.stopPropagation();
-                this.showTokenEditModal(t);
+                if (this.isGM) this.showTokenEditModal(t);
             };
             el.oncontextmenu = e => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!this.isGM) return;
                 this._contextHit = { type: 'token', item: t, index: i };
                 this.onContext(e);
             };
@@ -2962,14 +3095,15 @@ const WB = {
     showRuler(start, end) {
         const dx = end.rawX - start.rawX, dy = end.rawY - start.rawY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const grids = dist / this.gridSize;
-        const ft = grids * 5;
+        const gridsExact = dist / this.gridSize;
+        const grids = Math.round(gridsExact);
+        const ft = gridsExact * 5;
         const meters = ft * 0.3048;
         const info = document.getElementById('rulerInfo');
         info.style.display = 'block';
         info.style.left = (end.sx + 15) + 'px';
         info.style.top = (end.sy - 15) + 'px';
-        info.innerHTML = `<strong>${grids.toFixed(1)}</strong> Felder<br><span style="opacity:0.7;font-size:12px">${ft.toFixed(1)} ft / ${meters.toFixed(1)} m</span><br><span style="opacity:0.4;font-size:10px">${Math.round(dist)}px</span>`;
+        info.innerHTML = `<strong>${grids}</strong> Felder<br><span style="opacity:0.7;font-size:12px">${ft.toFixed(1)} ft / ${meters.toFixed(1)} m</span><br><span style="opacity:0.4;font-size:10px">${Math.round(dist)}px</span>`;
         
         const ctx = this.uiCtx;
         ctx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
@@ -2989,7 +3123,7 @@ const WB = {
                 this._lastRulerSync = now;
                 this.db.ref('whiteboard/' + this.roomCode + '/ruler/' + this.userId).set({
                     sx: start.rawX, sy: start.rawY, ex: end.rawX, ey: end.rawY,
-                    grids: grids.toFixed(1), ft: ft.toFixed(1), meters: meters.toFixed(1),
+                    grids: String(grids), ft: ft.toFixed(1), meters: meters.toFixed(1),
                     name: this.userName, color: this.userColor, ts: now
                 });
             }
@@ -4645,7 +4779,8 @@ const WB = {
         const sceneData = {
             name, date: Date.now(), thumb,
             strokes: this.strokes, tokens: this.tokens, images: this.images,
-            fogAreas: this.fogAreas, bgDataUrl: this.bgDataUrl || null,
+            fogAreas: this.fogAreas, auras: this._auras || [], notes: this._notes || [],
+            bgDataUrl: this.bgDataUrl || null,
             bgOrigWidth: this.bgImage ? this.bgImage.width : null,
             bgOrigHeight: this.bgImage ? this.bgImage.height : null,
             gridSize: this.gridSize, gridOffsetX: this.gridOffsetX, gridOffsetY: this.gridOffsetY,
@@ -4796,6 +4931,7 @@ const WB = {
         // Wipe current whiteboard first
         this.isClearing = true;
         this.strokes = []; this.images = []; this.tokens = []; this.fogAreas = [];
+        this._auras = []; this._notes = [];
         this.bgImage = null; this.bgDataUrl = null;
         this.history = []; this.historyIdx = -1;
         this.initiativeActive = null; this.initiativeOrder = [];
@@ -4812,7 +4948,9 @@ const WB = {
                 this.db.ref(base + '/background').remove(),
                 this.db.ref(base + '/cursors').remove(),
                 this.db.ref(base + '/focus').remove(),
-                this.db.ref(base + '/ruler').remove()
+                this.db.ref(base + '/ruler').remove(),
+                this.db.ref(base + '/auras').remove(),
+                this.db.ref(base + '/notes').remove()
             ]).catch(e => console.warn('[WB] Wipe error:', e));
         }
         this.isClearing = false;
@@ -4822,6 +4960,8 @@ const WB = {
         this.tokens = scene.tokens || [];
         this.images = scene.images || [];
         this.fogAreas = scene.fogAreas || [];
+        this._auras = scene.auras || [];
+        this._notes = scene.notes || [];
         if (scene.gridSize) this.gridSize = scene.gridSize;
         if (scene.gridOffsetX !== undefined) this.gridOffsetX = scene.gridOffsetX;
         if (scene.gridOffsetY !== undefined) this.gridOffsetY = scene.gridOffsetY;
@@ -4841,6 +4981,8 @@ const WB = {
             this.strokes.forEach(s => this.syncStroke(s));
             this.tokens.forEach(t => this.syncToken(t));
             this.images.forEach(i => this.syncImageToFirebase(i));
+            this._auras.forEach(a => this.syncAura(a));
+            this._notes.forEach(n => this.syncNote(n));
             if (scene.bgDataUrl) this.syncBackground(scene.bgDataUrl);
             // Re-attach listeners after sync
             setTimeout(() => this.setupFirebaseListeners(), 500);
@@ -5085,21 +5227,39 @@ const WB = {
     
     // ==================== HISTORY ====================
     undo() {
-        if (this.historyIdx < 0) return;
-        const action = this.history[this.historyIdx];
-        if (action.type === 'stroke') this.strokes = this.strokes.filter(s => s.id !== action.data.id);
-        this.historyIdx--;
-        this.render();
-        this.toast('Rückgängig');
+        // Check which history has a more recent action
+        const strokeAction = this.historyIdx >= 0 ? this.history[this.historyIdx] : null;
+        const tokenAction = (this._tokenHistory && this._tokenHistoryIdx >= 0) ? this._tokenHistory[this._tokenHistoryIdx] : null;
+        
+        if (!strokeAction && !tokenAction) return;
+        
+        // Undo whichever is more recent (by timestamp), prefer token if both exist
+        const undoToken = tokenAction && (!strokeAction || (tokenAction.ts || 0) >= (strokeAction.data?.ts || 0));
+        
+        if (undoToken) {
+            this.undoToken();
+        } else if (strokeAction) {
+            if (strokeAction.type === 'stroke') this.strokes = this.strokes.filter(s => s.id !== strokeAction.data.id);
+            this.historyIdx--;
+            this.render();
+            this.toast('Rückgängig');
+        }
     },
     
     redo() {
-        if (this.historyIdx >= this.history.length - 1) return;
-        this.historyIdx++;
-        const action = this.history[this.historyIdx];
-        if (action.type === 'stroke') this.strokes.push(action.data);
-        this.render();
-        this.toast('Wiederholt');
+        // Check which history has a redo available
+        const hasStrokeRedo = this.historyIdx < this.history.length - 1;
+        const hasTokenRedo = this._tokenHistory && this._tokenHistoryIdx < this._tokenHistory.length - 1;
+        
+        if (hasTokenRedo && !hasStrokeRedo) {
+            this.redoToken();
+        } else if (hasStrokeRedo) {
+            this.historyIdx++;
+            const action = this.history[this.historyIdx];
+            if (action.type === 'stroke') this.strokes.push(action.data);
+            this.render();
+            this.toast('Wiederholt');
+        }
     },
     
     clearAll() {
@@ -5111,6 +5271,8 @@ const WB = {
         this.images = []; 
         this.tokens = []; 
         this.fogAreas = [];
+        this._auras = [];
+        this._notes = [];
         this.bgImage = null;
         this.bgDataUrl = null;
         this.history = []; 
@@ -5137,10 +5299,12 @@ const WB = {
                 this.db.ref(base + '/background').remove(),
                 this.db.ref(base + '/cursors').remove(),
                 this.db.ref(base + '/focus').remove(),
-                this.db.ref(base + '/ruler').remove()
+                this.db.ref(base + '/ruler').remove(),
+                this.db.ref(base + '/auras').remove(),
+                this.db.ref(base + '/notes').remove()
             ])
                 .then(() => {
-                    console.log('[WB] ✅ Firebase data REMOVED for room:', this.roomCode);
+                    console.log('[WB] Firebase data REMOVED for room:', this.roomCode);
                     
                     // Re-attach listeners after delete is confirmed
                     setTimeout(() => {
@@ -5499,6 +5663,8 @@ const WB = {
         const gridRef = this.db.ref('whiteboard/' + this.roomCode + '/gridSettings');
         const imagesRef = this.db.ref('whiteboard/' + this.roomCode + '/images');
         const rulerRef = this.db.ref('whiteboard/' + this.roomCode + '/ruler');
+        const aurasRef = this.db.ref('whiteboard/' + this.roomCode + '/auras');
+        const notesRef = this.db.ref('whiteboard/' + this.roomCode + '/notes');
         
         // Track initial load to ignore cached child_added events
         let strokesInitialized = false;
@@ -5669,6 +5835,18 @@ const WB = {
             this.renderRemoteRulers();
         });
         
+        // Auras: sync area templates across users
+        aurasRef.on('value', snap => {
+            this._auras = snap.val() ? Object.values(snap.val()) : [];
+            this.renderAuras();
+        });
+        
+        // Notes: sync map notes across users
+        notesRef.on('value', snap => {
+            this._notes = snap.val() ? Object.values(snap.val()) : [];
+            this.renderNotes();
+        });
+        
         // Track refs for cleanup
         this.firebaseListeners = [
             { ref: strokesRef, event: 'value' },
@@ -5680,7 +5858,9 @@ const WB = {
             { ref: focusRef, event: 'value' },
             { ref: gridRef, event: 'value' },
             { ref: imagesRef, event: 'value' },
-            { ref: rulerRef, event: 'value' }
+            { ref: rulerRef, event: 'value' },
+            { ref: aurasRef, event: 'value' },
+            { ref: notesRef, event: 'value' }
         ];
     },
     
@@ -5749,9 +5929,399 @@ const WB = {
             const label = document.createElement('div');
             label.className = 'wb-remote-ruler';
             label.style.cssText = `position:absolute;left:${x2 + 12}px;top:${y2 - 12}px;background:rgba(0,0,0,0.85);color:${r.color || '#fbbf24'};padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;pointer-events:none;z-index:141;border:1px solid ${r.color || '#fbbf24'};white-space:nowrap`;
-            label.innerHTML = `${r.name}: ${r.grids} Felder (${r.ft} ft)`;
+            label.innerHTML = `${r.name}: <strong>${r.grids}</strong> Felder &middot; ${r.ft} ft / ${r.meters} m`;
             wrapper.appendChild(label);
         }
+    },
+    
+    // ==================== AURA TEMPLATES ====================
+    setupAura() {
+        this._auraShape = 'sphere';
+        this._auraColor = 'rgba(239,68,68,0.3)';
+        this._auraRadius = 20; // ft
+        this._auras = []; // placed auras
+        this._auraDragging = null;
+        
+        // Shape selection
+        document.getElementById('auraShapes').onclick = e => {
+            const shape = e.target.closest('.wb-aura-shape');
+            if (!shape) return;
+            document.querySelectorAll('.wb-aura-shape').forEach(s => s.classList.remove('active'));
+            shape.classList.add('active');
+            this._auraShape = shape.dataset.shape;
+        };
+        
+        // Color selection
+        document.getElementById('auraColors').onclick = e => {
+            const btn = e.target.closest('.wb-color-btn');
+            if (!btn) return;
+            document.querySelectorAll('#auraColors .wb-color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this._auraColor = btn.dataset.color;
+        };
+        
+        // Radius input
+        document.getElementById('auraRadius').onchange = e => {
+            this._auraRadius = parseInt(e.target.value) || 20;
+        };
+        
+        // Clear all auras
+        document.getElementById('auraClearBtn')?.addEventListener('click', () => {
+            if (!this._auras.length) return;
+            this._auras = [];
+            if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/auras').remove();
+            this.renderAuras();
+            this.toast('Alle Templates entfernt');
+        });
+    },
+    
+    placeAura(p) {
+        if (this._auraShape === 'cone') {
+            // Cone needs direction - start drag
+            this._auraDragging = { shape: 'cone', ox: p.x, oy: p.y, color: this._auraColor, radius: this._auraRadius };
+            return;
+        }
+        const radiusPx = (this._auraRadius / 5) * this.gridSize;
+        const aura = {
+            id: Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            shape: this._auraShape, x: p.x, y: p.y,
+            radius: radiusPx, color: this._auraColor, ft: this._auraRadius,
+            angle: 0, userId: this.userId, ts: Date.now()
+        };
+        this._auras.push(aura);
+        this.renderAuras();
+        this.syncAura(aura);
+        this.toast(`${this._auraShape === 'sphere' ? 'Kugel' : this._auraShape === 'cube' ? 'Würfel' : 'Linie'} (${this._auraRadius} ft) platziert`);
+    },
+    
+    finishAuraDrag(p) {
+        const d = this._auraDragging;
+        if (!d) return;
+        const angle = Math.atan2(p.y - d.oy, p.x - d.ox);
+        const radiusPx = (d.radius / 5) * this.gridSize;
+        const aura = {
+            id: Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            shape: 'cone', x: d.ox, y: d.oy,
+            radius: radiusPx, color: d.color, ft: d.radius,
+            angle: angle, userId: this.userId, ts: Date.now()
+        };
+        this._auras.push(aura);
+        this._auraDragging = null;
+        this.renderAuras();
+        this.syncAura(aura);
+        this.toast(`Kegel (${d.radius} ft) platziert`);
+    },
+    
+    renderAuras() {
+        const c = document.getElementById('notesContainer');
+        // Remove old aura elements
+        c.querySelectorAll('.wb-aura-el').forEach(el => el.remove());
+        
+        this._auras.forEach(a => {
+            const el = document.createElement('canvas');
+            el.className = 'wb-aura-el';
+            const size = a.radius * 2 * this.zoom + 20;
+            el.width = size; el.height = size;
+            el.style.cssText = `position:absolute;pointer-events:none;z-index:48;transform:translate3d(${a.x * this.zoom + this.panX - size / 2}px, ${a.y * this.zoom + this.panY - size / 2}px, 0)`;
+            
+            const ctx = el.getContext('2d');
+            const cx = size / 2, cy = size / 2;
+            const r = a.radius * this.zoom;
+            
+            // Parse color for fill and stroke
+            const fillColor = a.color;
+            const strokeColor = a.color.replace(/[\d.]+\)$/, '0.7)');
+            
+            ctx.fillStyle = fillColor;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 4]);
+            
+            if (a.shape === 'sphere') {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+            } else if (a.shape === 'cone') {
+                const halfAngle = Math.PI / 6; // 30 degree half-angle
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, r, a.angle - halfAngle, a.angle + halfAngle);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+            } else if (a.shape === 'line') {
+                const w = this.gridSize * this.zoom * 0.7;
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(a.angle || 0);
+                ctx.fillRect(-w / 2, 0, w, -r);
+                ctx.strokeRect(-w / 2, 0, w, -r);
+                ctx.restore();
+            } else if (a.shape === 'cube') {
+                ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+                ctx.strokeRect(cx - r, cy - r, r * 2, r * 2);
+            }
+            
+            // Label
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = `bold ${Math.max(11, r * 0.2)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 3;
+            ctx.fillText(a.ft + ' ft', cx, cy);
+            ctx.shadowBlur = 0;
+            
+            c.appendChild(el);
+        });
+    },
+    
+    removeAura(id) {
+        this._auras = this._auras.filter(a => a.id !== id);
+        if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/auras/' + id).remove();
+        this.renderAuras();
+    },
+    
+    syncAura(a) {
+        if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/auras/' + a.id).set(a);
+    },
+    
+    // ==================== MAP NOTES ====================
+    setupNotes() {
+        this._notes = [];
+        this._pendingNotePos = null;
+        this._noteType = 'info';
+        
+        // Note button
+        const noteBtn = document.getElementById('noteBtn');
+        if (noteBtn) {
+            noteBtn.onclick = () => {
+                this._placingNote = !this._placingNote;
+                noteBtn.classList.toggle('active', this._placingNote);
+                this.toast(this._placingNote ? 'Klicke auf die Map um Notiz zu setzen' : 'Notiz-Modus deaktiviert');
+            };
+        }
+        
+        // Note type selection
+        document.getElementById('noteTypes')?.addEventListener('click', e => {
+            const btn = e.target.closest('.wb-btn');
+            if (!btn) return;
+            document.querySelectorAll('#noteTypes .wb-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this._noteType = btn.dataset.type;
+        });
+        
+        // Save note
+        document.getElementById('noteSaveBtn')?.addEventListener('click', () => {
+            const title = document.getElementById('noteTitle').value.trim();
+            const text = document.getElementById('noteText').value.trim();
+            if (!title && !text) { this.toast('Titel oder Text benötigt'); return; }
+            
+            const note = {
+                id: Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                type: this._noteType,
+                title: title || this._noteType,
+                text: text,
+                x: this._pendingNotePos.x,
+                y: this._pendingNotePos.y,
+                visibleToPlayers: document.getElementById('noteVisibleToPlayers').checked,
+                userId: this.userId, ts: Date.now()
+            };
+            this._notes.push(note);
+            this.syncNote(note);
+            this.renderNotes();
+            
+            document.getElementById('noteOverlay').classList.remove('visible');
+            document.getElementById('noteTitle').value = '';
+            document.getElementById('noteText').value = '';
+            this._placingNote = false;
+            document.getElementById('noteBtn')?.classList.remove('active');
+            this.toast('Notiz gesetzt: ' + note.title);
+        });
+    },
+    
+    showNoteDialog(p) {
+        this._pendingNotePos = { x: p.x, y: p.y };
+        document.getElementById('noteOverlay').classList.add('visible');
+        document.getElementById('noteTitle').focus();
+    },
+    
+    renderNotes() {
+        const c = document.getElementById('notesContainer');
+        c.querySelectorAll('.wb-note').forEach(el => el.remove());
+        
+        const icons = {
+            info: '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+            loot: '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+            trap: '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+            door: '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 3H6v18h12V3z"/><circle cx="15.5" cy="12" r="1"/></svg>',
+            custom: '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+        };
+        
+        this._notes.forEach(n => {
+            // Hide notes not visible to players if not GM
+            if (!this.isGM && !n.visibleToPlayers) return;
+            
+            const el = document.createElement('div');
+            el.className = `wb-note wb-note--${n.type}`;
+            el.style.transform = 'translate(-50%, -50%)';
+            el.style.left = (n.x * this.zoom + this.panX) + 'px';
+            el.style.top = (n.y * this.zoom + this.panY) + 'px';
+            el.style.pointerEvents = 'auto';
+            el.innerHTML = (icons[n.type] || icons.custom);
+            
+            // Tooltip
+            const tip = document.createElement('div');
+            tip.className = 'wb-note__tooltip';
+            const tipTitle = `<strong>${n.title}</strong>`;
+            const tipText = (this.isGM && n.text) ? `<br><span style="opacity:0.7">${n.text}</span>` : '';
+            tip.innerHTML = tipTitle + tipText;
+            el.appendChild(tip);
+            
+            // GM can right-click to delete
+            if (this.isGM) {
+                el.oncontextmenu = e => {
+                    e.preventDefault();
+                    if (confirm('Notiz "' + n.title + '" löschen?')) {
+                        this._notes = this._notes.filter(x => x.id !== n.id);
+                        if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/notes/' + n.id).remove();
+                        this.renderNotes();
+                    }
+                };
+            }
+            
+            c.appendChild(el);
+        });
+    },
+    
+    syncNote(n) {
+        if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/notes/' + n.id).set(n);
+    },
+    
+    // ==================== DRAG & DROP ====================
+    setupDragDrop() {
+        const wrapper = document.getElementById('canvasWrapper');
+        const overlay = document.getElementById('dropOverlay');
+        let dragCounter = 0;
+        
+        wrapper.addEventListener('dragenter', e => {
+            e.preventDefault();
+            dragCounter++;
+            if (e.dataTransfer.types.includes('Files')) overlay.classList.add('visible');
+        });
+        wrapper.addEventListener('dragleave', e => {
+            dragCounter--;
+            if (dragCounter <= 0) { overlay.classList.remove('visible'); dragCounter = 0; }
+        });
+        wrapper.addEventListener('dragover', e => e.preventDefault());
+        wrapper.addEventListener('drop', e => {
+            e.preventDefault();
+            overlay.classList.remove('visible');
+            dragCounter = 0;
+            
+            const files = e.dataTransfer.files;
+            if (!files.length) return;
+            const file = files[0];
+            if (!file.type.startsWith('image/')) { this.toast('Nur Bilder erlaubt'); return; }
+            
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const rect = this.uiCanvas.getBoundingClientRect();
+                const wx = (e.clientX - rect.left - this.panX) / this.zoom;
+                const wy = (e.clientY - rect.top - this.panY) / this.zoom;
+                
+                const img = new Image();
+                img.onload = () => {
+                    const maxSize = this.gridSize * 6;
+                    let w = img.width, h = img.height;
+                    if (w > maxSize || h > maxSize) {
+                        const scale = maxSize / Math.max(w, h);
+                        w *= scale; h *= scale;
+                    }
+                    const imageObj = {
+                        id: Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                        src: ev.target.result, x: wx - w / 2, y: wy - h / 2, w, h,
+                        userId: this.userId
+                    };
+                    this.images.push(imageObj);
+                    this.syncImageToFirebase(imageObj);
+                    this.renderImages();
+                    this.toast('Bild eingefügt');
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    },
+    
+    // ==================== TOKEN UNDO/REDO ====================
+    pushTokenUndo(action) {
+        if (!this._tokenHistory) this._tokenHistory = [];
+        if (!this._tokenHistoryIdx) this._tokenHistoryIdx = -1;
+        // Trim future
+        this._tokenHistory = this._tokenHistory.slice(0, this._tokenHistoryIdx + 1);
+        this._tokenHistory.push(action);
+        this._tokenHistoryIdx = this._tokenHistory.length - 1;
+        // Keep max 50
+        if (this._tokenHistory.length > 50) {
+            this._tokenHistory.shift();
+            this._tokenHistoryIdx--;
+        }
+    },
+    
+    undoToken() {
+        if (!this._tokenHistory || this._tokenHistoryIdx < 0) return;
+        const action = this._tokenHistory[this._tokenHistoryIdx];
+        this._tokenHistoryIdx--;
+        
+        if (action.type === 'move') {
+            const t = this.tokens.find(x => x.id === action.tokenId);
+            if (t) { t.x = action.from.x; t.y = action.from.y; this.syncToken(t); }
+        } else if (action.type === 'hp') {
+            const t = this.tokens.find(x => x.id === action.tokenId);
+            if (t) { t.hp = action.from; this.syncToken(t); }
+        } else if (action.type === 'delete') {
+            this.tokens.push(action.token);
+            this.syncToken(action.token);
+        } else if (action.type === 'create') {
+            const idx = this.tokens.findIndex(x => x.id === action.tokenId);
+            if (idx !== -1) {
+                if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/tokens/' + action.tokenId).remove();
+                this.tokens.splice(idx, 1);
+            }
+        }
+        this.renderTokens();
+        this.renderInitiative();
+        this.renderTokenSidebar();
+        this.toast('Token-Aktion rückgängig');
+    },
+    
+    redoToken() {
+        if (!this._tokenHistory || this._tokenHistoryIdx >= this._tokenHistory.length - 1) return;
+        this._tokenHistoryIdx++;
+        const action = this._tokenHistory[this._tokenHistoryIdx];
+        
+        if (action.type === 'move') {
+            const t = this.tokens.find(x => x.id === action.tokenId);
+            if (t) { t.x = action.to.x; t.y = action.to.y; this.syncToken(t); }
+        } else if (action.type === 'hp') {
+            const t = this.tokens.find(x => x.id === action.tokenId);
+            if (t) { t.hp = action.to; this.syncToken(t); }
+        } else if (action.type === 'delete') {
+            const idx = this.tokens.findIndex(x => x.id === action.token.id);
+            if (idx !== -1) {
+                if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/tokens/' + action.token.id).remove();
+                this.tokens.splice(idx, 1);
+            }
+        } else if (action.type === 'create') {
+            const t = action.token;
+            this.tokens.push(t);
+            this.syncToken(t);
+        }
+        this.renderTokens();
+        this.renderInitiative();
+        this.renderTokenSidebar();
+        this.toast('Token-Aktion wiederhergestellt');
     },
     
     toast(msg) {
