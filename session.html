@@ -3005,6 +3005,19 @@
             
             // GM Card (always first if we have GM data)
             const gmData = sessionData.gm || { name: sessionData.gmName || 'Game Master', color: '#FF4655' };
+            
+            // Enrich GM avatar from available sources
+            if (!gmData.avatar) {
+                // If current user is GM, use their avatar from localStorage
+                if (isGM) {
+                    const localUser = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                    gmData.avatar = localUser.avatar || localUser.photoURL || null;
+                }
+                // Try Firebase auth photoURL
+                if (!gmData.avatar && isGM && firebase?.auth()?.currentUser?.photoURL) {
+                    gmData.avatar = firebase.auth().currentUser.photoURL;
+                }
+            }
             html += `
                 <div class="party-card party-card--gm">
                     <span class="party-card__gm-badge">GM</span>
@@ -3951,9 +3964,19 @@
                         await CharacterStorage.syncToRoom(selectedChar);
                     }
                     
-                    // 2. Set as active character for this user in the room
-                    await RIFT.rooms.assignCharacterToMember(currentRoomCode, userId, charId);
-                    console.log('[Session] Character assigned in Room Members:', charId);
+                    // 2. Write full character data to member doc (players have write access to their own member doc)
+                    const db = RIFT.firebase.getFirestore();
+                    if (db) {
+                        const normalizedCode = currentRoomCode.replace('-', '').toUpperCase();
+                        await db.collection('rooms').doc(normalizedCode)
+                            .collection('members').doc(userId)
+                            .update({
+                                assignedCharacterId: charId,
+                                sessionCharacter: partyChar,  // Full character data for session merging
+                                sessionId: sessionData.id
+                            });
+                        console.log('[Session] Character data saved to member doc:', charId);
+                    }
                 } catch (e) {
                     console.warn('[Session] Room sync failed (non-critical):', e);
                 }
@@ -4440,6 +4463,57 @@
         // LOAD SESSION
         // ========================================
         
+        // Merge player character assignments from room member docs into sessionData
+        async function mergePlayerCharactersFromMembers() {
+            if (!currentRoomCode || !RIFT?.rooms || !sessionData) return;
+            
+            try {
+                const members = await RIFT.rooms.getRoomMembers(currentRoomCode);
+                if (!members || !members.length) return;
+                
+                const existingParty = sessionData.partyCharacters || [];
+                let merged = [...existingParty];
+                let changed = false;
+                
+                for (const member of members) {
+                    // Skip members without character data for this session
+                    if (!member.sessionCharacter || member.sessionId !== sessionData.id) continue;
+                    
+                    const charData = member.sessionCharacter;
+                    const existingIdx = merged.findIndex(c => c.ownerId === member.id);
+                    
+                    if (existingIdx >= 0) {
+                        // Update existing entry if member doc is newer
+                        if (charData.assignedAt > (merged[existingIdx].assignedAt || 0)) {
+                            merged[existingIdx] = charData;
+                            changed = true;
+                        }
+                    } else {
+                        // Add new character from member doc
+                        merged.push(charData);
+                        changed = true;
+                    }
+                }
+                
+                if (changed) {
+                    sessionData.partyCharacters = merged;
+                    console.log('[Session] Merged', merged.length, 'party characters from member docs');
+                    
+                    // If GM, persist the merged data back to Firebase session doc
+                    if (isGM) {
+                        try {
+                            await saveSession();
+                            console.log('[Session] GM persisted merged party to Firebase');
+                        } catch (e) {
+                            console.warn('[Session] Could not persist merged party:', e);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[Session] Member merge failed (non-critical):', e);
+            }
+        }
+        
         async function loadSession() {
             // Finde main__content und erstelle/leere sessionContent
             const mainContent = document.querySelector('.main__content');
@@ -4493,6 +4567,11 @@
                     
                     if (sessionData) {
                         console.log('[Session] Loaded from Firebase:', sessionData.name);
+                        
+                        // Merge character assignments from room members
+                        // (players save their characters to their own member doc)
+                        await mergePlayerCharactersFromMembers();
+                        
                         renderSessionPage();
                         subscribeToSession();
                         return;
@@ -4525,13 +4604,16 @@
             
             sessionUnsubscribe = db.collection('rooms').doc(normalizedCode)
                 .collection('sessions').doc(sessionId)
-                .onSnapshot(doc => {
+                .onSnapshot(async doc => {
                     if (doc.exists) {
                         const newData = { id: doc.id, ...doc.data() };
                         console.log('[Session] Realtime update:', newData.status);
                         
                         const statusChanged = sessionData?.status !== newData.status;
                         sessionData = newData;
+                        
+                        // Merge player characters from member docs
+                        await mergePlayerCharactersFromMembers();
                         
                         renderSessionPage();
                     }
