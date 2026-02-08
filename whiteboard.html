@@ -159,7 +159,7 @@
         /* Movement & Range Radius Indicators */
         .wb-radius-indicator { position: absolute; border-radius: 50%; pointer-events: none; z-index: 45; display: none; transform: translate(-50%, -50%); }
         .wb-radius-indicator.visible { display: block; }
-        .wb-radius-move { border: 2px dashed rgba(34,197,94,0.5); background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, rgba(34,197,94,0.02) 70%, transparent 100%); }
+        .wb-radius-move { border: 3px dashed rgba(34,197,94,0.7); background: radial-gradient(circle, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.05) 70%, transparent 100%); box-shadow: 0 0 12px rgba(34,197,94,0.2), inset 0 0 20px rgba(34,197,94,0.05); }
         .wb-radius-move__label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(22,22,22,0.9); color: #22c55e; padding: 2px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; font-weight: 600; }
         .wb-radius-range { border: 2px dotted rgba(239,68,68,0.4); background: radial-gradient(circle, rgba(239,68,68,0.04) 0%, transparent 100%); }
         .wb-radius-origin { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6); pointer-events: none; z-index: 46; display: none; transform: translate(-50%, -50%); }
@@ -1860,8 +1860,21 @@ const WB = {
         const isToken = hit.type === 'token';
         const token = isToken ? hit.item : null;
         
+        // Check if this token is part of a multi-selection
+        const isMulti = isToken && this.multiSelected.length > 1 && this.multiSelected.includes(token);
+        const multiTokens = isMulti ? this.multiSelected : (isToken ? [token] : []);
+        
         // Build context menu dynamically
-        if (isToken) {
+        if (isToken && isMulti) {
+            // Multi-select token menu - group actions only
+            html += `<div style="padding:4px 14px;font-size:11px;color:rgba(255,255,255,0.4)">${multiTokens.length} Tokens ausgewählt</div>`;
+            html += `<div class="wb-context-divider"></div>`;
+            html += `<button class="wb-context-item" data-action="multi-damage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>Schaden (alle)</button>`;
+            html += `<button class="wb-context-item" data-action="multi-heal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>Heilen (alle)</button>`;
+            html += `<div class="wb-context-divider"></div>`;
+            html += `<button class="wb-context-item" data-action="multi-duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren (alle)</button>`;
+            html += `<button class="wb-context-item wb-context-item--danger" data-action="multi-delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen (alle)</button>`;
+        } else if (isToken) {
             // Token-specific menu
             html += `<button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button>`;
             if (token.maxHp > 0) {
@@ -1919,6 +1932,57 @@ const WB = {
                         this.renderTokenSidebar();
                         this.toast(`${token.name}: +${parseInt(amount)} HP (${token.hp}/${token.maxHp})`);
                     }
+                }
+                // Multi-select group actions
+                else if (action === 'multi-damage') {
+                    const amount = prompt(`Schaden für ${multiTokens.length} Tokens:`, '1');
+                    if (amount && !isNaN(parseInt(amount))) {
+                        const dmg = parseInt(amount);
+                        multiTokens.forEach(tk => {
+                            if (tk.maxHp > 0) { tk.hp = Math.max(0, tk.hp - dmg); this.syncToken(tk); }
+                        });
+                        this.renderTokens(); this.renderInitiative(); this.renderTokenSidebar();
+                        this.toast(`${multiTokens.length} Tokens: -${dmg} HP`);
+                    }
+                }
+                else if (action === 'multi-heal') {
+                    const amount = prompt(`Heilung für ${multiTokens.length} Tokens:`, '1');
+                    if (amount && !isNaN(parseInt(amount))) {
+                        const heal = parseInt(amount);
+                        multiTokens.forEach(tk => {
+                            if (tk.maxHp > 0) { tk.hp = Math.min(tk.maxHp, tk.hp + heal); this.syncToken(tk); }
+                        });
+                        this.renderTokens(); this.renderInitiative(); this.renderTokenSidebar();
+                        this.toast(`${multiTokens.length} Tokens: +${heal} HP`);
+                    }
+                }
+                else if (action === 'multi-duplicate') {
+                    multiTokens.forEach(tk => {
+                        const copy = JSON.parse(JSON.stringify(tk));
+                        copy.id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                        copy.x = tk.x + this.gridSize;
+                        copy.y = tk.y + this.gridSize;
+                        copy.name = tk.name + ' (K)';
+                        this.tokens.push(copy);
+                        this.syncToken(copy);
+                    });
+                    this.multiSelected = [];
+                    this.renderTokens(); this.renderTokenSidebar();
+                    this.toast(`${multiTokens.length} Tokens dupliziert`);
+                }
+                else if (action === 'multi-delete') {
+                    if (!confirm(`${multiTokens.length} Tokens löschen?`)) { m.classList.remove('visible'); return; }
+                    multiTokens.forEach(tk => {
+                        const idx = this.tokens.findIndex(t2 => t2.id === tk.id);
+                        if (idx !== -1) {
+                            this.tokens.splice(idx, 1);
+                            if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/tokens/' + tk.id).remove();
+                        }
+                    });
+                    this.multiSelected = [];
+                    this.deselect();
+                    this.renderTokens(); this.renderInitiative(); this.renderTokenSidebar();
+                    this.toast(`${multiTokens.length} Tokens gelöscht`);
                 }
                 m.classList.remove('visible');
             };
@@ -3221,14 +3285,13 @@ const WB = {
                     <div class="wb-initiative-item__name">${t.name || 'Token'}</div>
                     <div class="wb-initiative-item__hp">${t.maxHp ? `HP: ${t.hp}/${t.maxHp}` : ''} ${t.ac ? `AC: ${t.ac}` : ''}</div>
                 </div>
-                <div class="wb-initiative-item__init">
-                    <input type="number" value="${t.initiative ?? ''}" style="width:100%;background:transparent;border:none;color:white;text-align:center;font-weight:700">
+                <div class="wb-initiative-item__init" style="display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:white;min-width:32px">
+                    ${t.initiative ?? ''}
                 </div>
             `;
             
             // Click to make active turn
             item.onclick = e => {
-                if (e.target.tagName === 'INPUT') return;
                 this.initiativeActive = t.id;
                 this.renderTokens();
                 this.renderInitiative();
@@ -3238,14 +3301,11 @@ const WB = {
                 this.startAnimation();
             };
             
-            // Initiative input change
-            const input = item.querySelector('input');
-            input.onchange = () => {
-                t.initiative = input.value === '' ? null : parseInt(input.value);
-                this.syncToken(t);
-                this.renderTokens();
+            // Double-click to edit initiative via token edit modal
+            item.ondblclick = e => {
+                e.stopPropagation();
+                this.showTokenEditModal(t);
             };
-            input.onclick = e => e.stopPropagation();
             
             list.appendChild(item);
         });
@@ -3323,8 +3383,6 @@ const WB = {
     
     // ==================== FOCUS TOOL ====================
     createFocus(wx, wy, rx, ry) {
-        // Local visual
-        this.createPing(rx, ry, wx, wy);
         // Broadcast focus command to all users
         if (this.db && this.roomCode) {
             this.db.ref('whiteboard/' + this.roomCode + '/focus').set({
@@ -3333,6 +3391,8 @@ const WB = {
                 ts: Date.now()
             });
         }
+        // Apply focus locally too
+        this.applyFocus({ wx, wy });
         this.toast('Fokus gesetzt');
     },
     
@@ -4986,48 +5046,263 @@ const WB = {
         this.toast('Whiteboard geleert');
     },
     
-    exportPNG() {
+    async exportPNG() {
+        this.toast('Screenshot wird erstellt...');
+        
+        const wrapper = document.getElementById('canvasWrapper');
+        const ww = wrapper.offsetWidth;
+        const wh = wrapper.offsetHeight;
+        const dpr = window.devicePixelRatio || 1;
+        
         const canvas = document.createElement('canvas');
-        canvas.width = this.bgCanvas.width;
-        canvas.height = this.bgCanvas.height;
+        canvas.width = ww * dpr;
+        canvas.height = wh * dpr;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(this.bgCanvas, 0, 0);
-        ctx.drawImage(this.mainCanvas, 0, 0);
-        // Draw images
-        this.images.forEach(img => {
-            const el = new Image();
-            el.src = img.src;
-            ctx.drawImage(el, img.x * this.zoom + this.panX, img.y * this.zoom + this.panY, img.w * this.zoom, img.h * this.zoom);
+        ctx.scale(dpr, dpr);
+        
+        // 1. Background canvas
+        ctx.drawImage(this.bgCanvas, 0, 0, ww, wh);
+        
+        // 2. Grid lines (if visible)
+        const gridEl = document.getElementById('wbGrid');
+        if (gridEl && gridEl.classList.contains('visible')) {
+            const size = this.gridSize * this.zoom;
+            const ox = this.gridOffsetX * this.zoom + this.panX;
+            const oy = this.gridOffsetY * this.zoom + this.panY;
+            ctx.strokeStyle = this.gridColor || 'rgba(0,0,0,0.25)';
+            ctx.lineWidth = 1;
+            const startX = ox % size; const startY = oy % size;
+            ctx.globalAlpha = parseFloat(getComputedStyle(gridEl).opacity) || 0.5;
+            for (let x = startX; x < ww; x += size) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, wh); ctx.stroke();
+            }
+            for (let y = startY; y < wh; y += size) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(ww, y); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
+        
+        // 3. Strokes (main canvas)
+        ctx.drawImage(this.mainCanvas, 0, 0, ww, wh);
+        
+        // 4. Images
+        const imgPromises = this.images.map(img => {
+            return new Promise(resolve => {
+                const el = new Image();
+                el.crossOrigin = 'anonymous';
+                el.onload = () => {
+                    const x = img.x * this.zoom + this.panX;
+                    const y = img.y * this.zoom + this.panY;
+                    ctx.drawImage(el, x, y, img.w * this.zoom, img.h * this.zoom);
+                    resolve();
+                };
+                el.onerror = () => resolve();
+                el.src = img.src;
+            });
         });
-        // Draw tokens
-        this.tokens.forEach(t => {
-            ctx.fillStyle = t.color;
+        await Promise.all(imgPromises);
+        
+        // 5. Tokens - full visual rendering
+        const statusSvgs = {
+            dead: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 8l8 8M16 8l-8 8"/></svg>',
+            unconscious: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 15s0-3 4-3 4 3 4 3"/></svg>',
+            poisoned: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>',
+            burning: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><path d="M12 22c-4-3-8-6-8-11a8 8 0 0 1 16 0c0 5-4 8-8 11z"/></svg>',
+            frozen: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+            stunned: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+            invisible: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
+            blessed: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+            cursed: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+            prone: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M4 16h16M8 12h8M6 8h12"/></svg>',
+            grappled: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg>',
+            concentrating: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
+        };
+        
+        // Helper to render SVG string to image
+        const svgToImg = (svgStr, size) => {
+            return new Promise(resolve => {
+                const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => { resolve(img); URL.revokeObjectURL(url); };
+                img.onerror = () => { resolve(null); URL.revokeObjectURL(url); };
+                img.src = url;
+            });
+        };
+        
+        // Load all token portrait images first
+        const tokenImgMap = {};
+        const portraitLoads = this.tokens.filter(t => t.img).map(t => {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => { tokenImgMap[t.id] = img; resolve(); };
+                img.onerror = () => resolve();
+                img.src = t.img;
+            });
+        });
+        await Promise.all(portraitLoads);
+        
+        // Pre-render all needed status SVGs
+        const statusImgCache = {};
+        for (const [key, svg] of Object.entries(statusSvgs)) {
+            statusImgCache[key] = await svgToImg(svg, 18);
+        }
+        
+        // Draw each token
+        for (const t of this.tokens) {
+            const displaySize = t.size * this.zoom;
+            const cx = t.x * this.zoom + this.panX;
+            const cy = t.y * this.zoom + this.panY;
+            const r = displaySize / 2;
+            const isDead = t.status?.includes('dead') || (t.hp !== undefined && t.hp <= 0);
+            const isActive = this.initiativeActive === t.id;
+            
+            ctx.save();
+            
+            // Dead token opacity
+            if (isDead) ctx.globalAlpha = 0.5;
+            
+            // Active turn glow
+            if (isActive) {
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 15;
+            }
+            
+            // Token circle background + border
             ctx.beginPath();
-            ctx.arc(t.x * this.zoom + this.panX, t.y * this.zoom + this.panY, t.size / 2, 0, Math.PI * 2);
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.closePath();
+            
+            // Fill with color
+            ctx.fillStyle = t.color || '#8b5cf6';
             ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 3;
+            
+            // Portrait image (clipped to circle)
+            if (tokenImgMap[t.id]) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, r - 2, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(tokenImgMap[t.id], cx - r + 2, cy - r + 2, (r - 2) * 2, (r - 2) * 2);
+                ctx.restore();
+            } else {
+                // Letter label
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${displaySize * 0.4}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(t.label || (t.name ? t.name.charAt(0) : '?'), cx, cy);
+            }
+            
+            // Border
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = t.borderColor || '#8b5cf6';
+            ctx.lineWidth = Math.max(2, displaySize * 0.06);
             ctx.stroke();
+            
+            // HP bar
+            if (t.maxHp && t.maxHp > 0) {
+                const barW = displaySize * 0.8;
+                const barH = Math.max(4, displaySize * 0.08);
+                const barX = cx - barW / 2;
+                const barY = cy + r - barH + 2;
+                const hpPct = Math.max(0, Math.min(1, t.hp / t.maxHp));
+                // Background
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.beginPath();
+                ctx.roundRect(barX, barY, barW, barH, barH / 2);
+                ctx.fill();
+                // Fill
+                if (hpPct > 0) {
+                    ctx.fillStyle = hpPct <= 0.25 ? '#ef4444' : hpPct <= 0.5 ? '#f59e0b' : '#22c55e';
+                    ctx.beginPath();
+                    ctx.roundRect(barX, barY, barW * hpPct, barH, barH / 2);
+                    ctx.fill();
+                }
+            }
+            
+            // Name label
+            const nameY = cy + r + (t.maxHp && t.maxHp > 0 ? 18 : 14);
             ctx.fillStyle = 'white';
-            ctx.font = 'bold ' + (t.size * 0.4) + 'px sans-serif';
+            ctx.font = `600 ${Math.max(10, displaySize * 0.2)}px sans-serif`;
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(t.label, t.x * this.zoom + this.panX, t.y * this.zoom + this.panY);
-        });
+            ctx.textBaseline = 'top';
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 3;
+            ctx.fillText(t.name || '', cx, nameY);
+            ctx.shadowBlur = 0;
+            
+            // Initiative badge
+            if (t.initiative != null && t.initiative !== '') {
+                const badgeR = Math.max(10, displaySize * 0.2);
+                const bx = cx + r - badgeR * 0.3;
+                const by = cy - r + badgeR * 0.3;
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.font = `bold ${badgeR * 1.1}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(t.initiative), bx, by);
+            }
+            
+            // Status effects
+            if (t.status && t.status.length > 0) {
+                const iconSize = Math.max(14, displaySize * 0.25);
+                let sx = cx - r - 4;
+                let sy = cy - r - 4;
+                for (const s of t.status) {
+                    const sImg = statusImgCache[s];
+                    if (sImg) {
+                        // Background circle
+                        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                        ctx.beginPath();
+                        ctx.arc(sx + iconSize / 2, sy + iconSize / 2, iconSize / 2 + 1, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        ctx.drawImage(sImg, sx + 2, sy + 2, iconSize - 4, iconSize - 4);
+                    }
+                    sx += iconSize + 2;
+                }
+            }
+            
+            ctx.restore();
+        }
+        
+        // 6. Fog of war
+        if (this.fogAreas && this.fogAreas.length > 0) {
+            ctx.fillStyle = 'rgba(0,0,0,0.85)';
+            this.fogAreas.forEach(f => {
+                ctx.fillRect(f.x * this.zoom + this.panX, f.y * this.zoom + this.panY, f.w * this.zoom, f.h * this.zoom);
+            });
+        }
+        
+        // Download
         const link = document.createElement('a');
         link.download = 'whiteboard-' + Date.now() + '.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
-        this.toast('PNG exportiert');
+        this.toast('Screenshot exportiert');
     },
     
     // ==================== KEYBOARD ====================
     setupKeyboard() {
         document.addEventListener('keydown', e => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            // Don't process tool shortcuts while overlays are open
+            const overlayOpen = document.querySelector('.wb-overlay.visible');
             
             if (e.ctrlKey && e.key === 'z') { e.preventDefault(); this.undo(); }
             if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) { e.preventDefault(); this.redo(); }
+            
+            if (overlayOpen) return; // Block tool shortcuts while modal open
             
             const toolMap = { p: 'pen', l: 'line', r: 'rect', c: 'circle', a: 'arrow', t: 'text', e: 'eraser', v: 'select', m: 'ruler', f: 'focus' };
             const _key = e.key.toLowerCase();
