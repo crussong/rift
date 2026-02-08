@@ -298,7 +298,7 @@
         .wb-lib-item:hover .wb-lib-item__delete { display: flex; }
         
         /* Token Sidebar */
-        .wb-token-sidebar { position: absolute; top: 70px; left: 16px; background: rgba(22,22,22,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; z-index: 100; width: 280px; max-height: calc(100vh - 100px); display: none; overflow: hidden; backdrop-filter: blur(12px); }
+        .wb-token-sidebar { position: absolute; top: 70px; left: 16px; background: rgba(22,22,22,0.88); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; z-index: 100; width: 280px; max-height: calc(100vh - 100px); display: none; overflow: hidden; backdrop-filter: blur(12px); }
         .wb-token-sidebar.visible { display: flex; flex-direction: column; }
         .wb-token-sidebar.collapsed .wb-token-sidebar__body { display: none; }
         .wb-token-sidebar.collapsed { max-height: none !important; height: auto !important; }
@@ -310,8 +310,11 @@
         .wb-token-sidebar__close:hover { background: rgba(255,255,255,0.1); color: white; }
         .wb-token-sidebar__body { overflow-y: auto; flex: 1; padding: 8px; }
         .wb-token-sidebar__group { margin-bottom: 6px; }
-        .wb-token-sidebar__group-header { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; border-radius: 6px; }
+        .wb-token-sidebar__group-header { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; border-radius: 6px; user-select: none; }
         .wb-token-sidebar__group-header:hover { background: rgba(255,255,255,0.05); }
+        .wb-token-sidebar__group-header .wb-group-arrow { transition: transform 0.15s; font-size: 8px; }
+        .wb-token-sidebar__group.collapsed .wb-group-arrow { transform: rotate(-90deg); }
+        .wb-token-sidebar__group.collapsed .wb-token-sidebar__item { display: none; }
         .wb-token-sidebar__group-count { background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 8px; font-size: 9px; }
         .wb-token-sidebar__item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
         .wb-token-sidebar__item:hover { background: rgba(255,255,255,0.06); }
@@ -425,7 +428,7 @@
         .wb-toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
         
         /* Initiative Panel */
-        .wb-initiative-panel { position: absolute; top: 70px; right: 16px; background: rgba(22,22,22,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 0; z-index: 100; min-width: 200px; max-height: 60vh; display: none; overflow: hidden; }
+        .wb-initiative-panel { position: absolute; top: 70px; right: 16px; background: rgba(22,22,22,0.88); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 0; z-index: 100; min-width: 200px; max-height: 60vh; display: none; overflow: hidden; backdrop-filter: blur(12px); }
         .wb-initiative-panel.visible { display: flex; flex-direction: column; }
         .wb-initiative-panel.collapsed #initiativeList { display: none; }
         .wb-initiative-panel.collapsed .wb-initiative-panel__controls button:not(#initCollapseBtn):not(#initCloseBtn) { display: none; }
@@ -850,7 +853,6 @@
                             <button class="wb-initiative-panel__btn" id="initPrevBtn" title="Vorheriger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
                             <button class="wb-initiative-panel__btn" id="initNextBtn" title="Nächster"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
                             <button class="wb-initiative-panel__btn" id="initSortBtn" title="Sortieren"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"/></svg></button>
-                            <button class="wb-initiative-panel__btn" id="initResetBtn" title="Zurücksetzen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
                             <button class="wb-initiative-panel__btn" id="initCollapseBtn" title="Ein-/Ausklappen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
                             <button class="wb-initiative-panel__btn" id="initCloseBtn" title="Schliessen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                         </div>
@@ -2088,6 +2090,7 @@ const WB = {
             this.hideMoveRadius();
             this._dragOrigin = null;
             this._auraDragMove = null;
+            this._noteDrag = null;
             return;
         }
         
@@ -2132,7 +2135,7 @@ const WB = {
             color: this.tool === 'eraser' ? '#0a0a0a' : (isFogPlace ? 'rgba(0,0,0,1)' : (isFogReveal ? 'rgba(255,255,255,1)' : this.color)),
             size: this.tool === 'eraser' ? this.size * 4 : this.size,
             fill: (isFogPlace || isFogReveal) ? true : this.fill,
-            fogReveal: isFogReveal || undefined,
+            fogReveal: isFogReveal || false,
             path: ['pen', 'eraser'].includes(this.tool) ? [...this.currentPath] : null,
             start: this.startPoint, end: end,
             userId: this.userId, ts: Date.now()
@@ -2965,7 +2968,7 @@ const WB = {
             layer: this.layer, tool: 'polygon',
             color: isFogPlace ? 'rgba(0,0,0,1)' : (isFogReveal ? 'rgba(255,255,255,1)' : this.color),
             size: this.size, fill: (isFogPlace || isFogReveal) ? true : this.fill,
-            fogReveal: isFogReveal || undefined,
+            fogReveal: isFogReveal || false,
             points: [...this.polygonPoints], userId: this.userId, ts: Date.now()
         };
         this.addStroke(s);
@@ -3068,6 +3071,7 @@ const WB = {
         c.innerHTML = '';
         this.tokens.forEach((t, i) => {
             const el = document.createElement('div');
+            el.dataset.id = t.id;
             const isSelected = this.selected?.type === 'token' && this.selected?.item === t;
             const isActiveTurn = this.initiativeActive === t.id;
             const isDead = t.status?.includes('dead') || (t.hp !== undefined && t.hp <= 0);
@@ -3809,7 +3813,6 @@ const WB = {
         document.getElementById('initNextBtn').onclick = () => this.nextTurn();
         document.getElementById('initPrevBtn').onclick = () => this.prevTurn();
         document.getElementById('initSortBtn').onclick = () => this.sortInitiative();
-        document.getElementById('initResetBtn').onclick = () => this.resetInitiative();
         document.getElementById('initCollapseBtn').onclick = () => {
             const panel = document.getElementById('initiativePanel');
             panel.classList.toggle('collapsed');
@@ -4086,21 +4089,22 @@ const WB = {
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 1) { token.x = targetX; token.y = targetY; this.syncToken(token); this.renderTokens(); this.select({ type: 'token', item: token }); return; }
         
-        const duration = Math.min(800, Math.max(350, dist * 1.2)); // 350-800ms based on distance
+        // Clear any remote animation state
+        delete token._animTarget; delete token._animStart; delete token._animTime; delete token._animDuration;
+        
+        const duration = Math.min(800, Math.max(350, dist * 1.2));
         const startTime = performance.now();
         let lastSync = 0;
         
         const animate = (now) => {
             const elapsed = now - startTime;
             const progress = Math.min(1, elapsed / duration);
-            // Ease in-out cubic for smoother feel
             const ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
             
             token.x = startX + dx * ease;
             token.y = startY + dy * ease;
-            this.renderTokens();
+            this._repositionTokenDOM(token);
             
-            // Sync intermediate positions for smooth remote viewing (~8fps)
             if (now - lastSync > 120 && progress < 1) {
                 lastSync = now;
                 this.syncToken(token);
@@ -4113,7 +4117,6 @@ const WB = {
                 token.y = targetY;
                 this.syncToken(token);
                 this.renderTokens();
-                // Update selection box to new position
                 this.select({ type: 'token', item: token });
             }
         };
@@ -4122,11 +4125,12 @@ const WB = {
     
     animateMultiTokenMove(targets) {
         if (!targets.length) return;
-        // Find max distance for duration
         let maxDist = 0;
         targets.forEach(t => {
             const d = Math.sqrt((t.targetX - t.startX) ** 2 + (t.targetY - t.startY) ** 2);
             if (d > maxDist) maxDist = d;
+            // Clear any remote animation state
+            delete t.token._animTarget; delete t.token._animStart; delete t.token._animTime; delete t.token._animDuration;
         });
         if (maxDist < 1) {
             targets.forEach(t => { t.token.x = t.targetX; t.token.y = t.targetY; this.syncToken(t.token); });
@@ -4145,8 +4149,8 @@ const WB = {
             targets.forEach(t => {
                 t.token.x = t.startX + (t.targetX - t.startX) * ease;
                 t.token.y = t.startY + (t.targetY - t.startY) * ease;
+                this._repositionTokenDOM(t.token);
             });
-            this.renderTokens();
             
             if (now - lastSync > 120 && progress < 1) {
                 lastSync = now;
@@ -4164,6 +4168,17 @@ const WB = {
             }
         };
         requestAnimationFrame(animate);
+    },
+    
+    // Fast DOM reposition for token animation (avoids full rebuild)
+    _repositionTokenDOM(token) {
+        const c = document.getElementById('tokensContainer');
+        const el = c.querySelector(`[data-id="${token.id}"]`);
+        if (!el) return;
+        const displaySize = token.size * this.zoom;
+        const x = token.x * this.zoom + this.panX - displaySize / 2;
+        const y = token.y * this.zoom + this.panY - displaySize / 2;
+        el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     },
     
     // ==================== MARQUEE MULTI-SELECT ====================
@@ -4780,11 +4795,15 @@ const WB = {
         }
         
         let html = '';
+        if (!this._collapsedGroups) this._collapsedGroups = {};
+        
         for (const [type, group] of Object.entries(groups)) {
             if (group.tokens.length === 0) continue;
+            const isCollapsed = this._collapsedGroups[type];
             
-            html += `<div class="wb-token-sidebar__group">`;
-            html += `<div class="wb-token-sidebar__group-header">
+            html += `<div class="wb-token-sidebar__group${isCollapsed ? ' collapsed' : ''}" data-group="${type}">`;
+            html += `<div class="wb-token-sidebar__group-header" data-toggle-group="${type}">
+                <svg class="wb-group-arrow" width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6"/></svg>
                 <span>${group.label}</span>
                 <span class="wb-token-sidebar__group-count">${group.tokens.length}</span>
             </div>`;
@@ -4822,6 +4841,16 @@ const WB = {
         }
         
         body.innerHTML = html;
+        
+        // Group collapse toggle
+        body.querySelectorAll('[data-toggle-group]').forEach(hdr => {
+            hdr.onclick = e => {
+                const type = hdr.dataset.toggleGroup;
+                const grp = hdr.closest('.wb-token-sidebar__group');
+                if (grp) grp.classList.toggle('collapsed');
+                this._collapsedGroups[type] = grp?.classList.contains('collapsed') || false;
+            };
+        });
         
         // Wire up click handlers
         body.querySelectorAll('.wb-token-sidebar__item').forEach(item => {
@@ -6226,7 +6255,7 @@ const WB = {
         this.firebaseListeners = [];
     },
     
-    syncStroke(s) { if (!this.db || !this.roomCode) return; this.db.ref('whiteboard/' + this.roomCode + '/strokes/' + s.id).set(s); },
+    syncStroke(s) { if (!this.db || !this.roomCode) return; const clean = JSON.parse(JSON.stringify(s)); this.db.ref('whiteboard/' + this.roomCode + '/strokes/' + s.id).set(clean); },
     syncToken(t) { if (!this.db || !this.roomCode) return; this.db.ref('whiteboard/' + this.roomCode + '/tokens/' + t.id).set(t); },
     syncPing(wx, wy) {
         if (!this.db || !this.roomCode) return;
@@ -6706,6 +6735,39 @@ const WB = {
                     e.preventDefault(); e.stopPropagation();
                     this._contextHit = { type: 'note', item: n, index: this._notes.indexOf(n) };
                     this.onContext(e);
+                };
+                // Drag to move note (raw coords, no snap)
+                el.onmousedown = e => {
+                    if (e.button !== 0) return;
+                    e.preventDefault(); e.stopPropagation();
+                    this.select({ type: 'note', item: n, index: this._notes.indexOf(n) });
+                    const startPoint = this.getPoint(e);
+                    this._noteDrag = { note: n };
+                    this.isDragging = true;
+                    this.lastDragPoint = startPoint;
+                    
+                    const onNoteMove = ev => {
+                        if (!this._noteDrag) return;
+                        const p = this.getPoint(ev);
+                        const dx = p.rawX - this.lastDragPoint.rawX;
+                        const dy = p.rawY - this.lastDragPoint.rawY;
+                        this._noteDrag.note.x += dx;
+                        this._noteDrag.note.y += dy;
+                        this.lastDragPoint = p;
+                        this.renderNotes();
+                    };
+                    const onNoteUp = () => {
+                        if (this._noteDrag) {
+                            this.syncNote(this._noteDrag.note);
+                            this._noteDrag = null;
+                        }
+                        this.isDragging = false;
+                        this.lastDragPoint = null;
+                        window.removeEventListener('mousemove', onNoteMove);
+                        window.removeEventListener('mouseup', onNoteUp);
+                    };
+                    window.addEventListener('mousemove', onNoteMove);
+                    window.addEventListener('mouseup', onNoteUp);
                 };
             }
 
