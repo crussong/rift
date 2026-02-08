@@ -226,7 +226,7 @@
         .wb-marquee.visible { display: block; }
         
         /* Token drag line */
-        .wb-drag-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 48; }
+        .wb-drag-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 55; overflow: visible; }
         
         /* Token Library */
         .wb-lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; max-height: 300px; overflow-y: auto; padding: 4px; }
@@ -256,6 +256,7 @@
         .wb-token-sidebar__item:hover { background: rgba(255,255,255,0.06); }
         .wb-token-sidebar__item.active { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); }
         .wb-token-sidebar__item.dead { opacity: 0.4; }
+        .wb-token-sidebar__item.multi-selected { background: rgba(139,92,246,0.1); outline: 1px solid rgba(139,92,246,0.4); }
         .wb-token-sidebar__portrait { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 14px; border: 2px solid rgba(255,255,255,0.2); overflow: hidden; }
         .wb-token-sidebar__portrait img { width: 100%; height: 100%; object-fit: cover; }
         .wb-token-sidebar__info { flex: 1; min-width: 0; }
@@ -468,6 +469,8 @@
                             <button class="wb-btn" id="cursorToggleBtn" title="Mauszeiger anzeigen/verbergen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-6 2-2 6z"/><path d="M14 14l5 5"/></svg></button>
                             <button class="wb-btn" id="toolbarLockBtn" title="Werkzeuge f. Spieler sperren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
                             <button class="wb-btn" id="initiativeBtn" title="Initiative Tracker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+                            <button class="wb-btn" id="effectsBtn" title="Effekte (GM Kontrollzentrum)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></button>
+                            <button class="wb-btn" id="broadcastBtn" title="Broadcast (GM Kontrollzentrum)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg></button>
                             <button class="wb-btn wb-btn--danger" id="clearBtn" title="Löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                         </div>
                     </div>
@@ -496,7 +499,6 @@
                             <div class="wb-resize-handle wb-resize-handle--e" data-handle="e"></div>
                         </div>
                         <div class="wb-marquee" id="marquee"></div>
-                        <svg class="wb-drag-line" id="dragLine" style="display:none"></svg>
                         <!-- Format Toolbar for selected elements -->
                         <div class="wb-format-bar" id="formatBar">
                             <button class="wb-format-bar__btn" id="fmtColorBtn" title="Farbe"><div class="wb-format-bar__color" id="fmtColorPreview" style="background:#ffffff"></div></button>
@@ -1383,24 +1385,24 @@ const WB = {
         
         // Mouse move/up on WINDOW so dragging works when mouse leaves canvas or is over DOM elements
         window.addEventListener('mousemove', e => {
-            if (this.isDragging || this.isDrawing || this.isResizing) {
+            if (this.isDragging || this.isDrawing || this.isResizing || this.isMarquee) {
                 this.onMove(e);
             }
         });
         window.addEventListener('mouseup', e => {
-            if (this.isDragging || this.isDrawing || this.isResizing) {
+            if (this.isDragging || this.isDrawing || this.isResizing || this.isMarquee) {
                 this.onUp(e);
             }
         });
         
         // Also listen on canvas for regular drawing
         ui.addEventListener('mousemove', e => {
-            if (!this.isDragging && !this.isResizing) {
+            if (!this.isDragging && !this.isResizing && !this.isMarquee) {
                 this.onMove(e);
             }
         });
         ui.addEventListener('mouseleave', e => {
-            if (!this.isDragging && !this.isResizing) {
+            if (!this.isDragging && !this.isResizing && !this.isMarquee) {
                 this.onUp(e);
             }
         });
@@ -1485,18 +1487,31 @@ const WB = {
     
     getPoint(e) {
         const r = this.uiCanvas.getBoundingClientRect();
-        let x = (e.clientX - r.left - this.panX) / this.zoom;
-        let y = (e.clientY - r.top - this.panY) / this.zoom;
+        const rawX = (e.clientX - r.left - this.panX) / this.zoom;
+        const rawY = (e.clientY - r.top - this.panY) / this.zoom;
+        let x = rawX, y = rawY;
         if (this.snap) {
             x = Math.round((x - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX;
             y = Math.round((y - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY;
         }
         // rx, ry = relative to canvasWrapper (for DOM elements like ping)
-        return { x, y, sx: e.clientX, sy: e.clientY, rx: e.clientX - r.left, ry: e.clientY - r.top };
+        // rawX, rawY = unsnapped world coords
+        return { x, y, rawX, rawY, sx: e.clientX, sy: e.clientY, rx: e.clientX - r.left, ry: e.clientY - r.top };
     },
     
     onDown(e) {
         if (this.isPanning || this.isResizing || this.spacePressed) return;
+        // Safety cleanup: reset stale states from previous incomplete interactions
+        if (this.isMarquee) {
+            this.isMarquee = false;
+            this.marqueeStart = null;
+            document.getElementById('marquee').classList.remove('visible');
+        }
+        if (this._tokenDrag) {
+            this.hideDragLine();
+            this._tokenDrag = null;
+            this._multiDrag = null;
+        }
         const p = this.getPoint(e);
         this.startPoint = p;
         this.currentPath = [p];
@@ -1514,6 +1529,7 @@ const WB = {
                     this.showMoveRadius(hit.item);
                     this.isDragging = true;
                     this.lastDragPoint = p;
+                    this.uiCanvas.style.zIndex = '52';
                 } else {
                     this.isDragging = true;
                     this.lastDragPoint = p;
@@ -1521,9 +1537,9 @@ const WB = {
             } else {
                 this.deselect();
                 this.multiSelected = [];
-                // Start marquee selection
+                // Start marquee selection - use raw world coords for precision
                 this.isMarquee = true;
-                this.marqueeStart = { rx: p.rx, ry: p.ry, x: p.x, y: p.y };
+                this.marqueeStart = { rx: p.rx, ry: p.ry, x: p.rawX, y: p.rawY };
             }
             return;
         }
@@ -1581,7 +1597,8 @@ const WB = {
         if (this.isDragging && this._tokenDrag) {
             const p = this.getPoint(e);
             const t = this._tokenDrag.token;
-            let targetX = p.x, targetY = p.y;
+            // Use raw (unsnapped) world coords, then snap to field CENTER once
+            let targetX = p.rawX, targetY = p.rawY;
             if (this.snap && this.gridSize) {
                 targetX = Math.floor((targetX - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
                 targetY = Math.floor((targetY - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
@@ -1603,13 +1620,12 @@ const WB = {
                         this.syncToken(tk);
                     }
                 });
+                this.renderTokens();
             } else {
-                t.x = targetX;
-                t.y = targetY;
-                this.syncToken(t);
+                // Animate token to new position
+                this.animateTokenMove(t, targetX, targetY);
             }
             
-            this.renderTokens();
             this.renderInitiative();
             this.renderTokenSidebar();
             this.hideDragLine();
@@ -2438,6 +2454,7 @@ const WB = {
                 this.showMoveRadius(t);
                 this.isDragging = true;
                 this.lastDragPoint = this.getPoint(e);
+                this.uiCanvas.style.zIndex = '52';
             };
             el.ondblclick = e => {
                 e.preventDefault();
@@ -3010,6 +3027,13 @@ const WB = {
             this.renderInitiative();
         };
         
+        document.getElementById('effectsBtn').onclick = () => {
+            window.open('gm.html#effects', '_blank');
+        };
+        document.getElementById('broadcastBtn').onclick = () => {
+            window.open('gm.html#broadcast', '_blank');
+        };
+        
         document.getElementById('initNextBtn').onclick = () => this.nextTurn();
         document.getElementById('initPrevBtn').onclick = () => this.prevTurn();
         document.getElementById('initSortBtn').onclick = () => this.sortInitiative();
@@ -3202,15 +3226,15 @@ const WB = {
     
     // ==================== TOKEN DRAG LINE ====================
     drawDragLine(drag, p) {
-        const svg = document.getElementById('dragLine');
+        const ctx = this.uiCtx;
+        ctx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+        
         const startSX = drag.startX * this.zoom + this.panX;
         const startSY = drag.startY * this.zoom + this.panY;
-        const endSX = p.rx;
-        const endSY = p.ry;
         
-        // Distance in grid squares
-        const dx = p.x - drag.startX;
-        const dy = p.y - drag.startY;
+        // Use raw world coords for distance calc and snap target
+        const dx = p.rawX - drag.startX;
+        const dy = p.rawY - drag.startY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const fields = Math.round(dist / (this.gridSize || 70));
         const maxFields = drag.token.speed || 6;
@@ -3218,24 +3242,106 @@ const WB = {
         const lineColor = drag.token.borderColor || '#8b5cf6';
         const distColor = over ? '#ef4444' : fields === maxFields ? '#f59e0b' : '#22c55e';
         
-        // Mid-point for label
-        const mx = (startSX + endSX) / 2;
-        const my = (startSY + endSY) / 2;
+        // Snapped target for endpoint indicator
+        let snapSX = p.rx, snapSY = p.ry;
+        if (this.snap && this.gridSize) {
+            const snapX = Math.floor((p.rawX - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+            const snapY = Math.floor((p.rawY - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+            snapSX = snapX * this.zoom + this.panX;
+            snapSY = snapY * this.zoom + this.panY;
+        }
         
-        svg.style.display = 'block';
-        svg.innerHTML = `
-            <defs><marker id="arrowDrag" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="${lineColor}" opacity="0.8"/></marker></defs>
-            <line x1="${startSX}" y1="${startSY}" x2="${endSX}" y2="${endSY}" stroke="${lineColor}" stroke-width="3" stroke-dasharray="10 6" opacity="0.7" marker-end="url(#arrowDrag)"/>
-            <circle cx="${endSX}" cy="${endSY}" r="6" fill="${lineColor}" opacity="0.5"/>
-            ${fields > 0 ? `<rect x="${mx - 40}" y="${my - 14}" width="80" height="24" rx="6" fill="rgba(16,16,20,0.9)"/>
-            <text x="${mx}" y="${my + 4}" text-anchor="middle" fill="${distColor}" font-size="12" font-weight="700" font-family="inherit">${fields} / ${maxFields}</text>` : ''}
-        `;
+        // Draw dashed line
+        ctx.save();
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 6]);
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(startSX, startSY);
+        ctx.lineTo(snapSX, snapSY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Arrow at end
+        const angle = Math.atan2(snapSY - startSY, snapSX - startSX);
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = lineColor;
+        ctx.beginPath();
+        ctx.moveTo(snapSX, snapSY);
+        ctx.lineTo(snapSX - 14 * Math.cos(angle - 0.4), snapSY - 14 * Math.sin(angle - 0.4));
+        ctx.lineTo(snapSX - 14 * Math.cos(angle + 0.4), snapSY - 14 * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fill();
+        
+        // Destination circle
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = lineColor;
+        ctx.beginPath();
+        ctx.arc(snapSX, snapSY, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Distance badge
+        if (fields > 0) {
+            const mx = (startSX + snapSX) / 2;
+            const my = (startSY + snapSY) / 2;
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = 'rgba(16,16,20,0.9)';
+            const tw = ctx.measureText(fields + ' / ' + maxFields).width + 20;
+            ctx.beginPath();
+            ctx.roundRect(mx - tw / 2, my - 13, tw, 26, 6);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = distColor;
+            ctx.font = '700 13px inherit';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(fields + ' / ' + maxFields, mx, my);
+        }
+        
+        ctx.restore();
     },
     
     hideDragLine() {
-        const svg = document.getElementById('dragLine');
-        svg.style.display = 'none';
-        svg.innerHTML = '';
+        this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+        this.uiCanvas.style.zIndex = '5';
+    },
+    
+    animateTokenMove(token, targetX, targetY) {
+        const startX = token.x, startY = token.y;
+        const dx = targetX - startX, dy = targetY - startY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1) { token.x = targetX; token.y = targetY; this.syncToken(token); this.renderTokens(); this.select({ type: 'token', item: token }); return; }
+        
+        const duration = Math.min(400, Math.max(150, dist * 0.5)); // 150-400ms based on distance
+        const startTime = performance.now();
+        
+        const animate = (now) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            // Ease out cubic
+            const ease = 1 - Math.pow(1 - progress, 3);
+            
+            token.x = startX + dx * ease;
+            token.y = startY + dy * ease;
+            this.renderTokens();
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                token.x = targetX;
+                token.y = targetY;
+                this.syncToken(token);
+                this.renderTokens();
+                // Update selection box to new position
+                this.select({ type: 'token', item: token });
+            }
+        };
+        requestAnimationFrame(animate);
     },
     
     // ==================== MARQUEE MULTI-SELECT ====================
@@ -3253,12 +3359,12 @@ const WB = {
     },
     
     finishMarquee(start, end) {
-        const minX = Math.min(start.x, end.x);
-        const maxX = Math.max(start.x, end.x);
-        const minY = Math.min(start.y, end.y);
-        const maxY = Math.max(start.y, end.y);
+        const minX = Math.min(start.x, end.rawX);
+        const maxX = Math.max(start.x, end.rawX);
+        const minY = Math.min(start.y, end.rawY);
+        const maxY = Math.max(start.y, end.rawY);
         
-        // If marquee is too small, ignore
+        // If marquee is too small (less than ~5 world units), ignore
         if (Math.abs(maxX - minX) < 5 && Math.abs(maxY - minY) < 5) return;
         
         this.multiSelected = this.tokens.filter(t => {
@@ -3742,10 +3848,12 @@ const WB = {
             group.tokens.forEach(t => {
                 const isDead = t.status?.includes('dead') || (t.maxHp > 0 && t.hp <= 0);
                 const isSelected = this.selected?.type === 'token' && this.selected?.item === t;
+                const isMultiSel = this.multiSelected.includes(t);
                 const hpPercent = t.maxHp ? Math.max(0, Math.min(100, (t.hp / t.maxHp) * 100)) : 0;
                 const hpColor = hpPercent <= 25 ? '#ef4444' : hpPercent <= 50 ? '#f59e0b' : '#22c55e';
                 
-                html += `<div class="wb-token-sidebar__item${isSelected ? ' active' : ''}${isDead ? ' dead' : ''}" data-token-id="${t.id}">
+                html += `<div class="wb-token-sidebar__item${isSelected ? ' active' : ''}${isDead ? ' dead' : ''}${isMultiSel ? ' multi-selected' : ''}" data-token-id="${t.id}">
+                    <input type="checkbox" class="wb-token-sidebar__check" data-check-id="${t.id}" ${isMultiSel ? 'checked' : ''} style="width:14px;height:14px;cursor:pointer;accent-color:#8b5cf6;flex-shrink:0">
                     <div class="wb-token-sidebar__portrait" style="background:${t.img ? 'transparent' : t.color};border-color:${t.borderColor || group.color}">
                         ${t.img ? `<img src="${t.img}">` : `<span>${t.label || '?'}</span>`}
                     </div>
@@ -3775,13 +3883,25 @@ const WB = {
         body.querySelectorAll('.wb-token-sidebar__item').forEach(item => {
             item.onclick = e => {
                 if (e.target.closest('.wb-token-sidebar__hp-btn')) return;
+                if (e.target.closest('.wb-token-sidebar__check')) return; // handled separately
                 const tokenId = item.dataset.tokenId;
                 const token = this.tokens.find(t => t.id === tokenId);
                 if (!token) return;
                 
-                // Select and pan to token
-                const idx = this.tokens.indexOf(token);
-                this.select({ type: 'token', item: token, index: idx });
+                // Ctrl/Cmd+click = toggle multi-select
+                if (e.ctrlKey || e.metaKey) {
+                    const idx = this.multiSelected.indexOf(token);
+                    if (idx >= 0) this.multiSelected.splice(idx, 1);
+                    else this.multiSelected.push(token);
+                    this.renderTokens();
+                    this.renderTokenSidebar();
+                    return;
+                }
+                
+                // Normal click: select and pan to token
+                this.multiSelected = [];
+                const tidx = this.tokens.indexOf(token);
+                this.select({ type: 'token', item: token, index: tidx });
                 this.targetPanX = this.mainCanvas.width / 2 - token.x * this.zoom;
                 this.targetPanY = this.mainCanvas.height / 2 - token.y * this.zoom;
                 this.startAnimation();
@@ -3791,10 +3911,30 @@ const WB = {
             
             item.ondblclick = e => {
                 if (e.target.closest('.wb-token-sidebar__hp-btn')) return;
+                if (e.target.closest('.wb-token-sidebar__check')) return;
                 const tokenId = item.dataset.tokenId;
                 const token = this.tokens.find(t => t.id === tokenId);
                 if (token) this.showTokenEditModal(token);
             };
+        });
+        
+        // Checkbox handlers for multi-select
+        body.querySelectorAll('.wb-token-sidebar__check').forEach(cb => {
+            cb.onclick = e => {
+                e.stopPropagation();
+                const tokenId = cb.dataset.checkId;
+                const token = this.tokens.find(t => t.id === tokenId);
+                if (!token) return;
+                if (cb.checked) {
+                    if (!this.multiSelected.includes(token)) this.multiSelected.push(token);
+                } else {
+                    const idx = this.multiSelected.indexOf(token);
+                    if (idx >= 0) this.multiSelected.splice(idx, 1);
+                }
+                this.renderTokens();
+                // Don't re-render sidebar to avoid checkbox flicker
+            };
+        });
         });
         
         // Quick HP buttons
