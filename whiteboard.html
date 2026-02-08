@@ -70,6 +70,12 @@
         
         .wb-toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(22,22,22,0.98); border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; z-index: 100; flex-shrink: 0; }
         .wb-toolbar__group { display: flex; align-items: center; gap: 2px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 8px; }
+        .wb-toolbar__group.collapsed > :not(.wb-toolbar__chevron) { display: none; }
+        .wb-toolbar__group.collapsed { padding: 2px; }
+        .wb-toolbar__chevron { width: 20px; height: 20px; border: none; background: transparent; cursor: pointer; color: rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; border-radius: 4px; padding: 0; flex-shrink: 0; }
+        .wb-toolbar__chevron:hover { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+        .wb-toolbar__chevron svg { width: 12px; height: 12px; transition: transform 0.2s; }
+        .wb-toolbar__group.collapsed .wb-toolbar__chevron svg { transform: rotate(-90deg); }
         .wb-toolbar__divider { width: 1px; height: 28px; background: rgba(255,255,255,0.1); margin: 0 4px; }
         
         .wb-btn { width: 36px; height: 36px; border: none; background: transparent; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; color: rgba(255,255,255,0.6); }
@@ -316,6 +322,20 @@
         .wb-save-item__name { font-weight: 600; color: white; }
         .wb-save-item__date { font-size: 12px; color: rgba(255,255,255,0.5); }
         .wb-save-item__delete { background: rgba(239,68,68,0.2); border: none; color: #ef4444; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .wb-scene-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; max-height: 60vh; overflow-y: auto; padding: 4px; }
+        .wb-scene-card { background: rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.15s; border: 2px solid transparent; }
+        .wb-scene-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(139,92,246,0.3); }
+        .wb-scene-card__thumb { width: 100%; aspect-ratio: 16/9; background: #0a0a0a; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .wb-scene-card__thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .wb-scene-card__thumb svg { width: 32px; height: 32px; color: rgba(255,255,255,0.15); }
+        .wb-scene-card__info { padding: 10px 12px; }
+        .wb-scene-card__name { font-weight: 600; color: white; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wb-scene-card__meta { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 3px; }
+        .wb-scene-card__actions { display: flex; gap: 6px; margin-top: 8px; }
+        .wb-scene-card__btn { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); font-size: 11px; cursor: pointer; text-align: center; }
+        .wb-scene-card__btn:hover { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.4); color: white; }
+        .wb-scene-card__btn--danger { color: #ef4444; }
+        .wb-scene-card__btn--danger:hover { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.3); }
         
         .wb-context-menu { position: fixed; background: rgba(22,22,22,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 6px; z-index: 3000; display: none; min-width: 150px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
         .wb-context-menu.visible { display: block; }
@@ -412,13 +432,15 @@
                             <button class="wb-btn" data-tool="focus" title="Fokus (F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></button>
                         </div>
                         <div class="wb-toolbar__divider"></div>
-                        <div class="wb-toolbar__group">
-                            <button class="wb-btn" id="imageBtn" title="Bild einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+                        <div class="wb-toolbar__group" data-collapse="insert">
+                            <button class="wb-toolbar__chevron" title="Einfügen ein-/ausklappen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+                            <button class="wb-btn" id="imageBtn" title="Bild/Prop einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
                             <button class="wb-btn" id="stampBtn" title="Sticker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
                             <button class="wb-btn" id="tokenBtn" title="Token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></button>
                         </div>
                         <div class="wb-toolbar__divider"></div>
-                        <div class="wb-toolbar__group" id="drawTools">
+                        <div class="wb-toolbar__group" id="drawTools" data-collapse="draw">
+                            <button class="wb-toolbar__chevron" title="Zeichenwerkzeuge ein-/ausklappen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
                             <button class="wb-btn" data-tool="pen" title="Stift (P)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg></button>
                             <button class="wb-btn" data-tool="line" title="Linie (L)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg></button>
                             <button class="wb-btn" data-tool="rect" title="Rechteck (R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
@@ -429,14 +451,16 @@
                             <button class="wb-btn" data-tool="eraser" title="Radierer (E)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L13.4 3a2 2 0 012.8 0L21 7.8a2 2 0 010 2.8L11.8 20"/></svg></button>
                         </div>
                         <div class="wb-toolbar__divider"></div>
-                        <div class="wb-toolbar__group">
+                        <div class="wb-toolbar__group" data-collapse="sizes">
+                            <button class="wb-toolbar__chevron" title="Strichstärke ein-/ausklappen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
                             <button class="wb-size-btn" data-size="2"><span class="wb-size-btn__dot" style="width:4px;height:4px"></span></button>
                             <button class="wb-size-btn active" data-size="4"><span class="wb-size-btn__dot" style="width:8px;height:8px"></span></button>
                             <button class="wb-size-btn" data-size="8"><span class="wb-size-btn__dot" style="width:12px;height:12px"></span></button>
                             <button class="wb-size-btn" data-size="16"><span class="wb-size-btn__dot" style="width:16px;height:16px"></span></button>
                         </div>
                         <div class="wb-toolbar__divider"></div>
-                        <div class="wb-toolbar__group" id="colorPalette">
+                        <div class="wb-toolbar__group" id="colorPalette" data-collapse="colors">
+                            <button class="wb-toolbar__chevron" title="Farben ein-/ausklappen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
                             <button class="wb-color-btn active" data-color="#ffffff" style="background:#ffffff"></button>
                             <button class="wb-color-btn" data-color="#ef4444" style="background:#ef4444"></button>
                             <button class="wb-color-btn" data-color="#f97316" style="background:#f97316"></button>
@@ -457,11 +481,15 @@
                             <button class="wb-btn" id="redoBtn" title="Wiederholen (Ctrl+Y)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></button>
                         </div>
                         <div class="wb-toolbar__divider"></div>
-                        <div class="wb-toolbar__group">
-                            <button class="wb-btn" id="saveBtn" title="Speichern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
-                            <button class="wb-btn" id="loadBtn" title="Laden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></button>
+                        <div class="wb-toolbar__group" data-collapse="scene">
+                            <button class="wb-toolbar__chevron" title="Szene-Tools ein-/ausklappen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></button>
+                            <button class="wb-btn" id="sceneManagerBtn" title="Szene-Manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></button>
+                            <button class="wb-btn" id="saveBtn" title="Szene speichern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+                            <button class="wb-btn" id="loadBtn" title="Szene laden (.json)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></button>
                             <button class="wb-btn" id="bgBtn" title="Hintergrund"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21"/></svg></button>
-                            <button class="wb-btn" id="exportBtn" title="Export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+                            <button class="wb-btn" id="exportBtn" title="Screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M3 7h2M19 7h2"/></svg></button>
+                            <button class="wb-btn" id="exportDataBtn" title="Export Data (.json)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg></button>
+                            <input type="file" id="sceneFileInput" accept=".json" style="display:none">
                         </div>
                         <div class="wb-toolbar__divider"></div>
                         <div class="wb-toolbar__group" id="gmActions" style="display:none">
@@ -522,9 +550,9 @@
                 <div class="wb-stamps-panel" id="stampsPanel"><div class="wb-stamps-panel__title">Sticker</div><div class="wb-stamps-grid" id="stampsGrid"></div></div>
                 <input type="text" class="wb-text-input" id="textInput" placeholder="Text...">
                 <div class="wb-overlay" id="bgOverlay"><button class="wb-overlay-close" onclick="document.getElementById('bgOverlay').classList.remove('visible')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><div class="wb-upload-box" id="bgUploadBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><h3>Hintergrund</h3><p>Battle Map hochladen</p><div class="wb-upload-actions"><button class="wb-upload-btn" id="bgSelectBtn">Auswählen</button><button class="wb-upload-btn wb-upload-btn--secondary" id="bgRemoveBtn">Entfernen</button></div><input type="file" id="bgFileInput" accept="image/*" style="display:none"></div></div>
-                <div class="wb-overlay" id="imageOverlay"><button class="wb-overlay-close" onclick="document.getElementById('imageOverlay').classList.remove('visible')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><div class="wb-upload-box" id="imageUploadBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><h3>Bild einfügen</h3><p>Wird platzierbar eingefügt</p><div class="wb-upload-actions"><button class="wb-upload-btn" id="imageSelectBtn">Auswählen</button></div><input type="file" id="imageFileInput" accept="image/*" style="display:none"></div></div>
-                <div class="wb-overlay" id="saveOverlay"><div class="wb-modal__content"><div class="wb-modal__title">Speichern</div><input type="text" class="wb-modal__input" id="saveNameInput" placeholder="Name..."><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('saveOverlay').classList.remove('visible')">Abbrechen</button><button class="wb-upload-btn" id="saveConfirmBtn">Speichern</button></div></div></div>
-                <div class="wb-overlay" id="loadOverlay"><div class="wb-modal__content" style="min-width:450px"><div class="wb-modal__title">Laden</div><div id="savedList" style="max-height:350px;overflow-y:auto;margin-bottom:16px"></div><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('loadOverlay').classList.remove('visible')">Schließen</button></div></div></div>
+                <div class="wb-overlay" id="imageOverlay"><button class="wb-overlay-close" onclick="document.getElementById('imageOverlay').classList.remove('visible');WB._pendingImagePos=null"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><div class="wb-upload-box" id="imageUploadBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><h3>Bild/Prop einfügen</h3><p>Wird platzierbar eingefügt</p><div class="wb-upload-actions"><button class="wb-upload-btn" id="imageSelectBtn">Auswählen</button></div><input type="file" id="imageFileInput" accept="image/*" style="display:none"></div></div>
+                <div class="wb-overlay" id="saveOverlay"><div class="wb-modal__content"><div class="wb-modal__title">Szene speichern</div><input type="text" class="wb-modal__input" id="saveNameInput" placeholder="Szene-Name..."><div class="wb-modal__actions"><button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('saveOverlay').classList.remove('visible')">Abbrechen</button><button class="wb-upload-btn" id="saveConfirmBtn">Speichern</button></div></div></div>
+                <div class="wb-overlay" id="sceneManagerOverlay"><button class="wb-overlay-close" onclick="document.getElementById('sceneManagerOverlay').classList.remove('visible')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><div class="wb-modal__content" style="min-width:550px;max-width:800px"><div class="wb-modal__title" style="display:flex;justify-content:space-between;align-items:center">Szene-Manager <span id="sceneCount" style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:400"></span></div><div id="sceneGrid" class="wb-scene-grid"></div><div style="margin-top:16px;text-align:center"><p id="sceneEmpty" style="color:rgba(255,255,255,0.4);font-size:13px;display:none">Noch keine Szenen gespeichert.</p></div></div></div>
                 <div class="wb-overlay" id="tokenOverlay">
                     <div class="wb-modal__content" style="min-width:400px;max-height:85vh;overflow-y:auto">
                         <div class="wb-modal__title" style="display:flex;justify-content:space-between;align-items:center">Token erstellen <button id="tokenLoadLibBtn" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,0.7);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Laden</button></div>
@@ -1119,7 +1147,6 @@ const WB = {
             this.targetPanY = 0; 
             this.startAnimation(); 
         };
-        document.getElementById('exportBtn').onclick = () => this.exportPNG();
         document.getElementById('clearBtn')?.addEventListener('click', () => { if(confirm('Alles löschen?')) this.clearAll(); });
         document.getElementById('stampBtn').onclick = () => document.getElementById('stampsPanel').classList.toggle('visible');
         document.getElementById('tokenBtn').onclick = () => this.showTokenModal();
@@ -1659,6 +1686,8 @@ const WB = {
         if (this.isResizing) {
             this.isResizing = false;
             this.resizeHandle = null;
+            // Sync resized image to Firebase
+            if (this.selected?.type === 'image') this.syncImageToFirebase(this.selected.item);
             return;
         }
         
@@ -1730,11 +1759,11 @@ const WB = {
         // No hit on empty space: GM gets creation menu
         if (!hit) {
             if (!this.isGM) return;
-            this._contextWorldPoint = { x: p.x, y: p.y };
+            this._contextWorldPoint = { x: p.rawX, y: p.rawY };
             html += `<button class="wb-context-item" data-action="ctx-load-token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Token laden</button>`;
             html += `<button class="wb-context-item" data-action="ctx-create-token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>Token erstellen</button>`;
             html += `<div class="wb-context-divider"></div>`;
-            html += `<button class="wb-context-item" data-action="ctx-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Bild einfügen</button>`;
+            html += `<button class="wb-context-item" data-action="ctx-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Bild/Prop einfügen</button>`;
             html += `<button class="wb-context-item" data-action="ctx-sticker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>Sticker</button>`;
             html += `<div class="wb-context-divider"></div>`;
             html += `<button class="wb-context-item" data-action="ctx-ping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/></svg>Ping</button>`;
@@ -1750,8 +1779,16 @@ const WB = {
                         this._pendingTokenPos = wp;
                         document.getElementById('tokenOverlay').classList.add('visible');
                     }
-                    else if (action === 'ctx-image') document.getElementById('imageBtn').click();
-                    else if (action === 'ctx-sticker') document.getElementById('stampBtn').click();
+                    else if (action === 'ctx-image') {
+                        this._pendingImagePos = wp;
+                        document.getElementById('imageOverlay').classList.add('visible');
+                    }
+                    else if (action === 'ctx-sticker') {
+                        this._pendingStampPos = wp;
+                        document.getElementById('stampsPanel').classList.add('visible');
+                        this.tool = 'stamp';
+                        document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === 'stamp'));
+                    }
                     else if (action === 'ctx-ping') this.createPing(p.rx, p.ry, wp.x, wp.y);
                     else if (action === 'ctx-focus') this.createFocus(wp.x, wp.y, p.rx, p.ry);
                     m.classList.remove('visible');
@@ -2124,6 +2161,7 @@ const WB = {
                 item.x = Math.round((item.x - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX;
                 item.y = Math.round((item.y - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY;
             }
+            this.syncImageToFirebase(item);
         }
         if (type === 'stroke') {
             // Move stroke points
@@ -2704,6 +2742,21 @@ const WB = {
                 this.tool = 'stamp';
                 document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
                 document.getElementById('stampsPanel').classList.remove('visible');
+                // If opened from context menu, place immediately at that position
+                if (this._pendingStampPos) {
+                    const pos = this._pendingStampPos;
+                    this._pendingStampPos = null;
+                    const s = {
+                        id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                        layer: 'main', tool: 'stamp', stamp: st,
+                        x: pos.x, y: pos.y, stampSize: 40, userId: this.userId, ts: Date.now()
+                    };
+                    this.addStroke(s);
+                    this.syncStroke(s);
+                    this.tool = 'select';
+                    document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === 'select'));
+                    this.updateCursor();
+                }
             };
             grid.appendChild(btn);
         });
@@ -4042,10 +4095,18 @@ const WB = {
                 let w = img.width, h = img.height;
                 if (w > maxW) { h = h * maxW / w; w = maxW; }
                 if (h > maxH) { w = w * maxH / h; h = maxH; }
-                this.images.push({
-                    id: Date.now(), src: e.target.result,
-                    x: 100 - this.panX / this.zoom, y: 100 - this.panY / this.zoom, w, h
-                });
+                // Use pending position from context menu, or center of viewport
+                const pos = this._pendingImagePos;
+                this._pendingImagePos = null;
+                const ix = pos ? pos.x - w/2 : (this.uiCanvas.width / 2 - this.panX) / this.zoom - w/2;
+                const iy = pos ? pos.y - h/2 : (this.uiCanvas.height / 2 - this.panY) / this.zoom - h/2;
+                const imgData = {
+                    id: Date.now() + '-' + Math.random().toString(36).substr(2,6),
+                    src: e.target.result,
+                    x: ix, y: iy, w, h
+                };
+                this.images.push(imgData);
+                this.syncImageToFirebase(imgData);
                 this.renderImages();
                 document.getElementById('imageOverlay').classList.remove('visible');
                 this.toast('Bild eingefügt');
@@ -4053,6 +4114,16 @@ const WB = {
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
+    },
+    
+    syncImageToFirebase(imgData) {
+        if (!this.db || !this.roomCode) return;
+        this.db.ref('whiteboard/' + this.roomCode + '/images/' + imgData.id).set(imgData);
+    },
+    
+    removeImageFromFirebase(imgId) {
+        if (!this.db || !this.roomCode) return;
+        this.db.ref('whiteboard/' + this.roomCode + '/images/' + imgId).remove();
     },
     
     // ==================== MODALS ====================
@@ -4076,10 +4147,31 @@ const WB = {
         
         document.getElementById('saveBtn').onclick = () => {
             document.getElementById('saveOverlay').classList.add('visible');
+            document.getElementById('saveNameInput').value = '';
             document.getElementById('saveNameInput').focus();
         };
-        document.getElementById('saveConfirmBtn').onclick = () => this.saveMap();
-        document.getElementById('loadBtn').onclick = () => this.showLoadModal();
+        document.getElementById('saveConfirmBtn').onclick = () => this.saveScene();
+        document.getElementById('loadBtn').onclick = () => document.getElementById('sceneFileInput').click();
+        document.getElementById('sceneFileInput').onchange = e => { if (e.target.files[0]) this.importSceneJSON(e.target.files[0]); e.target.value = ''; };
+        document.getElementById('sceneManagerBtn').onclick = () => this.showSceneManager();
+        document.getElementById('exportBtn').onclick = () => this.exportPNG();
+        document.getElementById('exportDataBtn').onclick = () => this.exportDataJSON();
+        
+        // Collapsible toolbar groups
+        document.querySelectorAll('.wb-toolbar__chevron').forEach(btn => {
+            const group = btn.closest('.wb-toolbar__group');
+            const key = group.dataset.collapse;
+            if (key) {
+                const stored = localStorage.getItem('rift_wb_collapse_' + key);
+                if (stored === '1') group.classList.add('collapsed');
+            }
+            btn.onclick = e => {
+                e.stopPropagation();
+                group.classList.toggle('collapsed');
+                const k = group.dataset.collapse;
+                if (k) localStorage.setItem('rift_wb_collapse_' + k, group.classList.contains('collapsed') ? '1' : '0');
+            };
+        });
         document.getElementById('tokenCreateBtn').onclick = () => {
             const name = document.getElementById('tokenNameInput').value.trim() || 'Token';
             const activeType = document.querySelector('#tokenOverlay .wb-token-type-btn.active');
@@ -4100,7 +4192,7 @@ const WB = {
             };
             const pos = this._pendingTokenPos || null;
             this._pendingTokenPos = null;
-            this.createToken(name, this.pendingTokenColor, pos?.x || null, pos?.y || null, this.pendingTokenBorder, this.pendingTokenImg, opts);
+            this.createToken(name, this.pendingTokenColor, pos ? pos.x : null, pos ? pos.y : null, this.pendingTokenBorder, this.pendingTokenImg, opts);
             document.getElementById('tokenOverlay').classList.remove('visible');
         };
     },
@@ -4122,52 +4214,292 @@ const WB = {
         inp.dataset.strokeId = '';
     },
     
-    saveMap() {
-        const name = document.getElementById('saveNameInput').value.trim() || 'Map ' + new Date().toLocaleDateString();
-        const data = { name, date: Date.now(), strokes: this.strokes, tokens: this.tokens, images: this.images, fogAreas: this.fogAreas, bgDataUrl: this.bgDataUrl || null };
-        const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
-        saves.unshift(data);
-        if (saves.length > 20) saves.pop();
-        localStorage.setItem('rift_wb_saves', JSON.stringify(saves));
-        document.getElementById('saveOverlay').classList.remove('visible');
-        this.toast('Gespeichert: ' + name);
+    generateThumbnail() {
+        return new Promise(resolve => {
+            try {
+                const c = document.createElement('canvas');
+                const tw = 320, th = 180;
+                c.width = tw; c.height = th;
+                const ctx = c.getContext('2d');
+                // Draw bg
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, tw, th);
+                // Scale viewport to thumbnail
+                const sx = tw / this.bgCanvas.width;
+                const sy = th / this.bgCanvas.height;
+                const sc = Math.max(sx, sy);
+                ctx.drawImage(this.bgCanvas, 0, 0, this.bgCanvas.width * sc, this.bgCanvas.height * sc);
+                ctx.drawImage(this.mainCanvas, 0, 0, this.mainCanvas.width * sc, this.mainCanvas.height * sc);
+                resolve(c.toDataURL('image/jpeg', 0.5));
+            } catch(e) { resolve(null); }
+        });
     },
     
-    showLoadModal() {
-        const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
-        const list = document.getElementById('savedList');
-        if (saves.length === 0) {
-            list.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;padding:30px">Keine Maps</p>';
-        } else {
-            list.innerHTML = saves.map((s, i) => `<div class="wb-save-item" onclick="WB.loadMap(${i})"><div><div class="wb-save-item__name">${s.name}</div><div class="wb-save-item__date">${new Date(s.date).toLocaleString()}</div></div><button class="wb-save-item__delete" onclick="event.stopPropagation();WB.deleteMap(${i})">Löschen</button></div>`).join('');
+    async saveScene() {
+        const name = document.getElementById('saveNameInput').value.trim() || 'Szene ' + new Date().toLocaleDateString();
+        const thumb = await this.generateThumbnail();
+        
+        // Strip large images from data to fit Firebase (compress bg)
+        let bgSmall = null;
+        if (this.bgDataUrl) {
+            try {
+                const c2 = document.createElement('canvas');
+                const img = this.bgImage;
+                const maxDim = 1200;
+                let w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    const s = Math.min(maxDim / w, maxDim / h);
+                    w = Math.round(w * s); h = Math.round(h * s);
+                }
+                c2.width = w; c2.height = h;
+                c2.getContext('2d').drawImage(img, 0, 0, w, h);
+                bgSmall = c2.toDataURL('image/jpeg', 0.7);
+            } catch(e) { bgSmall = null; }
         }
-        document.getElementById('loadOverlay').classList.add('visible');
+        
+        const sceneData = {
+            name, date: Date.now(), thumb,
+            strokes: this.strokes, tokens: this.tokens, images: this.images,
+            fogAreas: this.fogAreas, bgDataUrl: bgSmall,
+            gridSize: this.gridSize, gridOffsetX: this.gridOffsetX, gridOffsetY: this.gridOffsetY,
+            gridColor: this.gridColor, panX: this.panX, panY: this.panY, zoom: this.zoom
+        };
+        
+        if (this.db && this.roomCode) {
+            const sceneId = Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+            try {
+                await this.db.ref('whiteboard/' + this.roomCode + '/scenes/' + sceneId).set(sceneData);
+                document.getElementById('saveOverlay').classList.remove('visible');
+                this.toast('Szene gespeichert: ' + name);
+            } catch(e) {
+                console.error('Scene save error:', e);
+                this.toast('Fehler beim Speichern: ' + (e.message || 'Unbekannt'));
+            }
+        } else {
+            // Fallback localStorage with quota handling
+            try {
+                const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
+                saves.unshift(sceneData);
+                if (saves.length > 10) saves.pop();
+                localStorage.setItem('rift_wb_saves', JSON.stringify(saves));
+                document.getElementById('saveOverlay').classList.remove('visible');
+                this.toast('Szene gespeichert: ' + name);
+            } catch(e) {
+                // Strip images on quota error
+                sceneData.images = sceneData.images.map(i => ({ ...i, src: null }));
+                sceneData.bgDataUrl = null;
+                sceneData.thumb = null;
+                try {
+                    const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
+                    saves.unshift(sceneData);
+                    if (saves.length > 5) saves.pop();
+                    localStorage.setItem('rift_wb_saves', JSON.stringify(saves));
+                    document.getElementById('saveOverlay').classList.remove('visible');
+                    this.toast('Szene gespeichert (ohne Bilder, Speicher voll)');
+                } catch(e2) {
+                    this.toast('Speicher voll! Bitte alte Szenen löschen.');
+                }
+            }
+        }
     },
     
-    loadMap(idx) {
-        const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
-        const save = saves[idx];
-        if (!save) return;
-        this.strokes = save.strokes || [];
-        this.tokens = save.tokens || [];
-        this.images = save.images || [];
-        this.fogAreas = save.fogAreas || [];
-        if (save.bgDataUrl) {
-            this.loadBgFromUrl(save.bgDataUrl);
+    async showSceneManager() {
+        const grid = document.getElementById('sceneGrid');
+        const empty = document.getElementById('sceneEmpty');
+        const count = document.getElementById('sceneCount');
+        grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:20px">Lade Szenen...</p>';
+        document.getElementById('sceneManagerOverlay').classList.add('visible');
+        
+        let scenes = [];
+        
+        if (this.db && this.roomCode) {
+            try {
+                const snap = await this.db.ref('whiteboard/' + this.roomCode + '/scenes').once('value');
+                const data = snap.val();
+                if (data) {
+                    scenes = Object.entries(data).map(([id, s]) => ({ ...s, _id: id }));
+                    scenes.sort((a, b) => (b.date || 0) - (a.date || 0));
+                }
+            } catch(e) { console.error(e); }
+        } else {
+            const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
+            scenes = saves.map((s, i) => ({ ...s, _id: String(i) }));
+        }
+        
+        count.textContent = scenes.length + ' Szene' + (scenes.length !== 1 ? 'n' : '');
+        
+        if (scenes.length === 0) {
+            grid.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+        
+        grid.innerHTML = scenes.map(s => `
+            <div class="wb-scene-card" data-scene-id="${s._id}">
+                <div class="wb-scene-card__thumb">
+                    ${s.thumb ? `<img src="${s.thumb}" alt="">` : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>'}
+                </div>
+                <div class="wb-scene-card__info">
+                    <div class="wb-scene-card__name">${s.name || 'Unbenannt'}</div>
+                    <div class="wb-scene-card__meta">${new Date(s.date).toLocaleString()} - ${(s.tokens || []).length} Tokens</div>
+                    <div class="wb-scene-card__actions">
+                        <button class="wb-scene-card__btn" data-action="load">Laden</button>
+                        <button class="wb-scene-card__btn" data-action="export">Export</button>
+                        <button class="wb-scene-card__btn wb-scene-card__btn--danger" data-action="delete">X</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Wire handlers
+        grid.querySelectorAll('.wb-scene-card__btn').forEach(btn => {
+            btn.onclick = e => {
+                e.stopPropagation();
+                const card = btn.closest('.wb-scene-card');
+                const sceneId = card.dataset.sceneId;
+                const action = btn.dataset.action;
+                if (action === 'load') this.loadScene(sceneId, scenes);
+                else if (action === 'export') this.exportSceneById(sceneId, scenes);
+                else if (action === 'delete') this.deleteScene(sceneId);
+            };
+        });
+        // Click card to load
+        grid.querySelectorAll('.wb-scene-card').forEach(card => {
+            card.onclick = e => {
+                if (e.target.closest('.wb-scene-card__btn')) return;
+                this.loadScene(card.dataset.sceneId, scenes);
+            };
+        });
+    },
+    
+    loadScene(sceneId, scenes) {
+        const scene = scenes.find(s => s._id === sceneId);
+        if (!scene) return;
+        
+        this.strokes = scene.strokes || [];
+        this.tokens = scene.tokens || [];
+        this.images = scene.images || [];
+        this.fogAreas = scene.fogAreas || [];
+        if (scene.gridSize) this.gridSize = scene.gridSize;
+        if (scene.gridOffsetX !== undefined) this.gridOffsetX = scene.gridOffsetX;
+        if (scene.gridOffsetY !== undefined) this.gridOffsetY = scene.gridOffsetY;
+        if (scene.gridColor) this.gridColor = scene.gridColor;
+        if (scene.panX !== undefined) { this.panX = scene.panX; this.targetPanX = scene.panX; }
+        if (scene.panY !== undefined) { this.panY = scene.panY; this.targetPanY = scene.panY; }
+        if (scene.zoom) { this.zoom = scene.zoom; this.targetZoom = scene.zoom; }
+        
+        if (scene.bgDataUrl) {
+            this.loadBgFromUrl(scene.bgDataUrl);
         } else {
             this.bgImage = null; this.bgDataUrl = null;
         }
+        
+        // Sync all to Firebase
+        if (this.db && this.roomCode) {
+            this.strokes.forEach(s => this.syncStroke(s));
+            this.tokens.forEach(t => this.syncToken(t));
+            this.images.forEach(i => this.syncImageToFirebase(i));
+            if (scene.bgDataUrl) this.syncBackground(scene.bgDataUrl);
+        }
+        
         this.render();
-        document.getElementById('loadOverlay').classList.remove('visible');
-        this.toast('Geladen: ' + save.name);
+        document.getElementById('sceneManagerOverlay').classList.remove('visible');
+        this.toast('Szene geladen: ' + (scene.name || 'Unbenannt'));
     },
     
-    deleteMap(idx) {
-        if (!confirm('Löschen?')) return;
-        const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
-        saves.splice(idx, 1);
-        localStorage.setItem('rift_wb_saves', JSON.stringify(saves));
-        this.showLoadModal();
+    async deleteScene(sceneId) {
+        if (!confirm('Szene wirklich löschen?')) return;
+        
+        if (this.db && this.roomCode) {
+            await this.db.ref('whiteboard/' + this.roomCode + '/scenes/' + sceneId).remove();
+        } else {
+            const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
+            const idx = parseInt(sceneId);
+            if (!isNaN(idx)) { saves.splice(idx, 1); localStorage.setItem('rift_wb_saves', JSON.stringify(saves)); }
+        }
+        this.toast('Szene gelöscht');
+        this.showSceneManager(); // Refresh
+    },
+    
+    exportSceneById(sceneId, scenes) {
+        const scene = scenes.find(s => s._id === sceneId);
+        if (!scene) return;
+        const exported = { ...scene };
+        delete exported._id;
+        const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (scene.name || 'scene').replace(/[^a-zA-Z0-9_-]/g, '_') + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        this.toast('Szene exportiert');
+    },
+    
+    exportDataJSON() {
+        const data = {
+            version: 2,
+            exportDate: new Date().toISOString(),
+            roomCode: this.roomCode || null,
+            strokes: this.strokes,
+            tokens: this.tokens,
+            images: this.images,
+            fogAreas: this.fogAreas,
+            bgDataUrl: this.bgDataUrl || null,
+            gridSize: this.gridSize,
+            gridOffsetX: this.gridOffsetX,
+            gridOffsetY: this.gridOffsetY,
+            gridColor: this.gridColor,
+            panX: this.panX, panY: this.panY, zoom: this.zoom
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'whiteboard_export_' + new Date().toISOString().slice(0,10) + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        this.toast('Daten exportiert (.json)');
+    },
+    
+    importSceneJSON(file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const data = JSON.parse(e.target.result);
+                this.strokes = data.strokes || [];
+                this.tokens = data.tokens || [];
+                this.images = data.images || [];
+                this.fogAreas = data.fogAreas || [];
+                if (data.gridSize) this.gridSize = data.gridSize;
+                if (data.gridOffsetX !== undefined) this.gridOffsetX = data.gridOffsetX;
+                if (data.gridOffsetY !== undefined) this.gridOffsetY = data.gridOffsetY;
+                if (data.gridColor) this.gridColor = data.gridColor;
+                if (data.panX !== undefined) { this.panX = data.panX; this.targetPanX = data.panX; }
+                if (data.panY !== undefined) { this.panY = data.panY; this.targetPanY = data.panY; }
+                if (data.zoom) { this.zoom = data.zoom; this.targetZoom = data.zoom; }
+                
+                if (data.bgDataUrl) {
+                    this.loadBgFromUrl(data.bgDataUrl);
+                } else {
+                    this.bgImage = null; this.bgDataUrl = null;
+                }
+                
+                // Sync to Firebase
+                if (this.db && this.roomCode) {
+                    this.strokes.forEach(s => this.syncStroke(s));
+                    this.tokens.forEach(t => this.syncToken(t));
+                    this.images.forEach(i => this.syncImageToFirebase(i));
+                    if (data.bgDataUrl) this.syncBackground(data.bgDataUrl);
+                }
+                
+                this.render();
+                this.toast('Szene importiert: ' + (data.name || file.name));
+            } catch(err) {
+                console.error(err);
+                this.toast('Fehler beim Import: Ungültige JSON-Datei');
+            }
+        };
+        reader.readAsText(file);
     },
     
     // ==================== CONTEXT MENU ====================
@@ -4199,6 +4531,7 @@ const WB = {
         if (type === 'image') {
             const idx = this.images.indexOf(item);
             if (idx > -1) this.images.splice(idx, 1);
+            this.removeImageFromFirebase(item.id);
         }
         if (type === 'stroke') {
             const idx = this.strokes.indexOf(item);
@@ -4479,6 +4812,7 @@ const WB = {
         const lockRef = this.db.ref('whiteboard/' + this.roomCode + '/toolbarLocked');
         const focusRef = this.db.ref('whiteboard/' + this.roomCode + '/focus');
         const gridRef = this.db.ref('whiteboard/' + this.roomCode + '/gridSettings');
+        const imagesRef = this.db.ref('whiteboard/' + this.roomCode + '/images');
         
         // Track initial load to ignore cached child_added events
         let strokesInitialized = false;
@@ -4615,6 +4949,17 @@ const WB = {
             }
         });
         
+        // Images: sync across all users
+        imagesRef.on('value', snap => {
+            const data = snap.val();
+            if (data) {
+                this.images = Object.values(data);
+            } else {
+                this.images = [];
+            }
+            this.renderImages();
+        });
+        
         // Track refs for cleanup
         this.firebaseListeners = [
             { ref: strokesRef, event: 'child_added' },
@@ -4625,7 +4970,8 @@ const WB = {
             { ref: cursorsRef, event: 'value' },
             { ref: lockRef, event: 'value' },
             { ref: focusRef, event: 'value' },
-            { ref: gridRef, event: 'value' }
+            { ref: gridRef, event: 'value' },
+            { ref: imagesRef, event: 'value' }
         ];
     },
     
