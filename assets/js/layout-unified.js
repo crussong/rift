@@ -478,12 +478,6 @@ function createUnifiedMeganav() {
                 </div>
             </div>
             
-            <!-- Erste Schritte -->
-            <a href="guide/" class="meganav__item meganav__item--link">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Erste Schritte
-            </a>
-            
             <div class="meganav__spacer"></div>
             
             <!-- Social Links -->
@@ -994,7 +988,7 @@ async function initDockCharacterCard() {
     const roomCode = localStorage.getItem('rift_current_room');
     console.log('[DockChar] Room code:', roomCode || 'none');
     
-    // Try multiple sources for character data
+    // Try multiple sources for character data (same as Hub CharPanel)
     let charData = null;
     let charId = null;
     
@@ -1006,8 +1000,25 @@ async function initDockCharacterCard() {
         return true;
     };
     
-    // Source 1: CharacterStorage Main Character (respects "Main" setting)
-    if (typeof CharacterStorage !== 'undefined') {
+    // Source 1: worldsapart_character_v5 (most reliable for local characters)
+    try {
+        const localData = localStorage.getItem('worldsapart_character_v5');
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            if (isValidCharacter(parsed)) {
+                charData = parsed;
+                charId = charData.id || 'local';
+                console.log('[DockChar] Loaded from worldsapart_character_v5:', charData.name);
+            } else {
+                console.log('[DockChar] worldsapart_character_v5 exists but is invalid/empty');
+            }
+        }
+    } catch (e) {
+        console.warn('[DockChar] worldsapart_character_v5 error:', e);
+    }
+    
+    // Source 2: CharacterStorage as fallback
+    if (!charData && typeof CharacterStorage !== 'undefined') {
         // Get session ruleset
         let ruleset = 'worldsapart';
         const activeSessionData = localStorage.getItem('rift_active_session');
@@ -1024,15 +1035,15 @@ async function initDockCharacterCard() {
             } catch (e) {}
         }
         
-        // Try main character for ruleset
+        // Try main character
         const mainChar = CharacterStorage.getMainCharacter(ruleset);
         if (isValidCharacter(mainChar)) {
             charData = mainChar;
             charId = mainChar.id;
-            console.log('[DockChar] Loaded main character from CharacterStorage:', charData.name);
+            console.log('[DockChar] Loaded from CharacterStorage:', charData.name);
         }
         
-        // Fallback: first valid character from any ruleset
+        // Fallback: first valid character
         if (!charData) {
             const all = CharacterStorage.getAll();
             const chars = Object.values(all).filter(isValidCharacter);
@@ -1041,65 +1052,6 @@ async function initDockCharacterCard() {
                 charId = charData.id;
                 console.log('[DockChar] Loaded first valid character:', charData.name);
             }
-        }
-        
-        // CharacterStorage wraps details in .data - flatten for dock access
-        // Sheet saves: { name, level, data: { attributes, status: {health, moral}, fokus, ... } }
-        // Dock expects: { name, level, attributes, health: {current, max}, fokus, ... }
-        if (charData && charData.data) {
-            const d = charData.data;
-            // Attributes
-            if (d.attributes && !charData.attributes) charData.attributes = d.attributes;
-            // Health/Moral: CharacterStorage stores as flat numbers in data.status
-            if (d.status) {
-                if (!charData.health) {
-                    charData.health = { current: d.status.health ?? 100, max: d.status.maxHealth ?? d.status.maxHp ?? 100 };
-                }
-                if (!charData.moral) {
-                    charData.moral = { current: d.status.moral ?? 100, max: d.status.maxMoral ?? 100 };
-                }
-            }
-            // Fokus, Schwäche, Zweite Chance
-            if (d.fokus && !charData.fokus) charData.fokus = d.fokus;
-            if (d.schwaeche && !charData.schwaeche) charData.schwaeche = d.schwaeche;
-            if (d.secondChance && !charData.secondChance) charData.secondChance = d.secondChance;
-            // Character info
-            if (d.race && !charData.race) charData.race = d.race;
-            if (d.age && !charData.age) charData.age = d.age;
-            if (d.gender && !charData.gender) charData.gender = d.gender;
-            if (d.role && !charData.role) charData.role = d.role;
-            if (d.crew && !charData.crew) charData.crew = d.crew;
-            if (d.weapon && !charData.weapon) charData.weapon = d.weapon;
-            if (d.currency !== undefined && !charData.currency) charData.currency = d.currency;
-            if (d.currencyType && !charData.currencyType) charData.currencyType = d.currencyType;
-            // Portrait URL (custom portrait stored inside data)
-            if (d.portrait && !charData.portraitUrl) {
-                const p = d.portrait;
-                if (p.startsWith && (p.startsWith('http') || p.startsWith('data:'))) {
-                    charData.portraitUrl = p;
-                }
-            }
-            console.log('[DockChar] Flattened CharacterStorage data:', { 
-                attrs: !!charData.attributes, health: charData.health, 
-                fokus: !!charData.fokus, schwaeche: charData.schwaeche 
-            });
-        }
-    }
-    
-    // Source 2: Legacy localStorage fallback (worldsapart_character_v5)
-    if (!charData) {
-        try {
-            const localData = localStorage.getItem('worldsapart_character_v5');
-            if (localData) {
-                const parsed = JSON.parse(localData);
-                if (isValidCharacter(parsed)) {
-                    charData = parsed;
-                    charId = charData.id || 'local';
-                    console.log('[DockChar] Loaded from worldsapart_character_v5 fallback:', charData.name);
-                }
-            }
-        } catch (e) {
-            console.warn('[DockChar] worldsapart_character_v5 error:', e);
         }
     }
     
@@ -1114,8 +1066,8 @@ async function initDockCharacterCard() {
     
     // Subscribe to localStorage changes for real-time updates
     window.addEventListener('storage', (e) => {
-        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5' || e.key === 'rift_main_characters') {
-            console.log('[DockChar] Characters/main updated, refreshing...');
+        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5') {
+            console.log('[DockChar] Characters updated, refreshing...');
             initDockCharacterCard();
         }
     });
@@ -1123,12 +1075,6 @@ async function initDockCharacterCard() {
     // Subscribe to same-tab character saves (custom event)
     window.addEventListener('rift-character-saved', (e) => {
         console.log('[DockChar] Character saved in same tab, refreshing...');
-        initDockCharacterCard();
-    });
-    
-    // Subscribe to main character changes (same tab)
-    window.addEventListener('rift-main-character-changed', (e) => {
-        console.log('[DockChar] Main character changed, refreshing...');
         initDockCharacterCard();
     });
 }
@@ -1413,15 +1359,27 @@ async function initDockSessionCard() {
     const roomCode = localStorage.getItem('rift_current_room');
     console.log('[DockSession] Room code:', roomCode);
     
-    // Load sessions from localStorage (same as sessions.html)
-    const allSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-    console.log('[DockSession] Total sessions in localStorage:', allSessions.length);
+    // Load sessions - try Firebase first, fallback to localStorage
+    let sessions = [];
     
-    // Filter for current room
-    const sessions = allSessions.filter(s => {
-        if (roomCode && s.roomCode === roomCode) return true;
-        return false;
-    });
+    if (roomCode && typeof RIFT !== 'undefined' && RIFT.rooms?.getSessions) {
+        try {
+            const fbSessions = await RIFT.rooms.getSessions(roomCode);
+            if (fbSessions && fbSessions.length > 0) {
+                sessions = fbSessions;
+                console.log('[DockSession] Loaded', sessions.length, 'sessions from Firebase');
+            }
+        } catch (e) {
+            console.warn('[DockSession] Firebase load failed, using localStorage:', e);
+        }
+    }
+    
+    // Fallback to localStorage
+    if (sessions.length === 0) {
+        const allSessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
+        sessions = allSessions.filter(s => roomCode && s.roomCode === roomCode);
+        console.log('[DockSession] Loaded', sessions.length, 'sessions from localStorage');
+    }
     
     console.log('[DockSession] Filtered sessions for room:', sessions.length);
     if (sessions.length > 0) {
@@ -1436,28 +1394,21 @@ async function initDockSessionCard() {
     // Find active session (live or paused)
     let session = sessions.find(s => s.status === 'live' || s.status === 'paused');
     
-    // Fallback: first planned/scheduled session
+    // Fallback: next planned/scheduled session (sorted by date, nearest first)
     if (!session) {
-        session = sessions.find(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming' || s.status === 'draft');
+        const planned = sessions
+            .filter(s => s.status === 'planned' || s.status === 'scheduled' || s.status === 'upcoming' || s.status === 'draft')
+            .sort((a, b) => {
+                const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
+                const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
+                return dateA - dateB;
+            });
+        session = planned[0] || null;
     }
     
-    // Fallback: first session without ended status (including undefined status)
+    // No active or planned sessions — show empty (ended sessions = no session)
     if (!session) {
-        session = sessions.find(s => s.status !== 'ended');
-    }
-    
-    // Fallback: first session with coverUrl
-    if (!session) {
-        session = sessions.find(s => s.coverUrl);
-    }
-    
-    // Fallback: first session
-    if (!session && sessions.length > 0) {
-        session = sessions[0];
-    }
-    
-    if (!session) {
-        console.log('[DockSession] No session found, showing empty state');
+        console.log('[DockSession] No active/planned session found, showing empty state');
         showEmptySessionCard(card);
         return;
     }
