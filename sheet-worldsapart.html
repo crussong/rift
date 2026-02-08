@@ -3849,6 +3849,16 @@
                                         <option value="Irrelevant">Irrelevant</option>
                                     </select>
                                 </div>
+                                <div class="character-meta-item">
+                                    <select id="char-rang" title="Rang bestimmt die Basis-Lebenspunkte (HP = 100 + Rang-Modifikator)">
+                                        <option value="">Rang...</option>
+                                        <option value="lesser">Lesser (-50 HP)</option>
+                                        <option value="common">Common (100 HP)</option>
+                                        <option value="elite">Elite (+50 HP)</option>
+                                        <option value="paragon">Paragon (+100 HP)</option>
+                                        <option value="apex">Apex (+200 HP)</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="character-fields">
                                 <div class="field-group">
@@ -3941,7 +3951,7 @@
                                 <div class="status-values">
                                     <input type="number" class="status-current" id="health-current" value="100" min="0" onfocus="this.select()">
                                     <span class="status-separator">/</span>
-                                    <span class="status-max">100</span>
+                                    <span class="status-max" id="health-max-display">100</span>
                                 </div>
                                 <div class="status-bar-container">
                                     <span class="status-label">Lebenspunkte</span>
@@ -4483,6 +4493,21 @@
         const ATTRIBUTES = ['power', 'agility', 'endurance', 'mind', 'presence'];
         const CURRENCY_TYPES = ['dollar', 'euro', 'yen', 'berry'];
         
+        // Rang (Machtstufen-System): HP = 100 + Rang-Modifikator
+        const RANG_MODIFIERS = {
+            lesser:  -50,  // 50 HP
+            common:    0,  // 100 HP
+            elite:    50,  // 150 HP
+            paragon: 100,  // 200 HP
+            apex:    200   // 300 HP
+        };
+        
+        function getMaxHealth() {
+            const rang = characterData.rang || 'common';
+            const mod = RANG_MODIFIERS[rang];
+            return mod !== undefined ? 100 + mod : 100;
+        }
+        
         const CLASS_ATTRIBUTE_MAP = {
             handeln: ['power', 'agility', 'endurance'],
             wissen: ['mind', 'endurance'],
@@ -4862,7 +4887,7 @@
         
         function getDefaultCharacter() {
             return {
-                name: '', race: '', age: '', gender: '', role: '', crew: '',
+                name: '', race: '', age: '', gender: '', rang: 'common', role: '', crew: '',
                 portrait: null, jollyRoger: null,
                 attributes: { power: 0, agility: 0, endurance: 0, mind: 0, presence: 0 },
                 health: { current: 100, max: 100 },
@@ -5043,7 +5068,11 @@
                 const healthInput = document.getElementById('health-current');
                 const healthBar = document.getElementById('health-bar');
                 if (healthInput) healthInput.value = d.status.health;
-                if (healthBar) healthBar.style.width = `${Math.min(100, Math.max(0, d.status.health))}%`;
+                if (healthBar) {
+                    const maxHP = getMaxHealth();
+                    const pct = maxHP > 0 ? (d.status.health / maxHP) * 100 : 0;
+                    healthBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+                }
                 updated = true;
             }
             
@@ -5054,6 +5083,15 @@
                 const moralBar = document.getElementById('moral-bar');
                 if (moralInput) moralInput.value = d.status.moral;
                 if (moralBar) moralBar.style.width = `${Math.min(100, Math.max(0, d.status.moral))}%`;
+                updated = true;
+            }
+            
+            // Update rang
+            if (d.rang !== undefined && d.rang !== characterData.rang) {
+                characterData.rang = d.rang;
+                const rangSelect = document.getElementById('char-rang');
+                if (rangSelect) rangSelect.value = d.rang;
+                updateHealthDisplay();
                 updated = true;
             }
             
@@ -5171,7 +5209,11 @@
                     healthInput.value = serverHealth;
                     console.log('[WA-Sheet] Set health input to:', serverHealth);
                 }
-                if (healthBar) healthBar.style.width = `${Math.min(100, Math.max(0, serverHealth))}%`;
+                if (healthBar) {
+                    const maxHP = getMaxHealth();
+                    const pct = maxHP > 0 ? (serverHealth / maxHP) * 100 : 0;
+                    healthBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+                }
                 
                 lastServerHealth = serverHealth;
                 updated = true;
@@ -5211,7 +5253,11 @@
                         const healthInput = document.getElementById('health-current');
                         const healthBar = document.getElementById('health-bar');
                         if (healthInput) healthInput.value = gmHealth;
-                        if (healthBar) healthBar.style.width = `${Math.min(100, Math.max(0, gmHealth))}%`;
+                        if (healthBar) {
+                            const maxHP = getMaxHealth();
+                            const pct = maxHP > 0 ? (gmHealth / maxHP) * 100 : 0;
+                            healthBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+                        }
                         lastServerHealth = gmHealth;
                         if (!changes.includes('LP')) changes.push('LP');
                         updated = true;
@@ -5249,6 +5295,16 @@
                             }
                         });
                     }
+                }
+                
+                // Sync rang
+                if (d.rang !== undefined && d.rang !== characterData.rang) {
+                    characterData.rang = d.rang;
+                    const rangSelect = document.getElementById('char-rang');
+                    if (rangSelect) rangSelect.value = d.rang;
+                    updateHealthDisplay();
+                    changes.push('Rang');
+                    updated = true;
                 }
                 
                 // Sync currency
@@ -5429,6 +5485,7 @@
             characterData.race = d.race || char.race || '';
             characterData.age = d.age || '';
             characterData.gender = d.gender || '';
+            characterData.rang = d.rang || 'common';
             characterData.role = d.role || char.class || '';
             characterData.crew = d.crew || '';
             characterData.appearance = d.appearance || '';
@@ -5643,6 +5700,7 @@
                         race: characterData.race,
                         age: characterData.age,
                         gender: characterData.gender,
+                        rang: characterData.rang,
                         crew: characterData.crew,
                         role: characterData.role,
                         appearance: characterData.appearance,
@@ -5730,6 +5788,7 @@
                     data: {
                         age: characterData.age,
                         gender: characterData.gender,
+                        rang: characterData.rang,
                         crew: characterData.crew,
                         role: characterData.role,
                         appearance: characterData.appearance,
@@ -5801,6 +5860,7 @@
             document.getElementById('char-race').value = characterData.race || '';
             document.getElementById('char-age').value = characterData.age || '';
             document.getElementById('char-gender').value = characterData.gender || '';
+            document.getElementById('char-rang').value = characterData.rang || 'common';
             document.getElementById('char-role').value = characterData.role || '';
             document.getElementById('char-crew').value = characterData.crew || '';
             document.getElementById('char-appearance').value = characterData.appearance || '';
@@ -5864,6 +5924,29 @@
                 });
             });
             
+            // Rang dropdown - triggers HP recalculation
+            document.getElementById('char-rang').addEventListener('change', (e) => {
+                const oldMax = getMaxHealth();
+                characterData.rang = e.target.value;
+                const newMax = getMaxHealth();
+                
+                // Scale current HP proportionally to new max
+                if (oldMax > 0) {
+                    const ratio = characterData.health.current / oldMax;
+                    characterData.health.current = Math.round(ratio * newMax);
+                } else {
+                    characterData.health.current = newMax;
+                }
+                
+                // Clamp to new max
+                characterData.health.current = Math.max(0, Math.min(newMax, characterData.health.current));
+                document.getElementById('health-current').value = characterData.health.current;
+                
+                updateHealthDisplay();
+                updateStatBars();
+                autoSave();
+            });
+            
             ATTRIBUTES.forEach(attr => {
                 document.getElementById(`attr-${attr}`).addEventListener('input', (e) => {
                     let value = parseInt(e.target.value) || 0;
@@ -5876,8 +5959,9 @@
             });
             
             document.getElementById('health-current').addEventListener('input', (e) => {
+                const maxHP = getMaxHealth();
                 let value = parseInt(e.target.value) || 0;
-                value = Math.max(0, Math.min(100, value));
+                value = Math.max(0, Math.min(maxHP, value));
                 e.target.value = value;
                 characterData.health.current = value;
                 updateStatBars();
@@ -5905,8 +5989,10 @@
                 
                 const statusType = bar.dataset.status;
                 if (statusType === 'health') {
-                    characterData.health.current = percent;
-                    document.getElementById('health-current').value = percent;
+                    const maxHP = getMaxHealth();
+                    const value = Math.round((percent / 100) * maxHP);
+                    characterData.health.current = value;
+                    document.getElementById('health-current').value = value;
                     document.getElementById('health-bar').style.width = `${percent}%`;
                 } else if (statusType === 'moral') {
                     characterData.moral.current = percent;
@@ -6188,13 +6274,27 @@
             }
         }
         
-        function updateStatBars() {
-            const healthPercent = characterData.health.current;
-            const healthBar = document.getElementById('health-bar');
-            healthBar.style.width = `${healthPercent}%`;
+        function updateHealthDisplay() {
+            const maxHP = getMaxHealth();
+            const maxEl = document.getElementById('health-max-display');
+            if (maxEl) maxEl.textContent = maxHP;
             
-            // Dynamic health bar color: 100-51 Green, 50-16 Orange, 15-1 Red, 0 Black
-            if (healthPercent === 0) {
+            // Update input max attribute
+            const healthInput = document.getElementById('health-current');
+            if (healthInput) healthInput.max = maxHP;
+        }
+        
+        function updateStatBars() {
+            const maxHP = getMaxHealth();
+            const healthPercent = maxHP > 0 ? (characterData.health.current / maxHP) * 100 : 0;
+            const healthBar = document.getElementById('health-bar');
+            healthBar.style.width = `${Math.min(100, Math.max(0, healthPercent))}%`;
+            
+            // Update max display
+            updateHealthDisplay();
+            
+            // Dynamic health bar color: 100-51% Green, 50-16% Orange, 15-1% Red, 0 Black
+            if (characterData.health.current === 0) {
                 healthBar.style.background = '#1a1a1a';
                 healthBar.style.backgroundSize = '100% 100%';
             } else if (healthPercent <= 15) {
@@ -6211,7 +6311,7 @@
             // Update portrait health overlay
             const overlay = document.getElementById('portrait-health-overlay');
             overlay.classList.remove('dead', 'critical', 'low', 'healthy');
-            if (healthPercent === 0) {
+            if (characterData.health.current === 0) {
                 overlay.classList.add('dead');
             } else if (healthPercent <= 15) {
                 overlay.classList.add('critical');
@@ -6223,7 +6323,7 @@
             
             // Update status bar critical states
             if (healthBar) {
-                healthBar.classList.toggle('critical', healthPercent <= 20 && healthPercent > 0);
+                healthBar.classList.toggle('critical', healthPercent <= 20 && characterData.health.current > 0);
             }
             
             const moralPercent = characterData.moral.current;
@@ -6770,7 +6870,7 @@
                 vignette.classList.remove('flash');
             }, 800);
             
-            characterData.health.current = Math.min(100, characterData.health.current + 20);
+            characterData.health.current = Math.min(getMaxHealth(), characterData.health.current + 20);
             characterData.moral.current = Math.min(100, characterData.moral.current + 10);
             document.getElementById('health-current').value = characterData.health.current;
             document.getElementById('moral-current').value = characterData.moral.current;
@@ -6804,7 +6904,7 @@
                 vignette.classList.remove('flash');
             }, 800);
             
-            characterData.health.current = Math.min(100, characterData.health.current + 10);
+            characterData.health.current = Math.min(getMaxHealth(), characterData.health.current + 10);
             characterData.moral.current = Math.min(100, characterData.moral.current + 5);
             document.getElementById('health-current').value = characterData.health.current;
             document.getElementById('moral-current').value = characterData.moral.current;
