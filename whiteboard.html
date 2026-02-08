@@ -732,7 +732,7 @@
                         <div class="wb-token-type-grid">
                             <button class="wb-token-type-btn active" data-type="player">Spieler</button>
                             <button class="wb-token-type-btn" data-type="npc">NPC</button>
-                            <button class="wb-token-type-btn" data-type="monster">Monster</button>
+                            <button class="wb-token-type-btn" data-type="monster">Gegner</button>
                             <button class="wb-token-type-btn" data-type="hidden">Versteckt</button>
                         </div>
                         
@@ -839,7 +839,7 @@
                             <button class="wb-tmgr-tab active" data-tab="all">Alle</button>
                             <button class="wb-tmgr-tab" data-tab="player">Spieler</button>
                             <button class="wb-tmgr-tab" data-tab="npc">NPC</button>
-                            <button class="wb-tmgr-tab" data-tab="monster">Monster</button>
+                            <button class="wb-tmgr-tab" data-tab="monster">Gegner</button>
                             <button class="wb-tmgr-tab" data-tab="hidden">Versteckt</button>
                             <button class="wb-tmgr-tab" data-tab="library" style="margin-left:auto"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library</button>
                         </div>
@@ -915,7 +915,7 @@
                         <div class="wb-token-type-grid" id="editTokenTypeGrid">
                             <button class="wb-token-type-btn active" data-type="player">Spieler</button>
                             <button class="wb-token-type-btn" data-type="npc">NPC</button>
-                            <button class="wb-token-type-btn" data-type="monster">Monster</button>
+                            <button class="wb-token-type-btn" data-type="monster">Gegner</button>
                             <button class="wb-token-type-btn" data-type="hidden">Versteckt</button>
                         </div>
                         
@@ -2607,16 +2607,19 @@ const WB = {
     
     // ==================== SELECTION ====================
     hitTest(p) {
+        // Use raw (unsnapped) coords for accurate hit detection
+        const px = p.rawX !== undefined ? p.rawX : p.x;
+        const py = p.rawY !== undefined ? p.rawY : p.y;
         // Check tokens first (top layer) - circles
         for (let i = this.tokens.length - 1; i >= 0; i--) {
             const t = this.tokens[i];
-            const dx = p.x - t.x, dy = p.y - t.y;
+            const dx = px - t.x, dy = py - t.y;
             if (Math.sqrt(dx * dx + dy * dy) < t.size / 2) return { type: 'token', item: t, index: i };
         }
         // Check images - rectangles
         for (let i = this.images.length - 1; i >= 0; i--) {
             const img = this.images[i];
-            if (p.x >= img.x && p.x <= img.x + img.w && p.y >= img.y && p.y <= img.y + img.h) 
+            if (px >= img.x && px <= img.x + img.w && py >= img.y && py <= img.y + img.h) 
                 return { type: 'image', item: img, index: i };
         }
         // Check auras
@@ -3177,14 +3180,17 @@ const WB = {
             el.draggable = false;
             el.ondragstart = () => false;
             el.onmousedown = e => {
-                if (e.button !== 0) return; // Only left-click
+                if (e.button !== 0) return;
+                if (this.tool !== 'select') {
+                    el.style.pointerEvents = 'none';
+                    requestAnimationFrame(() => { el.style.pointerEvents = ''; });
+                    return;
+                }
                 e.preventDefault();
                 e.stopPropagation();
-                if (this.tool === 'select') {
-                    this.select({ type: 'image', item: img, index: i });
-                    this.isDragging = true;
-                    this.lastDragPoint = this.getPoint(e);
-                }
+                this.select({ type: 'image', item: img, index: i });
+                this.isDragging = true;
+                this.lastDragPoint = this.getPoint(e);
             };
             c.appendChild(el);
         });
@@ -3293,7 +3299,31 @@ const WB = {
             el.draggable = false;
             el.ondragstart = () => false;
             el.onmousedown = e => {
-                if (e.button !== 0) return; // Only left-click starts drag
+                if (e.button !== 0) return;
+                // Non-select tools: disable pointer-events should handle this via CSS,
+                // but as safety net, explicitly pass through
+                if (this.tool !== 'select') {
+                    el.style.pointerEvents = 'none';
+                    requestAnimationFrame(() => { el.style.pointerEvents = ''; });
+                    return;
+                }
+                // Token linking mode: perform linking HERE (event won't reach canvas)
+                if (this._linkingFrom) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (this._linkingFrom.id !== t.id) {
+                        this._linkingFrom._linkedTo = t.id;
+                        t._linkedTo = this._linkingFrom.id;
+                        this.syncToken(this._linkingFrom);
+                        this.syncToken(t);
+                        this.toast(`${this._linkingFrom.name} <-> ${t.name} verknüpft`);
+                    } else {
+                        this.toast('Verknüpfung abgebrochen');
+                    }
+                    this._linkingFrom = null;
+                    this.render();
+                    return;
+                }
                 e.preventDefault();
                 e.stopPropagation();
                 this.hideTokenTooltip();
@@ -3688,7 +3718,8 @@ const WB = {
         
         // Wire vis toggles
         ['createAffVis', 'createItemsVis'].forEach(id => {
-            document.getElementById(id).onclick = () => document.getElementById(id).classList.toggle('visible-to-players');
+            const el = document.getElementById(id);
+            el.onclick = e => { e.preventDefault(); e.stopPropagation(); el.classList.toggle('visible-to-players'); };
         });
         
         // Type buttons in creation modal
@@ -4770,7 +4801,10 @@ const WB = {
     },
     
     loadTokenFromLibrary(template) {
-        // Fill the create form with template data
+        // Initialize the modal fully (pickers, handlers, etc.)
+        this.showTokenModal();
+        
+        // Override with template data
         document.getElementById('tokenNameInput').value = template.name || '';
         document.getElementById('createTokenHp').value = template.hp || '';
         document.getElementById('createTokenMaxHp').value = template.maxHp || '';
@@ -4782,9 +4816,20 @@ const WB = {
         document.getElementById('createTokenAffiliation').value = template.affiliation || '';
         document.getElementById('createTokenItems').value = template.items || '';
         
+        // Set colors and update pickers visually
         this.pendingTokenColor = template.color || '#8b5cf6';
         this.pendingTokenBorder = template.borderColor || '#8b5cf6';
         this.pendingTokenImg = template.img || null;
+        
+        // Update color picker highlights
+        document.querySelectorAll('#tokenColorPicker button').forEach(b => {
+            b.style.borderColor = b.style.background === this.pendingTokenColor || 
+                b.style.backgroundColor === this.pendingTokenColor ? 'white' : 'transparent';
+        });
+        document.querySelectorAll('#tokenBorderPicker button').forEach(b => {
+            b.style.borderColor = b.style.background === this.pendingTokenBorder || 
+                b.style.backgroundColor === this.pendingTokenBorder ? 'white' : 'transparent';
+        });
         
         // Update type buttons
         document.querySelectorAll('#tokenOverlay .wb-token-type-btn').forEach(b => {
@@ -4799,25 +4844,17 @@ const WB = {
         // Update portrait preview
         const preview = document.getElementById('tokenPortraitPreview');
         if (preview) {
+            preview.style.borderColor = this.pendingTokenBorder;
             if (template.img) {
                 preview.innerHTML = `<img src="${template.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-                preview.style.borderColor = template.borderColor || '#8b5cf6';
+                preview.style.background = 'transparent';
             } else {
                 preview.style.background = template.color || '#8b5cf6';
-                preview.style.borderColor = template.borderColor || '#8b5cf6';
                 preview.innerHTML = '';
             }
         }
         
-        // Update border colors in preview
-        const borderBtns = document.querySelectorAll('#tokenOverlay .wb-token-color-btn, #tokenOverlay [data-border]');
-        borderBtns.forEach(b => {
-            if (b.dataset.border === template.borderColor) b.classList.add('active');
-        });
-        
         this.toast('Template geladen: ' + template.name);
-        // Show create overlay
-        document.getElementById('tokenOverlay').classList.add('visible');
     },
     
     // ==================== RIFT TOKEN LIBRARY ====================
@@ -6957,6 +6994,7 @@ const WB = {
             this._auraShape = btn.dataset.shape;
             // Also activate the aura tool
             this.tool = 'aura';
+            this.updateCursor();
             document.querySelectorAll('.wb-dd-item[data-tool]').forEach(b => b.classList.remove('active'));
             document.querySelector('.wb-dd-item[data-tool="aura"]')?.classList.add('active');
             // Close all dropdowns
@@ -6973,6 +7011,7 @@ const WB = {
                 document.querySelectorAll('#auraShapes [data-shape]').forEach(b => b.classList.remove('active'));
                 document.querySelector(`#auraShapes [data-shape="${this._auraShape}"]`)?.classList.add('active');
                 this.tool = 'aura';
+                this.updateCursor();
                 document.querySelectorAll('.wb-dd-item[data-tool]').forEach(b => b.classList.remove('active'));
                 document.querySelector('.wb-dd-item[data-tool="aura"]')?.classList.add('active');
                 document.querySelectorAll('.wb-menu').forEach(m => m.classList.remove('open'));
