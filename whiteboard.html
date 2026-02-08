@@ -189,6 +189,32 @@
         .wb-token__status-icon { width: 18px; height: 18px; background: rgba(0,0,0,0.8); border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); }
         .wb-token__status-icon svg { width: 12px; height: 12px; }
         
+        /* Token Hover Tooltip */
+        .wb-token-tooltip { position: absolute; background: rgba(16,16,20,0.96); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 14px; z-index: 300; pointer-events: none; min-width: 160px; max-width: 260px; opacity: 0; transition: opacity 0.15s; backdrop-filter: blur(8px); }
+        .wb-token-tooltip.visible { opacity: 1; }
+        .wb-token-tooltip__name { font-size: 13px; font-weight: 700; color: white; margin-bottom: 6px; }
+        .wb-token-tooltip__row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 3px; }
+        .wb-token-tooltip__row svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.5; }
+        .wb-token-tooltip__hp-bar { width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-top: 4px; margin-bottom: 4px; }
+        .wb-token-tooltip__hp-fill { height: 100%; border-radius: 3px; }
+        .wb-token-tooltip__items { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.06); }
+        
+        /* Remote Cursors */
+        .wb-remote-cursor { position: absolute; pointer-events: none; z-index: 55; transition: transform 0.1s linear; }
+        .wb-remote-cursor__icon { width: 16px; height: 16px; }
+        .wb-remote-cursor__icon path { stroke-width: 1; }
+        .wb-remote-cursor__label { position: absolute; left: 16px; top: 14px; background: var(--cursor-color, #8b5cf6); color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+        
+        /* Visibility Toggle (eye icon) */
+        .wb-vis-toggle { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; background: rgba(255,255,255,0.05); border-radius: 4px; cursor: pointer; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+        .wb-vis-toggle:hover { background: rgba(255,255,255,0.1); }
+        .wb-vis-toggle.visible-to-players { color: #22c55e; }
+        .wb-vis-toggle svg { width: 14px; height: 14px; }
+        
+        /* Token field row with vis toggle */
+        .wb-token-field-row { display: flex; align-items: flex-end; gap: 6px; }
+        .wb-token-field-row .wb-token-edit__field { flex: 1; }
+        
         /* Token Sidebar */
         .wb-token-sidebar { position: absolute; top: 70px; left: 16px; background: rgba(22,22,22,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; z-index: 100; width: 280px; max-height: calc(100vh - 140px); display: none; overflow: hidden; backdrop-filter: blur(12px); }
         .wb-token-sidebar.visible { display: flex; flex-direction: column; }
@@ -410,6 +436,7 @@
                         <div class="wb-toolbar__divider"></div>
                         <div class="wb-toolbar__group" id="gmActions" style="display:none">
                             <button class="wb-btn" id="tokenSidebarBtn" title="Token-Liste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="6" x2="21" y2="6"/><line x1="14" y1="10" x2="18" y2="10"/><line x1="14" y1="17" x2="21" y2="17"/><line x1="14" y1="21" x2="18" y2="21"/></svg></button>
+                            <button class="wb-btn" id="cursorToggleBtn" title="Mauszeiger anzeigen/verbergen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-6 2-2 6z"/><path d="M14 14l5 5"/></svg></button>
                             <button class="wb-btn" id="initiativeBtn" title="Initiative Tracker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
                             <button class="wb-btn wb-btn--danger" id="clearBtn" title="Löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                         </div>
@@ -425,6 +452,8 @@
                         <div class="wb-radius-origin" id="moveOrigin"></div>
                         <div class="wb-radius-distance" id="moveDistance"></div>
                         <div id="tokensContainer"></div>
+                        <div id="remoteCursors"></div>
+                        <div class="wb-token-tooltip" id="tokenTooltip"></div>
                         <!-- Selection Box with Resize Handles -->
                         <div class="wb-select-box" id="selectBox">
                             <div class="wb-resize-handle wb-resize-handle--nw" data-handle="nw"></div>
@@ -534,6 +563,28 @@
                             <textarea class="wb-token-edit__input" id="createTokenNotes" placeholder="Nur für den GM sichtbar..." style="width:100%;min-height:48px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
                         </div>
                         
+                        <!-- Zugehörigkeit -->
+                        <div style="margin-bottom:16px">
+                            <div class="wb-token-field-row">
+                                <div class="wb-token-edit__field">
+                                    <label class="wb-token-edit__label">Zugehörigkeit</label>
+                                    <input type="text" class="wb-token-edit__input" id="createTokenAffiliation" placeholder="z.B. Gilde der Magier, Orks...">
+                                </div>
+                                <button class="wb-vis-toggle visible-to-players" id="createAffVis" title="Für Spieler sichtbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                            </div>
+                        </div>
+                        
+                        <!-- Items -->
+                        <div style="margin-bottom:16px">
+                            <div class="wb-token-field-row">
+                                <div class="wb-token-edit__field">
+                                    <label class="wb-token-edit__label">Items</label>
+                                    <input type="text" class="wb-token-edit__input" id="createTokenItems" placeholder="z.B. Schwert, Heiltrank, Schlüssel...">
+                                </div>
+                                <button class="wb-vis-toggle visible-to-players" id="createItemsVis" title="Für Spieler sichtbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                            </div>
+                        </div>
+                        
                         <div class="wb-modal__actions">
                             <button class="wb-upload-btn wb-upload-btn--secondary" onclick="document.getElementById('tokenOverlay').classList.remove('visible')">Abbrechen</button>
                             <button class="wb-upload-btn" id="tokenCreateBtn">Erstellen</button>
@@ -578,6 +629,21 @@
                         </div>
                         
                         <input type="text" class="wb-modal__input" id="editTokenName" placeholder="Name...">
+                        
+                        <!-- Portrait Edit -->
+                        <div style="display:flex;gap:16px;margin-bottom:16px">
+                            <div id="editTokenPortraitPreview" style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;border:3px solid #8b5cf6" title="Portrait ändern">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </div>
+                            <div style="flex:1">
+                                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px">Portrait</div>
+                                <div style="display:flex;gap:6px">
+                                    <button class="wb-upload-btn" id="editTokenPortraitBtn" style="font-size:11px;padding:6px 12px">Ändern</button>
+                                    <button class="wb-upload-btn wb-upload-btn--secondary" id="editTokenPortraitRemoveBtn" style="font-size:11px;padding:6px 12px">Entfernen</button>
+                                </div>
+                                <input type="file" id="editTokenPortraitInput" accept="image/*" style="display:none">
+                            </div>
+                        </div>
                         
                         <!-- Border Color -->
                         <div style="margin-bottom:16px">
@@ -645,6 +711,28 @@
                         <div style="margin-bottom:16px">
                             <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;text-transform:uppercase">GM-Notiz</div>
                             <textarea class="wb-token-edit__input" id="editTokenNotes" placeholder="Nur für den GM sichtbar..." style="width:100%;min-height:56px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
+                        </div>
+                        
+                        <!-- Zugehörigkeit -->
+                        <div style="margin-bottom:16px">
+                            <div class="wb-token-field-row">
+                                <div class="wb-token-edit__field">
+                                    <label class="wb-token-edit__label">Zugehörigkeit</label>
+                                    <input type="text" class="wb-token-edit__input" id="editTokenAffiliation" placeholder="z.B. Gilde der Magier, Orks...">
+                                </div>
+                                <button class="wb-vis-toggle visible-to-players" id="editAffVis" title="Für Spieler sichtbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                            </div>
+                        </div>
+                        
+                        <!-- Items -->
+                        <div style="margin-bottom:16px">
+                            <div class="wb-token-field-row">
+                                <div class="wb-token-edit__field">
+                                    <label class="wb-token-edit__label">Items</label>
+                                    <input type="text" class="wb-token-edit__input" id="editTokenItems" placeholder="z.B. Schwert, Heiltrank, Schlüssel...">
+                                </div>
+                                <button class="wb-vis-toggle visible-to-players" id="editItemsVis" title="Für Spieler sichtbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                            </div>
                         </div>
                         
                         <div class="wb-modal__actions">
@@ -803,7 +891,7 @@ const WB = {
     // Data
     strokes: [], images: [], tokens: [], fogAreas: [],
     selected: null, // Single selected item
-    bgImage: null, history: [], historyIdx: -1,
+    bgImage: null, bgDataUrl: null, history: [], historyIdx: -1,
     
     // User
     roomCode: null, db: null, userId: null, userName: null,
@@ -861,6 +949,8 @@ const WB = {
         this.setupTokenEditModal();
         this.setupInitiative();
         this.setupTokenSidebar();
+        this.setupCursorTracking();
+        this.setupTokenTooltip();
         
         if (this.roomCode) await this.connectFirebase();
         this.render();
@@ -2032,6 +2122,7 @@ const WB = {
         this.renderFog();
         this.updateGrid();
         if (this.selected) this.updateSelectBox();
+        if (this._remoteCursors) this.renderRemoteCursors(this._remoteCursors);
     },
     
     renderBg() {
@@ -2154,13 +2245,13 @@ const WB = {
             el.onmousedown = e => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (this.tool === 'select') {
-                    this.select({ type: 'token', item: t, index: i });
-                    this.isDragging = true;
-                    this.lastDragPoint = this.getPoint(e);
-                    this._dragOrigin = { x: t.x, y: t.y };
-                    this.showMoveRadius(t);
-                }
+                this.hideTokenTooltip();
+                // Always allow token interaction regardless of current tool
+                this.select({ type: 'token', item: t, index: i });
+                this.isDragging = true;
+                this.lastDragPoint = this.getPoint(e);
+                this._dragOrigin = { x: t.x, y: t.y };
+                this.showMoveRadius(t);
             };
             el.ondblclick = e => {
                 e.preventDefault();
@@ -2170,9 +2261,19 @@ const WB = {
             el.oncontextmenu = e => {
                 e.preventDefault();
                 e.stopPropagation();
-                // Delegate to onContext with a hint for the token
                 this._contextHit = { type: 'token', item: t, index: i };
                 this.onContext(e);
+            };
+            el.onmouseenter = e => {
+                if (this.isDragging) return;
+                clearTimeout(this._tooltipTimer);
+                this._tooltipTimer = setTimeout(() => {
+                    const r = document.getElementById('canvasWrapper').getBoundingClientRect();
+                    this.showTokenTooltip(t, e.clientX - r.left, e.clientY - r.top);
+                }, 350);
+            };
+            el.onmouseleave = () => {
+                this.hideTokenTooltip();
             };
             c.appendChild(el);
         });
@@ -2471,6 +2572,17 @@ const WB = {
         document.getElementById('createTokenSpeed').value = '';
         document.getElementById('createTokenRange').value = '';
         document.getElementById('createTokenNotes').value = '';
+        document.getElementById('createTokenAffiliation').value = '';
+        document.getElementById('createTokenItems').value = '';
+        
+        // Visibility toggles default: visible
+        document.getElementById('createAffVis').classList.add('visible-to-players');
+        document.getElementById('createItemsVis').classList.add('visible-to-players');
+        
+        // Wire vis toggles
+        ['createAffVis', 'createItemsVis'].forEach(id => {
+            document.getElementById(id).onclick = () => document.getElementById(id).classList.toggle('visible-to-players');
+        });
         
         // Type buttons in creation modal
         document.querySelectorAll('#tokenOverlay .wb-token-type-btn').forEach(btn => {
@@ -2520,6 +2632,10 @@ const WB = {
             range: opts.range || 1,
             type: opts.type || 'player',
             notes: opts.notes || '',
+            affiliation: opts.affiliation || '',
+            items: opts.items || '',
+            affVisible: opts.affVisible !== false,
+            itemsVisible: opts.itemsVisible !== false,
             status: []
         };
         if (img) t.img = img;
@@ -2542,6 +2658,44 @@ const WB = {
         document.getElementById('editTokenSpeed').value = token.speed ?? 6;
         document.getElementById('editTokenRange').value = token.range ?? 1;
         document.getElementById('editTokenNotes').value = token.notes || '';
+        document.getElementById('editTokenAffiliation').value = token.affiliation || '';
+        document.getElementById('editTokenItems').value = token.items || '';
+        
+        // Visibility toggles
+        document.getElementById('editAffVis').classList.toggle('visible-to-players', token.affVisible !== false);
+        document.getElementById('editItemsVis').classList.toggle('visible-to-players', token.itemsVisible !== false);
+        ['editAffVis', 'editItemsVis'].forEach(id => {
+            document.getElementById(id).onclick = () => document.getElementById(id).classList.toggle('visible-to-players');
+        });
+        
+        // Portrait preview
+        const preview = document.getElementById('editTokenPortraitPreview');
+        this._editTokenImg = token.img || null;
+        if (token.img) {
+            preview.innerHTML = `<img src="${token.img}" style="width:100%;height:100%;object-fit:cover">`;
+        } else {
+            preview.innerHTML = `<span style="font-size:24px;font-weight:700">${token.label || '?'}</span>`;
+            preview.style.background = token.color || '#8b5cf6';
+        }
+        preview.style.borderColor = token.borderColor || '#8b5cf6';
+        
+        // Portrait change
+        document.getElementById('editTokenPortraitBtn').onclick = () => document.getElementById('editTokenPortraitInput').click();
+        document.getElementById('editTokenPortraitInput').onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                this._editTokenImg = ev.target.result;
+                preview.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+            };
+            reader.readAsDataURL(file);
+        };
+        document.getElementById('editTokenPortraitRemoveBtn').onclick = () => {
+            this._editTokenImg = null;
+            preview.innerHTML = `<span style="font-size:24px;font-weight:700">${(token.name || '?').charAt(0)}</span>`;
+            preview.style.background = token.color || '#8b5cf6';
+        };
         
         // Type buttons
         document.querySelectorAll('#editTokenTypeGrid .wb-token-type-btn').forEach(btn => {
@@ -2593,6 +2747,20 @@ const WB = {
         t.speed = parseInt(document.getElementById('editTokenSpeed').value) || 6;
         t.range = parseInt(document.getElementById('editTokenRange').value) || 1;
         t.notes = document.getElementById('editTokenNotes').value || '';
+        t.affiliation = document.getElementById('editTokenAffiliation').value || '';
+        t.items = document.getElementById('editTokenItems').value || '';
+        t.affVisible = document.getElementById('editAffVis').classList.contains('visible-to-players');
+        t.itemsVisible = document.getElementById('editItemsVis').classList.contains('visible-to-players');
+        
+        // Portrait
+        if (this._editTokenImg !== undefined) {
+            if (this._editTokenImg) {
+                t.img = this._editTokenImg;
+            } else {
+                delete t.img;
+            }
+        }
+        t.label = t.name.charAt(0).toUpperCase();
         
         // Border color
         if (this._editBorderColor) t.borderColor = this._editBorderColor;
@@ -2783,6 +2951,138 @@ const WB = {
         this.renderTokens();
         this.renderInitiative();
         this.toast('Initiative zurückgesetzt');
+    },
+    
+    // ==================== CURSOR TRACKING ====================
+    setupCursorTracking() {
+        this.cursorVisible = true;
+        this._lastCursorSync = 0;
+        this._remoteCursors = {};
+        
+        const cursorBtn = document.getElementById('cursorToggleBtn');
+        if (cursorBtn) {
+            cursorBtn.onclick = () => {
+                this.cursorVisible = !this.cursorVisible;
+                cursorBtn.classList.toggle('active', this.cursorVisible);
+                if (!this.cursorVisible && this.db && this.roomCode) {
+                    this.db.ref('whiteboard/' + this.roomCode + '/cursors/' + this.userId).remove();
+                }
+            };
+            cursorBtn.classList.add('active');
+        }
+        
+        const wrapper = document.getElementById('canvasWrapper');
+        wrapper.addEventListener('mousemove', e => {
+            if (!this.cursorVisible || !this.db || !this.roomCode) return;
+            const now = Date.now();
+            if (now - this._lastCursorSync < 80) return;
+            this._lastCursorSync = now;
+            
+            const r = this.uiCanvas.getBoundingClientRect();
+            const wx = (e.clientX - r.left - this.panX) / this.zoom;
+            const wy = (e.clientY - r.top - this.panY) / this.zoom;
+            
+            this.db.ref('whiteboard/' + this.roomCode + '/cursors/' + this.userId).set({
+                x: wx, y: wy,
+                name: this.userName,
+                color: this.userColor,
+                ts: now
+            });
+        });
+        
+        wrapper.addEventListener('mouseleave', () => {
+            if (this.db && this.roomCode) {
+                this.db.ref('whiteboard/' + this.roomCode + '/cursors/' + this.userId).remove();
+            }
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (this.db && this.roomCode) {
+                this.db.ref('whiteboard/' + this.roomCode + '/cursors/' + this.userId).remove();
+            }
+        });
+    },
+    
+    renderRemoteCursors(cursors) {
+        const container = document.getElementById('remoteCursors');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        Object.entries(cursors).forEach(([uid, c]) => {
+            if (uid === this.userId) return;
+            if (Date.now() - c.ts > 10000) return; // Stale cursor
+            
+            const screenX = c.x * this.zoom + this.panX;
+            const screenY = c.y * this.zoom + this.panY;
+            
+            const el = document.createElement('div');
+            el.className = 'wb-remote-cursor';
+            el.style.cssText = `--cursor-color:${c.color || '#8b5cf6'};transform:translate3d(${screenX}px,${screenY}px,0)`;
+            el.innerHTML = `<svg class="wb-remote-cursor__icon" viewBox="0 0 24 24" fill="${c.color || '#8b5cf6'}" stroke="white"><path d="M5 3l14 9-6 2-2 6z"/></svg><span class="wb-remote-cursor__label">${c.name || 'Spieler'}</span>`;
+            container.appendChild(el);
+        });
+    },
+    
+    // ==================== TOKEN HOVER TOOLTIP ====================
+    setupTokenTooltip() {
+        this._tooltipTimer = null;
+        this._tooltipToken = null;
+    },
+    
+    showTokenTooltip(token, screenX, screenY) {
+        const tip = document.getElementById('tokenTooltip');
+        if (!tip) return;
+        
+        let html = `<div class="wb-token-tooltip__name">${token.name || 'Token'}</div>`;
+        
+        // HP bar
+        if (token.maxHp > 0) {
+            const pct = Math.max(0, Math.min(100, (token.hp / token.maxHp) * 100));
+            const color = pct <= 25 ? '#ef4444' : pct <= 50 ? '#f59e0b' : '#22c55e';
+            html += `<div class="wb-token-tooltip__row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>HP ${token.hp}/${token.maxHp}</div>`;
+            html += `<div class="wb-token-tooltip__hp-bar"><div class="wb-token-tooltip__hp-fill" style="width:${pct}%;background:${color}"></div></div>`;
+        }
+        
+        // AC
+        if (token.ac) {
+            html += `<div class="wb-token-tooltip__row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>AC ${token.ac}</div>`;
+        }
+        
+        // Affiliation (only if visible to players or GM)
+        if (token.affiliation && (token.affVisible || this.isGM)) {
+            html += `<div class="wb-token-tooltip__row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>${token.affiliation}${(!token.affVisible && this.isGM) ? ' <span style="color:#f59e0b;font-size:9px">(versteckt)</span>' : ''}</div>`;
+        }
+        
+        // Items (only if visible to players or GM)
+        if (token.items && (token.itemsVisible || this.isGM)) {
+            html += `<div class="wb-token-tooltip__items"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>${token.items}${(!token.itemsVisible && this.isGM) ? ' <span style="color:#f59e0b;font-size:9px">(versteckt)</span>' : ''}</div>`;
+        }
+        
+        // GM notes
+        if (token.notes && this.isGM) {
+            html += `<div class="wb-token-tooltip__items" style="color:rgba(251,191,36,0.6)"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>${token.notes}</div>`;
+        }
+        
+        tip.innerHTML = html;
+        
+        // Position tooltip
+        const wrapperRect = document.getElementById('canvasWrapper').getBoundingClientRect();
+        let left = screenX + 20;
+        let top = screenY - 10;
+        if (left + 260 > wrapperRect.width) left = screenX - 180;
+        if (top < 0) top = 10;
+        
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+        tip.classList.add('visible');
+    },
+    
+    hideTokenTooltip() {
+        clearTimeout(this._tooltipTimer);
+        this._tooltipToken = null;
+        const tip = document.getElementById('tokenTooltip');
+        if (tip) tip.classList.remove('visible');
     },
     
     // ==================== MOVEMENT RADIUS ====================
@@ -2994,7 +3294,8 @@ const WB = {
         document.getElementById('bgSelectBtn').onclick = () => document.getElementById('bgFileInput').click();
         document.getElementById('bgFileInput').onchange = e => { if (e.target.files[0]) this.loadBg(e.target.files[0]); };
         document.getElementById('bgRemoveBtn').onclick = () => {
-            this.bgImage = null; this.render();
+            this.bgImage = null; this.bgDataUrl = null; this.render();
+            this.syncBackground(null);
             document.getElementById('bgOverlay').classList.remove('visible');
             this.toast('Hintergrund entfernt');
         };
@@ -3023,13 +3324,36 @@ const WB = {
             const img = new Image();
             img.onload = () => {
                 this.bgImage = img;
+                this.bgDataUrl = e.target.result;
                 this.render();
                 document.getElementById('bgOverlay').classList.remove('visible');
                 this.toast('Hintergrund geladen');
+                // Sync to Firebase
+                this.syncBackground(e.target.result);
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
+    },
+    
+    syncBackground(dataUrl) {
+        if (!this.db || !this.roomCode) return;
+        this.db.ref('whiteboard/' + this.roomCode + '/background').set({
+            dataUrl: dataUrl || null,
+            updatedBy: this.userId,
+            ts: Date.now()
+        });
+    },
+    
+    loadBgFromUrl(dataUrl) {
+        if (!dataUrl) { this.bgImage = null; this.bgDataUrl = null; this.render(); return; }
+        const img = new Image();
+        img.onload = () => {
+            this.bgImage = img;
+            this.bgDataUrl = dataUrl;
+            this.render();
+        };
+        img.src = dataUrl;
     },
     
     loadImage(file) {
@@ -3091,6 +3415,10 @@ const WB = {
                 range: parseInt(document.getElementById('createTokenRange').value) || 1,
                 type: activeType?.dataset.type || 'player',
                 notes: document.getElementById('createTokenNotes').value || '',
+                affiliation: document.getElementById('createTokenAffiliation').value || '',
+                items: document.getElementById('createTokenItems').value || '',
+                affVisible: document.getElementById('createAffVis').classList.contains('visible-to-players'),
+                itemsVisible: document.getElementById('createItemsVis').classList.contains('visible-to-players'),
                 size: activeSize ? parseInt(activeSize.dataset.size) : (this.gridSize || 70)
             };
             this.createToken(name, this.pendingTokenColor, null, null, this.pendingTokenBorder, this.pendingTokenImg, opts);
@@ -3117,7 +3445,7 @@ const WB = {
     
     saveMap() {
         const name = document.getElementById('saveNameInput').value.trim() || 'Map ' + new Date().toLocaleDateString();
-        const data = { name, date: Date.now(), strokes: this.strokes, tokens: this.tokens, images: this.images, fogAreas: this.fogAreas };
+        const data = { name, date: Date.now(), strokes: this.strokes, tokens: this.tokens, images: this.images, fogAreas: this.fogAreas, bgDataUrl: this.bgDataUrl || null };
         const saves = JSON.parse(localStorage.getItem('rift_wb_saves') || '[]');
         saves.unshift(data);
         if (saves.length > 20) saves.pop();
@@ -3145,6 +3473,11 @@ const WB = {
         this.tokens = save.tokens || [];
         this.images = save.images || [];
         this.fogAreas = save.fogAreas || [];
+        if (save.bgDataUrl) {
+            this.loadBgFromUrl(save.bgDataUrl);
+        } else {
+            this.bgImage = null; this.bgDataUrl = null;
+        }
         this.render();
         document.getElementById('loadOverlay').classList.remove('visible');
         this.toast('Geladen: ' + save.name);
@@ -3305,7 +3638,8 @@ const WB = {
         this.images = []; 
         this.tokens = []; 
         this.fogAreas = [];
-        this.bgImage = null; 
+        this.bgImage = null;
+        this.bgDataUrl = null;
         this.history = []; 
         this.historyIdx = -1;
         this.initiativeActive = null;
@@ -3454,6 +3788,8 @@ const WB = {
         const strokesRef = this.db.ref('whiteboard/' + this.roomCode + '/strokes');
         const tokensRef = this.db.ref('whiteboard/' + this.roomCode + '/tokens');
         const pingsRef = this.db.ref('whiteboard/' + this.roomCode + '/pings');
+        const bgRef = this.db.ref('whiteboard/' + this.roomCode + '/background');
+        const cursorsRef = this.db.ref('whiteboard/' + this.roomCode + '/cursors');
         
         // Track initial load to ignore cached child_added events
         let strokesInitialized = false;
@@ -3532,12 +3868,32 @@ const WB = {
             if (p && p.userId !== this.userId && Date.now() - p.ts < 3000) this.showRemotePing(p);
         });
         
+        // Background: Load and listen for changes
+        bgRef.on('value', snap => {
+            const bg = snap.val();
+            if (bg && bg.dataUrl) {
+                if (bg.updatedBy !== this.userId || !this.bgImage) {
+                    this.loadBgFromUrl(bg.dataUrl);
+                }
+            } else if (!bg || !bg.dataUrl) {
+                if (this.bgImage) { this.bgImage = null; this.bgDataUrl = null; this.render(); }
+            }
+        });
+        
+        // Remote cursors
+        cursorsRef.on('value', snap => {
+            this._remoteCursors = snap.val() || {};
+            this.renderRemoteCursors(this._remoteCursors);
+        });
+        
         // Track refs for cleanup
         this.firebaseListeners = [
             { ref: strokesRef, event: 'child_added' },
             { ref: strokesRef, event: 'child_removed' },
             { ref: tokensRef, event: 'value' },
-            { ref: pingsRef, event: 'child_added' }
+            { ref: pingsRef, event: 'child_added' },
+            { ref: bgRef, event: 'value' },
+            { ref: cursorsRef, event: 'value' }
         ];
     },
     
