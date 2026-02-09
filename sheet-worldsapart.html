@@ -1854,6 +1854,103 @@
             color: var(--text-muted);
         }
 
+        /* Schwäche card inner layout */
+        .schwaeche-inner-layout {
+            display: flex;
+            gap: var(--gap-lg);
+            flex: 1;
+            align-items: stretch;
+        }
+
+        .schwaeche-inner-layout .schwaeche-display {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .schwaeche-inner-divider {
+            width: 1px;
+            background: var(--border-subtle);
+            align-self: stretch;
+        }
+
+        /* ===== ARMOR SECTION ===== */
+        .armor-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-sm);
+            min-width: 140px;
+        }
+
+        .armor-section-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .armor-select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 6px 28px 6px 8px;
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+        }
+
+        .armor-select:hover {
+            border-color: var(--border-hover);
+        }
+
+        .armor-select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .armor-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 2px;
+        }
+
+        .armor-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .armor-stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .armor-stat-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            min-width: 24px;
+            text-align: right;
+        }
+
+        .armor-stat-value.total {
+            color: var(--color-green);
+            font-size: 15px;
+        }
+
+        .armor-stat-divider {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 2px 0;
+        }
+
         .rast-buttons {
             display: flex;
             gap: var(--gap-md);
@@ -2942,6 +3039,19 @@
         }
 
         @media (max-width: 650px) {
+            .schwaeche-inner-layout {
+                flex-direction: column;
+            }
+            
+            .schwaeche-inner-divider {
+                width: 100%;
+                height: 1px;
+            }
+            
+            .armor-section {
+                min-width: 0;
+            }
+            
             .attributes-layout {
                 flex-direction: column;
                 align-items: center;
@@ -4338,8 +4448,35 @@
                     <span class="card-title"><span class="card-title-icon">warning</span> Schwäche</span>
                 </div>
                 <div class="card-body">
-                    <div class="schwaeche-display" id="schwaeche-display" onclick="openSchwaechePopup()">
-                        <div class="schwaeche-empty">Keine Schwäche gewählt</div>
+                    <div class="schwaeche-inner-layout">
+                        <div class="schwaeche-display" id="schwaeche-display" onclick="openSchwaechePopup()">
+                            <div class="schwaeche-empty">Keine Schwäche gewählt</div>
+                        </div>
+                        <div class="schwaeche-inner-divider"></div>
+                        <div class="armor-section">
+                            <div class="armor-section-title">Rüstung</div>
+                            <select class="armor-select" id="armor-type" title="Rüstungstyp wählen">
+                                <option value="0">Ungepanzert (DR 0)</option>
+                                <option value="2">Leichte Rüstung (DR 2)</option>
+                                <option value="4">Mittlere Rüstung (DR 4)</option>
+                                <option value="6">Schwere Rüstung (DR 6)</option>
+                            </select>
+                            <div class="armor-stats">
+                                <div class="armor-stat-row">
+                                    <span class="armor-stat-label">Rüstung DR</span>
+                                    <span class="armor-stat-value" id="armor-dr-display">0</span>
+                                </div>
+                                <div class="armor-stat-row">
+                                    <span class="armor-stat-label">RES-Schild</span>
+                                    <span class="armor-stat-value" id="armor-res-display">+0</span>
+                                </div>
+                                <div class="armor-stat-divider"></div>
+                                <div class="armor-stat-row">
+                                    <span class="armor-stat-label">Gesamt-DR</span>
+                                    <span class="armor-stat-value total" id="armor-total-display">0</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5174,6 +5311,7 @@
                 portrait: null, jollyRoger: null,
                 initiative: 0,
                 rangeType: '1',
+                armorType: '0',
                 attributes: { power: 0, agility: 0, endurance: 0, mind: 0, presence: 0 },
                 health: { current: 100, max: 100 },
                 moral: { current: 100, max: 100 },
@@ -5393,6 +5531,15 @@
                 characterData.rangeType = d.rangeType;
                 const rangeSelect = document.getElementById('range-type');
                 if (rangeSelect) rangeSelect.value = d.rangeType;
+                updated = true;
+            }
+            
+            // Update armorType
+            if (d.armorType !== undefined && d.armorType !== characterData.armorType) {
+                characterData.armorType = d.armorType;
+                const armorSelect = document.getElementById('armor-type');
+                if (armorSelect) armorSelect.value = d.armorType;
+                updateArmorDisplay();
                 updated = true;
             }
             
@@ -5626,6 +5773,16 @@
                     updated = true;
                 }
                 
+                // Sync armorType
+                if (d.armorType !== undefined && d.armorType !== characterData.armorType) {
+                    characterData.armorType = d.armorType;
+                    const armorSelect = document.getElementById('armor-type');
+                    if (armorSelect) armorSelect.value = d.armorType;
+                    updateArmorDisplay();
+                    changes.push('Rüstung');
+                    updated = true;
+                }
+                
                 // Sync currency
                 if (d.currency !== undefined && d.currency !== characterData.currency) {
                     characterData.currency = d.currency;
@@ -5807,6 +5964,7 @@
             characterData.rang = d.rang || 'common';
             characterData.initiative = d.initiative || 0;
             characterData.rangeType = d.rangeType || '1';
+            characterData.armorType = d.armorType || '0';
             characterData.role = d.role || char.class || '';
             characterData.crew = d.crew || '';
             characterData.appearance = d.appearance || '';
@@ -6024,6 +6182,7 @@
                         rang: characterData.rang,
                         initiative: characterData.initiative,
                         rangeType: characterData.rangeType,
+                        armorType: characterData.armorType,
                         crew: characterData.crew,
                         role: characterData.role,
                         appearance: characterData.appearance,
@@ -6114,6 +6273,7 @@
                         rang: characterData.rang,
                         initiative: characterData.initiative,
                         rangeType: characterData.rangeType,
+                        armorType: characterData.armorType,
                         crew: characterData.crew,
                         role: characterData.role,
                         appearance: characterData.appearance,
@@ -6188,6 +6348,7 @@
             document.getElementById('char-rang').value = characterData.rang || 'common';
             document.getElementById('char-initiative').value = characterData.initiative || 0;
             document.getElementById('range-type').value = characterData.rangeType || '1';
+            document.getElementById('armor-type').value = characterData.armorType || '0';
             document.getElementById('char-role').value = characterData.role || '';
             document.getElementById('char-crew').value = characterData.crew || '';
             document.getElementById('char-appearance').value = characterData.appearance || '';
@@ -6301,6 +6462,13 @@
                 autoSave();
             });
             
+            // Armor type selector
+            document.getElementById('armor-type').addEventListener('change', (e) => {
+                characterData.armorType = e.target.value;
+                updateArmorDisplay();
+                autoSave();
+            });
+            
             document.getElementById('health-current').addEventListener('input', (e) => {
                 const maxHP = getMaxHealth();
                 let value = parseInt(e.target.value) || 0;
@@ -6406,6 +6574,7 @@
             updateSkillBonuses();
             updateFokusDice();
             updateMovementAndRange();
+            updateArmorDisplay();
         }
         
         // ===== DICE HISTORY =====
@@ -6705,6 +6874,28 @@
             const bonus = calculateRangeBonus();
             const bonusEl = document.getElementById('range-bonus-display');
             if (bonusEl) bonusEl.textContent = `+${bonus} RES-Bonus`;
+        }
+        
+        // ===== ARMOR =====
+        function getResonanceShield() {
+            const power = characterData.attributes.power || 0;
+            const presence = characterData.attributes.presence || 0;
+            const resonanz = 10 + (power * presence);
+            return Math.floor(resonanz / 10);
+        }
+        
+        function updateArmorDisplay() {
+            const armorDR = parseInt(characterData.armorType) || 0;
+            const resShield = getResonanceShield();
+            const totalDR = armorDR + resShield;
+            
+            const drEl = document.getElementById('armor-dr-display');
+            const resEl = document.getElementById('armor-res-display');
+            const totalEl = document.getElementById('armor-total-display');
+            
+            if (drEl) drEl.textContent = armorDR;
+            if (resEl) resEl.textContent = `+${resShield}`;
+            if (totalEl) totalEl.textContent = totalDR;
         }
         
         function updateHealthDisplay() {
