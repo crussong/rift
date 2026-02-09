@@ -7933,6 +7933,7 @@
         let selectedFokusAbilities = [];
         let selectedSchwaeche = null;
         let saveTimeout = null;
+        let _lastLocalSaveTime = 0;
 
         // ===== INIT =====
         const EMPTY_SKILL = () => ({ name: '', value: 0, proficient: true });
@@ -8065,7 +8066,15 @@
                     }
                     
                     const serverData = doc.data();
-                    console.log('[WA-Sheet] Received Firestore update:', serverData);
+                    
+                    // Skip echo of our own saves (within 2s window)
+                    if (Date.now() - _lastLocalSaveTime < 2000) {
+                        // Still process if GM sent changes from a different client
+                        const isRemoteGM = serverData.lastModifiedBy === 'gm' && !window.isGMViewMode;
+                        if (!isRemoteGM) {
+                            return;
+                        }
+                    }
                     
                     handleServerUpdate(serverData);
                     
@@ -8781,6 +8790,7 @@
         }
 
         function saveCharacter() {
+            _lastLocalSaveTime = Date.now();
             // Legacy: Speichere auch ins alte localStorage für Kompatibilität
             localStorage.setItem(STORAGE_KEY, JSON.stringify(characterData));
             
@@ -9082,6 +9092,10 @@
                 document.getElementById(`attr-${attr}`).addEventListener('input', (e) => {
                     let value = parseInt(e.target.value) || 0;
                     value = Math.max(0, Math.min(5, value));
+                    if (value === characterData.attributes[attr]) {
+                        e.target.value = value;
+                        return; // No change, skip all recalculations
+                    }
                     e.target.value = value;
                     characterData.attributes[attr] = value;
                     updateAllCalculations();
@@ -9215,7 +9229,6 @@
         
         let _calcRAF = null;
         function updateAllCalculations() {
-            // Lightweight updates immediately (numbers only, no DOM rebuild)
             const newMax = getMaxHealth();
             if (_prevMaxHP !== null && characterData.health.current >= _prevMaxHP && newMax !== _prevMaxHP) {
                 characterData.health.current = newMax;
@@ -9231,11 +9244,77 @@
             updateMovementAndRange();
             updateArmorDisplay();
             
-            // Heavy DOM rebuild (Fokus with particles/tooltips) — debounce via rAF
+            // Lightweight fokus number patch instead of full DOM rebuild
             if (_calcRAF) cancelAnimationFrame(_calcRAF);
             _calcRAF = requestAnimationFrame(() => {
                 _calcRAF = null;
-                updateFokusDisplay();
+                updateFokusValues();
+            });
+        }
+        
+        // Lightweight: only update numeric values in existing fokus ability cards
+        function updateFokusValues() {
+            const fokusType = characterData.fokus?.type;
+            if (!fokusType || fokusType === 'none' || !FOKUS_DATA[fokusType]) return;
+            
+            const data = FOKUS_DATA[fokusType];
+            const attrKey = FOKUS_ATTRIBUTE_MAP[fokusType];
+            const attrValue = characterData.attributes[attrKey] || 0;
+            const resonanz = 10 + ((characterData.attributes.mind || 0) * (characterData.attributes.presence || 0));
+            const resonanzBonus = Math.floor(resonanz / 10);
+            
+            // Update header RES text
+            const attrEl = document.getElementById('fokus-attr');
+            if (attrEl) attrEl.innerHTML = `Haupt-Attribut: ${data.mainAttr} &middot; RES-Bonus: +${resonanzBonus}`;
+            
+            // Update each ability card's tags and tooltip in-place
+            const cards = document.querySelectorAll('#fokus-abilities .fokus-ability:not(.empty):not(.no-fokus-message)');
+            const allAbilities = [...data.attacks, ...data.defenses];
+            
+            cards.forEach(card => {
+                const nameEl = card.querySelector('.fokus-ability-name');
+                if (!nameEl) return;
+                const name = nameEl.textContent;
+                const ab = allAbilities.find(a => a.name === name);
+                if (!ab) return;
+                
+                const abAttrKey = ATTR_FROM_LABEL[ab.attr] || '';
+                const abAttrVal = characterData.attributes[abAttrKey] || 0;
+                const totalMod = abAttrVal + resonanzBonus;
+                
+                // Patch tag text
+                const tags = card.querySelectorAll('.fokus-ability-tag');
+                if (tags[0]) tags[0].textContent = `${ab.dice} + ${totalMod}`;
+                
+                // Rebuild tooltip (cheaper than full card rebuild)
+                const tooltipEl = card.querySelector('.fokus-ability-tooltip');
+                if (tooltipEl) {
+                    const iconColor = data.color || 'var(--text-secondary)';
+                    const diceNum = parseInt((ab.dice || 'd6').replace('d',''));
+                    const minDmg = 1 + totalMod;
+                    const maxDmg = diceNum + totalMod;
+                    const avgDmg = ((diceNum + 1) / 2 + totalMod).toFixed(1);
+                    const diceTier = {6:'Basis',8:'Standard',10:'Stark',12:'Schwer',20:'Verzweiflung'}[diceNum] || '';
+                    const rng = parseInt(ab.range || 0);
+                    const rangeLabel = rng <= 1 ? 'Nahkampf' : rng <= 2 ? 'Nahbereich' : rng <= 4 ? 'Mittel' : rng <= 8 ? 'Fern' : 'Scharfsch\u00fctze';
+                    const avgNet4 = Math.max(0, parseFloat(avgDmg) - 4).toFixed(1);
+                    const avgNet8 = Math.max(0, parseFloat(avgDmg) - 8).toFixed(1);
+                    
+                    let statusTooltip = '';
+                    if (ab.status) {
+                        const threshold = parseInt(ab.status.match(/\d+/)?.[0] || 0);
+                        if (threshold > 0) {
+                            const hitChance = Math.max(0, Math.min(100, ((maxDmg - threshold + 1) / diceNum * 100))).toFixed(0);
+                            const warn = parseInt(hitChance) === 0 ? `<div style="color:#e03131;font-size:10px;margin-top:2px;">\u26a0 Unerreichbar mit diesem Build</div>` : '';
+                            statusTooltip = `<div class="tt-row"><span class="tt-l">Status</span><span class="tt-v">${hitChance}%  (\u2265${threshold})</span></div>${warn}`;
+                        }
+                    }
+                    
+                    const descData = getFokusDesc(fokusType, name);
+                    const descHtml = buildDescTooltipHtml(descData);
+                    
+                    tooltipEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:${iconColor}10;border-bottom:1px solid ${iconColor}25;font-size:11px;"><span style="color:${iconColor};font-weight:600;">${ab.dice}</span><span style="opacity:0.3;">\u2022</span><span>${diceTier}</span><span style="opacity:0.3;">\u2022</span><span>${rangeLabel}</span></div><div style="padding:8px 12px;display:flex;flex-direction:column;gap:3px;font-size:11px;"><div class="tt-row"><span class="tt-l">Formel</span><span class="tt-v">${ab.attr} ${abAttrVal} + RES ${resonanzBonus}</span></div><div class="tt-row"><span class="tt-l">Schaden</span><span class="tt-v">${minDmg}\u2013${maxDmg} (\u00d8 ${avgDmg})</span></div><div style="height:1px;background:rgba(255,255,255,0.06);margin:3px 0;"></div><div class="tt-row"><span class="tt-l">vs DR 4</span><span class="tt-v">\u00d8 ${avgNet4}</span></div><div class="tt-row"><span class="tt-l">vs DR 8</span><span class="tt-v">\u00d8 ${avgNet8}</span></div>${statusTooltip}</div>${descHtml}`;
+                }
             });
         }
         
