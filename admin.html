@@ -8447,7 +8447,7 @@
                 // Try loading from Firestore first
                 try {
                     const snap = await firebase.firestore().collection('config').doc('fokusKatalog').get();
-                    if (snap.exists) {
+                    if (snap.exists && snap.data()?.fire) {
                         this.data = snap.data();
                         console.log('[FokusAdmin] Loaded from Firestore');
                     }
@@ -8455,28 +8455,19 @@
                     console.warn('[FokusAdmin] Firestore load failed:', e);
                 }
                 
-                // If empty, try loading from JSON
-                if (!Object.keys(this.data).length || !this.data.fire) {
-                    try {
-                        const res = await fetch('assets/js/fokus-descriptions.json');
-                        if (res.ok) {
-                            const descData = await res.json();
-                            // We need the base FOKUS_DATA too — fetch from sheet or hardcode structure
-                            // For now, initialize with known element styles
-                            this.initDefaultData(descData);
-                        }
-                    } catch(e) {
-                        console.warn('[FokusAdmin] JSON load failed:', e);
-                        this.initDefaultData({});
-                    }
-                }
+                // Always ensure defaults exist
+                let descData = {};
+                try {
+                    const res = await fetch('assets/js/fokus-descriptions.json');
+                    if (res.ok) descData = await res.json();
+                } catch(e) { /* optional */ }
                 
+                this.ensureDefaults(descData);
                 this.updateCounts();
                 this.switchCategory('element');
             },
             
-            initDefaultData(descData) {
-                // Initialize with element styles skeleton
+            ensureDefaults(descData) {
                 const ELEMENT_DEFAULTS = {
                     fire: { name: 'Feuer', icon: 'icon_focus_fire.png', color: '#ff6b35', mainAttr: 'KRF' },
                     lightning: { name: 'Blitz', icon: 'icon_focus_lightning.png', color: '#ffd93d', mainAttr: 'KRF' },
@@ -8503,7 +8494,7 @@
                     // Merge description data if available
                     if (descData[key]) {
                         for (const arr of ['attacks', 'defenses']) {
-                            if (this.data[key][arr]) {
+                            if (this.data[key]?.[arr]) {
                                 this.data[key][arr].forEach(ab => {
                                     const d = descData[key]?.[ab.name];
                                     if (d) {
@@ -8516,6 +8507,7 @@
                         }
                     }
                 }
+                console.log('[FokusAdmin] Defaults ensured:', Object.keys(this.data).length, 'styles');
             },
             
             createEmptyAbilities(n) {
