@@ -4234,7 +4234,7 @@
                                     </select>
                                 </div>
                                 <div class="character-meta-item">
-                                    <select id="char-rang" title="Rang bestimmt die Basis-Lebenspunkte (HP = 100 + Rang-Modifikator)">
+                                    <select id="char-rang" title="Rang bestimmt die Basis-Lebenspunkte (HP = 100 + Rang-Mod + ZÄH × 5)">
                                         <option value="">Rang...</option>
                                         <option value="lesser">Lesser (-50 HP)</option>
                                         <option value="common">Common (100 HP)</option>
@@ -4388,8 +4388,8 @@
                                     <span class="status-separator">/</span>
                                     <span class="status-max" id="health-max-display">100</span>
                                 </div>
-                                <div class="status-bar-container">
-                                    <span class="status-label">Lebenspunkte</span>
+                                <div class="status-bar-container" id="health-container" title="100 + Rang + (ZÄH × 5)">
+                                    <span class="status-label" id="health-label">Lebenspunkte (100 + Rang + ZÄH × 5)</span>
                                     <div class="status-bar draggable" data-status="health">
                                         <div class="status-bar-fill health" id="health-bar" style="width: 100%;"></div>
                                     </div>
@@ -6458,6 +6458,9 @@
                 characterData.health.current = Math.max(0, Math.min(newMax, characterData.health.current));
                 document.getElementById('health-current').value = characterData.health.current;
                 
+                // Sync tracked max
+                _prevMaxHP = newMax;
+                
                 updateHealthDisplay();
                 updateStatBars();
                 updateMovementAndRange();
@@ -6596,7 +6599,20 @@
         }); // End DOMContentLoaded
 
         // ===== CALCULATIONS =====
+        // Track previous max HP for auto-scaling
+        let _prevMaxHP = null;
+        
         function updateAllCalculations() {
+            const newMax = getMaxHealth();
+            
+            // Auto-scale HP when at full: if current was at previous max, keep at new max
+            if (_prevMaxHP !== null && characterData.health.current >= _prevMaxHP && newMax !== _prevMaxHP) {
+                characterData.health.current = newMax;
+                const healthInput = document.getElementById('health-current');
+                if (healthInput) healthInput.value = newMax;
+            }
+            _prevMaxHP = newMax;
+            
             updateAttributePoints();
             updateResonanz();
             updateStatBars();
@@ -6862,8 +6878,34 @@
         
         function rollInitiative() {
             const bonus = getResonanzBonus();
+            const currentVal = characterData.initiative || 0;
             
-            // Navigate to dice.html for d20 roll with initiative
+            // If no value set yet, roll inline and fill the field
+            if (currentVal === 0) {
+                const roll = Math.floor(Math.random() * 20) + 1;
+                const total = roll + bonus;
+                characterData.initiative = total;
+                document.getElementById('char-initiative').value = total;
+                autoSave();
+                
+                if (window.RIFT?.ui?.Toast) {
+                    RIFT.ui.Toast.success(`Initiative: ${roll} + ${bonus} = ${total}`);
+                }
+                
+                // Add to dice history
+                addDiceHistoryEntry({
+                    label: 'Initiative',
+                    dice: 'W20',
+                    roll: roll,
+                    mod: bonus,
+                    result: total,
+                    outcome: `W20(${roll}) + ${bonus}`,
+                    success: true
+                });
+                return;
+            }
+            
+            // If value already set, navigate to dice.html for full roll
             const params = new URLSearchParams({
                 dice: 'd20',
                 mod: bonus,
@@ -6931,6 +6973,15 @@
             // Update input max attribute
             const healthInput = document.getElementById('health-current');
             if (healthInput) healthInput.max = maxHP;
+            
+            // Update formula tooltip
+            const rang = characterData.rang || 'common';
+            const rangMod = RANG_MODIFIERS[rang] || 0;
+            const zaeh = characterData.attributes.endurance || 0;
+            const container = document.getElementById('health-container');
+            if (container) {
+                container.title = `100 + ${rangMod} (Rang) + ${zaeh} × 5 (ZÄH) = ${maxHP}`;
+            }
         }
         
         function updateStatBars() {
