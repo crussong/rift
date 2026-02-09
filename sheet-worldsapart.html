@@ -1700,22 +1700,6 @@
             margin-top: 2px;
         }
 
-        .fokus-dice {
-            text-align: right;
-        }
-
-        .fokus-dice-label {
-            font-size: 9px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
-
-        .fokus-dice-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--accent-primary);
-        }
-
         .fokus-abilities {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1784,23 +1768,25 @@
 
         .fokus-ability-tag {
             font-family: var(--font-mono);
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
-            padding: 3px 8px;
+            padding: 4px 10px;
             border-radius: var(--radius-sm);
-            background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-primary);
+            background: rgba(255,255,255,0.06);
+            color: var(--text-secondary);
             white-space: nowrap;
+            display: flex;
+            align-items: center;
         }
 
         .fokus-ability-tag-status {
             font-size: 11px;
             font-weight: 500;
-            padding: 3px 8px;
+            padding: 3px 10px;
             border-radius: var(--radius-sm);
             margin-bottom: 6px;
             white-space: nowrap;
+            display: inline-block;
         }
 
         .fokus-ability-desc {
@@ -1812,20 +1798,22 @@
         .fokus-ability-tooltip {
             display: none;
             position: absolute;
-            bottom: calc(100% + 6px);
+            bottom: calc(100% + 8px);
             left: 50%;
             transform: translateX(-50%);
-            background: var(--bg-base);
+            background: #1a1a2e;
             border: 1px solid var(--border-default);
             border-radius: var(--radius-md);
-            padding: 8px 12px;
+            padding: 10px 14px;
             font-family: var(--font-mono);
             font-size: 11px;
             color: var(--text-secondary);
-            white-space: nowrap;
+            white-space: pre-line;
             z-index: 10;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.6);
             pointer-events: none;
+            min-width: 200px;
+            line-height: 1.6;
         }
 
         .fokus-ability:hover .fokus-ability-tooltip {
@@ -4509,10 +4497,6 @@
                                 <div class="fokus-name" id="fokus-name">Kein Fokus gewählt</div>
                                 <div class="fokus-attr" id="fokus-attr">Klicke um zu wählen</div>
                             </div>
-                            <div class="fokus-dice" id="fokus-dice" style="display: none;">
-                                <div class="fokus-dice-label">Bonus</div>
-                                <div class="fokus-dice-value" id="fokus-formula">+0 RES</div>
-                            </div>
                         </div>
                         <div class="fokus-abilities" id="fokus-abilities">
                             <div class="fokus-ability empty" onclick="openFokusPopup()">
@@ -4520,12 +4504,6 @@
                             </div>
                             <div class="fokus-ability empty" onclick="openFokusPopup()">
                                 <span>Fähigkeit 2</span>
-                            </div>
-                        </div>
-                        <div class="status-info-box" style="margin-top: var(--gap-sm);">
-                            <div class="status-info-row">
-                                <span class="status-info-icon" style="color: var(--text-muted);">●</span>
-                                <span class="status-info-text">Würfelprobe Fokusfähigkeit (D20): ≤ 12 ist ein Fehlschlag, ≥ 13 ist ein Erfolg</span>
                             </div>
                         </div>
                     </div>
@@ -8214,7 +8192,7 @@
             updateResonanz();
             updateStatBars();
             updateSkillBonuses();
-            updateFokusDice();
+            updateFokusDisplay();
             updateMovementAndRange();
             updateArmorDisplay();
         }
@@ -8910,7 +8888,6 @@
             const iconEl = document.getElementById('fokus-icon');
             const nameEl = document.getElementById('fokus-name');
             const attrEl = document.getElementById('fokus-attr');
-            const diceEl = document.getElementById('fokus-dice');
             const abilitiesEl = document.getElementById('fokus-abilities');
             const layoutEl = document.querySelector('.fokus-layout');
             
@@ -8949,9 +8926,6 @@
                 const totalBonus = attrValue + resonanzBonus;
                 attrEl.innerHTML = `Haupt: ${data.mainAttr} &middot; RES-Bonus: +${resonanzBonus}`;
                 
-                diceEl.style.display = 'block';
-                updateFokusDice();
-                
                 const abilities = characterData.fokus.abilities || [];
                 const allAbilities = [...data.attacks, ...data.defenses];
                 
@@ -8972,16 +8946,33 @@
                         const abAttrVal = characterData.attributes[abAttrKey] || 0;
                         const totalMod = abAttrVal + resonanzBonus;
                         
-                        // Status styling
-                        let statusHtml = '<div class="fokus-ability-tag-status" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-muted);">Kein Status</div>';
+                        // Status styling — only show if exists
+                        let statusHtml = '';
                         if (ab?.status) {
                             const statusName = ab.status.split(' ')[0];
                             const statusColor = STATUS_COLORS[statusName] || 'var(--accent-red)';
-                            statusHtml = `<div class="fokus-ability-tag-status" style="background: ${statusColor}18; border: 1px solid ${statusColor}50; color: ${statusColor};">${ab.status}</div>`;
+                            statusHtml = `<div class="fokus-ability-tag-status" style="background: ${statusColor}18; color: ${statusColor};">${ab.status}</div>`;
                         }
                         
-                        // Tooltip breakdown
-                        const tooltip = `${ab?.attr} ${abAttrVal} + RES ${resonanzBonus} = +${totalMod}`;
+                        // Dice info for tooltip
+                        const diceNum = parseInt((ab?.dice || 'd6').replace('d',''));
+                        const minDmg = 1 + totalMod;
+                        const maxDmg = diceNum + totalMod;
+                        const avgDmg = ((diceNum + 1) / 2 + totalMod).toFixed(1);
+                        
+                        // Tooltip with nerd breakdown
+                        let tooltipLines = [
+                            `Attribut: ${ab?.attr} (${abAttrVal}) + RES (${resonanzBonus}) = +${totalMod}`,
+                            `Schaden: ${minDmg}\u2013${maxDmg} (Avg: ${avgDmg})`,
+                        ];
+                        if (ab?.status) {
+                            const threshold = parseInt(ab.status.match(/\d+/)?.[0] || 0);
+                            if (threshold > 0) {
+                                const hitChance = Math.max(0, Math.min(100, ((maxDmg - threshold + 1) / diceNum * 100))).toFixed(0);
+                                tooltipLines.push(`Status-Chance: ${hitChance}% (braucht \u2265${threshold})`);
+                            }
+                        }
+                        const tooltip = tooltipLines.join('\n');
                         
                         return `<div class="fokus-ability" onclick="rollFokus('${escapedName}')">
                             <div class="fokus-ability-type">${isAttack ? 'ANGRIFF' : 'VERTEIDIGUNG'}</div>
@@ -8994,7 +8985,7 @@
                             <div class="fokus-ability-desc">${ab?.desc || ''}</div>
                             <div class="fokus-ability-tooltip">${tooltip}</div>
                         </div>`;
-                    }).join('') + (abilities.length < 2 ? `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>+ F&auml;higkeit</span></div>` : '')
+                    }).join('') + (abilities.length < 2 ? `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>+ F\u00e4higkeit</span></div>` : '')
                     : `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 1</span></div><div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 2</span></div>`;
             } else if (fokusType === 'none') {
                 iconEl.innerHTML = `<img src="assets/icons/icon_nofocus.png" style="opacity: 0.5;">`;
@@ -9002,7 +8993,6 @@
                 iconEl.style.boxShadow = 'none';
                 nameEl.textContent = 'Ohne Fokus';
                 attrEl.textContent = 'Keine magischen Fähigkeiten';
-                diceEl.style.display = 'none';
                 abilitiesEl.innerHTML = `<div class="fokus-ability no-fokus-message" onclick="openFokusPopup()">
                     <div class="no-fokus-text">Du hast dich entschieden, das Abenteuer ohne Fokus-Fähigkeiten zu spielen.</div>
                 </div>`;
@@ -9012,19 +9002,10 @@
                 iconEl.style.boxShadow = 'none';
                 nameEl.textContent = 'Kein Fokus gewählt';
                 attrEl.textContent = 'Klicke um zu wählen';
-                diceEl.style.display = 'none';
                 abilitiesEl.innerHTML = `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 1</span></div><div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 2</span></div>`;
             }
         }
         
-        function updateFokusDice() {
-            const fokusType = characterData.fokus?.type;
-            if (!fokusType || fokusType === 'none') return;
-            // Resonanz = 10 + (mind * presence)
-            const resonanz = 10 + ((characterData.attributes.mind || 0) * (characterData.attributes.presence || 0));
-            const resonanzBonus = Math.floor(resonanz / 10);
-            document.getElementById('fokus-formula').textContent = `+${resonanzBonus} RES`;
-        }
         
         function openFokusPopup() {
             selectedFokusType = characterData.fokus?.type || null;
@@ -9095,14 +9076,14 @@
                 if (ab.status) {
                     const statusName = ab.status.split(' ')[0];
                     const sColor = STATUS_COLORS[statusName] || 'var(--accent-red)';
-                    statusTag = `<span style="display:inline-block; font-size:10px; padding:1px 6px; border-radius:4px; background:${sColor}18; border:1px solid ${sColor}50; color:${sColor}; margin-left:6px;">${ab.status}</span>`;
+                    statusTag = `<span style="display:inline-block; font-size:10px; padding:2px 8px; border-radius:4px; background:${sColor}18; color:${sColor}; margin-left:6px;">${ab.status}</span>`;
                 }
                 
                 return `<div class="fokus-ability-option ${sel ? 'selected' : ''} ${dis ? 'disabled' : ''}" ${selStyle} onclick="toggleFokusAbility('${ab.name.replace(/'/g, "\\'")}', ${dis})">
                     <div class="fokus-ability-option-name" style="color: ${elementColor};">${ab.name}</div>
                     <div style="display:flex; gap:6px; margin-bottom:4px;">
-                        <span style="font-family:var(--font-mono); font-size:11px; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:4px;">${ab.dice}+${totalMod}</span>
-                        <span style="font-family:var(--font-mono); font-size:11px; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:4px;">RW ${ab.range}</span>
+                        <span style="font-family:var(--font-mono); font-size:11px; padding:3px 8px; background:rgba(255,255,255,0.06); border-radius:4px; color:var(--text-secondary);">${ab.dice}+${totalMod}</span>
+                        <span style="font-family:var(--font-mono); font-size:11px; padding:3px 8px; background:rgba(255,255,255,0.06); border-radius:4px; color:var(--text-secondary);">RW ${ab.range}</span>
                         ${statusTag}
                     </div>
                     <div class="fokus-ability-option-desc">${ab.desc}</div>
