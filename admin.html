@@ -5716,8 +5716,7 @@
             } else if (tabId === 'tokenLibrary') {
                 TokenLibraryAdmin.load();
             } else if (tabId === 'fokusKatalog') {
-                console.log('[switchTab] Calling FokusAdmin.load()');
-                try { FokusAdmin.load(); } catch(e) { console.error('[switchTab] FokusAdmin.load error:', e); alert('FokusAdmin error: ' + e.message); }
+                FokusAdmin.load();
             }
         }
         
@@ -8456,19 +8455,26 @@
                     console.warn('[FokusAdmin] Firestore load failed:', e);
                 }
                 
-                // Always ensure defaults exist
+                // Load seed data (ability definitions from sheet)
+                let seedData = {};
+                try {
+                    const res = await fetch('assets/js/fokus-data.json');
+                    if (res.ok) seedData = await res.json();
+                } catch(e) { console.warn('[FokusAdmin] fokus-data.json load failed'); }
+                
+                // Load description overlays
                 let descData = {};
                 try {
                     const res = await fetch('assets/js/fokus-descriptions.json');
                     if (res.ok) descData = await res.json();
                 } catch(e) { /* optional */ }
                 
-                this.ensureDefaults(descData);
+                this.ensureDefaults(seedData, descData);
                 this.updateCounts();
                 this.switchCategory('element');
             },
             
-            ensureDefaults(descData) {
+            ensureDefaults(seedData, descData) {
                 const ELEMENT_DEFAULTS = {
                     fire: { name: 'Feuer', icon: 'icon_focus_fire.png', color: '#ff6b35', mainAttr: 'KRF' },
                     lightning: { name: 'Blitz', icon: 'icon_focus_lightning.png', color: '#ffd93d', mainAttr: 'KRF' },
@@ -8483,28 +8489,33 @@
                     sound: { name: 'Schall', icon: 'icon_focus_sound.png', color: '#26c6da', mainAttr: 'PRÄ' }
                 };
                 
+                const mapAbility = (a, fallbackAttr) => ({
+                    name: a.name || '', attr: a.attr || fallbackAttr, dice: a.dice || 'd8',
+                    range: parseInt(a.range) || 1, status: a.status || '', desc: a.desc || '',
+                    detail: '', battlemap: '', gm: '', pictogram: ''
+                });
+                
                 for (const [key, meta] of Object.entries(ELEMENT_DEFAULTS)) {
                     if (!this.data[key]) {
+                        const seed = seedData?.[key];
                         this.data[key] = {
-                            meta,
+                            meta: seed ? { name: seed.name || meta.name, icon: seed.icon || meta.icon, color: seed.color || meta.color, mainAttr: seed.mainAttr || meta.mainAttr } : meta,
                             category: 'element',
-                            attacks: this.createEmptyAbilities(10),
-                            defenses: this.createEmptyAbilities(10)
+                            attacks: seed?.attacks?.length ? seed.attacks.map(a => mapAbility(a, meta.mainAttr)) : this.createEmptyAbilities(10),
+                            defenses: seed?.defenses?.length ? seed.defenses.map(a => mapAbility(a, meta.mainAttr)) : this.createEmptyAbilities(10)
                         };
                     }
-                    // Merge description data if available
-                    if (descData[key]) {
+                    // Merge description overlays
+                    if (descData?.[key]) {
                         for (const arr of ['attacks', 'defenses']) {
-                            if (this.data[key]?.[arr]) {
-                                this.data[key][arr].forEach(ab => {
-                                    const d = descData[key]?.[ab.name];
-                                    if (d) {
-                                        ab.detail = d.detail || '';
-                                        ab.battlemap = d.battlemap || '';
-                                        ab.gm = d.gm || '';
-                                    }
-                                });
-                            }
+                            (this.data[key]?.[arr] || []).forEach(ab => {
+                                const d = descData[key]?.[ab.name];
+                                if (d) {
+                                    if (d.detail) ab.detail = d.detail;
+                                    if (d.battlemap) ab.battlemap = d.battlemap;
+                                    if (d.gm) ab.gm = d.gm;
+                                }
+                            });
                         }
                     }
                 }
