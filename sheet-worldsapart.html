@@ -9213,10 +9213,10 @@
         // Track previous max HP for auto-scaling
         let _prevMaxHP = null;
         
+        let _calcRAF = null;
         function updateAllCalculations() {
+            // Lightweight updates immediately (numbers only, no DOM rebuild)
             const newMax = getMaxHealth();
-            
-            // Auto-scale HP when at full: if current was at previous max, keep at new max
             if (_prevMaxHP !== null && characterData.health.current >= _prevMaxHP && newMax !== _prevMaxHP) {
                 characterData.health.current = newMax;
                 const healthInput = document.getElementById('health-current');
@@ -9228,9 +9228,15 @@
             updateResonanz();
             updateStatBars();
             updateSkillBonuses();
-            updateFokusDisplay();
             updateMovementAndRange();
             updateArmorDisplay();
+            
+            // Heavy DOM rebuild (Fokus with particles/tooltips) — debounce via rAF
+            if (_calcRAF) cancelAnimationFrame(_calcRAF);
+            _calcRAF = requestAnimationFrame(() => {
+                _calcRAF = null;
+                updateFokusDisplay();
+            });
         }
         
         // ===== DICE HISTORY =====
