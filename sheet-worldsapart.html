@@ -1729,6 +1729,7 @@
             border: 1px solid var(--border-subtle);
             cursor: pointer;
             transition: all 0.15s;
+            position: relative;
         }
 
         .fokus-ability:hover {
@@ -1764,15 +1765,42 @@
             font-size: 9px;
             font-weight: 600;
             text-transform: uppercase;
-            color: var(--accent-primary);
+            color: var(--accent-red);
             margin-bottom: 2px;
+            letter-spacing: 0.5px;
         }
 
         .fokus-ability-name {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .fokus-ability-tags {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .fokus-ability-tag {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
             color: var(--text-primary);
-            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+
+        .fokus-ability-tag-status {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            white-space: nowrap;
         }
 
         .fokus-ability-desc {
@@ -1781,20 +1809,27 @@
             line-height: 1.4;
         }
 
-        .fokus-ability-stats {
+        .fokus-ability-tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-base);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            padding: 8px 12px;
             font-family: var(--font-mono);
             font-size: 11px;
             color: var(--text-secondary);
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
+            white-space: nowrap;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            pointer-events: none;
         }
 
-        .fokus-ability-status {
-            display: inline;
-            font-size: 10px;
-            font-family: var(--font-mono);
-            color: var(--accent-red);
-            font-weight: 500;
+        .fokus-ability:hover .fokus-ability-tooltip {
+            display: block;
         }
 
         /* ===== GEFAHRENPROFIL & RAST ===== */
@@ -8920,17 +8955,44 @@
                 const abilities = characterData.fokus.abilities || [];
                 const allAbilities = [...data.attacks, ...data.defenses];
                 
+                const STATUS_COLORS = {
+                    'Brennend': '#ff6b35', 'Vergiftet': '#7cb342', 'Bet\u00e4ubt': '#ffd93d',
+                    'Verlangsamt': '#4dabf7', 'Geblendet': '#f06595', 'Eingefroren': '#74c0fc',
+                    'Blutend': '#e03131', 'Ersch\u00fcttert': '#9775fa', 'Markiert': '#ff922b', 'Verwirrt': '#cc5de8'
+                };
+                
                 abilitiesEl.innerHTML = abilities.length > 0 
                     ? abilities.map(name => {
                         const ab = allAbilities.find(a => a.name === name);
                         const isAttack = data.attacks.some(a => a.name === name);
-                        const statusHtml = ab?.status ? `<span class="fokus-ability-status">${ab.status}</span>` : '';
                         const escapedName = name.replace(/'/g, "\\'");
-                        return `<div class="fokus-ability" onclick="rollFokus('${escapedName}')" title="Klicke zum W\u00fcrfeln">
-                            <div class="fokus-ability-type">${isAttack ? 'Angriff' : 'Verteidigung'}</div>
-                            <div class="fokus-ability-name">${name}</div>
-                            <div class="fokus-ability-stats">${ab?.attr || ''} | ${ab?.dice || ''} | RW ${ab?.range || ''}</div>
-                            <div class="fokus-ability-desc">${ab?.desc || ''}${statusHtml ? ' ' + statusHtml : ''}</div>
+                        
+                        // Pre-calculate total modifier
+                        const abAttrKey = ATTR_FROM_LABEL[ab?.attr] || '';
+                        const abAttrVal = characterData.attributes[abAttrKey] || 0;
+                        const totalMod = abAttrVal + resonanzBonus;
+                        
+                        // Status styling
+                        let statusHtml = '<div class="fokus-ability-tag-status" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-muted);">Kein Status</div>';
+                        if (ab?.status) {
+                            const statusName = ab.status.split(' ')[0];
+                            const statusColor = STATUS_COLORS[statusName] || 'var(--accent-red)';
+                            statusHtml = `<div class="fokus-ability-tag-status" style="background: ${statusColor}18; border: 1px solid ${statusColor}50; color: ${statusColor};">${ab.status}</div>`;
+                        }
+                        
+                        // Tooltip breakdown
+                        const tooltip = `${ab?.attr} ${abAttrVal} + RES ${resonanzBonus} = +${totalMod}`;
+                        
+                        return `<div class="fokus-ability" onclick="rollFokus('${escapedName}')">
+                            <div class="fokus-ability-type">${isAttack ? 'ANGRIFF' : 'VERTEIDIGUNG'}</div>
+                            <div class="fokus-ability-name" style="color: ${iconColor};">${name}</div>
+                            <div class="fokus-ability-tags">
+                                <div class="fokus-ability-tag">${ab?.dice || '?'} + ${totalMod}</div>
+                                <div class="fokus-ability-tag">Reichweite: ${ab?.range || '?'} Felder</div>
+                            </div>
+                            ${statusHtml}
+                            <div class="fokus-ability-desc">${ab?.desc || ''}</div>
+                            <div class="fokus-ability-tooltip">${tooltip}</div>
                         </div>`;
                     }).join('') + (abilities.length < 2 ? `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>+ F&auml;higkeit</span></div>` : '')
                     : `<div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 1</span></div><div class="fokus-ability empty" onclick="openFokusPopup()"><span>Fähigkeit 2</span></div>`;
@@ -9014,20 +9076,41 @@
             const resonanz = 10 + ((characterData.attributes.mind || 0) * (characterData.attributes.presence || 0));
             const resonanzBonus = Math.floor(resonanz / 10);
             
+            const STATUS_COLORS = {
+                'Brennend': '#ff6b35', 'Vergiftet': '#7cb342', 'Bet\u00e4ubt': '#ffd93d',
+                'Verlangsamt': '#4dabf7', 'Geblendet': '#f06595', 'Eingefroren': '#74c0fc',
+                'Blutend': '#e03131', 'Ersch\u00fcttert': '#9775fa', 'Markiert': '#ff922b', 'Verwirrt': '#cc5de8'
+            };
+            
             const renderAbility = (ab) => {
                 const sel = selectedFokusAbilities.includes(ab.name);
                 const dis = !sel && selectedFokusAbilities.length >= 2;
                 const selStyle = sel ? `style="border-color: ${elementColor}; background: ${elementColor}20;"` : '';
-                const statusHtml = ab.status ? `<span style="color: var(--accent-red); font-family: var(--font-mono); font-size: 10px;">${ab.status}</span>` : '';
+                
+                const abAttrKey = ATTR_FROM_LABEL[ab.attr] || '';
+                const abAttrVal = characterData.attributes[abAttrKey] || 0;
+                const totalMod = abAttrVal + resonanzBonus;
+                
+                let statusTag = '';
+                if (ab.status) {
+                    const statusName = ab.status.split(' ')[0];
+                    const sColor = STATUS_COLORS[statusName] || 'var(--accent-red)';
+                    statusTag = `<span style="display:inline-block; font-size:10px; padding:1px 6px; border-radius:4px; background:${sColor}18; border:1px solid ${sColor}50; color:${sColor}; margin-left:6px;">${ab.status}</span>`;
+                }
+                
                 return `<div class="fokus-ability-option ${sel ? 'selected' : ''} ${dis ? 'disabled' : ''}" ${selStyle} onclick="toggleFokusAbility('${ab.name.replace(/'/g, "\\'")}', ${dis})">
-                    <div class="fokus-ability-option-name">${ab.name}</div>
-                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;">${ab.attr} | ${ab.dice} | RW ${ab.range} ${statusHtml}</div>
+                    <div class="fokus-ability-option-name" style="color: ${elementColor};">${ab.name}</div>
+                    <div style="display:flex; gap:6px; margin-bottom:4px;">
+                        <span style="font-family:var(--font-mono); font-size:11px; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:4px;">${ab.dice}+${totalMod}</span>
+                        <span style="font-family:var(--font-mono); font-size:11px; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:4px;">RW ${ab.range}</span>
+                        ${statusTag}
+                    </div>
                     <div class="fokus-ability-option-desc">${ab.desc}</div>
                 </div>`;
             };
             
             container.innerHTML = `
-                <div class="fokus-attr-info">Haupt: ${data.mainAttr} &middot; RES-Bonus: +${resonanzBonus} &middot; Formel: W&uuml;rfel + Attr + ${resonanzBonus}</div>
+                <div class="fokus-attr-info">Schaden = W&uuml;rfel + Attribut + ${resonanzBonus} RES-Bonus &mdash; DR des Gegners</div>
                 <div class="fokus-section-title" style="color: ${elementColor};">Angriffe</div>
                 <div class="fokus-ability-grid">
                     ${data.attacks.map(renderAbility).join('')}
