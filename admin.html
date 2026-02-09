@@ -2870,7 +2870,7 @@
                     <div id="fk-category-tabs" style="display:flex;border-bottom:1px solid var(--border)">
                         <button class="fk-cat-tab active" onclick="FokusAdmin.switchCategory('element')" data-cat="element" style="flex:1;padding:14px;background:none;border:none;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid var(--accent);transition:all 0.2s">
                             Element
-                            <span style="font-size:11px;opacity:0.5;margin-left:4px" id="fk-count-element">11</span>
+                            <span style="font-size:11px;opacity:0.5;margin-left:4px" id="fk-count-element">—</span>
                         </button>
                         <button class="fk-cat-tab" onclick="FokusAdmin.switchCategory('weapon')" data-cat="weapon" style="flex:1;padding:14px;background:none;border:none;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s">
                             Waffen-Spezialist
@@ -5716,7 +5716,8 @@
             } else if (tabId === 'tokenLibrary') {
                 TokenLibraryAdmin.load();
             } else if (tabId === 'fokusKatalog') {
-                FokusAdmin.load();
+                console.log('[switchTab] Calling FokusAdmin.load()');
+                try { FokusAdmin.load(); } catch(e) { console.error('[switchTab] FokusAdmin.load error:', e); alert('FokusAdmin error: ' + e.message); }
             }
         }
         
@@ -8544,7 +8545,7 @@
             renderStyleList() {
                 const keys = this.CATEGORIES[this.currentCategory] || [];
                 const list = document.getElementById('fk-style-list');
-                if (!list) { console.error('[FokusAdmin] fk-style-list not found'); return; }
+                if (!list) return;
                 
                 let html = '';
                 for (const key of keys) {
@@ -8559,14 +8560,13 @@
                     const textCol = isActive ? c : '#e5e5e5';
                     const fw = isActive ? '600' : '400';
                     
-                    html += `<button onclick="FokusAdmin.selectStyle('${key}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid ${borderCol};background:${bgCol};color:${textCol};cursor:pointer;text-align:left;width:100%;font-size:13px;">` +
-                        `<img src="assets/icons/${meta.icon || ''}" alt="" style="width:20px;height:20px" onerror="this.style.display='none'">` +
-                        `<span style="flex:1;font-weight:${fw}">${meta.name || key}</span>` +
-                        `<span style="font-size:10px;opacity:0.5">${filledCount}/20</span>` +
-                        `</button>`;
+                    html += '<button onclick="FokusAdmin.selectStyle(\'' + key + '\')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid ' + borderCol + ';background:' + bgCol + ';color:' + textCol + ';cursor:pointer;text-align:left;width:100%;font-size:13px;">' +
+                        '<img src="assets/icons/' + (meta.icon || '') + '" alt="" style="width:20px;height:20px" onerror="this.style.display=\'none\'">' +
+                        '<span style="flex:1;font-weight:' + fw + '">' + (meta.name || key) + '</span>' +
+                        '<span style="font-size:10px;opacity:0.5">' + filledCount + '/20</span>' +
+                        '</button>';
                 }
                 list.innerHTML = html;
-                console.log('[FokusAdmin] Rendered', keys.length, 'styles for', this.currentCategory);
             },
             
             selectStyle(key) {
