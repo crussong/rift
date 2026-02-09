@@ -1459,6 +1459,10 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
                             <span>Token Library</span>
                         </button>
+                        <button class="admin-tab" data-tab="fokusKatalog" onclick="switchTab('fokusKatalog')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <span>Fokus-Katalog</span>
+                        </button>
                     </div>
                 </div>
                 
@@ -2840,6 +2844,157 @@
                 </div>
             </div>
             
+            <!-- ═══════════════════════════════════════
+                 FOKUS-KATALOG — ABILITY EDITOR
+                 ═══════════════════════════════════════ -->
+            <div class="admin-page" id="page-fokusKatalog">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-header__title">Fokus-Katalog</h1>
+                        <p class="page-header__subtitle">Alle Worlds Apart F&auml;higkeiten verwalten &mdash; Texte, Werte, Farben, Piktogramme</p>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn--outline" onclick="FokusAdmin.exportJSON()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            JSON Export
+                        </button>
+                        <button class="btn btn--primary" onclick="FokusAdmin.saveAll()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Speichern
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category Tabs -->
+                <div class="card" style="padding:0;margin-bottom:16px">
+                    <div id="fk-category-tabs" style="display:flex;border-bottom:1px solid var(--border)">
+                        <button class="fk-cat-tab active" onclick="FokusAdmin.switchCategory('element')" data-cat="element" style="flex:1;padding:14px;background:none;border:none;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid var(--accent);transition:all 0.2s">
+                            Element
+                            <span style="font-size:11px;opacity:0.5;margin-left:4px" id="fk-count-element">11</span>
+                        </button>
+                        <button class="fk-cat-tab" onclick="FokusAdmin.switchCategory('weapon')" data-cat="weapon" style="flex:1;padding:14px;background:none;border:none;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s">
+                            Waffen-Spezialist
+                            <span style="font-size:11px;opacity:0.5;margin-left:4px" id="fk-count-weapon">0</span>
+                        </button>
+                        <button class="fk-cat-tab" onclick="FokusAdmin.switchCategory('support')" data-cat="support" style="flex:1;padding:14px;background:none;border:none;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s">
+                            Support
+                            <span style="font-size:11px;opacity:0.5;margin-left:4px" id="fk-count-support">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Style Selector + Ability List -->
+                <div style="display:flex;gap:16px">
+                    <!-- Style List (Left) -->
+                    <div class="card" style="width:220px;flex-shrink:0;padding:8px">
+                        <div id="fk-style-list" style="display:flex;flex-direction:column;gap:4px"></div>
+                        <button class="btn btn--outline" style="width:100%;margin-top:8px;font-size:12px" onclick="FokusAdmin.addStyle()">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Neuer Stil
+                        </button>
+                    </div>
+
+                    <!-- Ability Editor (Right) -->
+                    <div class="card" style="flex:1;padding:0">
+                        <!-- Style Meta Header -->
+                        <div id="fk-style-header" style="padding:16px;border-bottom:1px solid var(--border);display:none">
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                                <div id="fk-style-icon-preview" style="width:40px;height:40px;border-radius:10px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;overflow:hidden">
+                                    <span style="color:var(--text-muted);font-size:11px">Icon</span>
+                                </div>
+                                <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:center">
+                                    <input type="text" id="fk-style-name" placeholder="Stil-Name" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:14px;font-weight:600">
+                                    <input type="text" id="fk-style-mainAttr" placeholder="Haupt-Attr (z.B. KRF)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px">
+                                    <input type="text" id="fk-style-icon" placeholder="icon_focus_fire.png" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px">
+                                    <input type="color" id="fk-style-color" value="#ff6b35" style="width:40px;height:36px;border:none;border-radius:6px;cursor:pointer;background:none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ability Tables -->
+                        <div id="fk-abilities-area" style="padding:16px">
+                            <div style="text-align:center;padding:40px;color:var(--text-muted)">Stil ausw&auml;hlen</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fokus Ability Edit Modal -->
+            <div id="fk-ability-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center">
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:700px;max-height:85vh;overflow-y:auto">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                        <h3 id="fk-modal-title">F&auml;higkeit bearbeiten</h3>
+                        <button onclick="FokusAdmin.closeModal()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">&times;</button>
+                    </div>
+
+                    <!-- Core Fields -->
+                    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px">Name</label>
+                            <input type="text" id="fk-ab-name" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px">Attribut</label>
+                            <select id="fk-ab-attr" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box">
+                                <option value="KRF">KRF</option><option value="GES">GES</option><option value="ZÄH">ZÄH</option><option value="VER">VER</option><option value="PRÄ">PRÄ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px">W&uuml;rfel</label>
+                            <select id="fk-ab-dice" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box">
+                                <option value="d6">d6</option><option value="d8">d8</option><option value="d10">d10</option><option value="d12">d12</option><option value="d20">d20</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px">Reichweite</label>
+                            <input type="number" id="fk-ab-range" min="1" max="20" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box">
+                        </div>
+                    </div>
+
+                    <!-- Status + Pictogram -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px">Status (z.B. Brennend &ge;15)</label>
+                            <input type="text" id="fk-ab-status" placeholder="&mdash;" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px">Piktogramm (24x24 URL)</label>
+                            <div style="display:flex;gap:8px;align-items:center">
+                                <input type="text" id="fk-ab-pictogram" placeholder="assets/icons/..." style="flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box">
+                                <div id="fk-ab-picto-preview" style="width:32px;height:32px;border-radius:6px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">
+                                    <span style="font-size:9px;color:var(--text-muted)">24</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+
+                    <!-- Description Tiers -->
+                    <div style="margin-bottom:12px">
+                        <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px">Kurzbeschreibung</label>
+                        <input type="text" id="fk-ab-desc" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box">
+                    </div>
+                    <div style="margin-bottom:12px">
+                        <label style="font-size:11px;color:var(--accent);text-transform:uppercase;display:block;margin-bottom:4px">Detail (Mechanik)</label>
+                        <textarea id="fk-ab-detail" rows="3" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+                    </div>
+                    <div style="margin-bottom:12px">
+                        <label style="font-size:11px;color:var(--blue);text-transform:uppercase;display:block;margin-bottom:4px">Battlemap (Taktik)</label>
+                        <textarea id="fk-ab-battlemap" rows="3" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+                    </div>
+                    <div style="margin-bottom:16px">
+                        <label style="font-size:11px;color:var(--yellow);text-transform:uppercase;display:block;margin-bottom:4px">GM-Hinweis (Narration)</label>
+                        <textarea id="fk-ab-gm" rows="3" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+                    </div>
+
+                    <div style="display:flex;justify-content:flex-end;gap:8px">
+                        <button class="btn btn--outline" onclick="FokusAdmin.closeModal()">Abbrechen</button>
+                        <button class="btn btn--primary" onclick="FokusAdmin.saveAbility()">Speichern</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- ═══════════════════════════════════════
                  RIFT PRO – SUBSCRIBER ÜBERSICHT
                  ═══════════════════════════════════════ -->
@@ -5521,7 +5676,10 @@
         function switchTab(tabId) {
             // Update tabs
             document.querySelectorAll('.admin-tab').forEach(tab => {
-                tab.classList.toggle('active', tab.textContent.toLowerCase().includes(tabId));
+                tab.classList.toggle('active', 
+                    tab.dataset.tab === tabId || 
+                    tab.textContent.toLowerCase().includes(tabId.toLowerCase())
+                );
             });
             
             // Update pages
@@ -5557,6 +5715,8 @@
                 LandingAdmin.load();
             } else if (tabId === 'tokenLibrary') {
                 TokenLibraryAdmin.load();
+            } else if (tabId === 'fokusKatalog') {
+                FokusAdmin.load();
             }
         }
         
@@ -8264,6 +8424,373 @@
                 } catch(err) {
                     alert('Fehler: ' + err.message);
                 }
+            }
+        };
+        
+        // ═══════════════════════════════════════════════════
+        // FOKUS-KATALOG ADMIN
+        // ═══════════════════════════════════════════════════
+        const FokusAdmin = {
+            data: {},          // { fire: { meta: {...}, attacks: [...], defenses: [...] }, ... }
+            currentCategory: 'element',
+            currentStyle: null,
+            editingAbility: null, // { type: 'attacks'|'defenses', index: number }
+            dirty: false,
+            
+            CATEGORIES: {
+                element: ['fire','lightning','water','wind','shadow','earth','poison','space','time','illusion','sound'],
+                weapon: [],
+                support: []
+            },
+            
+            async load() {
+                // Try loading from Firestore first
+                try {
+                    const snap = await firebase.firestore().collection('config').doc('fokusKatalog').get();
+                    if (snap.exists) {
+                        this.data = snap.data();
+                        console.log('[FokusAdmin] Loaded from Firestore');
+                    }
+                } catch(e) {
+                    console.warn('[FokusAdmin] Firestore load failed:', e);
+                }
+                
+                // If empty, try loading from JSON
+                if (!Object.keys(this.data).length || !this.data.fire) {
+                    try {
+                        const res = await fetch('assets/js/fokus-descriptions.json');
+                        if (res.ok) {
+                            const descData = await res.json();
+                            // We need the base FOKUS_DATA too — fetch from sheet or hardcode structure
+                            // For now, initialize with known element styles
+                            this.initDefaultData(descData);
+                        }
+                    } catch(e) {
+                        console.warn('[FokusAdmin] JSON load failed:', e);
+                        this.initDefaultData({});
+                    }
+                }
+                
+                this.updateCounts();
+                this.switchCategory('element');
+            },
+            
+            initDefaultData(descData) {
+                // Initialize with element styles skeleton
+                const ELEMENT_DEFAULTS = {
+                    fire: { name: 'Feuer', icon: 'icon_focus_fire.png', color: '#ff6b35', mainAttr: 'KRF' },
+                    lightning: { name: 'Blitz', icon: 'icon_focus_lightning.png', color: '#ffd93d', mainAttr: 'KRF' },
+                    water: { name: 'Wasser', icon: 'icon_focus_water.png', color: '#4dabf7', mainAttr: 'GES' },
+                    wind: { name: 'Wind', icon: 'icon_focus_wind.png', color: '#69db7c', mainAttr: 'GES' },
+                    shadow: { name: 'Schatten', icon: 'icon_focus_shadow.png', color: '#4a4a6a', mainAttr: 'GES' },
+                    earth: { name: 'Erde', icon: 'icon_focus_earth.png', color: '#a9845b', mainAttr: 'ZÄH' },
+                    poison: { name: 'Gift', icon: 'icon_focus_poison.png', color: '#7cb342', mainAttr: 'ZÄH' },
+                    space: { name: 'Raum', icon: 'icon_focus_room.png', color: '#9775fa', mainAttr: 'VER' },
+                    time: { name: 'Zeit', icon: 'icon_focus_time.png', color: '#d4a574', mainAttr: 'VER' },
+                    illusion: { name: 'Illusion', icon: 'icon_focus_illusion.png', color: '#f06595', mainAttr: 'PRÄ' },
+                    sound: { name: 'Schall', icon: 'icon_focus_sound.png', color: '#26c6da', mainAttr: 'PRÄ' }
+                };
+                
+                for (const [key, meta] of Object.entries(ELEMENT_DEFAULTS)) {
+                    if (!this.data[key]) {
+                        this.data[key] = {
+                            meta,
+                            category: 'element',
+                            attacks: this.createEmptyAbilities(10),
+                            defenses: this.createEmptyAbilities(10)
+                        };
+                    }
+                    // Merge description data if available
+                    if (descData[key]) {
+                        for (const arr of ['attacks', 'defenses']) {
+                            if (this.data[key][arr]) {
+                                this.data[key][arr].forEach(ab => {
+                                    const d = descData[key]?.[ab.name];
+                                    if (d) {
+                                        ab.detail = d.detail || '';
+                                        ab.battlemap = d.battlemap || '';
+                                        ab.gm = d.gm || '';
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            },
+            
+            createEmptyAbilities(n) {
+                return Array.from({length: n}, () => ({
+                    name: '', attr: 'KRF', dice: 'd8', range: 1, status: '', desc: '',
+                    detail: '', battlemap: '', gm: '', pictogram: ''
+                }));
+            },
+            
+            updateCounts() {
+                for (const [cat, keys] of Object.entries(this.CATEGORIES)) {
+                    const el = document.getElementById(`fk-count-${cat}`);
+                    if (el) el.textContent = keys.filter(k => this.data[k]).length;
+                }
+            },
+            
+            switchCategory(cat) {
+                this.currentCategory = cat;
+                this.currentStyle = null;
+                
+                // Update tab styles
+                document.querySelectorAll('.fk-cat-tab').forEach(t => {
+                    const isCat = t.dataset.cat === cat;
+                    t.style.color = isCat ? 'var(--text)' : 'var(--text-muted)';
+                    t.style.borderBottomColor = isCat ? 'var(--accent)' : 'transparent';
+                    if (isCat) t.classList.add('active'); else t.classList.remove('active');
+                });
+                
+                this.renderStyleList();
+                document.getElementById('fk-style-header').style.display = 'none';
+                document.getElementById('fk-abilities-area').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Stil auswählen</div>';
+            },
+            
+            renderStyleList() {
+                const keys = this.CATEGORIES[this.currentCategory] || [];
+                const list = document.getElementById('fk-style-list');
+                
+                list.innerHTML = keys.map(key => {
+                    const d = this.data[key];
+                    if (!d) return '';
+                    const meta = d.meta || {};
+                    const isActive = this.currentStyle === key;
+                    const filledCount = [...(d.attacks||[]), ...(d.defenses||[])].filter(a => a.name).length;
+                    return `<button onclick="FokusAdmin.selectStyle('${key}')" style="
+                        display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;
+                        border:1px solid ${isActive ? meta.color + '40' : 'transparent'};
+                        background:${isActive ? meta.color + '12' : 'transparent'};
+                        color:${isActive ? meta.color : 'var(--text)'};cursor:pointer;
+                        transition:all 0.15s;text-align:left;width:100%;font-size:13px;
+                    ">
+                        <img src="assets/icons/${meta.icon}" alt="" style="width:20px;height:20px">
+                        <span style="flex:1;font-weight:${isActive ? '600' : '400'}">${meta.name || key}</span>
+                        <span style="font-size:10px;opacity:0.5">${filledCount}/20</span>
+                    </button>`;
+                }).join('');
+            },
+            
+            selectStyle(key) {
+                this.currentStyle = key;
+                this.renderStyleList();
+                this.renderStyleHeader();
+                this.renderAbilities();
+            },
+            
+            renderStyleHeader() {
+                const d = this.data[this.currentStyle];
+                if (!d) return;
+                const m = d.meta || {};
+                
+                document.getElementById('fk-style-header').style.display = 'block';
+                document.getElementById('fk-style-name').value = m.name || '';
+                document.getElementById('fk-style-mainAttr').value = m.mainAttr || '';
+                document.getElementById('fk-style-icon').value = m.icon || '';
+                document.getElementById('fk-style-color').value = m.color || '#ff6b35';
+                
+                const iconPreview = document.getElementById('fk-style-icon-preview');
+                if (m.icon) {
+                    iconPreview.innerHTML = `<img src="assets/icons/${m.icon}" style="width:28px;height:28px">`;
+                    iconPreview.style.background = (m.color || '#fff') + '15';
+                }
+                
+                // Bind meta changes
+                ['fk-style-name','fk-style-mainAttr','fk-style-icon','fk-style-color'].forEach(id => {
+                    const el = document.getElementById(id);
+                    el.onchange = () => {
+                        const d = this.data[this.currentStyle];
+                        if (!d) return;
+                        d.meta.name = document.getElementById('fk-style-name').value;
+                        d.meta.mainAttr = document.getElementById('fk-style-mainAttr').value;
+                        d.meta.icon = document.getElementById('fk-style-icon').value;
+                        d.meta.color = document.getElementById('fk-style-color').value;
+                        this.dirty = true;
+                        this.renderStyleList();
+                    };
+                });
+            },
+            
+            renderAbilities() {
+                const d = this.data[this.currentStyle];
+                if (!d) return;
+                const c = d.meta?.color || '#888';
+                const area = document.getElementById('fk-abilities-area');
+                
+                const renderTable = (abilities, type) => {
+                    return abilities.map((ab, i) => {
+                        const filled = ab.name ? '' : 'opacity:0.3;';
+                        const hasDesc = (ab.detail || ab.battlemap || ab.gm) ? `<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-left:4px" title="Beschreibungen vorhanden"></span>` : '';
+                        const hasPicto = ab.pictogram ? `<img src="${ab.pictogram}" style="width:18px;height:18px;border-radius:3px">` : `<span style="width:18px;height:18px;border-radius:3px;background:var(--bg-input);display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-muted)">${i+1}</span>`;
+                        
+                        return `<tr style="${filled}cursor:pointer;transition:background 0.15s" onclick="FokusAdmin.editAbility('${type}', ${i})" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
+                            <td style="padding:6px 8px;width:30px;text-align:center">${hasPicto}</td>
+                            <td style="padding:6px 8px;font-weight:600;color:${c}">${ab.name || '(leer)'}${hasDesc}</td>
+                            <td style="padding:6px 8px;font-size:12px;color:var(--text-muted)">${ab.attr}</td>
+                            <td style="padding:6px 8px;font-size:12px;font-family:monospace">${ab.dice}</td>
+                            <td style="padding:6px 8px;font-size:12px;color:var(--text-muted)">RW ${ab.range}</td>
+                            <td style="padding:6px 8px;font-size:11px;color:var(--text-muted)">${ab.status || '—'}</td>
+                            <td style="padding:6px 8px;font-size:11px;color:var(--text-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ab.desc || ''}</td>
+                        </tr>`;
+                    }).join('');
+                };
+                
+                const tableStyle = 'width:100%;border-collapse:collapse;font-size:13px';
+                const thStyle = 'padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);border-bottom:1px solid var(--border);font-weight:600';
+                
+                area.innerHTML = `
+                    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${c};margin-bottom:8px;display:flex;align-items:center;gap:8px">
+                        <span>Angriffe</span><span style="flex:1;height:1px;background:var(--border)"></span>
+                        <button class="btn btn--outline" style="padding:4px 10px;font-size:11px" onclick="FokusAdmin.addAbility('attacks')">+ Hinzuf&uuml;gen</button>
+                    </div>
+                    <table style="${tableStyle}">
+                        <thead><tr><th style="${thStyle}"></th><th style="${thStyle}">Name</th><th style="${thStyle}">Attr</th><th style="${thStyle}">W&uuml;rfel</th><th style="${thStyle}">RW</th><th style="${thStyle}">Status</th><th style="${thStyle}">Beschreibung</th></tr></thead>
+                        <tbody>${renderTable(d.attacks || [], 'attacks')}</tbody>
+                    </table>
+                    
+                    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${c};margin:20px 0 8px;display:flex;align-items:center;gap:8px">
+                        <span>Verteidigung</span><span style="flex:1;height:1px;background:var(--border)"></span>
+                        <button class="btn btn--outline" style="padding:4px 10px;font-size:11px" onclick="FokusAdmin.addAbility('defenses')">+ Hinzuf&uuml;gen</button>
+                    </div>
+                    <table style="${tableStyle}">
+                        <thead><tr><th style="${thStyle}"></th><th style="${thStyle}">Name</th><th style="${thStyle}">Attr</th><th style="${thStyle}">W&uuml;rfel</th><th style="${thStyle}">RW</th><th style="${thStyle}">Status</th><th style="${thStyle}">Beschreibung</th></tr></thead>
+                        <tbody>${renderTable(d.defenses || [], 'defenses')}</tbody>
+                    </table>
+                `;
+            },
+            
+            editAbility(type, index) {
+                const d = this.data[this.currentStyle];
+                if (!d) return;
+                const ab = d[type]?.[index];
+                if (!ab) return;
+                
+                this.editingAbility = { type, index };
+                
+                document.getElementById('fk-ab-name').value = ab.name || '';
+                document.getElementById('fk-ab-attr').value = ab.attr || 'KRF';
+                document.getElementById('fk-ab-dice').value = ab.dice || 'd8';
+                document.getElementById('fk-ab-range').value = ab.range || 1;
+                document.getElementById('fk-ab-status').value = ab.status || '';
+                document.getElementById('fk-ab-pictogram').value = ab.pictogram || '';
+                document.getElementById('fk-ab-desc').value = ab.desc || '';
+                document.getElementById('fk-ab-detail').value = ab.detail || '';
+                document.getElementById('fk-ab-battlemap').value = ab.battlemap || '';
+                document.getElementById('fk-ab-gm').value = ab.gm || '';
+                
+                // Pictogram preview
+                const picto = document.getElementById('fk-ab-picto-preview');
+                if (ab.pictogram) picto.innerHTML = `<img src="${ab.pictogram}" style="width:24px;height:24px">`;
+                else picto.innerHTML = '<span style="font-size:9px;color:var(--text-muted)">24</span>';
+                
+                document.getElementById('fk-ab-pictogram').oninput = (e) => {
+                    const v = e.target.value;
+                    picto.innerHTML = v ? `<img src="${v}" style="width:24px;height:24px" onerror="this.style.display='none'">` : '<span style="font-size:9px;color:var(--text-muted)">24</span>';
+                };
+                
+                document.getElementById('fk-modal-title').textContent = ab.name ? `${ab.name} bearbeiten` : 'Neue Fähigkeit';
+                const modal = document.getElementById('fk-ability-modal');
+                modal.style.display = 'flex';
+            },
+            
+            closeModal() {
+                document.getElementById('fk-ability-modal').style.display = 'none';
+                this.editingAbility = null;
+            },
+            
+            saveAbility() {
+                if (!this.editingAbility || !this.currentStyle) return;
+                const { type, index } = this.editingAbility;
+                const d = this.data[this.currentStyle];
+                if (!d || !d[type]) return;
+                
+                d[type][index] = {
+                    name: document.getElementById('fk-ab-name').value.trim(),
+                    attr: document.getElementById('fk-ab-attr').value,
+                    dice: document.getElementById('fk-ab-dice').value,
+                    range: parseInt(document.getElementById('fk-ab-range').value) || 1,
+                    status: document.getElementById('fk-ab-status').value.trim(),
+                    pictogram: document.getElementById('fk-ab-pictogram').value.trim(),
+                    desc: document.getElementById('fk-ab-desc').value.trim(),
+                    detail: document.getElementById('fk-ab-detail').value.trim(),
+                    battlemap: document.getElementById('fk-ab-battlemap').value.trim(),
+                    gm: document.getElementById('fk-ab-gm').value.trim()
+                };
+                
+                this.dirty = true;
+                this.closeModal();
+                this.renderAbilities();
+                this.renderStyleList();
+            },
+            
+            addAbility(type) {
+                const d = this.data[this.currentStyle];
+                if (!d) return;
+                if (!d[type]) d[type] = [];
+                const newIndex = d[type].length;
+                d[type].push({ name: '', attr: 'KRF', dice: 'd8', range: 1, status: '', desc: '', detail: '', battlemap: '', gm: '', pictogram: '' });
+                this.editAbility(type, newIndex);
+            },
+            
+            addStyle() {
+                const key = prompt('Style-Key (z.B. "sword", "healer"):');
+                if (!key || this.data[key]) return;
+                const name = prompt('Anzeigename (z.B. "Schwert", "Heiler"):');
+                if (!name) return;
+                
+                this.data[key] = {
+                    meta: { name, icon: '', color: '#888888', mainAttr: 'KRF' },
+                    category: this.currentCategory,
+                    attacks: [],
+                    defenses: []
+                };
+                
+                if (!this.CATEGORIES[this.currentCategory].includes(key)) {
+                    this.CATEGORIES[this.currentCategory].push(key);
+                }
+                
+                this.dirty = true;
+                this.updateCounts();
+                this.renderStyleList();
+                this.selectStyle(key);
+            },
+            
+            async saveAll() {
+                try {
+                    await firebase.firestore().collection('config').doc('fokusKatalog').set(this.data);
+                    this.dirty = false;
+                    alert('Fokus-Katalog gespeichert!');
+                } catch(e) {
+                    alert('Fehler beim Speichern: ' + e.message);
+                }
+            },
+            
+            exportJSON() {
+                // Export description-only JSON (for fokus-descriptions.json)
+                const out = {};
+                for (const [key, styleData] of Object.entries(this.data)) {
+                    if (key.startsWith('_')) continue;
+                    const styleDescs = {};
+                    for (const arr of ['attacks', 'defenses']) {
+                        (styleData[arr] || []).forEach(ab => {
+                            if (ab.name && (ab.detail || ab.battlemap || ab.gm)) {
+                                styleDescs[ab.name] = {};
+                                if (ab.detail) styleDescs[ab.name].detail = ab.detail;
+                                if (ab.battlemap) styleDescs[ab.name].battlemap = ab.battlemap;
+                                if (ab.gm) styleDescs[ab.name].gm = ab.gm;
+                            }
+                        });
+                    }
+                    if (Object.keys(styleDescs).length) out[key] = styleDescs;
+                }
+                
+                const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'fokus-descriptions.json'; a.click();
+                URL.revokeObjectURL(url);
             }
         };
         
