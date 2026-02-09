@@ -8544,25 +8544,29 @@
             renderStyleList() {
                 const keys = this.CATEGORIES[this.currentCategory] || [];
                 const list = document.getElementById('fk-style-list');
+                if (!list) { console.error('[FokusAdmin] fk-style-list not found'); return; }
                 
-                list.innerHTML = keys.map(key => {
+                let html = '';
+                for (const key of keys) {
                     const d = this.data[key];
-                    if (!d) return '';
+                    if (!d) continue;
                     const meta = d.meta || {};
                     const isActive = this.currentStyle === key;
                     const filledCount = [...(d.attacks||[]), ...(d.defenses||[])].filter(a => a.name).length;
-                    return `<button onclick="FokusAdmin.selectStyle('${key}')" style="
-                        display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;
-                        border:1px solid ${isActive ? meta.color + '40' : 'transparent'};
-                        background:${isActive ? meta.color + '12' : 'transparent'};
-                        color:${isActive ? meta.color : 'var(--text)'};cursor:pointer;
-                        transition:all 0.15s;text-align:left;width:100%;font-size:13px;
-                    ">
-                        <img src="assets/icons/${meta.icon}" alt="" style="width:20px;height:20px">
-                        <span style="flex:1;font-weight:${isActive ? '600' : '400'}">${meta.name || key}</span>
-                        <span style="font-size:10px;opacity:0.5">${filledCount}/20</span>
-                    </button>`;
-                }).join('');
+                    const c = meta.color || '#888';
+                    const borderCol = isActive ? c + '40' : 'rgba(255,255,255,0.06)';
+                    const bgCol = isActive ? c + '12' : 'transparent';
+                    const textCol = isActive ? c : '#e5e5e5';
+                    const fw = isActive ? '600' : '400';
+                    
+                    html += `<button onclick="FokusAdmin.selectStyle('${key}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid ${borderCol};background:${bgCol};color:${textCol};cursor:pointer;text-align:left;width:100%;font-size:13px;">` +
+                        `<img src="assets/icons/${meta.icon || ''}" alt="" style="width:20px;height:20px" onerror="this.style.display='none'">` +
+                        `<span style="flex:1;font-weight:${fw}">${meta.name || key}</span>` +
+                        `<span style="font-size:10px;opacity:0.5">${filledCount}/20</span>` +
+                        `</button>`;
+                }
+                list.innerHTML = html;
+                console.log('[FokusAdmin] Rendered', keys.length, 'styles for', this.currentCategory);
             },
             
             selectStyle(key) {
