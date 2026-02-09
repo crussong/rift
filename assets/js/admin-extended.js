@@ -1919,7 +1919,7 @@ const AuditAdmin = {
         // Update tab buttons
         document.querySelectorAll('.admin-tab').forEach(function(tab) {
             var name = tab.textContent.toLowerCase().trim();
-            var isActive = name.includes(tabId) || (tabId === 'announcements' && name.includes('banner'));
+            var isActive = name.includes(tabId) || (tab.dataset && tab.dataset.tab === tabId) || (tabId === 'announcements' && name.includes('banner'));
             tab.classList.toggle('active', isActive);
         });
         
@@ -1946,6 +1946,7 @@ const AuditAdmin = {
             case 'quotes': if(typeof QuotesAdmin !== 'undefined') QuotesAdmin.load(); break;
             case 'news': if(typeof NewsAdmin !== 'undefined') NewsAdmin.load(); break;
             case 'features': if(typeof FeaturesAdmin !== 'undefined') FeaturesAdmin.load(); break;
+            case 'fokusKatalog': if(typeof FokusAdmin !== 'undefined') FokusAdmin.load(); break;
         }
     };
 })();
