@@ -4289,7 +4289,7 @@
                                 <div class="attribute-item" title="Kraft - Feuer, Blitz">
                                     <div class="attribute-box">
                                         <div class="attribute-modifier">
-                                            <input type="number" id="attr-power" value="0" min="0" max="10" onfocus="this.select()">
+                                            <input type="number" id="attr-power" value="0" min="0" max="5" onfocus="this.select()">
                                         </div>
                                         <div class="attribute-name">Kraft</div>
                                     </div>
@@ -4298,7 +4298,7 @@
                                 <div class="attribute-item" title="Geschick - Wasser, Wind">
                                     <div class="attribute-box">
                                         <div class="attribute-modifier">
-                                            <input type="number" id="attr-agility" value="0" min="0" max="10" onfocus="this.select()">
+                                            <input type="number" id="attr-agility" value="0" min="0" max="5" onfocus="this.select()">
                                         </div>
                                         <div class="attribute-name">Geschick</div>
                                     </div>
@@ -4307,7 +4307,7 @@
                                 <div class="attribute-item" title="Zähigkeit - Erde">
                                     <div class="attribute-box">
                                         <div class="attribute-modifier">
-                                            <input type="number" id="attr-endurance" value="0" min="0" max="10" onfocus="this.select()">
+                                            <input type="number" id="attr-endurance" value="0" min="0" max="5" onfocus="this.select()">
                                         </div>
                                         <div class="attribute-name">Zähigkeit</div>
                                     </div>
@@ -4318,7 +4318,7 @@
                                 <div class="attribute-item" title="Verstand - Raum">
                                     <div class="attribute-box">
                                         <div class="attribute-modifier">
-                                            <input type="number" id="attr-mind" value="0" min="0" max="10" onfocus="this.select()">
+                                            <input type="number" id="attr-mind" value="0" min="0" max="5" onfocus="this.select()">
                                         </div>
                                         <div class="attribute-name">Verstand</div>
                                     </div>
@@ -4327,7 +4327,7 @@
                                 <div class="attribute-item" title="Präsenz - Illusion">
                                     <div class="attribute-box">
                                         <div class="attribute-modifier">
-                                            <input type="number" id="attr-presence" value="0" min="0" max="10" onfocus="this.select()">
+                                            <input type="number" id="attr-presence" value="0" min="0" max="5" onfocus="this.select()">
                                         </div>
                                         <div class="attribute-name">Präsenz</div>
                                     </div>
@@ -4414,8 +4414,8 @@
                                     <span class="status-separator">/</span>
                                     <span class="status-max">100</span>
                                 </div>
-                                <div class="status-bar-container" id="resonanz-container" title="10 + (KRF × PRÄ) = 10">
-                                    <span class="status-label">Resonanz (10 + KRF × PRÄ)</span>
+                                <div class="status-bar-container" id="resonanz-container" title="10 + (VER × PRÄ) = 10">
+                                    <span class="status-label">Resonanz (10 + VER × PRÄ)</span>
                                     <div class="status-bar">
                                         <div class="status-bar-fill resonanz" id="resonanz-bar" style="width: 10%"></div>
                                     </div>
@@ -4474,7 +4474,7 @@
                         <div class="status-info-box" style="margin-top: var(--gap-sm);">
                             <div class="status-info-row">
                                 <span class="status-info-icon" style="color: var(--text-muted);">●</span>
-                                <span class="status-info-text">Würfelprobe Fokusfähigkeit (D20): ≤ 10 ist ein Fehlschlag, ≥ 11 ist ein Erfolg</span>
+                                <span class="status-info-text">Würfelprobe Fokusfähigkeit (D20): ≤ 12 ist ein Fehlschlag, ≥ 13 ist ein Erfolg</span>
                             </div>
                         </div>
                     </div>
@@ -4940,7 +4940,7 @@
         const ATTRIBUTES = ['power', 'agility', 'endurance', 'mind', 'presence'];
         const CURRENCY_TYPES = ['dollar', 'euro', 'yen', 'berry'];
         
-        // Rang (Machtstufen-System): HP = 100 + Rang-Modifikator
+        // Rang (Machtstufen-System): HP = 100 + Rang-Modifikator + (ZÄH × 5)
         const RANG_MODIFIERS = {
             lesser:  -50,  // 50 HP
             common:    0,  // 100 HP
@@ -4952,11 +4952,12 @@
         function getMaxHealth() {
             const rang = characterData.rang || 'common';
             const mod = RANG_MODIFIERS[rang];
-            return mod !== undefined ? 100 + mod : 100;
+            const zaeh = characterData.attributes.endurance || 0;
+            return (mod !== undefined ? 100 + mod : 100) + (zaeh * 5);
         }
         
         const CLASS_ATTRIBUTE_MAP = {
-            handeln: ['power', 'agility', 'endurance'],
+            handeln: ['power', 'agility'],
             wissen: ['mind', 'endurance'],
             soziales: ['presence', 'mind']
         };
@@ -6466,7 +6467,7 @@
             ATTRIBUTES.forEach(attr => {
                 document.getElementById(`attr-${attr}`).addEventListener('input', (e) => {
                     let value = parseInt(e.target.value) || 0;
-                    value = Math.max(0, Math.min(10, value));
+                    value = Math.max(0, Math.min(5, value));
                     e.target.value = value;
                     characterData.attributes[attr] = value;
                     updateAllCalculations();
@@ -6493,6 +6494,7 @@
             document.getElementById('armor-type').addEventListener('change', (e) => {
                 characterData.armorType = e.target.value;
                 updateArmorDisplay();
+                updateMovementAndRange();
                 autoSave();
             });
             
@@ -6823,16 +6825,16 @@
         }
         
         function updateResonanz() {
-            const power = characterData.attributes.power || 0;
+            const mind = characterData.attributes.mind || 0;
             const presence = characterData.attributes.presence || 0;
-            const resonanz = 10 + (power * presence);
+            const resonanz = 10 + (mind * presence);
             document.getElementById('resonanz-display').textContent = resonanz;
             document.getElementById('resonanz-bar').style.width = `${Math.min(resonanz, 100)}%`;
             
             // Update tooltip with formula
             const container = document.getElementById('resonanz-container');
             if (container) {
-                container.title = `10 + (${power} × ${presence}) = ${resonanz}`;
+                container.title = `10 + (${mind} × ${presence}) = ${resonanz}`;
             }
             
             // Update initiative formula display (Resonanz / 5, abgerundet)
@@ -6841,17 +6843,17 @@
         
         // ===== INITIATIVE =====
         function getResonanzBonus() {
-            const power = characterData.attributes.power || 0;
+            const mind = characterData.attributes.mind || 0;
             const presence = characterData.attributes.presence || 0;
-            const resonanz = 10 + (power * presence);
+            const resonanz = 10 + (mind * presence);
             return Math.floor(resonanz / 5);
         }
         
         function updateInitiativeFormula() {
             const bonus = getResonanzBonus();
-            const power = characterData.attributes.power || 0;
+            const mind = characterData.attributes.mind || 0;
             const presence = characterData.attributes.presence || 0;
-            const resonanz = 10 + (power * presence);
+            const resonanz = 10 + (mind * presence);
             const formulaEl = document.getElementById('initiative-formula');
             if (formulaEl) {
                 formulaEl.title = `Resonanz(${resonanz}) / 5 = +${bonus}`;
@@ -6875,21 +6877,17 @@
         window.rollInitiative = rollInitiative;
         
         // ===== MOVEMENT & RANGE =====
-        const RANG_MOVEMENT_MODS = {
-            lesser: -1, common: 0, elite: 1, paragon: 1, apex: 2
-        };
-        
         function calculateMovement() {
             const ges = characterData.attributes.agility || 0;
-            const rang = characterData.rang || 'common';
-            const rangMod = RANG_MOVEMENT_MODS[rang] || 0;
-            return Math.max(1, 4 + Math.floor(ges / 2) + rangMod);
+            const armorMalus = { '0': 0, '2': 1, '4': 2, '6': 4 };
+            const malus = armorMalus[characterData.armorType] || 0;
+            return Math.max(1, 5 + Math.floor(ges / 2) - malus);
         }
         
         function calculateRangeBonus() {
-            const power = characterData.attributes.power || 0;
+            const mind = characterData.attributes.mind || 0;
             const presence = characterData.attributes.presence || 0;
-            const resonanz = 10 + (power * presence);
+            const resonanz = 10 + (mind * presence);
             return Math.floor(resonanz / 10);
         }
         
@@ -6905,9 +6903,9 @@
         
         // ===== ARMOR =====
         function getResonanceShield() {
-            const power = characterData.attributes.power || 0;
+            const mind = characterData.attributes.mind || 0;
             const presence = characterData.attributes.presence || 0;
-            const resonanz = 10 + (power * presence);
+            const resonanz = 10 + (mind * presence);
             return Math.floor(resonanz / 10);
         }
         
@@ -7126,7 +7124,7 @@
             // Calculate full Fokus bonus: Attribute + Resonanz/10
             const attrKey = FOKUS_ATTRIBUTE_MAP[fokusType];
             const attrValue = characterData.attributes[attrKey] || 0;
-            const resonanz = 10 + ((characterData.attributes.power || 0) * (characterData.attributes.presence || 0));
+            const resonanz = 10 + ((characterData.attributes.mind || 0) * (characterData.attributes.presence || 0));
             const resonanzBonus = Math.floor(resonanz / 10);
             const totalBonus = attrValue + resonanzBonus;
             
@@ -7288,7 +7286,7 @@
                 // Calculate and display attribute + resonanz bonus
                 const attrKey = FOKUS_ATTRIBUTE_MAP[fokusType];
                 const attrValue = characterData.attributes[attrKey] || 0;
-                const resonanz = 10 + ((characterData.attributes.power || 0) * (characterData.attributes.presence || 0));
+                const resonanz = 10 + ((characterData.attributes.mind || 0) * (characterData.attributes.presence || 0));
                 const resonanzBonus = Math.floor(resonanz / 10);
                 const totalBonus = attrValue + resonanzBonus;
                 attrEl.innerHTML = `${data.attr} (${attrValue}) + RES (${resonanzBonus}) = <strong>+${totalBonus}</strong>`;
@@ -7335,8 +7333,8 @@
             const fokusType = characterData.fokus?.type;
             if (!fokusType || fokusType === 'none') return;
             const attrValue = characterData.attributes[FOKUS_ATTRIBUTE_MAP[fokusType]] || 0;
-            // Resonanz = 10 + (power * presence)
-            const resonanz = 10 + ((characterData.attributes.power || 0) * (characterData.attributes.presence || 0));
+            // Resonanz = 10 + (mind * presence)
+            const resonanz = 10 + ((characterData.attributes.mind || 0) * (characterData.attributes.presence || 0));
             const resonanzBonus = Math.floor(resonanz / 10);
             const totalBonus = attrValue + resonanzBonus;
             document.getElementById('fokus-formula').textContent = `W20+${totalBonus}`;
@@ -7392,7 +7390,7 @@
             // Calculate attribute + resonanz bonus for display
             const attrKey = FOKUS_ATTRIBUTE_MAP[selectedFokusType];
             const attrValue = characterData.attributes[attrKey] || 0;
-            const resonanz = 10 + ((characterData.attributes.power || 0) * (characterData.attributes.presence || 0));
+            const resonanz = 10 + ((characterData.attributes.mind || 0) * (characterData.attributes.presence || 0));
             const resonanzBonus = Math.floor(resonanz / 10);
             const totalBonus = attrValue + resonanzBonus;
             
