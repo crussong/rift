@@ -946,6 +946,85 @@
             margin-top: 2px;
         }
 
+        /* ===== MOVEMENT & RANGE BAR ===== */
+        .movement-range-bar {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-md);
+            margin-top: var(--gap-lg);
+            padding: 6px 12px;
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-subtle);
+            height: 35px;
+            width: 100%;
+        }
+
+        .mr-section {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .mr-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .mr-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .mr-unit {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .mr-divider {
+            width: 1px;
+            height: 18px;
+            background: var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        .mr-select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 11px;
+            padding: 3px 24px 3px 8px;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+        }
+
+        .mr-select:hover {
+            border-color: var(--border-hover);
+        }
+
+        .mr-select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .mr-bonus {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
         .attribute-item {
             display: flex;
             flex-direction: column;
@@ -4115,6 +4194,31 @@
                             <div class="initiative-base" id="initiative-formula">W20 + RES/5</div>
                         </div>
                     </div>
+                    <!-- MOVEMENT & RANGE BAR -->
+                    <div class="movement-range-bar">
+                        <div class="mr-section" title="Bewegung = 4 + (GES / 2) + Rang-Mod">
+                            <span class="mr-label">Bewegung</span>
+                            <span class="mr-value" id="movement-value">4</span>
+                            <span class="mr-unit">Felder</span>
+                        </div>
+                        <div class="mr-divider"></div>
+                        <div class="mr-section">
+                            <span class="mr-label">Reichweite</span>
+                            <select class="mr-select" id="range-type" title="Standard-Reichweite der Hauptwaffe/Fähigkeit">
+                                <option value="1">Nahkampf (1)</option>
+                                <option value="2">Erw. Nahkampf (2)</option>
+                                <option value="4">Kurzdistanz (4)</option>
+                                <option value="8">Mitteldistanz (8)</option>
+                                <option value="12">Weitdistanz (12)</option>
+                                <option value="16">Extremdistanz (16+)</option>
+                            </select>
+                            <span class="mr-unit">Felder</span>
+                        </div>
+                        <div class="mr-divider"></div>
+                        <div class="mr-section" title="Reichweitenbonus = Resonanz / 25 (abrunden)">
+                            <span class="mr-bonus" id="range-bonus-display">+0 RES-Bonus</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -5069,6 +5173,7 @@
                 name: '', race: '', age: '', gender: '', rang: 'common', role: '', crew: '',
                 portrait: null, jollyRoger: null,
                 initiative: 0,
+                rangeType: '1',
                 attributes: { power: 0, agility: 0, endurance: 0, mind: 0, presence: 0 },
                 health: { current: 100, max: 100 },
                 moral: { current: 100, max: 100 },
@@ -5280,6 +5385,14 @@
                 characterData.initiative = d.initiative;
                 const initInput = document.getElementById('char-initiative');
                 if (initInput) initInput.value = d.initiative;
+                updated = true;
+            }
+            
+            // Update rangeType
+            if (d.rangeType !== undefined && d.rangeType !== characterData.rangeType) {
+                characterData.rangeType = d.rangeType;
+                const rangeSelect = document.getElementById('range-type');
+                if (rangeSelect) rangeSelect.value = d.rangeType;
                 updated = true;
             }
             
@@ -5504,6 +5617,15 @@
                     updated = true;
                 }
                 
+                // Sync rangeType
+                if (d.rangeType !== undefined && d.rangeType !== characterData.rangeType) {
+                    characterData.rangeType = d.rangeType;
+                    const rangeSelect = document.getElementById('range-type');
+                    if (rangeSelect) rangeSelect.value = d.rangeType;
+                    changes.push('Reichweite');
+                    updated = true;
+                }
+                
                 // Sync currency
                 if (d.currency !== undefined && d.currency !== characterData.currency) {
                     characterData.currency = d.currency;
@@ -5684,6 +5806,7 @@
             characterData.gender = d.gender || '';
             characterData.rang = d.rang || 'common';
             characterData.initiative = d.initiative || 0;
+            characterData.rangeType = d.rangeType || '1';
             characterData.role = d.role || char.class || '';
             characterData.crew = d.crew || '';
             characterData.appearance = d.appearance || '';
@@ -5900,6 +6023,7 @@
                         gender: characterData.gender,
                         rang: characterData.rang,
                         initiative: characterData.initiative,
+                        rangeType: characterData.rangeType,
                         crew: characterData.crew,
                         role: characterData.role,
                         appearance: characterData.appearance,
@@ -5989,6 +6113,7 @@
                         gender: characterData.gender,
                         rang: characterData.rang,
                         initiative: characterData.initiative,
+                        rangeType: characterData.rangeType,
                         crew: characterData.crew,
                         role: characterData.role,
                         appearance: characterData.appearance,
@@ -6062,6 +6187,7 @@
             document.getElementById('char-gender').value = characterData.gender || '';
             document.getElementById('char-rang').value = characterData.rang || 'common';
             document.getElementById('char-initiative').value = characterData.initiative || 0;
+            document.getElementById('range-type').value = characterData.rangeType || '1';
             document.getElementById('char-role').value = characterData.role || '';
             document.getElementById('char-crew').value = characterData.crew || '';
             document.getElementById('char-appearance').value = characterData.appearance || '';
@@ -6145,6 +6271,7 @@
                 
                 updateHealthDisplay();
                 updateStatBars();
+                updateMovementAndRange();
                 autoSave();
             });
             
@@ -6165,6 +6292,12 @@
                 value = Math.max(0, value);
                 e.target.value = value;
                 characterData.initiative = value;
+                autoSave();
+            });
+            
+            // Range type selector
+            document.getElementById('range-type').addEventListener('change', (e) => {
+                characterData.rangeType = e.target.value;
                 autoSave();
             });
             
@@ -6272,6 +6405,7 @@
             updateStatBars();
             updateSkillBonuses();
             updateFokusDice();
+            updateMovementAndRange();
         }
         
         // ===== DICE HISTORY =====
@@ -6543,6 +6677,35 @@
             window.location.href = `dice.html?${params.toString()}`;
         }
         window.rollInitiative = rollInitiative;
+        
+        // ===== MOVEMENT & RANGE =====
+        const RANG_MOVEMENT_MODS = {
+            lesser: -1, common: 0, elite: 1, paragon: 1, apex: 2
+        };
+        
+        function calculateMovement() {
+            const ges = characterData.attributes.agility || 0;
+            const rang = characterData.rang || 'common';
+            const rangMod = RANG_MOVEMENT_MODS[rang] || 0;
+            return Math.max(1, 4 + Math.floor(ges / 2) + rangMod);
+        }
+        
+        function calculateRangeBonus() {
+            const power = characterData.attributes.power || 0;
+            const presence = characterData.attributes.presence || 0;
+            const resonanz = 10 + (power * presence);
+            return Math.floor(resonanz / 25);
+        }
+        
+        function updateMovementAndRange() {
+            const movement = calculateMovement();
+            const movEl = document.getElementById('movement-value');
+            if (movEl) movEl.textContent = movement;
+            
+            const bonus = calculateRangeBonus();
+            const bonusEl = document.getElementById('range-bonus-display');
+            if (bonusEl) bonusEl.textContent = `+${bonus} RES-Bonus`;
+        }
         
         function updateHealthDisplay() {
             const maxHP = getMaxHealth();
