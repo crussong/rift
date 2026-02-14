@@ -1,0 +1,613 @@
+/**
+ * RIFT 2.0 — Skilltree Overlay Styles
+ */
+
+/* ═══ OVERLAY SHELL ═══ */
+
+.st-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.st-overlay.st-open {
+    opacity: 1;
+    pointer-events: all;
+}
+.st-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 4, 8, 0.85);
+    backdrop-filter: blur(6px);
+}
+.st-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 900px;
+    max-width: calc(100% - 48px);
+    height: 600px;
+    max-height: calc(100% - 48px);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-dark);
+    border: 2px solid var(--border-light);
+    overflow: hidden;
+    z-index: 1;
+}
+.st-panel::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(255,255,255,0.02);
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* ═══ HEADER ═══ */
+
+.st-header {
+    display: flex;
+    align-items: center;
+    height: 50px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: relative;
+}
+.st-header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+}
+.st-header__title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.st-header__title svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0.5;
+}
+.st-header__class {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 1px;
+    margin-left: 16px;
+}
+.st-header__points {
+    font-family: var(--font-shell);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-left: auto;
+}
+.st-pts-val {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--hp-green);
+}
+.st-header__close {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    margin-left: 12px;
+    transition: all 0.2s;
+}
+.st-header__close:hover {
+    color: var(--rage-red);
+    border-color: var(--border);
+}
+.st-header__close svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ═══ BODY ═══ */
+
+.st-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ═══ NODE GRAPH ═══ */
+
+.st-graph {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at 50% 30%, rgba(212,168,68,0.015), transparent 60%),
+        var(--bg-dark);
+}
+
+/* Connection lines */
+.st-connections {
+    position: absolute;
+    inset: 40px 60px;
+    width: calc(100% - 120px);
+    height: calc(100% - 80px);
+    pointer-events: none;
+    z-index: 1;
+}
+.st-connections line {
+    stroke: var(--border);
+    stroke-width: 2;
+    transition: stroke 0.3s;
+}
+.st-connections line.st-line--active {
+    stroke: var(--gold-dim);
+    stroke-width: 2;
+}
+
+/* ═══ NODES ═══ */
+
+.st-node {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 2;
+    /* offset for the padded graph area */
+    margin-left: 60px;
+    margin-top: 40px;
+    /* account for padding in % positioning */
+}
+/* Override positioning: nodes use % of graph, but graph has inner padding.
+   Easier: just set the connections SVG and nodes both relative to same padded area. */
+.st-node {
+    /* Recalc: position is set as left/top % in JS. We add offset via the graph padding. */
+    /* Actually let's use calc for this */
+}
+/* Simpler approach: graph has padding, nodes positioned within that */
+.st-graph {
+    padding: 40px 60px;
+}
+.st-connections {
+    position: absolute;
+    inset: 40px 60px;
+    width: calc(100% - 120px);
+    height: calc(100% - 80px);
+}
+.st-node {
+    /* left/top set in JS as %. These are relative to the full .st-graph,
+       so we need to map them into the padded area */
+    margin: 0;
+}
+/* Better: wrap nodes and SVG in a common inner container */
+/* We'll handle this by making positions account for padding in JS.
+   For now, use absolute with same offsets. Actually simplest:
+   just let the graph have no padding, and give nodes some space via their y range (8%-85%). */
+.st-graph {
+    padding: 0;
+}
+.st-connections {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Node base */
+.st-node {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.st-node__ring {
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    background: var(--bg-card);
+    transition: all 0.25s;
+}
+.st-node__icon {
+    position: relative;
+    z-index: 1;
+    color: var(--text-dim);
+    transition: color 0.25s;
+}
+.st-node__icon svg {
+    width: 18px;
+    height: 18px;
+}
+.st-node__name {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-shell);
+    font-size: 8px;
+    font-weight: 600;
+    color: var(--text-dim);
+    white-space: nowrap;
+    text-align: center;
+    letter-spacing: 0.3px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ── Node states ── */
+
+/* Locked */
+.st-node--locked {
+    opacity: 0.2;
+    cursor: default;
+}
+
+/* Available (can unlock) */
+.st-node--available .st-node__ring {
+    border-color: var(--gold-dim);
+    background: rgba(212,168,68,0.04);
+    animation: st-pulse 2s ease-in-out infinite;
+}
+.st-node--available .st-node__icon { color: var(--gold-dim); }
+.st-node--available .st-node__name { color: var(--gold-dim); }
+
+/* Unlocked */
+.st-node--unlocked .st-node__ring {
+    border-color: var(--gold);
+    background: rgba(212,168,68,0.08);
+    box-shadow: 0 0 12px rgba(212,168,68,0.15);
+}
+.st-node--unlocked .st-node__icon { color: var(--gold); }
+.st-node--unlocked .st-node__name { color: var(--gold); }
+
+/* Selected */
+.st-node--selected .st-node__ring {
+    border-color: var(--bright);
+    box-shadow: 0 0 20px rgba(212,168,68,0.25), 0 0 4px rgba(238,238,244,0.2);
+}
+
+/* Keystone */
+.st-node--keystone {
+    width: 64px;
+    height: 64px;
+}
+.st-node--keystone .st-node__ring {
+    border-radius: 0;
+    clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    border: none;
+    outline: 2px solid var(--border);
+    outline-offset: -2px;
+}
+.st-node--keystone.st-node--unlocked .st-node__ring {
+    outline-color: var(--gold);
+    box-shadow: 0 0 24px rgba(212,168,68,0.25);
+}
+.st-node--keystone .st-node__icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+/* Passive indicator */
+.st-node--passive .st-node__ring {
+    border-style: dashed;
+}
+.st-node--passive.st-node--unlocked .st-node__ring {
+    border-style: solid;
+}
+
+/* Hover */
+.st-node:not(.st-node--locked):hover .st-node__ring {
+    border-color: var(--gold);
+    background: rgba(212,168,68,0.06);
+}
+.st-node:not(.st-node--locked):hover .st-node__icon { color: var(--gold); }
+
+@keyframes st-pulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(212,168,68,0); }
+    50% { box-shadow: 0 0 14px rgba(212,168,68,0.12); }
+}
+
+/* ═══ DETAIL PANEL ═══ */
+
+.st-detail {
+    width: 260px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--bg-card);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+}
+.st-detail__empty {
+    color: var(--text-dim);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 40px;
+    opacity: 0.5;
+}
+.st-detail__type {
+    font-family: var(--font-shell);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    display: inline-block;
+    width: fit-content;
+}
+.st-detail__type--active {
+    color: var(--rage-red);
+    background: rgba(192,57,43,0.08);
+    border: 1px solid rgba(192,57,43,0.25);
+}
+.st-detail__type--passive {
+    color: var(--xp-blue);
+    background: rgba(41,128,185,0.08);
+    border: 1px solid rgba(41,128,185,0.25);
+}
+.st-detail__name {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--bright);
+    letter-spacing: 0.5px;
+}
+.st-detail__cost {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--rage-red);
+}
+.st-detail__type--passive + .st-detail__name + .st-detail__cost {
+    color: var(--xp-blue);
+}
+.st-detail__desc {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+}
+.st-detail__reqs {
+    font-size: 10px;
+    color: var(--text-dim);
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+.st-detail__tier {
+    font-family: var(--font-shell);
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+/* Action buttons */
+.st-detail__unlock,
+.st-detail__assign {
+    margin-top: auto;
+    padding: 10px 16px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid;
+    background: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+.st-detail__unlock {
+    color: var(--hp-green);
+    border-color: rgba(39,174,96,0.35);
+    background: rgba(39,174,96,0.06);
+}
+.st-detail__unlock:hover {
+    background: rgba(39,174,96,0.12);
+    border-color: var(--hp-green);
+    color: var(--bright);
+}
+.st-detail__assign {
+    color: var(--gold);
+    border-color: var(--gold-dim);
+    background: var(--gold-subtle);
+}
+.st-detail__assign:hover {
+    background: rgba(212,168,68,0.12);
+    border-color: var(--gold);
+    color: var(--bright);
+}
+.st-detail__locked {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-top: auto;
+    padding: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+/* Slot picker */
+.st-slot-picker {
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+.st-slot-picker__title {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+.st-slot-picker__options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.st-slot-picker__btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--bg-slot);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    font-family: var(--font-shell);
+    font-size: 11px;
+}
+.st-slot-picker__btn:hover {
+    border-color: var(--gold-dim);
+    background: rgba(212,168,68,0.04);
+}
+.st-slot-picker__key {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+    width: 20px;
+}
+.st-slot-picker__current {
+    color: var(--text-dim);
+    font-size: 10px;
+}
+
+/* ═══ FOOTER — SKILL SLOTS ═══ */
+
+.st-footer {
+    display: flex;
+    align-items: stretch;
+    height: auto;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+    padding: 12px 20px;
+    gap: 16px;
+    position: relative;
+}
+.st-footer::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+}
+.st-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.st-slots__label {
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+.st-slots__row {
+    display: flex;
+    gap: 6px;
+}
+.st-slots-sep {
+    width: 1px;
+    background: var(--border);
+    margin: 0 4px;
+}
+
+/* Individual slot */
+.st-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    padding: 8px 12px;
+    background: var(--bg-slot);
+    border: 1px solid var(--border);
+    cursor: default;
+    transition: all 0.2s;
+    gap: 2px;
+}
+.st-slot--filled {
+    cursor: pointer;
+    border-color: var(--border-light);
+}
+.st-slot--filled:hover {
+    border-color: var(--gold-dim);
+}
+.st-slot__key {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--gold-dim);
+}
+.st-slot--filled .st-slot__key {
+    color: var(--gold);
+}
+.st-slot__name {
+    font-family: var(--font-shell);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+.st-slot--filled .st-slot__name {
+    color: var(--text);
+}
+.st-slot__cost {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--rage-red);
+}
+.st-slot__desc {
+    font-size: 8px;
+    color: var(--text-dim);
+    text-align: center;
+    max-width: 140px;
+}
+
+/* Passive slots wider */
+.st-slot--passive {
+    min-width: 140px;
+}
+
+/* ═══ RESPONSIVE ═══ */
+
+@media (max-width: 768px) {
+    .st-panel { inset: 0; }
+    .st-detail { width: 100%; border-left: none; border-top: 1px solid var(--border); max-height: 200px; }
+    .st-body { flex-direction: column; }
+    .st-footer { flex-wrap: wrap; padding: 10px; }
+    .st-slot { min-width: 64px; padding: 6px 8px; }
+    .st-slot--passive { min-width: 100px; }
+}
