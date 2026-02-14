@@ -206,8 +206,8 @@ const PageTransitions = {
         if (this.isTransitioning) return;
         
         // Check if target page needs full reload
-        const targetPage = url.split('/').pop().split('?')[0];
-        if (this.config.fullReloadPages.some(page => targetPage === page || targetPage.startsWith(page.replace('.html', '')))) {
+        const targetPath = new URL(url, window.location.origin).pathname;
+        if (this.config.fullReloadPages.some(page => targetPath === page || targetPath.startsWith(page + '?'))) {
             window.location.href = url;
             return;
         }
