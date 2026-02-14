@@ -207,7 +207,7 @@ class ArticleManager {
                             <div class="md-meta-field">
                                 <label class="md-meta-field__label">Bild-URL</label>
                                 <div class="md-meta-field__row">
-                                    <input type="text" class="md-meta-field__input" id="articleMetaImage" placeholder="assets/img/news/...">
+                                    <input type="text" class="md-meta-field__input" id="articleMetaImage" placeholder="/assets/img/news/...">
                                     <button type="button" class="md-meta-field__btn" id="articleMetaImagePreview" title="Vorschau">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                     </button>

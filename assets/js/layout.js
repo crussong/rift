@@ -468,7 +468,7 @@ function createFooter() {
                 <!-- Logo & Tagline -->
                 <div class="footer__brand">
                     <a href="/hub" class="footer__logo">
-                        <img src="assets/img/logo_rift.png" alt="RIFT">
+                        <img src="/assets/img/logo_rift.png" alt="RIFT">
                     </a>
                     <p class="footer__tagline">Dein digitaler Begleiter für Pen & Paper Rollenspiele. Erschaffe Helden, erlebe Abenteuer, würfle Schicksale.</p>
                 </div>
@@ -2092,7 +2092,7 @@ document.addEventListener('DOMContentLoaded', () => {
 (function loadToastService() {
     if (document.querySelector('script[src*="toast-service"]')) return;
     const script = document.createElement('script');
-    script.src = 'assets/js/toast-service.js';
+    script.src = '/assets/js/toast-service.js';
     document.head.appendChild(script);
 })();
 
@@ -2216,7 +2216,7 @@ function createTopnav() {
             <div class="topnav__row1-bg">
                 <div class="topnav__row1">
                     <a href="/hub" class="topnav__logo">
-                        <img src="assets/img/logo_rift.png" alt="RIFT">
+                        <img src="/assets/img/logo_rift.png" alt="RIFT">
                     </a>
                     
                     <div class="topnav__search">

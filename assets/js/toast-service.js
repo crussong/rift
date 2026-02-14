@@ -125,7 +125,7 @@ window.RIFTToast = {
             // Fokus: Use element icon (PNG)
             const elementKey = toast.element.toLowerCase();
             const iconFile = this.fokusIconMap[elementKey] || 'fire';
-            iconHtml = `<img src="assets/icons/icon_focus_${iconFile}.png" alt="${toast.element}">`;
+            iconHtml = `<img src="/assets/icons/icon_focus_${iconFile}.png" alt="${toast.element}">`;
             iconColor = '#8b5cf6'; // Purple for magic
         } else if (toast.rollType === 'zweitechance') {
             // Zweite Chance: D20 icon

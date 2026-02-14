@@ -1002,7 +1002,7 @@ const CAROUSEL_SLIDES = [
         badgeType: 'live',
         title: 'Kellerkinder Test-Session',
         description: 'Die Gruppe steht vor dem Eingang der verlassenen Mine. Was erwartet sie im Inneren?',
-        image: 'assets/img/carousel/session-1.jpg',
+        image: '/assets/img/carousel/session-1.jpg',
         cta: 'Weiterspielen',
         ctaLink: '/session'
     },
@@ -1012,7 +1012,7 @@ const CAROUSEL_SLIDES = [
         badgeType: 'new',
         title: 'D&D 5e (2024) jetzt verfügbar',
         description: 'Die neueste Edition des beliebtesten Rollenspiels der Welt ist jetzt in RIFT integriert.',
-        image: 'assets/img/carousel/dnd-2024.jpg',
+        image: '/assets/img/carousel/dnd-2024.jpg',
         cta: 'Entdecken',
         ctaLink: '/dnd5e'
     },
@@ -1022,7 +1022,7 @@ const CAROUSEL_SLIDES = [
         badgeType: 'event',
         title: 'RIFT Con 2025',
         description: 'Das erste RIFT Community Event! Triff andere Spieler und erlebe exklusive One-Shots.',
-        image: 'assets/img/carousel/event.jpg',
+        image: '/assets/img/carousel/event.jpg',
         cta: 'Mehr erfahren',
         ctaLink: '#'
     }

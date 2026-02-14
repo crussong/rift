@@ -387,7 +387,7 @@ const PageTransitions = {
             if (existing) existing.remove();
             const style = document.createElement('style');
             style.setAttribute('data-hub-bg', '');
-            style.textContent = `.main--hub::before { background-image: url('assets/bg/bg_${bgNum}.jpg'); }`;
+            style.textContent = `.main--hub::before { background-image: url('/assets/bg/bg_${bgNum}.jpg'); }`;
             document.head.appendChild(style);
         }
         

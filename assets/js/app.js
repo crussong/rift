@@ -518,6 +518,6 @@ window.App = App;
 (function loadToastService() {
     if (window.RIFTToast || document.querySelector('script[src*="toast-service.js"]')) return;
     const script = document.createElement('script');
-    script.src = 'assets/js/toast-service.js';
+    script.src = '/assets/js/toast-service.js';
     document.head.appendChild(script);
 })();
