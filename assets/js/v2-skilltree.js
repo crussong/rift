@@ -1,9 +1,219 @@
 /**
  * RIFT — v2 Skilltree Overlay (ported from ES module)
  * Non-module version for v1 unified architecture
+ * Includes embedded skilltree schema
  */
 (function() {
 'use strict';
+
+// ═══ Embedded Skilltree Schema ═══
+var SKILLTREE_SCHEMA = {
+  "skilltrees": {
+    "barbar": {
+      "id": "barbar",
+      "name": "Barbar",
+      "icon": "axe",
+      "description": "Rohe Kraft und ungezähmte Wut",
+      "pointsPerLevel": 1,
+      "startingPoints": 0,
+
+      "nodes": {
+        "wilder_hieb": {
+          "name": "Wilder Hieb",
+          "type": "active",
+          "tier": 1,
+          "levelReq": 1,
+          "cost": { "resource": "rage", "amount": 15 },
+          "icon": "sword-cross",
+          "description": "Ein brutaler Hieb der 2W6+KRF Schaden verursacht.",
+          "effect": { "damage": "2d6+KRF", "target": "single" },
+          "position": { "x": 50, "y": 10 },
+          "requires": [],
+          "isKeystone": false
+        },
+        "kampfschrei": {
+          "name": "Kampfschrei",
+          "type": "active",
+          "tier": 1,
+          "levelReq": 2,
+          "cost": { "resource": "rage", "amount": 20 },
+          "icon": "shout",
+          "description": "Verbündete in 6m Radius erhalten +2 auf Angriffswürfe für 3 Runden.",
+          "effect": { "buff": "attack+2", "radius": 6, "duration": 3 },
+          "position": { "x": 25, "y": 25 },
+          "requires": ["wilder_hieb"],
+          "isKeystone": false
+        },
+        "zaehigkeit": {
+          "name": "Zähigkeit",
+          "type": "passive",
+          "tier": 1,
+          "levelReq": 2,
+          "cost": null,
+          "icon": "shield-heart",
+          "description": "Maximale Lebenspunkte +10.",
+          "effect": { "stat": "hp_max", "modifier": 10 },
+          "position": { "x": 75, "y": 25 },
+          "requires": ["wilder_hieb"],
+          "isKeystone": false
+        },
+        "raserei": {
+          "name": "Raserei",
+          "type": "active",
+          "tier": 2,
+          "levelReq": 5,
+          "cost": { "resource": "rage", "amount": 30 },
+          "icon": "flame",
+          "description": "Für 3 Runden: Schaden +50%, Rüstung -25%. Kann nicht unterbrochen werden.",
+          "effect": { "buff": "damage+50%", "debuff": "armor-25%", "duration": 3 },
+          "position": { "x": 15, "y": 45 },
+          "requires": ["kampfschrei"],
+          "isKeystone": false
+        },
+        "eisenhaut": {
+          "name": "Eisenhaut",
+          "type": "passive",
+          "tier": 2,
+          "levelReq": 5,
+          "cost": null,
+          "icon": "shield-solid",
+          "description": "Schadensreduktion +5%.",
+          "effect": { "stat": "damage_reduction", "modifier": 5 },
+          "position": { "x": 40, "y": 45 },
+          "requires": ["kampfschrei"],
+          "isKeystone": false
+        },
+        "blutregen": {
+          "name": "Blutregen",
+          "type": "active",
+          "tier": 2,
+          "levelReq": 6,
+          "cost": { "resource": "rage", "amount": 40 },
+          "icon": "droplet",
+          "description": "Heilt 3W4 LP über 3 Runden. Kostet zusätzlich 10% max LP.",
+          "effect": { "heal": "3d4", "duration": 3, "hpCost": "10%" },
+          "position": { "x": 65, "y": 45 },
+          "requires": ["zaehigkeit"],
+          "isKeystone": false
+        },
+        "spott": {
+          "name": "Spott",
+          "type": "active",
+          "tier": 2,
+          "levelReq": 7,
+          "cost": { "resource": "rage", "amount": 10 },
+          "icon": "megaphone",
+          "description": "Ein Gegner muss dich 2 Runden lang angreifen.",
+          "effect": { "taunt": true, "duration": 2, "target": "single" },
+          "position": { "x": 85, "y": 45 },
+          "requires": ["zaehigkeit"],
+          "isKeystone": false
+        },
+        "hinrichtung": {
+          "name": "Hinrichtung",
+          "type": "active",
+          "tier": 3,
+          "levelReq": 10,
+          "cost": { "resource": "rage", "amount": 50 },
+          "icon": "skull",
+          "description": "Gegner unter 25% LP: 4W8+KRF Schaden. Tötet bei unter 10% LP sofort.",
+          "effect": { "damage": "4d8+KRF", "execute": "10%" },
+          "position": { "x": 20, "y": 65 },
+          "requires": ["raserei"],
+          "isKeystone": false
+        },
+        "unbezwingbar": {
+          "name": "Unbezwingbar",
+          "type": "passive",
+          "tier": 3,
+          "levelReq": 10,
+          "cost": null,
+          "icon": "crown",
+          "description": "Einmal pro Rast: Tödlicher Treffer lässt dich stattdessen auf 1 LP.",
+          "effect": { "cheatDeath": true, "charges": 1, "recharge": "rest" },
+          "position": { "x": 50, "y": 65 },
+          "requires": ["eisenhaut", "blutregen"],
+          "isKeystone": false
+        },
+        "regeneration": {
+          "name": "Regeneration",
+          "type": "passive",
+          "tier": 3,
+          "levelReq": 12,
+          "cost": null,
+          "icon": "leaf",
+          "description": "Heilt 2 LP am Anfang jeder Runde.",
+          "effect": { "regen": 2, "trigger": "round_start" },
+          "position": { "x": 80, "y": 65 },
+          "requires": ["spott"],
+          "isKeystone": false
+        },
+        "titanenwut": {
+          "name": "Titanenwut",
+          "type": "active",
+          "tier": 4,
+          "levelReq": 15,
+          "cost": { "resource": "rage", "amount": 100 },
+          "icon": "star",
+          "description": "Ultimate: 6W10 Schaden in 4m Radius. Volle Rage wird verbraucht. Betäubt für 1 Runde.",
+          "effect": { "damage": "6d10", "radius": 4, "stun": 1, "drainsAll": true },
+          "position": { "x": 35, "y": 85 },
+          "requires": ["hinrichtung", "unbezwingbar"],
+          "isKeystone": true
+        },
+        "unsterblich": {
+          "name": "Unsterblich",
+          "type": "passive",
+          "tier": 4,
+          "levelReq": 15,
+          "cost": null,
+          "icon": "infinity",
+          "description": "Ultimate: Schadensreduktion +15%. Unbezwingbar hat 2 Ladungen.",
+          "effect": { "stat": "damage_reduction", "modifier": 15, "upgradeNode": "unbezwingbar", "newCharges": 2 },
+          "position": { "x": 65, "y": 85 },
+          "requires": ["unbezwingbar", "regeneration"],
+          "isKeystone": true
+        }
+      }
+    }
+  },
+
+  "_schema_notes": {
+    "position": "x/y in Prozent (0-100). Admin-Editor setzt diese per Drag&Drop.",
+    "requires": "Array von Node-IDs. Alle müssen aktiv sein bevor dieser Node freigeschaltet werden kann.",
+    "type": "active = kommt auf Skill-Slots (Q/W/E/R), passive = kommt auf die 2 breiten Passive-Slots.",
+    "cost": "null bei Passiven. resource + amount bei Aktiven.",
+    "effect": "Frei definierbar. Wird vom Game-State-System interpretiert.",
+    "isKeystone": "Keystones sind größer dargestellt und erfordern meist mehrere Prerequisites.",
+    "tier": "Visuelles Grouping. Höhere Tiers = weiter unten im Graph.",
+    "levelReq": "Mindestlevel des Charakters um den Node freischalten zu können.",
+    "icon": "String-Key der auf ein SVG-Icon im Icon-System gemappt wird."
+  },
+
+  "_firebase_path": "skilltrees/{classId}",
+  
+  "_character_state": {
+    "_note": "Pro Charakter wird gespeichert welche Nodes aktiv sind und welche auf Slots liegen.",
+    "_path": "rooms/{roomCode}/characters/{charId}/skills",
+    "example": {
+      "treeId": "barbar",
+      "unlockedNodes": ["wilder_hieb", "kampfschrei", "zaehigkeit", "raserei"],
+      "activeSlots": {
+        "Q": "wilder_hieb",
+        "W": "kampfschrei",
+        "E": "raserei",
+        "R": null
+      },
+      "passiveSlots": {
+        "P1": "zaehigkeit",
+        "P2": null
+      },
+      "pointsSpent": 4,
+      "pointsAvailable": 3
+    }
+  }
+}
+;
 
 /**
  * RIFT 2.0 — Skilltree Overlay
