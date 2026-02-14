@@ -1,156 +1,173 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RIFT</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #000;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-  .bg {
-    width: 100vw;
-    height: 100vh;
-    object-fit: contain;
-    object-position: center;
-  }
-  .dev-trigger {
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: transparent;
-    cursor: default;
-    opacity: 0;
-    z-index: 100;
-  }
-  .dev-trigger:hover { opacity: 0.15; cursor: pointer; }
-  .overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-  }
-  .overlay.open { display: flex; }
-  .login-box {
-    background: #111;
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-    padding: 24px;
-    width: 280px;
-  }
-  .login-box input {
-    width: 100%;
-    padding: 10px 12px;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 4px;
-    color: #ccc;
-    font-size: 13px;
-    font-family: monospace;
-    outline: none;
-  }
-  .login-box input:focus { border-color: #555; }
-  .login-box button {
-    width: 100%;
-    margin-top: 10px;
-    padding: 8px;
-    background: #222;
-    border: 1px solid #333;
-    border-radius: 4px;
-    color: #888;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .login-box button:hover { background: #2a2a2a; color: #aaa; }
-  .login-box .err {
-    color: #c0392b;
-    font-size: 11px;
-    margin-top: 8px;
-    display: none;
-  }
-</style>
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/icon_rift_r.svg">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>RIFT – Hub</title>
+    
+    <link rel="stylesheet" href="/assets/css/core.css">
+    <link rel="stylesheet" href="/assets/css/ui.css">
+    <link rel="stylesheet" href="/assets/css/dock.css">
+    <link rel="stylesheet" href="/assets/css/hub.css">
+    <link rel="stylesheet" href="/assets/css/hub-features.css">
+    <link rel="stylesheet" href="/assets/css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+
+    <!-- Auth Guard -->
+    <style>
+        body:not(.auth-ready) .app { opacity: 0; pointer-events: none; }
+        body:not(.auth-ready) main { opacity: 0; pointer-events: none; }
+        body.auth-ready .app { opacity: 1; transition: opacity 0.15s ease; }
+        body.auth-ready main { opacity: 1; transition: opacity 0.15s ease; }
+    </style>
 </head>
 <body>
+    <!-- Unified Layout Placeholders -->
+    <div id="topnav-placeholder"></div>
+    <div id="meganav-placeholder"></div>
+    
+    <div class="app">
+        <main class="main main--hub">
+            <div class="main__content">
 
-<img class="bg" src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770755658/t1cwjnfxyu6s8tnuay7v.png" alt="RIFT">
+                <!-- Announcement Banner -->
+                <div id="announcementBanner"></div>
 
-<button class="dev-trigger" id="devBtn" aria-label="Dev"></button>
+                <!-- Hub Greeting -->
+                <div class="hub-greeting">
+                    <h1 class="hub-greeting__title" id="hubGreetingTitle">Willkommen zurück</h1>
+                </div>
 
-<div class="overlay" id="overlay">
-  <div class="login-box">
-    <input type="password" id="pw" placeholder="Zugang" autofocus>
-    <button id="loginBtn">OK</button>
-    <div class="err" id="err">Nein.</div>
-  </div>
-</div>
+                <!-- Hero Carousel -->
+                <div class="hero-carousel" id="heroCarousel">
+                    <div class="hero-carousel__slides" id="carouselSlides"></div>
+                    <div class="hero-carousel__tabs" id="carouselTabs"></div>
+                    <div class="hero-carousel__dots" id="carouselDots"></div>
+                    <button class="hero-carousel__nav hero-carousel__nav--prev" aria-label="Vorheriger Slide">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <button class="hero-carousel__nav hero-carousel__nav--next" aria-label="Nächster Slide">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
 
-<script>
-(function(){
-  // Check bypass
-  if(localStorage.getItem('_r')==='\x72\x69\x66\x74'){
-    window.location.href='/hub.html';
-    return;
-  }
+                <!-- Hero News Grid (Continue Playing + News) -->
+                <div class="hero-news-grid">
+                    <div class="hero hero--secondary" id="continueCard"></div>
+                    <div class="hero hero--secondary" id="newsCard1"></div>
+                    <div class="hero hero--secondary" id="newsCard2"></div>
+                </div>
 
-  const overlay=document.getElementById('overlay');
-  const pw=document.getElementById('pw');
-  const err=document.getElementById('err');
+                <!-- Widgets Section -->
+                <div class="widgets" id="hubWidgets">
+                    <!-- Filled by layout-unified.js -->
+                </div>
 
-  document.getElementById('devBtn').addEventListener('click',()=>{
-    overlay.classList.add('open');
-    setTimeout(()=>pw.focus(),100);
-  });
+                <!-- Hub Sections -->
+                <div class="hub-section hub-section--quote">
+                    <div class="quote-of-day" id="quoteOfDay">
+                        <div class="quote-of-day__text" id="quoteText"></div>
+                        <div class="quote-of-day__name" id="quoteAuthor"></div>
+                        <div class="quote-of-day__source" id="quoteSource"></div>
+                        <button class="quote-of-day__btn" id="quoteRefresh" title="Neues Zitat">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+                        </button>
+                    </div>
+                </div>
 
-  overlay.addEventListener('click',e=>{
-    if(e.target===overlay){overlay.classList.remove('open');err.style.display='none'}
-  });
+                <div class="hub-section hub-section--widgets">
+                    <!-- Session Countdown -->
+                    <div class="session-countdown" id="sessionCountdown">
+                        <div class="session-countdown__label">Nächste Session</div>
+                        <div class="session-countdown__timer">
+                            <div class="session-countdown__unit"><span data-countdown="days">0</span><small>Tage</small></div>
+                            <div class="session-countdown__unit"><span data-countdown="hours">0</span><small>Std</small></div>
+                            <div class="session-countdown__unit"><span data-countdown="minutes">0</span><small>Min</small></div>
+                            <div class="session-countdown__unit"><span data-countdown="seconds">0</span><small>Sek</small></div>
+                        </div>
+                    </div>
 
-  async function check(){
-    const v=pw.value;
-    if(!v)return;
-    const hash=await sha256(v);
-    if(hash===await sha256Target()){
-      localStorage.setItem('_r','\x72\x69\x66\x74');
-      window.location.href='/hub.html';
-    } else {
-      err.style.display='block';
-      pw.value='';
-    }
-  }
+                    <!-- Activity Feed -->
+                    <div class="activity-feed" id="activityFeed">
+                        <div class="activity-feed__header">
+                            <h3>Aktivität</h3>
+                            <div class="activity-feed__filters">
+                                <button class="activity-feed__filter-btn active" data-filter="all">Alle</button>
+                                <button class="activity-feed__filter-btn" data-filter="dice">Würfel</button>
+                                <button class="activity-feed__filter-btn" data-filter="session">Sessions</button>
+                            </div>
+                        </div>
+                        <div class="activity-feed__list"></div>
+                    </div>
+                </div>
 
-  document.getElementById('loginBtn').addEventListener('click',check);
-  pw.addEventListener('keydown',e=>{if(e.key==='Enter')check()});
+                <!-- Feature Showcase -->
+                <div class="hub-section hub-section--features">
+                    <div class="feature-showcase" id="featureShowcase">
+                        <div class="feature-tabs" id="featureTabs"></div>
+                        <div class="feature-content" id="featureContent"></div>
+                    </div>
+                </div>
 
-  async function sha256(str){
-    const buf=new TextEncoder().encode(str);
-    const hash=await crypto.subtle.digest('SHA-256',buf);
-    return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  }
+                <!-- Announcement / News Section -->
+                <div class="announcement" id="announcementSection"></div>
 
-  // Target hash built at runtime from parts to avoid grep
-  function sha256Target(){
-    const p=[
-      String.fromCharCode(106,90,55,43,48,43,55),
-      String.fromCharCode(66,89,122,55,66,69,58),
-      String.fromCharCode(71,57,105,97,122,83,97),
-      String.fromCharCode(72,86,101,95,104,54,58),
-      String.fromCharCode(101,82)
-    ];
-    return sha256(p.join(''));
-  }
-})();
-</script>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Dock Placeholder -->
+    <div id="dock-placeholder"></div>
+    <div id="footer-placeholder"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script src="/assets/js/firebase-config.js"></script>
+    <script>
+        (function() {
+            function waitForAuth() {
+                if (typeof firebase === 'undefined' || !firebase.auth) {
+                    return setTimeout(waitForAuth, 50);
+                }
+                try {
+                    firebase.auth().onAuthStateChanged(function(user) {
+                        if (!user) {
+                            window.location.href = '/login';
+                        } else {
+                            document.body.classList.add('auth-ready');
+                        }
+                    });
+                } catch(e) {
+                    setTimeout(waitForAuth, 50);
+                }
+            }
+            waitForAuth();
+        })();
+    </script>
+
+    <script src="/assets/js/room-service.js"></script>
+    <script src="/assets/js/user-service.js"></script>
+    <script src="/assets/js/pro-status.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/ui.js"></script>
+    <script src="/assets/js/layout-unified.js"></script>
+    <script src="/assets/js/settings.js"></script>
+    <script src="/assets/js/admin.js"></script>
+    <script src="/assets/js/transitions.js"></script>
+    <script src="/assets/js/app.js"></script>
+    <script>
+        initUnifiedLayout();
+    </script>
+    <script src="/assets/js/hub-features.js"></script>
+    <script src="/assets/js/news.js"></script>
+    <script src="/assets/js/broadcast.js"></script>
 </body>
 </html>
