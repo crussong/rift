@@ -12,7 +12,7 @@ const PageTransitions = {
         animationDuration: 350,
         easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
         // Pages that need full reload due to complex script initialization
-        fullReloadPages: ['dice.html', 'sessions.html', 'sheet.html', 'gm.html', 'session.html', 'index.html', 'roadmap.html', 'broadcast.html', 'chat.html', 'whiteboard.html', 'worldsapart.html', 'dnd5e.html', 'htbah.html', 'cyberpunkred.html', 'pathfinder.html', 'shadowrun.html', 'cthulhu.html', 'sheet-worldsapart.html', 'sheet-5e.html', 'sheet-htbah.html', 'sheet-cyberpunkred.html', 'notes.html', 'map.html', 'user-settings.html', 'riftpro.html', 'guide/index.html', 'guide/create-character.html', 'guide/create-session.html', 'guide/dice-roller.html', 'guide/gm-tools.html', 'guide/chat-and-tools.html', 'guide/rift-pro.html']
+        fullReloadPages: ['/dice', '/sessions', '/sheet', '/gm', '/session', '/hub', '/roadmap', '/broadcast', '/chat', '/whiteboard', '/worldsapart', '/dnd5e', '/htbah', '/cyberpunkred', '/pathfinder', '/shadowrun', '/cthulhu', '/sheet/worldsapart', '/sheet/5e', '/sheet/htbah', '/sheet/cyberpunk', '/notes', '/map', '/settings', '/riftpro', '/guide', '/guide/create-character', '/guide/create-session', '/guide/dice-roller', '/guide/gm-tools', '/guide/chat-and-tools', '/guide/rift-pro']
     },
     
     // State
@@ -25,7 +25,7 @@ const PageTransitions = {
      */
     init() {
         // Don't init on login page
-        if (window.location.pathname.includes('login.html') || window.location.pathname === '/login') return;
+        if (window.location.pathname.includes('/login') || window.location.pathname === '/login') return;
         
         // Track currently loaded CSS
         document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {

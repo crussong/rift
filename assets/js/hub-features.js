@@ -1004,7 +1004,7 @@ const CAROUSEL_SLIDES = [
         description: 'Die Gruppe steht vor dem Eingang der verlassenen Mine. Was erwartet sie im Inneren?',
         image: 'assets/img/carousel/session-1.jpg',
         cta: 'Weiterspielen',
-        ctaLink: 'session.html'
+        ctaLink: '/session'
     },
     {
         id: 2,
@@ -1014,7 +1014,7 @@ const CAROUSEL_SLIDES = [
         description: 'Die neueste Edition des beliebtesten Rollenspiels der Welt ist jetzt in RIFT integriert.',
         image: 'assets/img/carousel/dnd-2024.jpg',
         cta: 'Entdecken',
-        ctaLink: 'rules-dnd.html'
+        ctaLink: '/dnd5e'
     },
     {
         id: 3,
@@ -1024,7 +1024,7 @@ const CAROUSEL_SLIDES = [
         description: 'Das erste RIFT Community Event! Triff andere Spieler und erlebe exklusive One-Shots.',
         image: 'assets/img/carousel/event.jpg',
         cta: 'Mehr erfahren',
-        ctaLink: 'events.html'
+        ctaLink: '#'
     }
 ];
 

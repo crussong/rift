@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/icon_rift_r.svg">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>RIFT – Journal</title>
+    
+    <link rel="stylesheet" href="../assets/css/core.css">
+    <link rel="stylesheet" href="../assets/css/ui.css">
+    <link rel="stylesheet" href="../assets/css/dock.css">
+    <link rel="stylesheet" href="../assets/css/hub.css">
+    <link rel="stylesheet" href="../assets/css/settings.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    
+    <style>
+        /* ==========================================
+           RIFT JOURNAL — Tabletop Notes System
+           ========================================== */
+        
+        :root {
+            --cat-session: #f59e0b;
+            --cat-npc: #3b82f6;
+            --cat-quest: #ef4444;
+            --cat-location: #22c55e;
+            --cat-loot: #eab308;
+            --cat-lore: #8b5cf6;
+            --cat-note: #6b7280;
+        }
+        
+        .journal-page {
+            padding: 24px 0;
+            height: calc(100vh - 130px - 72px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* ---- Header ---- */
+        .journal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+        
+        .journal-header__left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .journal-header__title {
+            font-family: var(--font-display);
+            font-size: 46px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: 1px;
+            line-height: 1;
+        }
+        
+        .journal-header__count {
+            font-size: 13px;
+            color: var(--text-dim);
+            background: rgba(255,255,255,0.05);
+            padding: 4px 12px;
+            border-radius: 100px;
+        }
+        
+        .journal-btn-new {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .journal-btn-new:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+        
+        /* ---- Category Filters ---- */
+        .journal-filters {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-shrink: 0;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        
+        .journal-filter {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .journal-filter:hover {
+            background: rgba(255,255,255,0.07);
+            color: var(--text-muted);
+        }
+        
+        .journal-filter.active {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.15);
+            color: var(--text);
+        }
+        
+        .journal-filter__dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        /* ---- Main Layout ---- */
+        .journal-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 16px;
+            flex: 1;
+            min-height: 0;
+        }
+        
+        /* ---- Sidebar ---- */
+        .journal-sidebar {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        
+        .journal-search-wrap {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .journal-search-wrap::before {
+            content: '\ea6c';
+            font-family: 'tabler-icons';
+            position: absolute;
+            left: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-dim);
+            font-size: 15px;
+            pointer-events: none;
+        }
+        
+        .journal-search {
+            width: 100%;
+            padding: 10px 14px 10px 36px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: var(--font-body);
+            transition: border-color 0.2s;
+        }
+        
+        .journal-search::placeholder { color: var(--text-dim); }
+        .journal-search:focus { outline: none; border-color: rgba(255,255,255,0.15); }
+        
+        .journal-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        
+        .journal-list::-webkit-scrollbar { width: 4px; }
+        .journal-list::-webkit-scrollbar-track { background: transparent; }
+        .journal-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        
+        /* Note Card */
+        .note-card {
+            padding: 12px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }
+        
+        .note-card:hover { background: rgba(255,255,255,0.04); }
+        
+        .note-card.active {
+            background: rgba(255,255,255,0.06);
+            border-color: var(--border-hover);
+        }
+        
+        .note-card__top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        
+        .note-card__cat {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .note-card__title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        
+        .note-card__pin { font-size: 11px; color: var(--cat-session); flex-shrink: 0; }
+        .note-card__private { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+        
+        .note-card__preview {
+            font-size: 12px;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+        }
+        
+        .note-card__meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.2);
+        }
+        
+        .note-card__cat-label {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+        }
+        
+        /* Empty */
+        .journal-empty {
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        .journal-empty__icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+        .journal-empty__text { color: var(--text-dim); font-size: 13px; }
+        
+        /* ---- Editor ---- */
+        .journal-editor {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        
+        .editor-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        
+        /* Category Selector */
+        .editor-cat-select { position: relative; }
+        
+        .editor-cat-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.04);
+            color: var(--text-muted);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        
+        .editor-cat-btn:hover { background: rgba(255,255,255,0.08); }
+        
+        .editor-cat-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            padding: 6px;
+            min-width: 170px;
+            z-index: 100;
+            display: none;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .editor-cat-dropdown.open { display: block; }
+        
+        .editor-cat-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-muted);
+            transition: all 0.1s;
+        }
+        
+        .editor-cat-option:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+        .editor-cat-option.active { background: rgba(255,255,255,0.08); color: var(--text); }
+        
+        .editor-cat-option__dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .editor-title {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 700;
+            font-family: var(--font-body);
+            min-width: 0;
+        }
+        
+        .editor-title::placeholder { color: var(--text-dim); }
+        .editor-title:focus { outline: none; }
+        
+        .editor-actions { display: flex; gap: 4px; }
+        
+        .editor-action {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            color: var(--text-dim);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        
+        .editor-action:hover { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+        .editor-action.active { color: var(--cat-session); }
+        .editor-action--danger:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+        
+        /* Toolbar */
+        .editor-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 8px 18px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            color: var(--text-dim);
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
+        }
+        
+        .toolbar-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+        .toolbar-btn.active { background: rgba(255,255,255,0.1); color: var(--text); }
+        .toolbar-sep { width: 1px; height: 18px; background: var(--border); margin: 0 6px; }
+        
+        /* Content Area */
+        .editor-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            min-height: 0;
+        }
+        
+        .editor-content::-webkit-scrollbar { width: 5px; }
+        .editor-content::-webkit-scrollbar-track { background: transparent; }
+        .editor-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+        
+        .editor-area {
+            min-height: 100%;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-family: var(--font-body);
+            line-height: 1.75;
+            outline: none;
+            word-wrap: break-word;
+        }
+        
+        .editor-area:empty::before {
+            content: attr(data-placeholder);
+            color: var(--text-dim);
+            pointer-events: none;
+        }
+        
+        .editor-area h2 {
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 20px 0 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .editor-area h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 16px 0 6px;
+        }
+        
+        .editor-area p { margin: 0 0 8px; }
+        
+        .editor-area ul, .editor-area ol {
+            padding-left: 24px;
+            margin: 4px 0 12px;
+        }
+        
+        .editor-area li { margin-bottom: 4px; }
+        
+        .editor-area blockquote {
+            border-left: 3px solid var(--accent);
+            padding: 8px 16px;
+            margin: 12px 0;
+            background: rgba(255,70,85,0.05);
+            border-radius: 0 8px 8px 0;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        
+        .editor-area hr {
+            border: none;
+            height: 1px;
+            background: var(--border);
+            margin: 20px 0;
+        }
+        
+        .editor-area a { color: var(--accent); }
+        .editor-area strong { color: var(--text); }
+        
+        /* Footer */
+        .editor-footer {
+            padding: 10px 18px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: rgba(255,255,255,0.2);
+            flex-shrink: 0;
+        }
+        
+        .editor-status { display: flex; align-items: center; gap: 6px; }
+        .editor-status--saving { color: var(--cat-session); }
+        .editor-status--saved { color: var(--success); }
+        .editor-status--error { color: #ef4444; }
+        
+        /* Empty Editor */
+        .journal-editor--empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .editor-empty { text-align: center; padding: 60px 40px; }
+        
+        .editor-empty__icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: var(--text-dim);
+            margin: 0 auto 20px;
+        }
+        
+        .editor-empty__title {
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        
+        .editor-empty__text {
+            color: var(--text-dim);
+            font-size: 14px;
+            max-width: 280px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        /* No Room */
+        .journal-noroom {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 250px);
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .journal-noroom__icon {
+            width: 100px;
+            height: 100px;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+        
+        .journal-noroom__title {
+            font-family: var(--font-display);
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        
+        .journal-noroom__text {
+            color: var(--text-dim);
+            font-size: 15px;
+            margin-bottom: 24px;
+        }
+        
+        .journal-noroom__link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--accent);
+            border-radius: 10px;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        /* ---- Confirm Dialog ---- */
+        .journal-confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        
+        .journal-confirm {
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 28px;
+            max-width: 380px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        .journal-confirm__title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+        .journal-confirm__text { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.5; }
+        .journal-confirm__actions { display: flex; gap: 10px; justify-content: center; }
+        
+        .journal-confirm__btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .journal-confirm__btn--cancel { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+        .journal-confirm__btn--cancel:hover { background: rgba(255,255,255,0.1); }
+        .journal-confirm__btn--danger { background: #ef4444; color: #fff; }
+        .journal-confirm__btn--danger:hover { background: #dc2626; }
+        
+        /* ---- Mobile ---- */
+        @media (max-width: 900px) {
+            .journal-page { padding: 16px 0; }
+            .journal-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+            .journal-sidebar { max-height: 260px; }
+            .journal-header__title { font-size: 36px; }
+            .journal-filters { gap: 4px; }
+            .journal-filter { padding: 6px 10px; font-size: 12px; }
+            .editor-toolbar { padding: 6px 12px; }
+            .editor-content { padding: 14px; }
+        }
+        
+        @media (max-width: 600px) {
+            .journal-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .journal-btn-new { width: 100%; justify-content: center; }
+        }
+    </style>
+    
+    <!-- Auth Guard -->
+    <style>
+        body:not(.auth-ready) .app { opacity: 0; pointer-events: none; }
+        body.auth-ready .app { opacity: 1; transition: opacity 0.15s ease; }
+    </style>
+</head>
+<body>
+    <!-- Unified Layout Placeholders -->
+    <div id="topnav-placeholder"></div>
+    <div id="meganav-placeholder"></div>
+    
+    <div class="app">
+        <main class="main main--hub">
+            <div class="main__content">
+                <div class="journal-page" id="journalPage">
+                    
+                    <!-- Header -->
+                    <div class="journal-header">
+                        <div class="journal-header__left">
+                            <h1 class="journal-header__title">Journal</h1>
+                            <span class="journal-header__count" id="noteCount">0 Einträge</span>
+                        </div>
+                        <button class="journal-btn-new" onclick="Journal.createNote()">
+                            <i class="ti ti-plus"></i> Neuer Eintrag
+                        </button>
+                    </div>
+                    
+                    <!-- Category Filters -->
+                    <div class="journal-filters" id="journalFilters">
+                        <button class="journal-filter active" data-cat="all" onclick="Journal.filterCategory('all')">Alle</button>
+                        <button class="journal-filter" data-cat="session" onclick="Journal.filterCategory('session')">
+                            <span class="journal-filter__dot" style="background:var(--cat-session)"></span> Sessions
+                        </button>
+                        <button class="journal-filter" data-cat="npc" onclick="Journal.filterCategory('npc')">
+                            <span class="journal-filter__dot" style="background:var(--cat-npc)"></span> NPCs
+                        </button>
+                        <button class="journal-filter" data-cat="quest" onclick="Journal.filterCategory('quest')">
+                            <span class="journal-filter__dot" style="background:var(--cat-quest)"></span> Quests
+                        </button>
+                        <button class="journal-filter" data-cat="location" onclick="Journal.filterCategory('location')">
+                            <span class="journal-filter__dot" style="background:var(--cat-location)"></span> Orte
+                        </button>
+                        <button class="journal-filter" data-cat="loot" onclick="Journal.filterCategory('loot')">
+                            <span class="journal-filter__dot" style="background:var(--cat-loot)"></span> Loot
+                        </button>
+                        <button class="journal-filter" data-cat="lore" onclick="Journal.filterCategory('lore')">
+                            <span class="journal-filter__dot" style="background:var(--cat-lore)"></span> Lore
+                        </button>
+                        <button class="journal-filter" data-cat="note" onclick="Journal.filterCategory('note')">
+                            <span class="journal-filter__dot" style="background:var(--cat-note)"></span> Notizen
+                        </button>
+                    </div>
+                    
+                    <!-- Main Layout -->
+                    <div class="journal-layout">
+                        <div class="journal-sidebar">
+                            <div class="journal-search-wrap">
+                                <input type="text" class="journal-search" placeholder="Durchsuchen..." oninput="Journal.search(event)">
+                            </div>
+                            <div class="journal-list" id="journalList">
+                                <div class="journal-empty">
+                                    <div class="journal-empty__icon"><i class="ti ti-book-2"></i></div>
+                                    <div class="journal-empty__text">Keine Einträge</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="journal-editor journal-editor--empty" id="journalEditor">
+                            <div class="editor-empty">
+                                <div class="editor-empty__icon"><i class="ti ti-book-2"></i></div>
+                                <div class="editor-empty__title">Dein Journal</div>
+                                <div class="editor-empty__text">Wähle einen Eintrag oder erstelle einen neuen, um loszulegen.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Dock Placeholder -->
+    <div id="dock-placeholder"></div>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- RIFT Services -->
+    <script src="../assets/js/firebase-config.js"></script>
+    <script src="../assets/js/room-service.js"></script>
+    <script src="../assets/js/user-service.js"></script>
+    <script src="../assets/js/pro-status.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/ui.js"></script>
+    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/layout-unified.js"></script>
+    <script src="../assets/js/settings.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script src="../assets/js/transitions.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script>initUnifiedLayout();</script>
+    <script src="../assets/js/broadcast.js"></script>
+    
+    <script>
+    // =============================================
+    // RIFT JOURNAL — Tabletop Notes System
+    // =============================================
+    const Journal = {
+        
+        // --- Category Definitions ---
+        CATEGORIES: {
+            session:  { label: 'Session',  icon: 'ti-book',     color: 'var(--cat-session)' },
+            npc:      { label: 'NPC',      icon: 'ti-user',     color: 'var(--cat-npc)' },
+            quest:    { label: 'Quest',     icon: 'ti-sword',    color: 'var(--cat-quest)' },
+            location: { label: 'Ort',       icon: 'ti-map-pin',  color: 'var(--cat-location)' },
+            loot:     { label: 'Loot',      icon: 'ti-diamond',  color: 'var(--cat-loot)' },
+            lore:     { label: 'Lore',      icon: 'ti-book-2',   color: 'var(--cat-lore)' },
+            note:     { label: 'Notiz',     icon: 'ti-note',     color: 'var(--cat-note)' }
+        },
+        
+        // --- State ---
+        notes: [],
+        currentNote: null,
+        roomCode: null,
+        userId: null,
+        saveTimer: null,
+        unsubscribe: null,
+        activeFilter: 'all',
+        searchQuery: '',
+        
+        // =====================
+        // INIT
+        // =====================
+        async init() {
+            this.roomCode = localStorage.getItem('rift_current_room');
+            if (!this.roomCode) { this.showNoRoom(); return; }
+            this.roomCode = this.roomCode.replace(/-/g, '').toUpperCase();
+            
+            await this.waitForAuth();
+            const user = firebase.auth().currentUser;
+            if (!user) { this.showNoRoom(); return; }
+            this.userId = user.uid;
+            
+            // Close category dropdown on outside click
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.editor-cat-select')) {
+                    document.getElementById('catDropdown')?.classList.remove('open');
+                }
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                    if (document.activeElement?.id === 'editorArea') {
+                        e.preventDefault();
+                        document.execCommand('bold');
+                    }
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                    if (document.activeElement?.id === 'editorArea') {
+                        e.preventDefault();
+                        document.execCommand('italic');
+                    }
+                }
+            });
+            
+            this.loadNotes();
+        },
+        
+        waitForAuth() {
+            return new Promise(resolve => {
+                if (firebase.auth().currentUser) return resolve();
+                const unsub = firebase.auth().onAuthStateChanged(() => { unsub(); resolve(); });
+                setTimeout(resolve, 3000);
+            });
+        },
+        
+        ref() {
+            return firebase.firestore()
+                .collection('rooms').doc(this.roomCode)
+                .collection('notes');
+        },
+        
+        // =====================
+        // DATA
+        // =====================
+        loadNotes() {
+            if (this.unsubscribe) this.unsubscribe();
+            
+            this.unsubscribe = this.ref().orderBy('updatedAt', 'desc').onSnapshot(snap => {
+                this.notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                
+                // Migrate legacy notes without category
+                this.notes.forEach(n => { if (!n.category) n.category = 'note'; });
+                
+                this.renderList();
+                this.updateCount();
+                
+                // Keep current selection fresh
+                if (this.currentNote) {
+                    const still = this.notes.find(n => n.id === this.currentNote.id);
+                    if (still) {
+                        this.currentNote = still;
+                    } else {
+                        this.currentNote = null;
+                        this.renderEditor();
+                    }
+                }
+            });
+        },
+        
+        getFilteredNotes() {
+            let list = this.notes;
+            
+            // Category filter
+            if (this.activeFilter !== 'all') {
+                list = list.filter(n => (n.category || 'note') === this.activeFilter);
+            }
+            
+            // Hide others' private notes
+            list = list.filter(n => !n.isPrivate || n.createdBy === this.userId);
+            
+            // Search
+            if (this.searchQuery) {
+                const q = this.searchQuery;
+                list = list.filter(n =>
+                    (n.title || '').toLowerCase().includes(q) ||
+                    this.stripHtml(n.content || '').toLowerCase().includes(q)
+                );
+            }
+            
+            // Sort: pinned first, then by date
+            list.sort((a, b) => {
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                const ta = a.updatedAt?.toMillis?.() || 0;
+                const tb = b.updatedAt?.toMillis?.() || 0;
+                return tb - ta;
+            });
+            
+            return list;
+        },
+        
+        // =====================
+        // RENDERING
+        // =====================
+        renderList() {
+            const el = document.getElementById('journalList');
+            if (!el) return;
+            
+            const filtered = this.getFilteredNotes();
+            
+            if (filtered.length === 0) {
+                el.innerHTML = `
+                    <div class="journal-empty">
+                        <div class="journal-empty__icon"><i class="ti ti-book-2"></i></div>
+                        <div class="journal-empty__text">${this.searchQuery ? 'Keine Treffer' : 'Keine Einträge'}</div>
+                    </div>`;
+                return;
+            }
+            
+            el.innerHTML = filtered.map(note => {
+                const cat = note.category || 'note';
+                const catInfo = this.CATEGORIES[cat] || this.CATEGORIES.note;
+                const active = this.currentNote?.id === note.id;
+                const preview = this.stripHtml(note.content || '').substring(0, 80);
+                const date = note.updatedAt?.toDate?.() || new Date();
+                const dateStr = date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+                
+                return `
+                    <div class="note-card ${active ? 'active' : ''}" onclick="Journal.selectNote('${note.id}')">
+                        <div class="note-card__top">
+                            <span class="note-card__cat" style="background:${catInfo.color}"></span>
+                            <span class="note-card__title">${this.esc(note.title || 'Unbenannt')}</span>
+                            ${note.pinned ? '<i class="ti ti-pin-filled note-card__pin"></i>' : ''}
+                            ${note.isPrivate ? '<i class="ti ti-lock note-card__private"></i>' : ''}
+                        </div>
+                        <div class="note-card__preview">${this.esc(preview) || 'Kein Inhalt'}</div>
+                        <div class="note-card__meta">
+                            <span class="note-card__cat-label" style="color:${catInfo.color}">${catInfo.label}</span>
+                            <span>${dateStr}</span>
+                        </div>
+                    </div>`;
+            }).join('');
+        },
+        
+        renderEditor() {
+            const el = document.getElementById('journalEditor');
+            if (!el) return;
+            
+            if (!this.currentNote) {
+                el.className = 'journal-editor journal-editor--empty';
+                el.innerHTML = `
+                    <div class="editor-empty">
+                        <div class="editor-empty__icon"><i class="ti ti-book-2"></i></div>
+                        <div class="editor-empty__title">Dein Journal</div>
+                        <div class="editor-empty__text">Wähle einen Eintrag oder erstelle einen neuen, um loszulegen.</div>
+                    </div>`;
+                return;
+            }
+            
+            const note = this.currentNote;
+            const cat = note.category || 'note';
+            const catInfo = this.CATEGORIES[cat] || this.CATEGORIES.note;
+            
+            el.className = 'journal-editor';
+            el.innerHTML = `
+                <div class="editor-header">
+                    <div class="editor-cat-select">
+                        <button class="editor-cat-btn" onclick="Journal.toggleCatDropdown(event)" title="Kategorie ändern" style="color:${catInfo.color}">
+                            <i class="ti ${catInfo.icon}"></i>
+                        </button>
+                        <div class="editor-cat-dropdown" id="catDropdown">
+                            ${Object.entries(this.CATEGORIES).map(([key, c]) => `
+                                <div class="editor-cat-option ${key === cat ? 'active' : ''}" onclick="Journal.setCategory('${key}')">
+                                    <span class="editor-cat-option__dot" style="background:${c.color}"></span>
+                                    <i class="ti ${c.icon}" style="font-size:15px;color:${c.color}"></i>
+                                    ${c.label}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <input type="text" class="editor-title" placeholder="Titel..." value="${this.esc(note.title || '')}" oninput="Journal.updateTitle(this.value)">
+                    
+                    <div class="editor-actions">
+                        <button class="editor-action ${note.pinned ? 'active' : ''}" onclick="Journal.togglePin()" title="Anpinnen">
+                            <i class="ti ${note.pinned ? 'ti-pin-filled' : 'ti-pin'}"></i>
+                        </button>
+                        <button class="editor-action ${note.isPrivate ? 'active' : ''}" onclick="Journal.togglePrivate()" title="${note.isPrivate ? 'Privat (nur du)' : 'Sichtbar für alle'}">
+                            <i class="ti ${note.isPrivate ? 'ti-lock' : 'ti-lock-open'}"></i>
+                        </button>
+                        <button class="editor-action editor-action--danger" onclick="Journal.deleteNote()" title="Löschen">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="editor-toolbar">
+                    <button class="toolbar-btn" onclick="Journal.exec('bold')" title="Fett (Strg+B)"><i class="ti ti-bold"></i></button>
+                    <button class="toolbar-btn" onclick="Journal.exec('italic')" title="Kursiv (Strg+I)"><i class="ti ti-italic"></i></button>
+                    <button class="toolbar-btn" onclick="Journal.exec('underline')" title="Unterstrichen"><i class="ti ti-underline"></i></button>
+                    <button class="toolbar-btn" onclick="Journal.exec('strikeThrough')" title="Durchgestrichen"><i class="ti ti-strikethrough"></i></button>
+                    <div class="toolbar-sep"></div>
+                    <button class="toolbar-btn" onclick="Journal.execBlock('h2')" title="Überschrift"><i class="ti ti-heading"></i></button>
+                    <button class="toolbar-btn" onclick="Journal.execBlock('h3')" title="Unterüberschrift"><i class="ti ti-h-3"></i></button>
+                    <div class="toolbar-sep"></div>
+                    <button class="toolbar-btn" onclick="Journal.exec('insertUnorderedList')" title="Liste"><i class="ti ti-list"></i></button>
+                    <button class="toolbar-btn" onclick="Journal.exec('insertOrderedList')" title="Nummerierte Liste"><i class="ti ti-list-numbers"></i></button>
+                    <div class="toolbar-sep"></div>
+                    <button class="toolbar-btn" onclick="Journal.execBlock('blockquote')" title="Zitat"><i class="ti ti-blockquote"></i></button>
+                    <button class="toolbar-btn" onclick="Journal.exec('insertHorizontalRule')" title="Trennlinie"><i class="ti ti-minus"></i></button>
+                </div>
+                
+                <div class="editor-content">
+                    <div class="editor-area" id="editorArea" contenteditable="true"
+                        data-placeholder="Schreibe deinen Eintrag..."
+                        oninput="Journal.onContentInput()">${note.content || ''}</div>
+                </div>
+                
+                <div class="editor-footer">
+                    <div class="editor-status editor-status--saved" id="saveStatus">
+                        <i class="ti ti-check"></i> Gespeichert
+                    </div>
+                    <div>Zuletzt: ${this.formatDate(note.updatedAt)}</div>
+                </div>
+            `;
+            
+            // Focus content if brand new
+            if (!note.content && !note.title) {
+                setTimeout(() => {
+                    const titleInput = el.querySelector('.editor-title');
+                    if (titleInput) titleInput.focus();
+                }, 100);
+            }
+        },
+        
+        updateCount() {
+            const el = document.getElementById('noteCount');
+            if (el) {
+                const visible = this.notes.filter(n => !n.isPrivate || n.createdBy === this.userId).length;
+                el.textContent = `${visible} ${visible === 1 ? 'Eintrag' : 'Einträge'}`;
+            }
+        },
+        
+        // =====================
+        // ACTIONS
+        // =====================
+        selectNote(id) {
+            this.currentNote = this.notes.find(n => n.id === id) || null;
+            this.renderList();
+            this.renderEditor();
+        },
+        
+        async createNote() {
+            const note = {
+                title: '',
+                content: '',
+                category: this.activeFilter !== 'all' ? this.activeFilter : 'note',
+                pinned: false,
+                isPrivate: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: this.userId
+            };
+            
+            try {
+                const ref = await this.ref().add(note);
+                setTimeout(() => this.selectNote(ref.id), 200);
+            } catch (e) {
+                console.error('[Journal] Create error:', e);
+            }
+        },
+        
+        updateTitle(val) {
+            if (!this.currentNote) return;
+            this.currentNote.title = val;
+            this.scheduleSave();
+        },
+        
+        onContentInput() {
+            if (!this.currentNote) return;
+            const area = document.getElementById('editorArea');
+            if (area) {
+                this.currentNote.content = area.innerHTML;
+                this.scheduleSave();
+            }
+        },
+        
+        togglePin() {
+            if (!this.currentNote) return;
+            this.currentNote.pinned = !this.currentNote.pinned;
+            this.saveField({ pinned: this.currentNote.pinned });
+            this.renderEditor();
+            this.renderList();
+        },
+        
+        togglePrivate() {
+            if (!this.currentNote) return;
+            this.currentNote.isPrivate = !this.currentNote.isPrivate;
+            this.saveField({ isPrivate: this.currentNote.isPrivate });
+            this.renderEditor();
+            this.renderList();
+        },
+        
+        setCategory(cat) {
+            if (!this.currentNote) return;
+            this.currentNote.category = cat;
+            this.saveField({ category: cat });
+            document.getElementById('catDropdown')?.classList.remove('open');
+            this.renderEditor();
+            this.renderList();
+        },
+        
+        toggleCatDropdown(e) {
+            e.stopPropagation();
+            document.getElementById('catDropdown')?.classList.toggle('open');
+        },
+        
+        // --- Rich Text ---
+        exec(cmd, val) {
+            document.execCommand(cmd, false, val || null);
+            document.getElementById('editorArea')?.focus();
+        },
+        
+        execBlock(tag) {
+            document.execCommand('formatBlock', false, tag);
+            document.getElementById('editorArea')?.focus();
+        },
+        
+        // =====================
+        // SAVE
+        // =====================
+        scheduleSave() {
+            const s = document.getElementById('saveStatus');
+            if (s) { s.innerHTML = '<i class="ti ti-loader-2"></i> Speichern...'; s.className = 'editor-status editor-status--saving'; }
+            clearTimeout(this.saveTimer);
+            this.saveTimer = setTimeout(() => this.save(), 800);
+        },
+        
+        async save() {
+            if (!this.currentNote) return;
+            try {
+                await this.ref().doc(this.currentNote.id).update({
+                    title: this.currentNote.title || '',
+                    content: this.currentNote.content || '',
+                    category: this.currentNote.category || 'note',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                const s = document.getElementById('saveStatus');
+                if (s) { s.innerHTML = '<i class="ti ti-check"></i> Gespeichert'; s.className = 'editor-status editor-status--saved'; }
+            } catch (e) {
+                console.error('[Journal] Save error:', e);
+                const s = document.getElementById('saveStatus');
+                if (s) { s.innerHTML = '<i class="ti ti-alert-circle"></i> Fehler'; s.className = 'editor-status editor-status--error'; }
+            }
+        },
+        
+        async saveField(fields) {
+            if (!this.currentNote) return;
+            try {
+                await this.ref().doc(this.currentNote.id).update({
+                    ...fields,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) {
+                console.error('[Journal] Save field error:', e);
+            }
+        },
+        
+        // =====================
+        // DELETE
+        // =====================
+        deleteNote() {
+            if (!this.currentNote) return;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'journal-confirm-overlay';
+            overlay.innerHTML = `
+                <div class="journal-confirm">
+                    <div class="journal-confirm__title">Eintrag löschen?</div>
+                    <div class="journal-confirm__text">"${this.esc(this.currentNote.title || 'Unbenannt')}" wird unwiderruflich gelöscht.</div>
+                    <div class="journal-confirm__actions">
+                        <button class="journal-confirm__btn journal-confirm__btn--cancel" onclick="this.closest('.journal-confirm-overlay').remove()">Abbrechen</button>
+                        <button class="journal-confirm__btn journal-confirm__btn--danger" onclick="Journal.confirmDelete(); this.closest('.journal-confirm-overlay').remove()">Löschen</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        },
+        
+        async confirmDelete() {
+            if (!this.currentNote) return;
+            try {
+                await this.ref().doc(this.currentNote.id).delete();
+                this.currentNote = null;
+                this.renderEditor();
+            } catch (e) {
+                console.error('[Journal] Delete error:', e);
+            }
+        },
+        
+        // =====================
+        // FILTER
+        // =====================
+        filterCategory(cat) {
+            this.activeFilter = cat;
+            document.querySelectorAll('.journal-filter').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.cat === cat);
+            });
+            this.renderList();
+        },
+        
+        search(e) {
+            this.searchQuery = e.target.value.toLowerCase();
+            this.renderList();
+        },
+        
+        // =====================
+        // NO ROOM
+        // =====================
+        showNoRoom() {
+            document.getElementById('journalPage').innerHTML = `
+                <div class="journal-noroom">
+                    <div class="journal-noroom__icon"><i class="ti ti-book-2"></i></div>
+                    <div class="journal-noroom__title">Kein Raum aktiv</div>
+                    <div class="journal-noroom__text">Tritt einem Raum bei, um das Journal zu nutzen.</div>
+                    <a href="/login" class="journal-noroom__link"><i class="ti ti-door-enter"></i> Raum beitreten</a>
+                </div>`;
+        },
+        
+        // =====================
+        // HELPERS
+        // =====================
+        stripHtml(html) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        },
+        
+        formatDate(timestamp) {
+            if (!timestamp) return 'Gerade eben';
+            const date = timestamp.toDate?.() || new Date(timestamp);
+            return date.toLocaleString('de-DE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        },
+        
+        esc(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    };
+    
+    // --- Auth Guard & Init (waits for Firebase properly) ---
+    (function() {
+        async function boot() {
+            // 1. Initialize Firebase via RIFT wrapper
+            if (window.RIFT?.firebase?.init) {
+                try { await window.RIFT.firebase.init(); } catch(e) {}
+            }
+            
+            // 2. Poll until Firebase is actually ready
+            await new Promise((resolve) => {
+                const start = Date.now();
+                const check = () => {
+                    try {
+                        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                            resolve();
+                            return;
+                        }
+                    } catch(e) {}
+                    if (Date.now() - start > 10000) { resolve(); return; }
+                    setTimeout(check, 100);
+                };
+                check();
+            });
+            
+            // 3. Wait for auth state
+            const user = await new Promise((resolve) => {
+                try {
+                    const unsub = firebase.auth().onAuthStateChanged(function(u) {
+                        unsub();
+                        resolve(u);
+                    });
+                } catch(e) {
+                    resolve(null);
+                }
+                setTimeout(() => resolve(null), 5000);
+            });
+            
+            if (user) {
+                document.body.classList.add('auth-ready');
+                Journal.init();
+            } else {
+                window.location.href = 'login.html';
+            }
+        }
+        boot();
+    })();
+    </script>
+</body>
+</html>

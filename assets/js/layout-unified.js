@@ -160,7 +160,7 @@ function createUnifiedTopnav() {
     <header class="topnav">
         <div class="topnav__inner">
             <!-- Logo -->
-            <a href="index.html" class="topnav__logo">
+            <a href="/hub" class="topnav__logo">
                 <img src="assets/img/logo_rift.png" alt="RIFT">
             </a>
             
@@ -250,7 +250,7 @@ function createUnifiedTopnav() {
                 </div>
                 
                 <!-- GM Button (GM only) -->
-                <a href="gm.html" class="topnav__icon-btn" id="settings-btn" title="GM Optionen" style="display: ${(userData.isGM || userData.isCogm) ? 'flex' : 'none'};">
+                <a href="/gm" class="topnav__icon-btn" id="settings-btn" title="GM Optionen" style="display: ${(userData.isGM || userData.isCogm) ? 'flex' : 'none'};">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.884 2.007l.114 -.007l.118 .007l.059 .008l.061 .013l.111 .034a.993 .993 0 0 1 .217 .112l.104 .082l.255 .218a11 11 0 0 0 7.189 2.537l.342 -.01a1 1 0 0 1 1.005 .717a13 13 0 0 1 -9.208 16.25a1 1 0 0 1 -.502 0a13 13 0 0 1 -9.209 -16.25a1 1 0 0 1 1.005 -.717a11 11 0 0 0 7.531 -2.527l.263 -.225l.096 -.075a.993 .993 0 0 1 .217 -.112l.112 -.034a.97 .97 0 0 1 .119 -.021z"/></svg>
                 </a>
                 
@@ -278,20 +278,20 @@ function createUnifiedTopnav() {
                             </div>
                         </div>
                         <div class="topnav__dropdown-body">
-                            <a href="user-settings.html" class="topnav__dropdown-item">
+                            <a href="/settings" class="topnav__dropdown-item">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z"/><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z"/></svg>
                                 Mein Profil
                             </a>
-                            <a href="sheet.html" class="topnav__dropdown-item">
+                            <a href="/sheet" class="topnav__dropdown-item">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005zm3 14h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m0 -4h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2"/><path d="M19 7h-4l-.001 -4.001z"/></svg>
                                 Meine Charaktere
                             </a>
-                            <a href="user-settings.html" class="topnav__dropdown-item">
+                            <a href="/settings" class="topnav__dropdown-item">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.647 4.081a.724 .724 0 0 0 1.08 .448c2.439 -1.485 5.23 1.305 3.745 3.744a.724 .724 0 0 0 .447 1.08c2.775 .673 2.775 4.62 0 5.294a.724 .724 0 0 0 -.448 1.08c1.485 2.439 -1.305 5.23 -3.744 3.745a.724 .724 0 0 0 -1.08 .447c-.673 2.775 -4.62 2.775 -5.294 0a.724 .724 0 0 0 -1.08 -.448c-2.439 1.485 -5.23 -1.305 -3.745 -3.744a.724 .724 0 0 0 -.447 -1.08c-2.775 -.673 -2.775 -4.62 0 -5.294a.724 .724 0 0 0 .448 -1.08c-1.485 -2.439 1.305 -5.23 3.744 -3.745a.722 .722 0 0 0 1.08 -.447c.673 -2.775 4.62 -2.775 5.294 0zm-2.647 4.919a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/></svg>
                                 Einstellungen
                             </a>
                             <div class="topnav__dropdown-divider"></div>
-                            <a href="donate.html" class="topnav__dropdown-item">
+                            <a href="/donate" class="topnav__dropdown-item">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.979 3.074a6 6 0 0 1 4.988 1.425l.037 .033l.034 -.03a6 6 0 0 1 4.733 -1.44l.246 .036a6 6 0 0 1 3.364 10.008l-.18 .185l-.048 .041l-7.45 7.379a1 1 0 0 1 -1.313 .082l-.094 -.082l-7.493 -7.422a6 6 0 0 1 3.176 -10.215z"/></svg>
                                 RIFT unterstützen
                             </a>
@@ -318,7 +318,7 @@ function createUnifiedMeganav() {
     <nav class="meganav">
         <div class="meganav__inner">
             <!-- Hub -->
-            <a href="index.html" class="meganav__item meganav__item--link ${currentPage === 'index' || currentPage === 'hub' ? 'active' : ''}">
+            <a href="/hub" class="meganav__item meganav__item--link ${currentPage === 'index' || currentPage === 'hub' ? 'active' : ''}">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12.707 2.293l9 9c.63 .63 .184 1.707 -.707 1.707h-1v6a3 3 0 0 1 -3 3h-1v-7a3 3 0 0 0 -2.824 -2.995l-.176 -.005h-2a3 3 0 0 0 -3 3v7h-1a3 3 0 0 1 -3 -3v-6h-1c-.89 0 -1.337 -1.077 -.707 -1.707l9 -9a1 1 0 0 1 1.414 0m.293 11.707a1 1 0 0 1 1 1v7h-4v-7a1 1 0 0 1 .883 -.993l.117 -.007z"/></svg>
                 Hub
             </a>
@@ -330,7 +330,7 @@ function createUnifiedMeganav() {
                 
                 <div class="meganav__dropdown">
                     <div class="meganav__dropdown-grid">
-                        <a href="sessions.html" class="meganav__dropdown-card">
+                        <a href="/sessions" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2a5 5 0 0 1 5 5v14a1 1 0 0 1 -1.555 .832l-5.445 -3.63l-5.444 3.63a1 1 0 0 1 -1.55 -.72l-.006 -.112v-14a5 5 0 0 1 5 -5h4z"/></svg>
                             </div>
@@ -339,7 +339,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">Alle deine Abenteuer</div>
                             </div>
                         </a>
-                        <a href="session.html" class="meganav__dropdown-card">
+                        <a href="/session" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-5 6.66a1 1 0 0 0 -1 1v4l.007 .117a1 1 0 0 0 1.993 -.117v-4l-.007 -.117a1 1 0 0 0 -.993 -.883zm0 -3a1.25 1.25 0 1 0 0 2.5a1.25 1.25 0 0 0 0 -2.5"/></svg>
                             </div>
@@ -348,7 +348,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">Zur aktuellen Session</div>
                             </div>
                         </a>
-                        <a href="sessions.html?new=true" class="meganav__dropdown-card">
+                        <a href="/sessions?new=true" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon meganav__dropdown-card-icon--accent">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.324 .001l.318 .004l.616 .017l.299 .013l.579 .034l.553 .046c4.785 .464 6.732 2.411 7.196 7.196l.046 .553l.034 .579c.005 .098 .01 .198 .013 .299l.017 .616l.005 .642l-.005 .642l-.017 .616l-.013 .299l-.034 .579l-.046 .553c-.464 4.785 -2.411 6.732 -7.196 7.196l-.553 .046l-.579 .034c-.098 .005 -.198 .01 -.299 .013l-.616 .017l-.642 .005l-.642 -.005l-.616 -.017l-.299 -.013l-.579 -.034l-.553 -.046c-4.785 -.464 -6.732 -2.411 -7.196 -7.196l-.046 -.553l-.034 -.579a28.058 28.058 0 0 1 -.013 -.299l-.017 -.616l-.004 -.318l-.001 -.324l.001 -.324l.004 -.318l.017 -.616l.013 -.299l.034 -.579l.046 -.553c.464 -4.785 2.411 -6.732 7.196 -7.196l.553 -.046l.579 -.034c.098 -.005 .198 -.01 .299 -.013l.616 -.017l.318 -.004l.324 -.001zm0 6a1 1 0 0 0 -1 1v2h-2l-.117 .007a1 1 0 0 0 .117 1.993h2v2l.007 .117a1 1 0 0 0 1.993 -.117v-2h2l.117 -.007a1 1 0 0 0 -.117 -1.993h-2v-2l-.007 -.117a1 1 0 0 0 -.993 -.883"/></svg>
                             </div>
@@ -368,7 +368,7 @@ function createUnifiedMeganav() {
                 
                 <div class="meganav__dropdown">
                     <div class="meganav__dropdown-grid">
-                        <a href="sheet.html" class="meganav__dropdown-card">
+                        <a href="/sheet" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005zm3 14h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m0 -4h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2"/><path d="M19 7h-4l-.001 -4.001z"/></svg>
                             </div>
@@ -377,7 +377,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">Charakterverwaltung</div>
                             </div>
                         </a>
-                        <a href="sheet.html?new=true" class="meganav__dropdown-card">
+                        <a href="/sheet?new=true" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon meganav__dropdown-card-icon--accent">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z"/><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z"/><path d="M17 3a1 1 0 0 1 1 1v1h1a1 1 0 0 1 0 2h-1v1a1 1 0 0 1 -2 0v-1h-1a1 1 0 0 1 0 -2h1v-1a1 1 0 0 1 1 -1"/></svg>
                             </div>
@@ -386,7 +386,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">Neuen Helden erschaffen</div>
                             </div>
                         </a>
-                        <a href="dice.html" class="meganav__dropdown-card">
+                        <a href="/dice" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0 -1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034 .57 2.22 .57 3.2 .032l6.804 -4.302c.98 -.537 1.623 -1.618 1.623 -2.793v-7.284l-.005 -.204a3.223 3.223 0 0 0 -1.284 -2.39l-.107 -.075l-.007 -.007a1.074 1.074 0 0 0 -.181 -.133l-6.776 -3.995a3.33 3.33 0 0 0 -3.216 0z"/></svg>
                             </div>
@@ -406,25 +406,25 @@ function createUnifiedMeganav() {
                 
                 <div class="meganav__dropdown meganav__dropdown--rulesets">
                     <div class="meganav__ruleset-grid">
-                        <a href="worldsapart.html" class="meganav__ruleset-btn" title="Worlds Apart">
+                        <a href="/worldsapart" class="meganav__ruleset-btn" title="Worlds Apart">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066185/rs_worldapart_cuqdjn.png" alt="Worlds Apart">
                         </a>
-                        <a href="dnd5e.html" class="meganav__ruleset-btn" title="D&D 5e">
+                        <a href="/dnd5e" class="meganav__ruleset-btn" title="D&D 5e">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066185/rs_dnd5e_siffwr.png" alt="D&D 5e">
                         </a>
-                        <a href="htbah.html" class="meganav__ruleset-btn" title="How To Be A Hero">
+                        <a href="/htbah" class="meganav__ruleset-btn" title="How To Be A Hero">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066183/rs_htbah_fmv3sx.png" alt="How To Be A Hero">
                         </a>
-                        <a href="cyberpunkred.html" class="meganav__ruleset-btn" title="Cyberpunk RED">
+                        <a href="/cyberpunkred" class="meganav__ruleset-btn" title="Cyberpunk RED">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770066183/rs_cpred_ghwma4.png" alt="Cyberpunk RED">
                         </a>
-                        <a href="pathfinder.html" class="meganav__ruleset-btn" title="Pathfinder">
+                        <a href="/pathfinder" class="meganav__ruleset-btn" title="Pathfinder">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770093089/iqjfvp876sy826b7hxji.png" alt="Pathfinder">
                         </a>
-                        <a href="shadowrun.html" class="meganav__ruleset-btn" title="Shadowrun">
+                        <a href="/shadowrun" class="meganav__ruleset-btn" title="Shadowrun">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770093089/yspjyyvodhbncs8wyiaz.png" alt="Shadowrun">
                         </a>
-                        <a href="cthulhu.html" class="meganav__ruleset-btn" title="Call of Cthulhu">
+                        <a href="/cthulhu" class="meganav__ruleset-btn" title="Call of Cthulhu">
                             <img src="https://res.cloudinary.com/dza4jgreq/image/upload/v1770093088/mjzfbekfz6a7wtikpwqx.png" alt="Call of Cthulhu">
                         </a>
                     </div>
@@ -438,7 +438,7 @@ function createUnifiedMeganav() {
                 
                 <div class="meganav__dropdown">
                     <div class="meganav__dropdown-grid">
-                        <a href="dice.html" class="meganav__dropdown-card">
+                        <a href="/dice" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0 -1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034 .57 2.22 .57 3.2 .032l6.804 -4.302c.98 -.537 1.623 -1.618 1.623 -2.793v-7.284l-.005 -.204a3.223 3.223 0 0 0 -1.284 -2.39l-.107 -.075l-.007 -.007a1.074 1.074 0 0 0 -.181 -.133l-6.776 -3.995a3.33 3.33 0 0 0 -3.216 0z"/></svg>
                             </div>
@@ -447,7 +447,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">3D Dice Roller</div>
                             </div>
                         </a>
-                        <a href="map.html" class="meganav__dropdown-card">
+                        <a href="/map" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee;">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/></svg>
                             </div>
@@ -456,7 +456,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-title">Karten</div>
                             </div>
                         </a>
-                        <a href="whiteboard.html" class="meganav__dropdown-card">
+                        <a href="/whiteboard" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon" style="background: rgba(251, 146, 60, 0.15); color: #fb923c;">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2zm0 12a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-2a2 2 0 0 1 2 -2zm10 -4a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2zm0 -8a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-2a2 2 0 0 1 2 -2z"/></svg>
                             </div>
@@ -465,7 +465,7 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">Zeichnen & Planen</div>
                             </div>
                         </a>
-                        <a href="chat.html" class="meganav__dropdown-card">
+                        <a href="/chat" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon" style="background: rgba(34, 197, 94, 0.15); color: #22c55e;">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.821 4.91c3.899 -2.765 9.468 -2.539 13.073 .535c3.667 3.129 4.168 8.238 1.152 11.898c-2.841 3.447 -7.965 4.583 -12.231 2.805l-.233 -.101l-4.374 .931l-.04 .006l-.035 .007h-.018l-.022 .005h-.038l-.033 .004l-.021 -.001l-.023 .001l-.033 -.003h-.035l-.022 -.004l-.022 -.002l-.035 -.007l-.034 -.005l-.016 -.004l-.024 -.005l-.049 -.016l-.024 -.005l-.011 -.005l-.022 -.007l-.045 -.02l-.03 -.012l-.011 -.006l-.014 -.006l-.031 -.018l-.045 -.024l-.016 -.011l-.037 -.026l-.04 -.027l-.002 -.004l-.013 -.009l-.043 -.04l-.025 -.02l-.006 -.007l-.056 -.062l-.013 -.014l-.011 -.014l-.039 -.056l-.014 -.019l-.005 -.01l-.042 -.073l-.007 -.012l-.004 -.008l-.007 -.012l-.014 -.038l-.02 -.042l-.004 -.016l-.004 -.01l-.017 -.061l-.007 -.018l-.002 -.015l-.005 -.019l-.005 -.033l-.008 -.042l-.002 -.031l-.003 -.01v-.016l-.004 -.054l.001 -.036l.001 -.023l.002 -.053l.004 -.025v-.019l.008 -.035l.005 -.034l.005 -.02l.004 -.02l.018 -.06l.003 -.013l1.15 -3.45l-.022 -.037c-2.21 -3.747 -1.209 -8.391 2.413 -11.119z"/></svg>
                             </div>
@@ -482,13 +482,13 @@ function createUnifiedMeganav() {
             
             <!-- Social Links -->
             <div class="meganav__social">
-                <a href="riftpro.html" class="meganav__pro-link" title="RIFT PRO">
+                <a href="/riftpro" class="meganav__pro-link" title="RIFT PRO">
                     <img src="assets/rift_pro/img/svg/rift_pro_large_white.svg" alt="RIFT PRO" style="height: 28px; display: block;">
                 </a>
                 <a href="https://discord.gg/de5zmanAMC" target="_blank" class="meganav__social-link meganav__social-link--discord" title="Discord">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
                 </a>
-                <a href="donate.html" class="meganav__social-link meganav__social-link--heart" title="Unterstützen">
+                <a href="/donate" class="meganav__social-link meganav__social-link--heart" title="Unterstützen">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                 </a>
                 <a href="mailto:contact@rift-app.com" class="meganav__social-link meganav__social-link--email" title="Email">
@@ -512,17 +512,17 @@ function createUnifiedDock() {
     
     return `
     <div class="dock" id="bottomDock">
-        <a href="index.html" class="dock__item ${isHub ? 'active' : ''}" data-tooltip="Hub">
+        <a href="/hub" class="dock__item ${isHub ? 'active' : ''}" data-tooltip="Hub">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.707 2.293l9 9c.63 .63 .184 1.707 -.707 1.707h-1v6a3 3 0 0 1 -3 3h-1v-7a3 3 0 0 0 -2.824 -2.995l-.176 -.005h-2a3 3 0 0 0 -3 3v7h-1a3 3 0 0 1 -3 -3v-6h-1c-.89 0 -1.337 -1.077 -.707 -1.707l9 -9a1 1 0 0 1 1.414 0m.293 11.707a1 1 0 0 1 1 1v7h-4v-7a1 1 0 0 1 .883 -.993l.117 -.007z"/>
             </svg>
         </a>
-        <a href="sessions.html" class="dock__item ${currentPage === 'sessions' ? 'active' : ''}" data-tooltip="Sessions">
+        <a href="/sessions" class="dock__item ${currentPage === 'sessions' ? 'active' : ''}" data-tooltip="Sessions">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14 2a5 5 0 0 1 5 5v14a1 1 0 0 1 -1.555 .832l-5.445 -3.63l-5.444 3.63a1 1 0 0 1 -1.55 -.72l-.006 -.112v-14a5 5 0 0 1 5 -5h4z"/>
             </svg>
         </a>
-        <a href="sheet.html" class="dock__item ${currentPage === 'sheet' || currentPage.startsWith('sheet-') ? 'active' : ''}" data-tooltip="Charakter">
+        <a href="/sheet" class="dock__item ${currentPage === 'sheet' || currentPage.startsWith('sheet-') ? 'active' : ''}" data-tooltip="Charakter">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005zm3 14h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m0 -4h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2"/><path d="M19 7h-4l-.001 -4.001z"/>
             </svg>
@@ -530,27 +530,27 @@ function createUnifiedDock() {
         
         <div class="dock__divider"></div>
         
-        <a href="dice.html" class="dock__item ${currentPage === 'dice' ? 'active' : ''}" data-tooltip="Würfel">
+        <a href="/dice" class="dock__item ${currentPage === 'dice' ? 'active' : ''}" data-tooltip="Würfel">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0 -1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034 .57 2.22 .57 3.2 .032l6.804 -4.302c.98 -.537 1.623 -1.618 1.623 -2.793v-7.284l-.005 -.204a3.223 3.223 0 0 0 -1.284 -2.39l-.107 -.075l-.007 -.007a1.074 1.074 0 0 0 -.181 -.133l-6.776 -3.995a3.33 3.33 0 0 0 -3.216 0z"/>
             </svg>
         </a>
-        <a href="map.html" class="dock__item ${currentPage === 'map' ? 'active' : ''}" data-tooltip="Karte">
+        <a href="/map" class="dock__item ${currentPage === 'map' ? 'active' : ''}" data-tooltip="Karte">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"/>
             </svg>
         </a>
-        <a href="notes.html" class="dock__item ${currentPage === 'notes' ? 'active' : ''}" data-tooltip="Notizen">
+        <a href="/notes" class="dock__item ${currentPage === 'notes' ? 'active' : ''}" data-tooltip="Notizen">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.997 4.17a3 3 0 0 1 2.003 2.83v12a3 3 0 0 1 -3 3h-10a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 2.003 -2.83a4 4 0 0 0 3.997 3.83h4a4 4 0 0 0 3.98 -3.597zm-2.997 10.83h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m0 -4h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m-1 -9a2 2 0 1 1 0 4h-4a2 2 0 1 1 0 -4z"/>
             </svg>
         </a>
-        <a href="whiteboard.html" class="dock__item ${currentPage === 'whiteboard' ? 'active' : ''}" data-tooltip="Whiteboard">
+        <a href="/whiteboard" class="dock__item ${currentPage === 'whiteboard' ? 'active' : ''}" data-tooltip="Whiteboard">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 3a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2zm0 12a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-2a2 2 0 0 1 2 -2zm10 -4a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2zm0 -8a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-2a2 2 0 0 1 2 -2z"/>
             </svg>
         </a>
-        <a href="chat.html" class="dock__item ${currentPage === 'chat' ? 'active' : ''}" data-tooltip="Chat">
+        <a href="/chat" class="dock__item ${currentPage === 'chat' ? 'active' : ''}" data-tooltip="Chat">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M5.821 4.91c3.899 -2.765 9.468 -2.539 13.073 .535c3.667 3.129 4.168 8.238 1.152 11.898c-2.841 3.447 -7.965 4.583 -12.231 2.805l-.233 -.101l-4.374 .931l-.04 .006l-.035 .007h-.018l-.022 .005h-.038l-.033 .004l-.021 -.001l-.023 .001l-.033 -.003h-.035l-.022 -.004l-.022 -.002l-.035 -.007l-.034 -.005l-.016 -.004l-.024 -.005l-.049 -.016l-.024 -.005l-.011 -.005l-.022 -.007l-.045 -.02l-.03 -.012l-.011 -.006l-.014 -.006l-.031 -.018l-.045 -.024l-.016 -.011l-.037 -.026l-.04 -.027l-.002 -.004l-.013 -.009l-.043 -.04l-.025 -.02l-.006 -.007l-.056 -.062l-.013 -.014l-.011 -.014l-.039 -.056l-.014 -.019l-.005 -.01l-.042 -.073l-.007 -.012l-.004 -.008l-.007 -.012l-.014 -.038l-.02 -.042l-.004 -.016l-.004 -.01l-.017 -.061l-.007 -.018l-.002 -.015l-.005 -.019l-.005 -.033l-.008 -.042l-.002 -.031l-.003 -.01v-.016l-.004 -.054l.001 -.036l.001 -.023l.002 -.053l.004 -.025v-.019l.008 -.035l.005 -.034l.005 -.02l.004 -.02l.018 -.06l.003 -.013l1.15 -3.45l-.022 -.037c-2.21 -3.747 -1.209 -8.391 2.413 -11.119z"/>
             </svg>
@@ -559,7 +559,7 @@ function createUnifiedDock() {
         <div class="dock__divider"></div>
         
         <!-- Character Card (loaded dynamically) -->
-        <a href="sheet.html" class="dock__character-card hidden" id="dockCharacterCard">
+        <a href="/sheet" class="dock__character-card hidden" id="dockCharacterCard">
             <div class="dock__char-portrait" id="dockCharPortrait">
                 <div class="dock__char-portrait-placeholder">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
@@ -588,7 +588,7 @@ function createUnifiedDock() {
         <div class="dock__divider"></div>
         
         <!-- Session Card (loaded dynamically) -->
-        <a href="session.html" class="dock__session-card hidden" id="dockSessionCard">
+        <a href="/session" class="dock__session-card hidden" id="dockSessionCard">
             <div class="dock__session-portrait" id="dockSessionPortrait">
                 <div class="dock__session-portrait-placeholder">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 2h11a1 1 0 0 1 .768 .36l.058 .084l.078 .137l3.546 7.092a1 1 0 0 1 .05 .737l-.063 .135l-8.5 11.333a1 1 0 0 1 -1.437 .173l-.097 -.097l-.08 -.082l-8.5 -11.327a1 1 0 0 1 -.106 -.616l.043 -.125l3.5 -7a1 1 0 0 1 .629 -.525l.118 -.03l.116 -.012h11z"/></svg>
@@ -625,7 +625,7 @@ function createUnifiedFooter() {
         <div class="footer__grid">
             <!-- Brand Column -->
             <div class="footer__brand">
-                <a href="index.html" class="footer__logo">
+                <a href="/hub" class="footer__logo">
                     <img src="assets/img/logo_rift.png" alt="RIFT">
                 </a>
                 <p class="footer__tagline">Dein digitaler Begleiter für Pen & Paper Rollenspiele. Erschaffe Helden, erlebe Abenteuer, würfle Schicksale.</p>
@@ -635,10 +635,10 @@ function createUnifiedFooter() {
             <div class="footer__column">
                 <h4 class="footer__column-title">Spielen</h4>
                 <nav class="footer__nav">
-                    <a href="sessions.html">Sessions</a>
-                    <a href="sheet.html">Charaktere</a>
-                    <a href="dice.html">Würfel</a>
-                    <a href="map.html">Karten</a>
+                    <a href="/sessions">Sessions</a>
+                    <a href="/sheet">Charaktere</a>
+                    <a href="/dice">Würfel</a>
+                    <a href="/map">Karten</a>
                 </nav>
             </div>
             
@@ -646,10 +646,10 @@ function createUnifiedFooter() {
             <div class="footer__column">
                 <h4 class="footer__column-title">Regelwerke</h4>
                 <nav class="footer__nav">
-                    <a href="worldsapart.html">Worlds Apart</a>
-                    <a href="dnd5e.html">D&D 5e (2024)</a>
-                    <a href="htbah.html">How To Be A Hero</a>
-                    <a href="cyberpunkred.html">Cyberpunk Red</a>
+                    <a href="/worldsapart">Worlds Apart</a>
+                    <a href="/dnd5e">D&D 5e (2024)</a>
+                    <a href="/htbah">How To Be A Hero</a>
+                    <a href="/cyberpunkred">Cyberpunk Red</a>
                 </nav>
             </div>
             
@@ -657,10 +657,10 @@ function createUnifiedFooter() {
             <div class="footer__column">
                 <h4 class="footer__column-title">Über RIFT</h4>
                 <nav class="footer__nav">
-                    <a href="about.html">Über uns</a>
+                    <a href="/about">Über uns</a>
                     <a href="mailto:contact@rift-app.com">Kontakt</a>
-                    <a href="branding.html">Branding</a>
-                    <a href="donate.html">Unterstützen</a>
+                    <a href="/branding">Branding</a>
+                    <a href="/donate">Unterstützen</a>
                 </nav>
             </div>
         </div>
@@ -670,17 +670,17 @@ function createUnifiedFooter() {
             <div class="footer__legal">
                 <span>© ${currentYear} RIFT</span>
                 <span class="footer__separator">·</span>
-                <a href="privacy.html">Datenschutz</a>
+                <a href="/privacy">Datenschutz</a>
                 <span class="footer__separator">·</span>
-                <a href="terms.html">Nutzungsbedingungen</a>
+                <a href="/privacy">Nutzungsbedingungen</a>
                 <span class="footer__separator">·</span>
-                <a href="legal.html">Impressum</a>
+                <a href="/imprint">Impressum</a>
             </div>
             <div class="footer__social">
                 <a href="https://discord.gg/de5zmanAMC" target="_blank" title="Discord" class="footer__social-link--discord">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
                 </a>
-                <a href="donate.html" title="Unterstützen" class="footer__social-link--heart">
+                <a href="/donate" title="Unterstützen" class="footer__social-link--heart">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                 </a>
                 <a href="mailto:contact@rift-app.com" title="Email" class="footer__social-link--email">
@@ -758,11 +758,11 @@ const RIFTLayout = {
             firebase.auth().signOut().then(() => {
                 localStorage.removeItem('rift_user');
                 localStorage.removeItem('rift_current_room');
-                window.location.href = 'login.html';
+                window.location.href = '/login';
             });
         } else {
             localStorage.removeItem('rift_user');
-            window.location.href = 'login.html';
+            window.location.href = '/login';
         }
     }
 };
@@ -1080,7 +1080,7 @@ async function initDockCharacterCard() {
 }
 
 function showEmptyCharacterCard(card) {
-    card.href = 'sheet.html?new=true';
+    card.href = '/sheet?new=true';
     card.innerHTML = `
         <div class="dock__card-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1098,7 +1098,7 @@ function showEmptyCharacterCard(card) {
 }
 
 function showEmptySessionCard(card) {
-    card.href = 'sessions.html';
+    card.href = '/sessions';
     card.innerHTML = `
         <div class="dock__card-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1168,12 +1168,12 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     // Update link to character sheet
     const ruleset = charData.ruleset || 'worldsapart';
     const sheetMap = {
-        'worldsapart': 'sheet-worldsapart.html',
-        'dnd5e': 'sheet-5e.html',
-        'htbah': 'sheet-htbah.html',
-        'cyberpunkred': 'sheet-cyberpunkred.html'
+        'worldsapart': '/sheet/worldsapart',
+        'dnd5e': '/sheet/5e',
+        'htbah': '/sheet/htbah',
+        'cyberpunkred': '/sheet/cyberpunk'
     };
-    const sheetUrl = sheetMap[ruleset] || 'sheet-worldsapart.html';
+    const sheetUrl = sheetMap[ruleset] || '/sheet/worldsapart';
     
     // Build URL - if we loaded from worldsapart_character_v5, don't pass ID (sheet loads from localStorage itself)
     // Only pass ID if we got it from CharacterStorage
@@ -1449,7 +1449,7 @@ function updateDockSessionCard(session) {
     }
     
     // Update link
-    card.href = `session.html?id=${session.id}`;
+    card.href = `/session?id=${session.id}`;
     
     // Store session data for tooltip
     card.dataset.sessionName = session.name || 'Session';
@@ -2089,7 +2089,7 @@ const QuickDiceSystem = {
         params.set('quickdice', 'true');    // Mark as quick dice roll
         
         // Navigate to dice.html with auto-roll params
-        const url = `dice.html?${params.toString()}`;
+        const url = `/dice?${params.toString()}`;
         console.log('[QuickDice] Navigating to:', url);
         
         // Visual feedback on slot

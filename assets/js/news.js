@@ -63,7 +63,7 @@ class NewsManager {
                 excerpt: 'Die neue Version ist da! Entdecke das überarbeitete Design und neue Features.',
                 date: new Date().toISOString(),
                 image: null,
-                link: 'news1.html',
+                link: '/news',
                 author: 'RIFT-Team'
             },
             {
@@ -72,7 +72,7 @@ class NewsManager {
                 excerpt: 'Character Sheets, Dice Roller, Maps und vieles mehr - alles in einer App.',
                 date: new Date().toISOString(),
                 image: null,
-                link: 'news2.html',
+                link: '/news',
                 author: 'RIFT-Team'
             }
         ];
