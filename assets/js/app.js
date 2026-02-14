@@ -159,6 +159,8 @@ const App = {
         
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('rift_theme', theme);
+        // Bridge to RiftState
+        if (window.RIFT?.state) RIFT.state.set('theme', theme);
         
         // Update any theme toggle buttons
         document.querySelectorAll('.theme-toggle').forEach(btn => {

@@ -397,6 +397,8 @@ function saveUserToStorage(userData) {
         isAnonymous: userData.isAnonymous || false,
         isGM: userData.isGM || existingData?.isGM || false
     }));
+    // Bridge to RiftState
+    if (window.RIFT?.state) RIFT.state.set('user', JSON.parse(localStorage.getItem(STORAGE_KEYS.USER)));
 }
 
 /**
@@ -413,9 +415,12 @@ function getUserFromStorage() {
 function saveCurrentRoom(code) {
     if (!code) {
         localStorage.removeItem(STORAGE_KEYS.ROOM);
+        if (window.RIFT?.state) RIFT.state.clear('room');
         return;
     }
     localStorage.setItem(STORAGE_KEYS.ROOM, code);
+    // Bridge to RiftState
+    if (window.RIFT?.state) RIFT.state.set('room.code', code);
 }
 
 /**
@@ -433,6 +438,8 @@ function saveLastSession(sessionInfo) {
         ...sessionInfo,
         timestamp: Date.now()
     }));
+    // Bridge to RiftState
+    if (window.RIFT?.state) RIFT.state.set('session', { ...sessionInfo, timestamp: Date.now() });
 }
 
 /**
@@ -450,6 +457,8 @@ function clearSession() {
     localStorage.removeItem(STORAGE_KEYS.USER);
     localStorage.removeItem(STORAGE_KEYS.ROOM);
     localStorage.removeItem(STORAGE_KEYS.LAST_SESSION);
+    // Bridge to RiftState
+    if (window.RIFT?.state) { RIFT.state.clear('user'); RIFT.state.clear('room'); RIFT.state.clear('session'); }
 }
 
 // ========================================

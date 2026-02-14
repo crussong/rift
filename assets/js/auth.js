@@ -240,6 +240,8 @@ const AUTH_STORAGE_KEYS = {
 
 function saveUserData(data) {
     localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(data));
+    // Bridge to RiftState
+    if (window.RIFT?.state) RIFT.state.set('user', data);
 }
 
 function getUserData() {
@@ -249,6 +251,8 @@ function getUserData() {
 
 function saveCurrentRoom(code) {
     localStorage.setItem(AUTH_STORAGE_KEYS.ROOM, code);
+    // Bridge to RiftState
+    if (window.RIFT?.state) RIFT.state.set('room.code', code);
 }
 
 function getCurrentRoom() {
@@ -258,6 +262,8 @@ function getCurrentRoom() {
 function clearSession() {
     localStorage.removeItem(AUTH_STORAGE_KEYS.USER);
     localStorage.removeItem(AUTH_STORAGE_KEYS.ROOM);
+    // Bridge to RiftState
+    if (window.RIFT?.state) { RIFT.state.clear('user'); RIFT.state.clear('room'); }
 }
 
 // ========================================

@@ -735,6 +735,7 @@ const RIFTLayout = {
     leaveSession: function() {
         if (confirm('Möchtest du die Session wirklich verlassen?')) {
             localStorage.removeItem('rift_current_room');
+            if (window.RIFT?.state) { RIFT.state.clear('room'); RIFT.state.clear('party'); }
             window.location.reload();
         }
     },
@@ -754,6 +755,7 @@ const RIFTLayout = {
     
     // Logout
     logout: function() {
+        if (window.RIFT?.state) RIFT.state.clear();
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().signOut().then(() => {
                 localStorage.removeItem('rift_user');
@@ -933,6 +935,8 @@ function initPartyDisplay() {
                     avatar: m.photoURL,
                     isOnline: m.online === true
                 }))));
+                // Bridge to RiftState
+                if (window.RIFT?.state) RIFT.state.set('party', members);
             });
         } catch (e) {
             console.error('[Layout] Failed to subscribe to party:', e);

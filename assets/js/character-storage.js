@@ -281,6 +281,12 @@ const CharacterStorage = {
             
             console.log('[CharacterStorage] Saved to localStorage:', character.id, character.name);
             
+            // Bridge to RiftState
+            if (window.RIFT?.state) {
+                RIFT.state.emit('character:saved', character);
+                RIFT.state.emit('characters:changed', this.getAll());
+            }
+            
             // Also save to Firebase (async, don't wait)
             if (this.isOnline()) {
                 this.firebaseSave(character).catch(e => {
@@ -402,6 +408,12 @@ const CharacterStorage = {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
             
             console.log('[CharacterStorage] Deleted from localStorage:', charId, charName);
+            
+            // Bridge to RiftState
+            if (window.RIFT?.state) {
+                RIFT.state.emit('character:deleted', { id: charId, name: charName, ruleset: charRuleset });
+                RIFT.state.emit('characters:changed', this.getAll());
+            }
             
             // Also clear legacy storage if this was the active character
             // Check worldsapart_character_v5
@@ -696,6 +708,13 @@ const CharacterStorage = {
             
             // Notify listeners (e.g. Dock HeroCard)
             window.dispatchEvent(new CustomEvent('rift-main-character-changed', { detail: { charId, ruleset: targetRuleset } }));
+            
+            // Bridge to RiftState
+            if (window.RIFT?.state) {
+                const char = this.getById(charId);
+                RIFT.state.set('character', char);
+                RIFT.state.emit('character:main-changed', { charId, ruleset: targetRuleset, character: char });
+            }
             
             // Sync to Firebase user profile
             this.syncMainCharacterToFirebase(targetRuleset, charId);
