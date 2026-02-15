@@ -334,6 +334,9 @@ function init(characterId, roomCode) {
     
     console.log('[Character] Source:', source, charData.profile?.name || '(blank)');
     
+    // Ensure all required fields exist (merge with BLANK defaults)
+    _ensureDefaults();
+    
     renderAll();
     initCardCorners();
     
@@ -425,6 +428,13 @@ function renderProfile() {
 }
 
 function renderClassAndOrbs() {
+    // Defensive defaults for incomplete data
+    if (!charData.class) charData.class = { id: '', name: '', label: 'Disziplin' };
+    if (!charData.hp) charData.hp = { current: 100, max: 100, regen: 0 };
+    if (!charData.resource) charData.resource = { name: '', current: 100, max: 100, perHit: 0 };
+    if (!charData.xp) charData.xp = { current: 0, max: 1000 };
+    if (!charData.level) charData.level = 1;
+
     txt('className', charData.class.name || '\u2014');
     txt('classSubLabel', charData.class.name ? charData.class.label : 'Klasse wählen');
     
@@ -637,6 +647,28 @@ function _getOrCreateLocalCharId() {
     return id;
 }
 
+/**
+ * Ensure charData has all required fields from BLANK_CHARACTER.
+ * Loaded data may be incomplete (old format, hub format, etc.)
+ */
+function _ensureDefaults() {
+    const blank = JSON.parse(JSON.stringify(BLANK_CHARACTER));
+    _deepMergeDefaults(charData, blank);
+}
+
+function _deepMergeDefaults(target, defaults) {
+    for (const key of Object.keys(defaults)) {
+        if (target[key] === undefined || target[key] === null) {
+            target[key] = defaults[key];
+        } else if (
+            typeof defaults[key] === 'object' && !Array.isArray(defaults[key]) &&
+            typeof target[key] === 'object' && !Array.isArray(target[key])
+        ) {
+            _deepMergeDefaults(target[key], defaults[key]);
+        }
+    }
+}
+
 function _loadLocal() {
     // 1. Try direct v2 storage
     try {
@@ -786,8 +818,13 @@ function updateAttrPoints() {
 // ── Orb editing (HP + Resource) ──
 
 function initOrbBindings() {
+    // Click on values text → prompt edit (unchanged)
     bindOrbClick('hpValues', 'hp');
     bindOrbClick('rageValues', 'resource');
+
+    // Drag on orb sphere → adjust fill level
+    bindOrbDrag('hpOrb', 'hp');
+    bindOrbDrag('rageOrb', 'resource');
 }
 
 function bindOrbClick(id, dataKey) {
@@ -796,7 +833,8 @@ function bindOrbClick(id, dataKey) {
 
     el.addEventListener('click', () => {
         const data = charData[dataKey];
-        const input = prompt(`${dataKey === 'hp' ? 'Leben' : charData.resource.name || 'Ressource'} (aktuell / max):`, `${data.current} / ${data.max}`);
+        const label = dataKey === 'hp' ? 'Leben' : (charData.resource.name || 'Ressource');
+        const input = prompt(`${label} (aktuell / max):`, `${data.current} / ${data.max}`);
         if (input === null) return;
         const parts = input.split('/').map(s => parseInt(s.trim(), 10));
         if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
@@ -808,6 +846,125 @@ function bindOrbClick(id, dataKey) {
         save(dataKey, data);
         renderClassAndOrbs();
     });
+}
+
+/**
+ * Drag-to-fill on orb SVG.
+ * Mouse/touch down → drag up/down → fill level follows → release commits.
+ */
+function bindOrbDrag(orbId, dataKey) {
+    const orb = document.getElementById(orbId);
+    if (!orb) return;
+
+    let dragging = false;
+    let indicator = null;
+    let startVal = 0;
+
+    const isHp = dataKey === 'hp';
+
+    // Create drag indicator overlay (reused across drags)
+    function ensureIndicator() {
+        if (indicator) return indicator;
+        indicator = document.createElement('div');
+        indicator.className = 'orb-drag-indicator';
+        indicator.innerHTML = `
+            <div class="orb-drag-line"></div>
+            <div class="orb-drag-value"></div>
+        `;
+        orb.appendChild(indicator);
+        return indicator;
+    }
+
+    function yToPct(clientY) {
+        const rect = orb.getBoundingClientRect();
+        // Map: top of orb = 100%, bottom = 0%
+        // Clip circle visible from y=8 to y=112 in 120px viewBox
+        const topPad = rect.height * (8 / 120);
+        const botPad = rect.height * (8 / 120);
+        const usableTop = rect.top + topPad;
+        const usableHeight = rect.height - topPad - botPad;
+        const fraction = (clientY - usableTop) / usableHeight;
+        return Math.max(0, Math.min(1, 1 - fraction));
+    }
+
+    function pctToValue(pct) {
+        const max = charData[dataKey].max || 100;
+        return Math.round(pct * max);
+    }
+
+    function updateIndicator(pct, val) {
+        if (!indicator) return;
+        const max = charData[dataKey].max || 100;
+        // Position line: top of orb = 100%, bottom = 0%
+        // CSS top: (1 - pct) * 100%
+        const topOffset = (1 - pct) * 100;
+        const line = indicator.querySelector('.orb-drag-line');
+        const valueEl = indicator.querySelector('.orb-drag-value');
+        line.style.top = topOffset + '%';
+        valueEl.style.top = topOffset + '%';
+        valueEl.textContent = `${val} / ${max}`;
+
+        // Color based on percentage
+        const color = isHp
+            ? (pct > 0.5 ? '#22c55e' : pct > 0.25 ? '#f59e0b' : '#ef4444')
+            : 'var(--gold, #d4a844)';
+        line.style.background = color;
+        valueEl.style.color = color;
+    }
+
+    function startDrag(e) {
+        e.preventDefault();
+        dragging = true;
+        startVal = charData[dataKey].current;
+        ensureIndicator();
+        orb.classList.add('orb--dragging');
+        indicator.style.display = 'block';
+
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const pct = yToPct(clientY);
+        const val = pctToValue(pct);
+        updateIndicator(pct, val);
+    }
+
+    function moveDrag(e) {
+        if (!dragging) return;
+        e.preventDefault();
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const pct = yToPct(clientY);
+        const val = pctToValue(pct);
+        updateIndicator(pct, val);
+    }
+
+    function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        orb.classList.remove('orb--dragging');
+        if (indicator) indicator.style.display = 'none';
+
+        const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+        const pct = yToPct(clientY);
+        const val = pctToValue(pct);
+
+        // Only commit if value actually changed
+        if (val !== startVal) {
+            charData[dataKey].current = val;
+            save(dataKey, charData[dataKey]);
+            renderClassAndOrbs();
+        }
+    }
+
+    // Mouse events
+    orb.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', moveDrag);
+    document.addEventListener('mouseup', endDrag);
+
+    // Touch events
+    orb.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('touchmove', moveDrag, { passive: false });
+    document.addEventListener('touchend', endDrag);
+
+    // Cursor hint
+    orb.style.cursor = 'ns-resize';
 }
 
 // ── Level editing ──
