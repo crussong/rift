@@ -273,8 +273,8 @@ const BLANK_CHARACTER = {
         kraft: 0, geschick: 0, belastbarkeit: 0, intellekt: 0, autoritaet: 0,
         points: { used: 0, total: 15 }
     },
-    hp: { current: 0, max: 100, regen: 0 },
-    resource: { name: '', current: 0, max: 100, perHit: 0 },
+    hp: { current: 100, max: 100, regen: 0 },
+    resource: { name: '', current: 100, max: 100, perHit: 0 },
     defense: {
         armor: 0, mitigation: 0,
         dodge: 0, block: null, movement: 0,
