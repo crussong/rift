@@ -856,21 +856,34 @@ function _getOrCreateLocalCharId() {
  * Loaded data may be incomplete (old format, hub format, etc.)
  */
 function _ensureDefaults() {
+    if (!charData || typeof charData !== 'object') {
+        charData = JSON.parse(JSON.stringify(BLANK_CHARACTER));
+        return;
+    }
     const blank = JSON.parse(JSON.stringify(BLANK_CHARACTER));
     _deepMergeDefaults(charData, blank);
 }
 
 function _deepMergeDefaults(target, defaults) {
-    if (!target || !defaults) return;
-    for (const key of Object.keys(defaults)) {
-        if (target[key] === undefined || target[key] === null) {
-            target[key] = defaults[key];
-        } else if (
-            defaults[key] !== null && target[key] !== null &&
-            typeof defaults[key] === 'object' && !Array.isArray(defaults[key]) &&
-            typeof target[key] === 'object' && !Array.isArray(target[key])
+    if (!defaults || typeof defaults !== 'object' || Array.isArray(defaults)) return;
+    if (!target || typeof target !== 'object' || Array.isArray(target)) return;
+    const keys = Object.keys(defaults);
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        const dVal = defaults[key];
+        const tVal = target[key];
+        // Missing or null in target → take default
+        if (tVal === undefined || tVal === null) {
+            target[key] = dVal;
+        }
+        // Both are plain objects → recurse
+        else if (
+            dVal !== null && dVal !== undefined &&
+            typeof dVal === 'object' && !Array.isArray(dVal) &&
+            tVal !== null && tVal !== undefined &&
+            typeof tVal === 'object' && !Array.isArray(tVal)
         ) {
-            _deepMergeDefaults(target[key], defaults[key]);
+            _deepMergeDefaults(tVal, dVal);
         }
     }
 }
