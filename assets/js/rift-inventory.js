@@ -451,14 +451,19 @@ const RiftInventory = (() => {
         const root = document.getElementById('sec-inventar');
         if (!root) return;
 
-        // Tooltip
+        // Tooltip + equip slot highlight on hover
         root.addEventListener('mousemove', e => {
             const el = e.target.closest('.inv-item, .equipped-item, .potion-item');
-            if (!el) { _hideTooltip(); return; }
+            if (!el) { _hideTooltip(); _clearSlotHighlight(); return; }
             const it = _findById(el.dataset.instanceId);
-            if (it) _showTooltip(it, e.clientX, e.clientY);
+            if (it) {
+                _showTooltip(it, e.clientX, e.clientY);
+                // Highlight matching equip slots on inventory item hover
+                if (el.dataset.area === 'inventory') _highlightSlots(it);
+                else _clearSlotHighlight();
+            }
         });
-        root.addEventListener('mouseleave', _hideTooltip);
+        root.addEventListener('mouseleave', () => { _hideTooltip(); _clearSlotHighlight(); });
 
         // Context
         root.addEventListener('contextmenu', e => {
@@ -830,6 +835,7 @@ const RiftInventory = (() => {
     // ═══════════════════════════════════════
 
     function loadStarterKit() {
+        if (!_getChar) { console.warn('[Inventory] Not initialized yet'); return; }
         const ch = _getChar();
         if (!ch) return;
         if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
@@ -930,6 +936,16 @@ const RiftInventory = (() => {
 
     function _save(ch) { _saveChar(ch); render(); }
     function _notify(msg) { if (window.RIFTToast?.show) RIFTToast.show(msg, 'info'); else console.log('[Inv]', msg); }
+
+    function _highlightSlots(item) {
+        _clearSlotHighlight();
+        document.querySelectorAll('.equip-slot').forEach(s => {
+            if (_canEquipInSlot(item, s.dataset.slot)) s.classList.add('slot-hint');
+        });
+    }
+    function _clearSlotHighlight() {
+        document.querySelectorAll('.equip-slot.slot-hint').forEach(s => s.classList.remove('slot-hint'));
+    }
     function _esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
     function _uid(n) { const c = 'abcdefghijklmnopqrstuvwxyz0123456789'; let r = ''; for (let i = 0; i < n; i++) r += c[Math.floor(Math.random() * c.length)]; return r; }
 

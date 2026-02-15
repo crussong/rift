@@ -861,10 +861,12 @@ function _ensureDefaults() {
 }
 
 function _deepMergeDefaults(target, defaults) {
+    if (!target || !defaults) return;
     for (const key of Object.keys(defaults)) {
         if (target[key] === undefined || target[key] === null) {
             target[key] = defaults[key];
         } else if (
+            defaults[key] !== null && target[key] !== null &&
             typeof defaults[key] === 'object' && !Array.isArray(defaults[key]) &&
             typeof target[key] === 'object' && !Array.isArray(target[key])
         ) {
