@@ -889,6 +889,7 @@ function initInteractions() {
     initOrbBindings();
     initLevelBinding();
     initDefenseBindings();
+    initRestBindings();
     initCombatBindings();
     initWeaknessBindings();
     initClassPicker();
@@ -1244,6 +1245,54 @@ function initDefenseBindings() {
 }
 
 // ── Combat stat editing ──
+
+// ── Rest Mechanics ──
+
+function initRestBindings() {
+    const kurzBtn = document.getElementById('rastKurz');
+    const langBtn = document.getElementById('rastLang');
+
+    if (kurzBtn) {
+        kurzBtn.addEventListener('click', () => doRest(25, 'kurze', 3));
+        kurzBtn.addEventListener('mouseenter', () => {
+            const hpGain = Math.min(25, (charData.hp?.max || 100) - (charData.hp?.current || 0));
+            const resGain = Math.min(25, (charData.resource?.max || 100) - (charData.resource?.current || 0));
+            kurzBtn.title = `Du legst eine kurze Rast von 3 Stunden ein, du stellst ${hpGain} LP und ${resGain} Ressource wieder her.`;
+        });
+    }
+
+    if (langBtn) {
+        langBtn.addEventListener('click', () => doRest(50, 'lange', 8));
+        langBtn.addEventListener('mouseenter', () => {
+            const hpGain = Math.min(50, (charData.hp?.max || 100) - (charData.hp?.current || 0));
+            const resGain = Math.min(50, (charData.resource?.max || 100) - (charData.resource?.current || 0));
+            langBtn.title = `Du legst eine lange Rast von 8 Stunden ein, du stellst ${hpGain} LP und ${resGain} Ressource wieder her.`;
+        });
+    }
+}
+
+function doRest(amount, label, hours) {
+    const hp = charData.hp;
+    const res = charData.resource;
+    if (!hp || !res) return;
+
+    const hpBefore = hp.current;
+    const resBefore = res.current;
+
+    hp.current = Math.min(hp.max, hp.current + amount);
+    res.current = Math.min(res.max, res.current + amount);
+
+    const hpGained = hp.current - hpBefore;
+    const resGained = res.current - resBefore;
+
+    save('hp', hp);
+    save('resource', res);
+    renderClassAndOrbs();
+
+    notify(`${label.charAt(0).toUpperCase() + label.slice(1)} Rast (${hours}h): +${hpGained} LP, +${resGained} Ressource`);
+}
+
+// ── Combat stats editing ──
 
 function initCombatBindings() {
     const combatMap = {
