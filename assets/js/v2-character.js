@@ -176,7 +176,7 @@ function createDefenseShield(armor, mitigation, resistances = {}) {
 <clipPath id="shieldClip"><path d="M80 8 L148 35 C152 37 154 41 154 45 L154 100 C154 135 125 162 80 182 C35 162 6 135 6 100 L6 45 C6 41 8 37 12 35 Z"/></clipPath>
 </defs>
 <path d="M80 8 L148 35 C152 37 154 41 154 45 L154 100 C154 135 125 162 80 182 C35 162 6 135 6 100 L6 45 C6 41 8 37 12 35 Z" fill="url(#shieldFill)" stroke="url(#shieldBorder)" stroke-width="2.5"/>
-<g clip-path="url(#shieldClip)"><rect x="0" y="${fillY}" width="160" height="${fillH}" fill="rgba(41,128,185,0.12)"/></g>
+<g clip-path="url(#shieldClip)"><rect x="0" y="${fillY}" width="160" height="${fillH}" fill="rgba(212,168,68,0.06)"/></g>
 <path d="M80 18 L140 42 C142 43 143 45 143 47 L143 98 C143 128 118 152 80 170 C42 152 17 128 17 98 L17 47 C17 45 18 43 20 42 Z" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
 <text x="80" y="80" text-anchor="middle" fill="var(--text-bright)" font-family="Cinzel,serif" font-size="38" font-weight="900">${armor}</text>
 <text x="80" y="100" text-anchor="middle" fill="var(--text-dim)" font-family="Cinzel,serif" font-size="11" letter-spacing="2">RÜSTUNG</text>

@@ -65,6 +65,7 @@
 
 <!-- ═══ Unified Layout: TopNav ═══ -->
 <div id="topnav-placeholder"></div>
+<div id="meganav-placeholder"></div>
 
 <nav class="section-nav" id="sectionNav">
   <a href="#sec-charakter" data-sec="sec-charakter"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="5"/><path d="M4 21c0-5 3.6-9 8-9s8 4 8 9"/></svg><span class="nav-label">Charakter</span></a>
@@ -76,9 +77,8 @@
   <a href="#sec-extras" data-sec="sec-extras"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6a5.87 5.87 0 01-2.8-.7l-1.46 1.46A7.93 7.93 0 0012 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46A7.93 7.93 0 0012 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg><span class="nav-label">Extras</span></a>
 </nav>
 
-<div class="app-header">
-  <h1>Worlds Apart</h1>
-  <div class="proto-badge">Charakterbogen v0.9</div>
+<div class="app-header" id="sheetHeader">
+  <h1 id="sheetSessionTitle">Worlds Apart</h1>
 </div>
 
 <div class="sheet">
@@ -360,7 +360,7 @@
                 <path d="M80 8 L148 35 C152 37 154 41 154 45 L154 100 C154 135 125 162 80 182 C35 162 6 135 6 100 L6 45 C6 41 8 37 12 35 Z" fill="url(#shieldFill)" stroke="url(#shieldBorder)" stroke-width="2.5"/>
                 <!-- Mitigation fill (from bottom) -->
                 <g clip-path="url(#shieldClip)">
-                  <rect id="shieldMitigationFill" x="0" y="190" width="160" height="0" fill="rgba(41,128,185,0.12)" transition="y 0.4s, height 0.4s"/>
+                  <rect id="shieldMitigationFill" x="0" y="190" width="160" height="0" fill="rgba(212,168,68,0.06)" transition="y 0.4s, height 0.4s"/>
                 </g>
                 <!-- Inner glow line -->
                 <path d="M80 18 L140 42 C142 43 143 45 143 47 L143 98 C143 128 118 152 80 170 C42 152 17 128 17 98 L17 47 C17 45 18 43 20 42 Z" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
@@ -806,6 +806,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Character module
     if (typeof initV2Character === 'function') {
         initV2Character();
+    }
+
+    // Session title from RiftState
+    function updateSessionTitle() {
+        var titleEl = document.getElementById('sheetSessionTitle');
+        if (!titleEl) return;
+        var session = window.RIFT && RIFT.state ? RIFT.state.get('session') : null;
+        var room = window.RIFT && RIFT.state ? RIFT.state.get('room') : null;
+        var name = (session && session.name) || (room && room.sessionName) || (room && room.name) || 'Worlds Apart';
+        titleEl.textContent = name;
+    }
+    updateSessionTitle();
+    if (window.RIFT && RIFT.state) {
+        RIFT.state.on('session:changed', updateSessionTitle);
+        RIFT.state.on('room:changed', updateSessionTitle);
     }
 
     console.log('[Sheet-WA-v2] Loaded');
