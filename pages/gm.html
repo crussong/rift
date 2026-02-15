@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/assets/css/dock.css">
     <link rel="stylesheet" href="/assets/css/hub.css">
     <link rel="stylesheet" href="/assets/css/settings.css">
+    <link rel="stylesheet" href="/assets/css/gm-characters.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
@@ -2215,6 +2216,7 @@
     <!-- RIFT Services -->
     <script src="/assets/js/firebase-config.js"></script>
     <script src="/assets/js/rift-state.js"></script>
+    <script src="/assets/js/riftlink.js"></script>
     <script>
         // Auth Guard - redirect to login if not authenticated
         (function() {
@@ -2252,6 +2254,7 @@
     <script src="/assets/js/transitions.js"></script>
     <script src="/assets/js/app.js"></script>
     <script>initUnifiedLayout();</script>
+    <script src="/assets/js/gm-characters.js"></script>
     
     <script>
         // ==================== WORLDS APART DATA MAPS ====================
@@ -2410,6 +2413,12 @@
                 this.subPresence();
                 this.subBanned();
                 this.subLogs();
+                
+                // Initialize RiftLink-powered Characters Panel
+                if (window.RIFT && RIFT.gmChars) {
+                    RIFT.gmChars.init(this.roomCode, this.members, (uid) => this.isOnline(uid));
+                    console.log('[BC] GM Characters panel initialized via RiftLink');
+                }
                 
                 // Load poll history
                 this.loadPollHistory();
@@ -4428,6 +4437,7 @@
                     });
                     
                     this.members = newMembers;
+                    if (window.RIFT?.gmChars) RIFT.gmChars.updateMembers(this.members);
                     this.renderPlayerManagement();
                     this.renderPlayerSelectors();
                     this.updateGMTransferSelect();
@@ -4684,6 +4694,10 @@
                     Object.keys(data).forEach(uid => {
                         this.onlineStatus[uid] = data[uid]?.online === true;
                     });
+                    // Push to new module
+                    if (window.RIFT?.gmChars) {
+                        RIFT.gmChars.updateOnline(Object.keys(this.onlineStatus).filter(uid => this.onlineStatus[uid]));
+                    }
                     this.renderPlayerManagement();
                     this.renderCharacters();
                 });
@@ -5048,6 +5062,14 @@
             
             // ============ CHARACTER MANAGEMENT ============
             renderCharacters() {
+                // Delegate to RiftLink-powered module if available
+                if (window.RIFT?.gmChars) {
+                    RIFT.gmChars.updateMembers(this.members);
+                    // RiftLink handles its own rendering via events
+                    return;
+                }
+                
+                // Legacy fallback below
                 const grid = document.getElementById('characterGrid');
                 const globalActionsContainer = document.getElementById('characterGlobalActions');
                 if (!grid) return;
@@ -5373,6 +5395,14 @@
             },
             
             async modifyStat(id, statType, direction) {
+                // Delegate to RiftLink-powered module if available
+                if (window.RIFT?.gmChars) {
+                    const pathMap = { hp: 'hp.current', moral: 'resource.current', resonanz: 'resource.current' };
+                    RIFT.gmChars.modifyStat(id, pathMap[statType] || statType, direction > 0 ? 10 : -10);
+                    return;
+                }
+                
+                // Legacy fallback
                 const statNames = { hp: 'Lebenspunkte', moral: 'Moral', resonanz: 'Resonanz' };
                 const amount = parseInt(prompt(`${statNames[statType]}-Änderung:`, '10')) || 0;
                 if (!amount) return;
@@ -5463,6 +5493,14 @@
             
             // Modify stat for ALL Worlds Apart characters at once
             async modifyAllStats(statType, direction) {
+                // Delegate to RiftLink-powered module if available
+                if (window.RIFT?.gmChars) {
+                    const pathMap = { hp: 'hp.current', moral: 'resource.current' };
+                    RIFT.gmChars.modifyAll(pathMap[statType] || statType, direction);
+                    return;
+                }
+                
+                // Legacy fallback
                 const statNames = { hp: 'Lebenspunkte', moral: 'Moral' };
                 const amount = parseInt(prompt(`${statNames[statType]}-Änderung für ALLE Spieler:`, '10')) || 0;
                 if (!amount) return;
