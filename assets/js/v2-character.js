@@ -305,8 +305,11 @@ let charData = null;
 
 function init(characterId, roomCode) {
     charId = characterId;
+
+    // Priority: 1) RiftState (connected), 2) localStorage, 3) blank
     const stateChar = charId ? _stateGet(`characters.${charId}`) : null;
-    charData = stateChar || { ...BLANK_CHARACTER };
+    const localChar = _loadLocal();
+    charData = stateChar || localChar || { ...BLANK_CHARACTER };
     
     renderAll();
     initCardCorners();
@@ -322,13 +325,18 @@ function init(characterId, roomCode) {
         _stateOn(`characters.${charId}:changed`, (data) => {
             if (data && data !== charData) {
                 charData = data;
+                _saveLocal(); // keep localStorage in sync
                 renderAll();
             }
         });
     }
     
+    // Auto-save to localStorage on any future change
+    _saveLocal();
+
     initInteractions();
-    console.log('[Character] Initialized', charId || 'LOCAL');
+    initSheetFooter();
+    console.log('[Character] Initialized', charId || 'LOCAL', localChar ? '(restored)' : '(blank)');
 }
 
 async function createCharacter(roomCode, userId) {
@@ -496,13 +504,35 @@ function debounce(key, fn, ms = 800) {
     _timers[key] = setTimeout(fn, ms);
 }
 
-// ─── State write (triggers RiftLink sync in connected mode) ───
+// ─── Storage Keys ───
+const LOCAL_STORAGE_KEY = 'rift_wa_character';
+const LOCAL_MAIN_CHAR_KEY = 'rift_wa_main_character';
+
+// ─── State write (localStorage always + RiftLink when connected) ───
 function save(path, value) {
-    if (!charId) return;
-    // Update local charData (callers already do this, but ensure consistency)
+    // Update local charData
     setNested(charData, path, value);
-    // Write full character to RiftState — RiftLink listens on characters.{charId}:changed
-    _stateSet(`characters.${charId}`, { ...charData });
+
+    // Always persist to localStorage
+    _saveLocal();
+
+    // If connected to a room, also push to RiftState → RiftLink → Firebase
+    if (charId) {
+        _stateSet(`characters.${charId}`, { ...charData });
+    }
+}
+
+function _saveLocal() {
+    try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(charData));
+    } catch (e) { /* storage full */ }
+}
+
+function _loadLocal() {
+    try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
 }
 
 // ─── Interactions ───
@@ -958,6 +988,85 @@ function notify(msg) {
     setTimeout(() => el.classList.remove('show'), 2000);
 }
 
+
+
+// ═══════════════════════════════════════
+//  SHEET FOOTER ACTIONS
+// ═══════════════════════════════════════
+
+function initSheetFooter() {
+    const footer = document.getElementById('sheetFooter');
+    if (!footer) return;
+
+    footer.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+
+        switch (btn.dataset.action) {
+            case 'save':      doSave(); break;
+            case 'main-char': doSetMainChar(); break;
+            case 'reset':     doReset(); break;
+            case 'export':    doExport(); break;
+        }
+    });
+
+    _updateMainCharBtn();
+}
+
+function doSave() {
+    _saveLocal();
+    if (charId) {
+        _stateSet(`characters.${charId}`, { ...charData });
+    }
+    notify('Charakter gespeichert');
+    const btn = document.querySelector('[data-action="save"]');
+    if (btn) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1200); }
+}
+
+function doSetMainChar() {
+    try {
+        const data = { ...charData, savedAt: new Date().toISOString() };
+        localStorage.setItem(LOCAL_MAIN_CHAR_KEY, JSON.stringify(data));
+        notify('Als Haupt-Charakter gesetzt');
+        _updateMainCharBtn();
+    } catch (e) {
+        notify('Fehler beim Speichern');
+    }
+}
+
+function doReset() {
+    if (!confirm('Charakterbogen wirklich zurücksetzen? Alle Daten gehen verloren.')) return;
+    charData = { ...BLANK_CHARACTER };
+    _saveLocal();
+    if (charId) {
+        _stateSet(`characters.${charId}`, { ...charData });
+    }
+    renderAll();
+    notify('Charakterbogen zurückgesetzt');
+}
+
+function doExport() {
+    const name = charData.profile?.name || 'charakter';
+    const filename = `${name.toLowerCase().replace(/[^a-z0-9äöüß]/g, '-')}_export.json`;
+    const blob = new Blob([JSON.stringify(charData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify(`Exportiert: ${filename}`);
+}
+
+function _updateMainCharBtn() {
+    const btn = document.querySelector('[data-action="main-char"]');
+    if (!btn) return;
+    try {
+        const main = JSON.parse(localStorage.getItem(LOCAL_MAIN_CHAR_KEY) || 'null');
+        const isMain = main && main.profile?.name === charData.profile?.name;
+        btn.classList.toggle('active', !!isMain);
+    } catch (e) {}
+}
 
 
 // ═══════════════════════════════════════
