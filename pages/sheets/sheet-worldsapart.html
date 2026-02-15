@@ -1067,6 +1067,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Session/Campaign title
+    function isCurrentUserGM() {
+        // 1. Check window.currentUser (set async by app.js)
+        if (window.currentUser && window.currentUser.isGM) return true;
+        // 2. Check localStorage (persisted from last session)
+        try {
+            var stored = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            if (stored.isGM) return true;
+        } catch(e) {}
+        return false;
+    }
+
+    var campaignEditInitialized = false;
+
     function updateSessionTitle() {
         var titleEl = document.getElementById('sheetSessionTitle');
         var editBtn = document.getElementById('campaignEditBtn');
@@ -1076,16 +1089,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var name = (session && session.name) || (room && room.sessionName) || (room && room.name) || 'Worlds Apart';
         titleEl.textContent = name;
 
-        // GM can edit campaign name
-        var isGM = window.currentUser && window.currentUser.isGM;
-        if (isGM && editBtn) {
+        // GM can edit campaign name (only bind events once)
+        if (isCurrentUserGM() && editBtn && !campaignEditInitialized) {
+            campaignEditInitialized = true;
             editBtn.style.display = '';
             titleEl.contentEditable = 'true';
             titleEl.spellcheck = false;
 
             editBtn.addEventListener('click', function() {
                 titleEl.focus();
-                // Select all text
                 var range = document.createRange();
                 range.selectNodeContents(titleEl);
                 var sel = window.getSelection();
@@ -1106,7 +1118,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (rc && window.RIFT && RIFT.state) {
                     RIFT.state.set('room.name', newName);
                 }
-                if (rc && firebase && firebase.firestore) {
+                if (rc && typeof firebase !== 'undefined' && firebase.firestore) {
                     firebase.firestore().collection('rooms').doc(rc).update({ name: newName })
                         .then(function() { console.log('[Sheet] Campaign name saved:', newName); })
                         .catch(function(e) { console.warn('[Sheet] Campaign name save failed:', e); });
@@ -1114,7 +1126,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+
+    // Run immediately (may work if localStorage has isGM)
     updateSessionTitle();
+
+    // Re-run after auth/room loads (catches async isGM)
+    setTimeout(updateSessionTitle, 1500);
+    setTimeout(updateSessionTitle, 3500);
+
     if (window.RIFT && RIFT.state) {
         RIFT.state.on('session:changed', updateSessionTitle);
         RIFT.state.on('room:changed', updateSessionTitle);
