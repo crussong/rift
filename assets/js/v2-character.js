@@ -213,6 +213,9 @@ function buildInventoryGrid(container, cols = 8, rows = 6) {
             cell.className = 'inv-cell';
             cell.dataset.row = r;
             cell.dataset.col = c;
+            // Explicit grid placement so item overlays don't displace cells
+            cell.style.gridColumn = `${c + 1}`;
+            cell.style.gridRow = `${r + 1}`;
             cell.innerHTML = emptySvg;
             container.appendChild(cell);
         }

@@ -389,10 +389,35 @@
                     <button class="gmc-btn gmc-btn--action" data-action="custom-mod" data-path="resource.current" title="Res. setzen">
                         Res. setzen
                     </button>
-                    <button class="gmc-btn gmc-btn--action" data-action="grant-item" title="Item vergeben" style="border-color:rgba(251,191,36,0.3)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:#fbbf24"><path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z"/></svg>
-                        Item vergeben
-                    </button>
+                </div>
+            </div>
+
+            <!-- INVENTORY MANAGEMENT -->
+            <div class="gmc-detail__section gmc-inv-section" data-charid="${c.id || ''}">
+                <div class="gmc-detail__title" style="display:flex;align-items:center;justify-content:space-between">
+                    <span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg>
+                        Inventar (${(c.inventory?.items || []).length})
+                    </span>
+                    <span style="font-size:10px;color:#fbbf24;font-weight:400">${c.currency?.gold || 0} Gold</span>
+                </div>
+
+                <!-- Search & Add -->
+                <div style="display:flex;gap:6px;margin-bottom:8px;margin-top:6px">
+                    <div style="flex:1;position:relative">
+                        <input type="text" class="gmc-inv-search" placeholder="Item aus Katalog hinzufügen..."
+                            style="width:100%;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:5px;color:white;font-size:11px;outline:none;font-family:inherit"
+                            data-charid="${c.id || ''}"
+                            oninput="RIFT.gmChars._onInvSearch(this)"
+                            onfocus="RIFT.gmChars._onInvSearch(this)">
+                        <div class="gmc-inv-results" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;background:#14141e;border:1px solid rgba(255,255,255,0.1);border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.5)"></div>
+                    </div>
+                    <input type="number" class="gmc-inv-qty" value="1" min="1" max="99" style="width:42px;padding:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:5px;color:white;font-size:11px;text-align:center;outline:none">
+                </div>
+
+                <!-- Item List -->
+                <div class="gmc-inv-list" style="max-height:280px;overflow-y:auto;border:1px solid rgba(255,255,255,0.05);border-radius:6px">
+                    ${_renderInvList(c)}
                 </div>
             </div>
         </div>`;
@@ -768,6 +793,7 @@
             instanceId: 'inst_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             baseItemId: template.id,
             displayName: template.name,
+            name: template.name,
             type: template.type,
             subType: template.subType || '',
             slot: template.slot || '',
@@ -783,6 +809,11 @@
             description: template.description || '',
             flavorText: template.flavorText || '',
             stackable: template.stackable || false,
+            gridW: template.gridW || 1,
+            gridH: template.gridH || 1,
+            icon: template.icon || '',
+            col: null,
+            row: null,
             durability: template.durability ? { current: template.durability, max: template.durability } : null,
             source: 'gm',
             acquiredAt: new Date().toISOString()
@@ -815,6 +846,293 @@
         } catch (e) {
             console.error(LOG, 'Grant item error:', e);
             _toast('Fehler: ' + e.message, 'error');
+        }
+    }
+
+
+    // ════════════════════════════════════════
+    //  GM INVENTORY MANAGEMENT
+    // ════════════════════════════════════════
+
+    const RARITY_COLORS = {
+        common: '#9a9aaa', uncommon: '#2ecc71', rare: '#3498db',
+        epic: '#9b59b6', legendary: '#e67e22', unique: '#e74c3c'
+    };
+
+    function _renderInvList(c) {
+        const items = c.inventory?.items || [];
+        const eq = c.equipment || {};
+        const charId = c.id || '';
+
+        if (!items.length && !Object.values(eq).some(Boolean)) {
+            return '<div style="padding:20px;text-align:center;color:#555;font-size:11px">Inventar leer</div>';
+        }
+
+        let html = '';
+
+        // Equipment first
+        const eqItems = Object.entries(eq).filter(([, v]) => v);
+        if (eqItems.length) {
+            html += '<div style="padding:4px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666;background:rgba(255,255,255,0.02)">Ausgerüstet</div>';
+            for (const [slot, item] of eqItems) {
+                html += _renderInvRow(item, charId, 'equip', slot);
+            }
+        }
+
+        // Inventory
+        if (items.length) {
+            html += '<div style="padding:4px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666;background:rgba(255,255,255,0.02)">Inventar</div>';
+            for (let i = 0; i < items.length; i++) {
+                html += _renderInvRow(items[i], charId, 'inv', i);
+            }
+        }
+
+        // Footer: clear all button
+        html += `<div style="padding:6px 8px;border-top:1px solid rgba(255,255,255,0.04);text-align:right">
+            <button onclick="RIFT.gmChars._invClearAll('${charId}')" style="background:none;border:none;color:#ef4444;font-size:10px;cursor:pointer;opacity:0.6;font-family:inherit" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Inventar leeren</button>
+        </div>`;
+
+        return html;
+    }
+
+    function _renderInvRow(item, charId, area, key) {
+        const rc = RARITY_COLORS[item.rarity] || '#999';
+        const stats = [];
+        if (item.stats?.damage || item.finalStats?.damage) stats.push((item.finalStats?.damage || item.stats?.damage) + ' DMG');
+        if (item.stats?.armor || item.finalStats?.armor) stats.push((item.finalStats?.armor || item.stats?.armor) + ' DEF');
+        const size = `${item.gridW || 1}x${item.gridH || 1}`;
+        const loc = area === 'equip' ? `[${key}]` : '';
+
+        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:11px;transition:background 0.1s" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
+            ${item.icon
+                ? `<img src="${_esc(item.icon)}" style="width:24px;height:24px;object-fit:contain;border-radius:2px;flex-shrink:0;border:1px solid ${rc}30">`
+                : `<div style="width:6px;height:6px;border-radius:50%;background:${rc};flex-shrink:0"></div>`
+            }
+            <div style="flex:1;min-width:0">
+                <div style="color:${rc};font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(item.displayName || item.name)} ${item.quantity > 1 ? '<span style="color:#888">x' + item.quantity + '</span>' : ''} ${loc ? '<span style="color:#555;font-size:9px">' + loc + '</span>' : ''}</div>
+                <div style="font-size:9px;color:#666">${item.type}${stats.length ? ' | ' + stats.join(', ') : ''} | ${size} | ${item.finalValue ?? item.value ?? 0}g</div>
+            </div>
+            <div style="display:flex;gap:2px;flex-shrink:0">
+                ${area === 'inv' && (item.stackable || item.quantity > 1) ? `<button onclick="RIFT.gmChars._invSetQty('${charId}',${key})" title="Menge ändern" style="background:none;border:none;color:#888;cursor:pointer;font-size:11px;padding:2px 4px">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>` : ''}
+                <button onclick="RIFT.gmChars._invDuplicate('${charId}','${area}','${key}')" title="Duplizieren" style="background:none;border:none;color:#888;cursor:pointer;font-size:11px;padding:2px 4px">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </button>
+                <button onclick="RIFT.gmChars._invRemove('${charId}','${area}','${key}')" title="Entfernen" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:11px;padding:2px 4px">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    // Live search in catalog
+    let _searchTimeout = null;
+    async function _onInvSearch(input) {
+        clearTimeout(_searchTimeout);
+        const q = input.value.trim().toLowerCase();
+        const results = input.closest('.gmc-inv-section')?.querySelector('.gmc-inv-results');
+        const charId = input.dataset.charid;
+        if (!results) return;
+
+        if (q.length < 1) { results.style.display = 'none'; return; }
+
+        _searchTimeout = setTimeout(async () => {
+            const catalog = await _loadItemCatalog();
+            const matches = catalog.filter(i => (i.name || '').toLowerCase().includes(q)).slice(0, 12);
+
+            if (!matches.length) {
+                results.innerHTML = '<div style="padding:12px;text-align:center;color:#666;font-size:11px">Keine Ergebnisse</div>';
+                results.style.display = 'block';
+                return;
+            }
+
+            results.innerHTML = matches.map(item => {
+                const rc = RARITY_COLORS[item.rarity] || '#999';
+                const stats = [];
+                if (item.stats?.damage) stats.push(item.stats.damage);
+                if (item.stats?.armor) stats.push(item.stats.armor + ' DEF');
+                return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;transition:background 0.1s;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.03)" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background=''" onclick="RIFT.gmChars._invAddFromCatalog('${charId}','${item.id}',this)">
+                    ${item.icon ? `<img src="${_esc(item.icon)}" style="width:20px;height:20px;object-fit:contain;border-radius:2px;border:1px solid ${rc}30">` : `<div style="width:6px;height:6px;border-radius:50%;background:${rc};flex-shrink:0"></div>`}
+                    <div style="flex:1;min-width:0">
+                        <span style="color:${rc};font-weight:600">${_esc(item.name)}</span>
+                        <span style="color:#666;font-size:9px;margin-left:4px">${item.type} ${item.gridW||1}x${item.gridH||1}</span>
+                    </div>
+                    <span style="color:#fbbf24;font-size:10px">${item.value || 0}g</span>
+                </div>`;
+            }).join('');
+            results.style.display = 'block';
+        }, 150);
+    }
+
+    // Close search results on outside click
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.gmc-inv-section')) {
+            document.querySelectorAll('.gmc-inv-results').forEach(r => r.style.display = 'none');
+        }
+    });
+
+    async function _invAddFromCatalog(charId, itemId, clickEl) {
+        const catalog = await _loadItemCatalog();
+        const template = catalog.find(i => i.id === itemId);
+        if (!template) return;
+
+        const section = clickEl?.closest('.gmc-inv-section');
+        const qtyInput = section?.querySelector('.gmc-inv-qty');
+        const qty = parseInt(qtyInput?.value) || 1;
+        const searchInput = section?.querySelector('.gmc-inv-search');
+
+        const c = _chars[charId];
+        if (!c) return;
+        const inv = c.inventory || { cols: 16, rows: 11, items: [] };
+        if (!inv.items) inv.items = [];
+
+        const instance = {
+            instanceId: 'inst_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            baseItemId: template.id,
+            displayName: template.name,
+            name: template.name,
+            type: template.type,
+            subType: template.subType || '',
+            slot: template.slot || '',
+            rarity: template.rarity || 'common',
+            quantity: qty,
+            weight: template.weight || 0,
+            value: template.value || 0,
+            finalValue: template.value || 0,
+            stats: template.stats || {},
+            finalStats: template.stats || {},
+            flags: template.flags || {},
+            requirements: template.requirements || {},
+            description: template.description || '',
+            flavorText: template.flavorText || '',
+            stackable: template.stackable || false,
+            gridW: template.gridW || 1,
+            gridH: template.gridH || 1,
+            icon: template.icon || '',
+            col: null,
+            row: null,
+            source: 'gm',
+            acquiredAt: new Date().toISOString()
+        };
+
+        // Stack check
+        if (instance.stackable || instance.flags?.consumable) {
+            const existing = inv.items.find(i => i.baseItemId === instance.baseItemId);
+            if (existing) {
+                existing.quantity = (existing.quantity || 1) + qty;
+                try {
+                    await RIFT.link.write(charId, 'inventory', inv);
+                    _toast(`${qty}x ${template.name} hinzugefügt (gestapelt)`);
+                    _refreshInvSection(charId);
+                } catch (e) { _toast('Fehler: ' + e.message, 'error'); }
+                if (searchInput) { searchInput.value = ''; }
+                section?.querySelector('.gmc-inv-results')?.style.setProperty('display', 'none');
+                return;
+            }
+        }
+
+        inv.items.push(instance);
+        try {
+            await RIFT.link.write(charId, 'inventory', inv);
+            _toast(`${qty}x ${template.name} vergeben`);
+            _refreshInvSection(charId);
+        } catch (e) { _toast('Fehler: ' + e.message, 'error'); }
+
+        if (searchInput) { searchInput.value = ''; }
+        section?.querySelector('.gmc-inv-results')?.style.setProperty('display', 'none');
+    }
+
+    async function _invRemove(charId, area, key) {
+        const c = _chars[charId];
+        if (!c) return;
+
+        if (area === 'equip') {
+            if (!c.equipment?.[key]) return;
+            const name = c.equipment[key].displayName || c.equipment[key].name || '';
+            c.equipment[key] = null;
+            try { await RIFT.link.write(charId, 'equipment', c.equipment); _toast(`${name} entfernt`); _refreshInvSection(charId); }
+            catch (e) { _toast('Fehler', 'error'); }
+        } else {
+            const idx = parseInt(key);
+            const items = c.inventory?.items;
+            if (!items?.[idx]) return;
+            const name = items[idx].displayName || items[idx].name || '';
+            items.splice(idx, 1);
+            try { await RIFT.link.write(charId, 'inventory', c.inventory); _toast(`${name} entfernt`); _refreshInvSection(charId); }
+            catch (e) { _toast('Fehler', 'error'); }
+        }
+    }
+
+    async function _invDuplicate(charId, area, key) {
+        const c = _chars[charId];
+        if (!c) return;
+
+        let source;
+        if (area === 'equip') source = c.equipment?.[key];
+        else source = c.inventory?.items?.[parseInt(key)];
+        if (!source) return;
+
+        const clone = JSON.parse(JSON.stringify(source));
+        clone.instanceId = 'inst_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        clone.col = null;
+        clone.row = null;
+        clone.source = 'gm';
+
+        if (!c.inventory) c.inventory = { cols: 16, rows: 11, items: [] };
+        if (!c.inventory.items) c.inventory.items = [];
+        c.inventory.items.push(clone);
+
+        try { await RIFT.link.write(charId, 'inventory', c.inventory); _toast(`${clone.displayName || clone.name} dupliziert`); _refreshInvSection(charId); }
+        catch (e) { _toast('Fehler', 'error'); }
+    }
+
+    async function _invSetQty(charId, idx) {
+        const c = _chars[charId];
+        const item = c?.inventory?.items?.[idx];
+        if (!item) return;
+
+        const val = prompt(`Menge für ${item.displayName || item.name}:`, item.quantity || 1);
+        if (val === null) return;
+        const qty = parseInt(val);
+        if (isNaN(qty) || qty < 0) return;
+
+        if (qty === 0) {
+            c.inventory.items.splice(idx, 1);
+        } else {
+            item.quantity = qty;
+        }
+        try { await RIFT.link.write(charId, 'inventory', c.inventory); _toast('Menge geändert'); _refreshInvSection(charId); }
+        catch (e) { _toast('Fehler', 'error'); }
+    }
+
+    async function _invClearAll(charId) {
+        if (!confirm('Komplettes Inventar leeren?')) return;
+        const c = _chars[charId];
+        if (!c) return;
+
+        c.inventory = { cols: 16, rows: 11, items: [] };
+        c.equipment = { head:null,shoulders:null,chest:null,gloves:null,belt:null,legs:null,boots:null,cape:null,mainhand:null,offhand:null,ring1:null,ring2:null,amulet:null,talisman:null,ammo:null };
+        try {
+            await RIFT.link.writeBatch(charId, { inventory: c.inventory, equipment: c.equipment });
+            _toast('Inventar geleert');
+            _refreshInvSection(charId);
+        } catch (e) { _toast('Fehler', 'error'); }
+    }
+
+    function _refreshInvSection(charId) {
+        const c = _chars[charId];
+        if (!c) return;
+        const section = document.querySelector(`.gmc-inv-section[data-charid="${charId}"]`);
+        if (!section) return;
+        const list = section.querySelector('.gmc-inv-list');
+        if (list) list.innerHTML = _renderInvList(c);
+
+        // Update title count
+        const title = section.querySelector('.gmc-detail__title span');
+        if (title) {
+            const count = (c.inventory?.items || []).length;
+            title.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg> Inventar (${count})`;
         }
     }
 
@@ -852,8 +1170,16 @@
         // UI
         expandAll,
 
-        // Items
+        // Items (old modal)
         _grantItem,
+
+        // Inventory management (inline)
+        _onInvSearch,
+        _invAddFromCatalog,
+        _invRemove,
+        _invDuplicate,
+        _invSetQty,
+        _invClearAll,
 
         // Access
         get characters() { return _chars; },

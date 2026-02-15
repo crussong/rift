@@ -215,8 +215,8 @@ const RiftInventory = (() => {
                 const d = FALLBACK_ICONS[item.subType] || FALLBACK_ICONS[item.type] || FALLBACK_ICONS.misc;
                 inner += `<svg viewBox="0 0 24 24" fill="currentColor" class="inv-item__svg"><path d="${d}"/></svg>`;
             }
-            // Name — show if item is big enough
-            if (w >= 2 || h >= 3) {
+            // Name — show on items with enough space (area >= 4 cells or width >= 3)
+            if ((w * h) >= 4 || w >= 3) {
                 inner += `<span class="inv-item__name">${_esc(item.displayName || item.name)}</span>`;
             }
             // Quantity badge
@@ -836,26 +836,36 @@ const RiftInventory = (() => {
         if (!ch.inventory.items) ch.inventory.items = [];
 
         const demo = [
-            { instanceId:'demo_01', baseItemId:'eisenklinge', displayName:'Eisenklinge', name:'Eisenklinge', type:'weapon', subType:'sword', slot:'mainHand', rarity:'common', gridW:2, gridH:4, quantity:1, weight:3.5, value:50, stats:{damage:'2d6+2',speed:1.2}, flags:{tradeable:true} },
-            { instanceId:'demo_02', baseItemId:'klingenstahl', displayName:'Klingenstahl', name:'Klingenstahl', type:'weapon', subType:'sword', slot:'mainHand', rarity:'uncommon', gridW:2, gridH:4, quantity:1, weight:4, value:180, stats:{damage:'2d8+3',speed:1.1,critChance:8}, flags:{tradeable:true} },
-            { instanceId:'demo_03', baseItemId:'nachtklinge', displayName:'Nachtklinge', name:'Nachtklinge', type:'weapon', subType:'sword', slot:'mainHand', rarity:'common', gridW:2, gridH:4, quantity:1, weight:3, value:60, stats:{damage:'2d6+1',speed:1.3}, flags:{tradeable:true} },
-            { instanceId:'demo_04', baseItemId:'seelenfresser', displayName:'Seelenfresser', name:'Seelenfresser', type:'weapon', subType:'greatsword', slot:'mainHand', rarity:'rare', gridW:2, gridH:4, quantity:1, weight:6, value:420, stats:{damage:'3d6+4',speed:1.6,critDamage:200}, flags:{tradeable:true}, flavorText:'Flüstert in der Dunkelheit.' },
+            // Waffen: 4x3
+            { instanceId:'demo_01', baseItemId:'eisenklinge', displayName:'Eisenklinge', name:'Eisenklinge', type:'weapon', subType:'sword', slot:'mainHand', rarity:'common', gridW:4, gridH:3, quantity:1, weight:3.5, value:50, stats:{damage:'2d6+2',speed:1.2}, flags:{tradeable:true} },
+            { instanceId:'demo_02', baseItemId:'klingenstahl', displayName:'Klingenstahl', name:'Klingenstahl', type:'weapon', subType:'sword', slot:'mainHand', rarity:'uncommon', gridW:4, gridH:3, quantity:1, weight:4, value:180, stats:{damage:'2d8+3',speed:1.1,critChance:8}, flags:{tradeable:true} },
+            { instanceId:'demo_03', baseItemId:'nachtklinge', displayName:'Nachtklinge', name:'Nachtklinge', type:'weapon', subType:'sword', slot:'mainHand', rarity:'common', gridW:4, gridH:3, quantity:1, weight:3, value:60, stats:{damage:'2d6+1',speed:1.3}, flags:{tradeable:true} },
+            { instanceId:'demo_04', baseItemId:'seelenfresser', displayName:'Seelenfresser', name:'Seelenfresser', type:'weapon', subType:'greatsword', slot:'mainHand', rarity:'rare', gridW:4, gridH:3, quantity:1, weight:6, value:420, stats:{damage:'3d6+4',speed:1.6,critDamage:200}, flags:{tradeable:true}, flavorText:'Flüstert in der Dunkelheit.' },
+            { instanceId:'demo_19', baseItemId:'drachenzahn', displayName:'Drachenzahn', name:'Drachenzahn', type:'weapon', subType:'greatsword', slot:'mainHand', rarity:'legendary', gridW:4, gridH:3, quantity:1, weight:8, value:3200, stats:{damage:'4d6+6',speed:1.8,critChance:12,critDamage:220}, flags:{unique:true}, flavorText:'Aus einem Drachenzahn geschmiedet.' },
+            { instanceId:'demo_20', baseItemId:'schattenschnitt', displayName:'Schattenschnitt', name:'Schattenschnitt', type:'weapon', subType:'sword', slot:'mainHand', rarity:'rare', gridW:4, gridH:3, quantity:1, weight:3.5, value:680, stats:{damage:'2d10+4',speed:1.0,critChance:15}, flags:{tradeable:true} },
+            // Rüstung Brust: 2x3
             { instanceId:'demo_05', baseItemId:'schuppenruestung', displayName:'Schuppenrüstung', name:'Schuppenrüstung', type:'armor', subType:'plate', slot:'chest', rarity:'common', gridW:2, gridH:3, quantity:1, weight:18, value:200, stats:{armor:10}, flags:{tradeable:true} },
             { instanceId:'demo_06', baseItemId:'wollwams', displayName:'Wollwams', name:'Wollwams', type:'armor', subType:'cloth', slot:'chest', rarity:'common', gridW:2, gridH:3, quantity:1, weight:3, value:45, stats:{armor:3}, flags:{tradeable:true} },
-            { instanceId:'demo_07', baseItemId:'fellkappe', displayName:'Fellkappe', name:'Fellkappe', type:'armorPiece', subType:'helmet', slot:'head', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1.5, value:35, stats:{armor:4}, flags:{tradeable:true} },
-            { instanceId:'demo_08', baseItemId:'kampfhandschuhe', displayName:'Kampfhandschuhe', name:'Kampfhandschuhe', type:'armorPiece', subType:'gloves', slot:'hands', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1, value:28, stats:{armor:2}, flags:{tradeable:true} },
-            { instanceId:'demo_09', baseItemId:'wanderstiefel', displayName:'Wanderstiefel', name:'Wanderstiefel', type:'armorPiece', subType:'boots', slot:'feet', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1.5, value:35, stats:{armor:3}, flags:{tradeable:true} },
+            // Rüstung Hose: 2x3
             { instanceId:'demo_10', baseItemId:'kettenhose', displayName:'Kettenhose', name:'Kettenhose', type:'armorPiece', subType:'legs', slot:'legs', rarity:'common', gridW:2, gridH:3, quantity:1, weight:5, value:80, stats:{armor:6}, flags:{tradeable:true} },
-            { instanceId:'demo_11', baseItemId:'lederguertel', displayName:'Ledergürtel', name:'Ledergürtel', type:'armorPiece', subType:'belt', slot:'belt', rarity:'common', gridW:2, gridH:1, quantity:1, weight:0.5, value:15, stats:{armor:1}, flags:{tradeable:true} },
+            // Kopf: 2x2
+            { instanceId:'demo_07', baseItemId:'fellkappe', displayName:'Fellkappe', name:'Fellkappe', type:'armorPiece', subType:'helmet', slot:'head', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1.5, value:35, stats:{armor:4}, flags:{tradeable:true} },
+            // Handschuhe: 2x2
+            { instanceId:'demo_08', baseItemId:'kampfhandschuhe', displayName:'Kampfhandschuhe', name:'Kampfhandschuhe', type:'armorPiece', subType:'gloves', slot:'hands', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1, value:28, stats:{armor:2}, flags:{tradeable:true} },
+            // Stiefel: 2x2
+            { instanceId:'demo_09', baseItemId:'wanderstiefel', displayName:'Wanderstiefel', name:'Wanderstiefel', type:'armorPiece', subType:'boots', slot:'feet', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1.5, value:35, stats:{armor:3}, flags:{tradeable:true} },
+            // Gürtel: 1x2
+            { instanceId:'demo_11', baseItemId:'lederguertel', displayName:'Ledergürtel', name:'Ledergürtel', type:'armorPiece', subType:'belt', slot:'belt', rarity:'common', gridW:1, gridH:2, quantity:1, weight:0.5, value:15, stats:{armor:1}, flags:{tradeable:true} },
+            // Ringe: 1x1
             { instanceId:'demo_12', baseItemId:'eisenring', displayName:'Eisenring', name:'Eisenring', type:'armorPiece', subType:'ring', slot:'ring', rarity:'common', gridW:1, gridH:1, quantity:1, weight:0.05, value:30, stats:{}, flags:{tradeable:true} },
             { instanceId:'demo_13', baseItemId:'blutring', displayName:'Blutring', name:'Blutring', type:'armorPiece', subType:'ring', slot:'ring', rarity:'rare', gridW:1, gridH:1, quantity:1, weight:0.05, value:350, stats:{kraft:3,critChance:5}, flags:{tradeable:true} },
-            { instanceId:'demo_14', baseItemId:'smaragdamulett', displayName:'Smaragdamulett', name:'Smaragdamulett', type:'armorPiece', subType:'amulet', slot:'amulet', rarity:'uncommon', gridW:1, gridH:2, quantity:1, weight:0.1, value:180, stats:{intellekt:2}, flags:{tradeable:true} },
-            { instanceId:'demo_15', baseItemId:'kl_heiltrank', displayName:'Kl. Heiltrank', name:'Kl. Heiltrank', type:'potion', subType:'health', rarity:'common', gridW:1, gridH:2, quantity:3, weight:0.3, value:25, stackable:true, stats:{heal:'25'}, flags:{consumable:true,tradeable:true} },
-            { instanceId:'demo_16', baseItemId:'heiltrank', displayName:'Heiltrank', name:'Heiltrank', type:'potion', subType:'health', rarity:'uncommon', gridW:1, gridH:2, quantity:2, weight:0.3, value:50, stackable:true, stats:{heal:'50'}, flags:{consumable:true,tradeable:true} },
-            { instanceId:'demo_17', baseItemId:'kl_manatrank', displayName:'Kl. Manatrank', name:'Kl. Manatrank', type:'potion', subType:'resource', rarity:'common', gridW:1, gridH:2, quantity:2, weight:0.3, value:30, stackable:true, stats:{restore:'30'}, flags:{consumable:true,tradeable:true} },
-            { instanceId:'demo_18', baseItemId:'gr_manatrank', displayName:'Gr. Manatrank', name:'Gr. Manatrank', type:'potion', subType:'resource', rarity:'uncommon', gridW:1, gridH:2, quantity:1, weight:0.3, value:65, stackable:true, stats:{restore:'60'}, flags:{consumable:true,tradeable:true} },
-            { instanceId:'demo_19', baseItemId:'drachenzahn', displayName:'Drachenzahn', name:'Drachenzahn', type:'weapon', subType:'greatsword', slot:'mainHand', rarity:'legendary', gridW:2, gridH:4, quantity:1, weight:8, value:3200, stats:{damage:'4d6+6',speed:1.8,critChance:12,critDamage:220}, flags:{unique:true}, flavorText:'Aus einem Drachenzahn geschmiedet.' },
-            { instanceId:'demo_20', baseItemId:'schattenschnitt', displayName:'Schattenschnitt', name:'Schattenschnitt', type:'weapon', subType:'sword', slot:'mainHand', rarity:'rare', gridW:2, gridH:4, quantity:1, weight:3.5, value:680, stats:{damage:'2d10+4',speed:1.0,critChance:15}, flags:{tradeable:true} },
+            // Amulette: 1x1
+            { instanceId:'demo_14', baseItemId:'smaragdamulett', displayName:'Smaragdamulett', name:'Smaragdamulett', type:'armorPiece', subType:'amulet', slot:'amulet', rarity:'uncommon', gridW:1, gridH:1, quantity:1, weight:0.1, value:180, stats:{intellekt:2}, flags:{tradeable:true} },
+            // Tränke: 2x1
+            { instanceId:'demo_15', baseItemId:'kl_heiltrank', displayName:'Kl. Heiltrank', name:'Kl. Heiltrank', type:'potion', subType:'health', rarity:'common', gridW:2, gridH:1, quantity:3, weight:0.3, value:25, stackable:true, stats:{heal:'25'}, flags:{consumable:true,tradeable:true} },
+            { instanceId:'demo_16', baseItemId:'heiltrank', displayName:'Heiltrank', name:'Heiltrank', type:'potion', subType:'health', rarity:'uncommon', gridW:2, gridH:1, quantity:2, weight:0.3, value:50, stackable:true, stats:{heal:'50'}, flags:{consumable:true,tradeable:true} },
+            { instanceId:'demo_17', baseItemId:'kl_manatrank', displayName:'Kl. Manatrank', name:'Kl. Manatrank', type:'potion', subType:'resource', rarity:'common', gridW:2, gridH:1, quantity:2, weight:0.3, value:30, stackable:true, stats:{restore:'30'}, flags:{consumable:true,tradeable:true} },
+            { instanceId:'demo_18', baseItemId:'gr_manatrank', displayName:'Gr. Manatrank', name:'Gr. Manatrank', type:'potion', subType:'resource', rarity:'uncommon', gridW:2, gridH:1, quantity:1, weight:0.3, value:65, stackable:true, stats:{restore:'60'}, flags:{consumable:true,tradeable:true} },
         ];
 
         const existing = new Set(ch.inventory.items.map(i => i.instanceId));
