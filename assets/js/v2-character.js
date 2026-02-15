@@ -303,7 +303,7 @@ let charData = null;
 
 // ─── Initialization ───
 
-function init(characterId) {
+function init(characterId, roomCode) {
     charId = characterId;
     const stateChar = charId ? _stateGet(`characters.${charId}`) : null;
     charData = stateChar || { ...BLANK_CHARACTER };
@@ -312,23 +312,34 @@ function init(characterId) {
     initCardCorners();
     
     if (charId) {
-        _stateOn(`characters.${charId}`, (data) => {
-            if (data) { charData = data; renderAll(); }
+        // Connect via RiftLink for bidirectional Firebase sync
+        if (window.RIFT && RIFT.link) {
+            RIFT.link.watchChar(charId, roomCode);
+            console.log('[Character] RiftLink connected for', charId);
+        }
+
+        // Listen for remote changes (from GM or other sources)
+        _stateOn(`characters.${charId}:changed`, (data) => {
+            if (data && data !== charData) {
+                charData = data;
+                renderAll();
+            }
         });
     }
     
     initInteractions();
-    console.log('[Character] Initialized', charId || 'DEMO');
+    console.log('[Character] Initialized', charId || 'LOCAL');
 }
 
 async function createCharacter(roomCode, userId) {
     const id = 'char_' + Date.now().toString(36);
-    await _stateSet(`characters.${id}`, {
+    const newChar = {
         ...BLANK_CHARACTER,
         profile: { ...BLANK_CHARACTER.profile, name: 'Neuer Charakter' },
         ownerId: userId,
         createdAt: new Date().toISOString()
-    });
+    };
+    _stateSet(`characters.${id}`, newChar);
     return id;
 }
 
@@ -485,10 +496,13 @@ function debounce(key, fn, ms = 800) {
     _timers[key] = setTimeout(fn, ms);
 }
 
-// ─── State write shortcut (no-op in demo mode) ───
+// ─── State write (triggers RiftLink sync in connected mode) ───
 function save(path, value) {
     if (!charId) return;
-    _stateSet(`characters.${charId}.${path}`, value);
+    // Update local charData (callers already do this, but ensure consistency)
+    setNested(charData, path, value);
+    // Write full character to RiftState — RiftLink listens on characters.{charId}:changed
+    _stateSet(`characters.${charId}`, { ...charData });
 }
 
 // ─── Interactions ───
@@ -950,7 +964,7 @@ function notify(msg) {
 //  PUBLIC API
 // ═══════════════════════════════════════
 
-window.initV2Character = init;
+window.initV2Character = init;       // init(charId, roomCode)
 window.createV2Character = createCharacter;
 
 })();
