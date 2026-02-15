@@ -389,6 +389,10 @@
                     <button class="gmc-btn gmc-btn--action" data-action="custom-mod" data-path="resource.current" title="Res. setzen">
                         Res. setzen
                     </button>
+                    <button class="gmc-btn gmc-btn--action" data-action="grant-item" title="Item vergeben" style="border-color:rgba(251,191,36,0.3)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:#fbbf24"><path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z"/></svg>
+                        Item vergeben
+                    </button>
                 </div>
             </div>
         </div>`;
@@ -489,6 +493,10 @@
 
                 case 'remove':
                     _removeCharacter(charId);
+                    break;
+
+                case 'grant-item':
+                    _openItemGrantModal(charId);
                     break;
             }
         });
@@ -677,6 +685,140 @@
         return path.split('.').reduce((o, k) => o?.[k], obj);
     }
 
+    // ════════════════════════════════════════
+    //  ITEM GRANTING
+    // ════════════════════════════════════════
+
+    let _itemCatalogCache = null;
+
+    async function _loadItemCatalog() {
+        if (_itemCatalogCache) return _itemCatalogCache;
+        try {
+            const db = window.RIFT?.firebase?.getFirestore?.();
+            if (!db) throw new Error('No Firestore');
+            const snap = await db.collection('admin/itemCatalog/worldsapart/items').orderBy('name').get();
+            _itemCatalogCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            return _itemCatalogCache;
+        } catch (e) {
+            console.error(LOG, 'Load item catalog error:', e);
+            return [];
+        }
+    }
+
+    async function _openItemGrantModal(charId) {
+        const c = _chars[charId];
+        if (!c) return;
+
+        const items = await _loadItemCatalog();
+
+        const RARITY_COLORS = {
+            common: '#9a9aaa', uncommon: '#2ecc71', rare: '#3498db',
+            epic: '#9b59b6', legendary: '#e67e22', unique: '#e74c3c'
+        };
+
+        const html = `
+        <div class="modal active" id="grantItemModal" style="display:flex;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+            <div style="background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;width:600px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border,#333);display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-size:16px;font-weight:700;color:white">Item vergeben</div>
+                        <div style="font-size:12px;color:#888;margin-top:2px">an ${_esc(c.profile?.name || charId)}</div>
+                    </div>
+                    <button onclick="this.closest('.modal').remove()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">&times;</button>
+                </div>
+                <div style="padding:12px 20px;border-bottom:1px solid var(--border,#333)">
+                    <input type="text" id="grantItemSearch" placeholder="Item suchen..." style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:white;font-size:13px;outline:none" oninput="document.querySelectorAll('.gi-row').forEach(r=>{r.style.display=r.dataset.name.includes(this.value.toLowerCase())?'':'none'})">
+                </div>
+                <div style="flex:1;overflow-y:auto;padding:8px 12px">
+                    ${items.length ? items.map(item => {
+                        const rc = RARITY_COLORS[item.rarity] || '#999';
+                        const stats = [];
+                        if (item.stats?.damage) stats.push(item.stats.damage + ' DMG');
+                        if (item.stats?.armor) stats.push(item.stats.armor + ' DEF');
+                        return `<div class="gi-row" data-name="${_esc((item.name||'').toLowerCase())}" data-id="${item.id}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;transition:background 0.12s;border:1px solid transparent" onmouseover="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(255,255,255,0.08)'" onmouseout="this.style.background='';this.style.borderColor='transparent'" onclick="RIFT.gmChars._grantItem('${charId}','${item.id}')">
+                            <div style="width:8px;height:8px;border-radius:50%;background:${rc};flex-shrink:0"></div>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:13px;font-weight:600;color:${rc}">${_esc(item.name)}</div>
+                                <div style="font-size:10px;color:#888">${_esc(item.type)} ${item.subType ? '/ ' + item.subType : ''} ${stats.length ? '&middot; ' + stats.join(', ') : ''}</div>
+                            </div>
+                            <div style="font-size:11px;color:#fbbf24">${item.value || 0}g</div>
+                        </div>`;
+                    }).join('') : '<div style="text-align:center;padding:40px;color:#888">Keine Items im Katalog. Erstelle Items in der Admin-Seite.</div>'}
+                </div>
+                <div style="padding:12px 20px;border-top:1px solid var(--border,#333);display:flex;gap:8px">
+                    <input type="number" id="grantItemQty" value="1" min="1" max="99" style="width:60px;padding:6px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:white;font-size:12px;text-align:center">
+                    <div style="flex:1;font-size:11px;color:#666;display:flex;align-items:center">Anzahl</div>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+        document.getElementById('grantItemSearch')?.focus();
+    }
+
+    async function _grantItem(charId, itemId) {
+        const items = await _loadItemCatalog();
+        const template = items.find(i => i.id === itemId);
+        if (!template) { _toast('Item nicht gefunden', 'error'); return; }
+
+        const qty = parseInt(document.getElementById('grantItemQty')?.value) || 1;
+
+        // Create instance from template
+        const instance = {
+            instanceId: 'inst_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            baseItemId: template.id,
+            displayName: template.name,
+            type: template.type,
+            subType: template.subType || '',
+            slot: template.slot || '',
+            rarity: template.rarity || 'common',
+            quantity: qty,
+            weight: template.weight || 0,
+            value: template.value || 0,
+            finalValue: template.value || 0,
+            stats: template.stats || {},
+            finalStats: template.stats || {},
+            flags: template.flags || {},
+            requirements: template.requirements || {},
+            description: template.description || '',
+            flavorText: template.flavorText || '',
+            stackable: template.stackable || false,
+            durability: template.durability ? { current: template.durability, max: template.durability } : null,
+            source: 'gm',
+            acquiredAt: new Date().toISOString()
+        };
+
+        try {
+            // Read current inventory
+            const c = _chars[charId];
+            if (!c) throw new Error('Character not found');
+
+            const inv = c.inventory || { cols: 16, rows: 11, items: [] };
+            if (!inv.items) inv.items = [];
+
+            // Stack if possible
+            if (instance.stackable || instance.flags?.consumable) {
+                const existing = inv.items.find(i => i.baseItemId === instance.baseItemId);
+                if (existing) {
+                    existing.quantity = (existing.quantity || 1) + qty;
+                    await RIFT.link.write(charId, 'inventory', inv);
+                    _toast(`${qty}x ${template.name} hinzugefügt (gestapelt)`);
+                    document.getElementById('grantItemModal')?.remove();
+                    return;
+                }
+            }
+
+            inv.items.push(instance);
+            await RIFT.link.write(charId, 'inventory', inv);
+            _toast(`${qty}x ${template.name} an ${c.profile?.name || charId} vergeben`);
+            document.getElementById('grantItemModal')?.remove();
+        } catch (e) {
+            console.error(LOG, 'Grant item error:', e);
+            _toast('Fehler: ' + e.message, 'error');
+        }
+    }
+
+
     function _esc(str) {
         const d = document.createElement('div');
         d.textContent = str || '';
@@ -709,6 +851,9 @@
 
         // UI
         expandAll,
+
+        // Items
+        _grantItem,
 
         // Access
         get characters() { return _chars; },

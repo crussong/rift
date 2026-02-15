@@ -293,8 +293,12 @@ const BLANK_CHARACTER = {
     secondChance: { used: [false, false, false] },
     notes: '',
     currency: { gold: 0, silver: 0, copper: 0 },
-    inventory: { cols: 16, rows: 11, placements: [] },
-    equipment: {},
+    inventory: { cols: 16, rows: 11, items: [], placements: [] },
+    equipment: {
+        head: null, shoulders: null, chest: null, gloves: null, belt: null,
+        legs: null, boots: null, cape: null, mainhand: null, offhand: null,
+        ring1: null, ring2: null, amulet: null, talisman: null, ammo: null
+    },
     quickbar: Array(8).fill(null),
     buffs: []
 };
@@ -701,6 +705,10 @@ function renderInventoryGrid() {
     if (grid && !grid.hasChildNodes()) {
         buildInventoryGrid(grid, charData.inventory.cols, charData.inventory.rows);
     }
+    // Render items, equipment, quickbar via inventory system
+    if (window.RiftInventory) {
+        try { RiftInventory.render(); } catch (e) { console.warn('[Character] Inventory render error:', e); }
+    }
 }
 
 function renderAbilities() {
@@ -894,6 +902,7 @@ function initInteractions() {
     initWeaknessBindings();
     initClassPicker();
     initXpBinding();
+    initInventorySystem();
 }
 
 // ── Profile fields (contenteditable divs + textarea) ──
@@ -1689,6 +1698,31 @@ function _updateMainCharBtn() {
         const isMain = id && typeof CharacterStorage !== 'undefined' && CharacterStorage.isMainCharacter(id);
         btn.classList.toggle('active', !!isMain);
     } catch (e) {}
+}
+
+
+// ── Inventory System Integration ──
+
+function initInventorySystem() {
+    if (!window.RiftInventory) {
+        console.warn('[Character] RiftInventory not loaded');
+        return;
+    }
+
+    RiftInventory.init(
+        // getter: returns current charData
+        () => charData,
+        // setter: saves charData via _stateSet and re-renders orbs etc.
+        (updatedChar) => {
+            Object.assign(charData, updatedChar);
+            _stateSet(`characters.${charId}`, { ...charData });
+            // Re-render orbs if HP/Resource changed
+            if (typeof renderOrbs === 'function') renderOrbs();
+        },
+        charId
+    );
+
+    console.log('[Character] Inventory system initialized');
 }
 
 
