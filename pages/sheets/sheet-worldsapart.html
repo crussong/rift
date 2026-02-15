@@ -1062,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initV2Character(charId, roomCode);
     }
 
-    // Session title from RiftState
+    // Session/Campaign title
     function updateSessionTitle() {
         var titleEl = document.getElementById('sheetSessionTitle');
         if (!titleEl) return;
@@ -1070,6 +1070,36 @@ document.addEventListener('DOMContentLoaded', function() {
         var room = window.RIFT && RIFT.state ? RIFT.state.get('room') : null;
         var name = (session && session.name) || (room && room.sessionName) || (room && room.name) || 'Worlds Apart';
         titleEl.textContent = name;
+
+        // GM can edit campaign name
+        var isGM = window.currentUser && window.currentUser.isGM;
+        if (isGM) {
+            titleEl.contentEditable = 'true';
+            titleEl.spellcheck = false;
+            titleEl.title = 'Kampagnenname bearbeiten';
+
+            titleEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+            });
+
+            titleEl.addEventListener('blur', function() {
+                var newName = titleEl.textContent.trim();
+                if (!newName) { titleEl.textContent = name; return; }
+                if (newName === name) return;
+
+                // Save to room via RoomService or direct Firebase
+                var rc = localStorage.getItem('rift_current_room');
+                if (rc && window.RIFT && RIFT.state) {
+                    RIFT.state.set('room.name', newName);
+                }
+                // Also save to Firebase directly
+                if (rc && firebase && firebase.firestore) {
+                    firebase.firestore().collection('rooms').doc(rc).update({ name: newName })
+                        .then(function() { console.log('[Sheet] Campaign name saved:', newName); })
+                        .catch(function(e) { console.warn('[Sheet] Campaign name save failed:', e); });
+                }
+            });
+        }
     }
     updateSessionTitle();
     if (window.RIFT && RIFT.state) {
