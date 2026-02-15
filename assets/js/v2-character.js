@@ -242,11 +242,7 @@ function createDivider() {
  * - Reagiert auf State-Änderungen (Echtzeit-Sync)
  */
 
-import {
-    initCardCorners, createHPOrb, createRageOrb,
-    createLevelOrb, createDefenseShield, buildInventoryGrid,
-    PAPERDOLL_SVG, D20_SVG
-} from './renderer.js';
+// (renderer functions already defined above in this IIFE)
 
 // ─── Demo-Charakter ───
 const DEMO_CHARACTER = {
@@ -329,7 +325,7 @@ function init(characterId) {
     console.log('[Character] Initialized', charId || 'DEMO');
 }
 
-export async function createCharacter(roomCode, userId) {
+async function createCharacter(roomCode, userId) {
     const id = 'char_' + Date.now().toString(36);
     await _stateSet(`characters.${id}`, {
         ...DEMO_CHARACTER,
