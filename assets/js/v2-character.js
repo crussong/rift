@@ -307,20 +307,32 @@ let _dirty = false;
 function init(characterId, roomCode) {
     charId = characterId;
 
-    // Priority: 1) RiftState (connected), 2) localStorage, 3) blank
+    // Priority: 1) RiftState, 2) CharacterStorage (hub), 3) localStorage, 4) blank
     const stateChar = charId ? _stateGet(`characters.${charId}`) : null;
-    const localChar = _loadLocal();
+    let source = 'blank';
     
-    if (stateChar) {
+    if (stateChar && stateChar.profile) {
         charData = stateChar;
-        console.log('[Character] Loaded from RiftState');
-    } else if (localChar && localChar.profile) {
-        charData = localChar;
-        console.log('[Character] Restored from localStorage:', localChar.profile?.name || '(unnamed)');
-    } else {
-        charData = JSON.parse(JSON.stringify(BLANK_CHARACTER)); // deep copy!
-        console.log('[Character] Starting blank');
+        source = 'RiftState';
+    } else if (charId && typeof CharacterStorage !== 'undefined') {
+        const hubChar = CharacterStorage.getById(charId);
+        if (hubChar && hubChar.data && hubChar.data._v2) {
+            charData = hubChar.data._v2;
+            source = 'CharacterStorage';
+        }
     }
+    
+    if (source === 'blank') {
+        const localChar = _loadLocal();
+        if (localChar && localChar.profile) {
+            charData = localChar;
+            source = 'localStorage';
+        } else {
+            charData = JSON.parse(JSON.stringify(BLANK_CHARACTER));
+        }
+    }
+    
+    console.log('[Character] Source:', source, charData.profile?.name || '(blank)');
     
     renderAll();
     initCardCorners();
@@ -351,12 +363,14 @@ function init(characterId, roomCode) {
     window.addEventListener('beforeunload', () => {
         _flushAllFields();
         _saveLocal();
+        _syncToCharacterStorage(); // immediate
     });
     // Also save on SPA transitions and tab switches
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') {
             _flushAllFields();
             _saveLocal();
+            _syncToCharacterStorage(); // immediate
         }
     });
     // Catch SPA navigation (link clicks) — save before leaving
@@ -365,6 +379,7 @@ function init(characterId, roomCode) {
         if (link && !link.href.includes('#')) {
             _flushAllFields();
             _saveLocal();
+            _syncToCharacterStorage(); // immediate
         }
     }, true); // capture phase — fires before transition.js
 
@@ -538,7 +553,6 @@ function debounce(key, fn, ms = 800) {
 
 // ─── Storage Keys ───
 const LOCAL_STORAGE_KEY = 'rift_wa_character';
-const LOCAL_MAIN_CHAR_KEY = 'rift_wa_main_character';
 
 // ─── State write (localStorage always + RiftLink when connected) ───
 function save(path, value) {
@@ -559,26 +573,99 @@ function _saveLocal() {
     try {
         const json = JSON.stringify(charData);
         localStorage.setItem(LOCAL_STORAGE_KEY, json);
-        console.log('[Character] Saved to localStorage (' + Math.round(json.length / 1024) + 'kB)', charData.profile?.name || '');
+
+        // Bridge to CharacterStorage (debounced — hub doesn't need instant updates)
+        debounce('charStorageBridge', _syncToCharacterStorage, 2000);
+
+        console.log('[Character] Saved (' + Math.round(json.length / 1024) + 'kB)', charData.profile?.name || '');
     } catch (e) {
         console.error('[Character] localStorage save FAILED:', e);
     }
 }
 
+/**
+ * Bridge v2 charData → CharacterStorage format.
+ * The hub/sheet.html reads from CharacterStorage.getByRuleset(),
+ * so we must keep it in sync.
+ */
+function _syncToCharacterStorage() {
+    if (typeof CharacterStorage === 'undefined') return;
+
+    try {
+        const stableId = charId || _getOrCreateLocalCharId();
+        const a = charData.attributes || {};
+
+        const hubChar = {
+            id:       stableId,
+            name:     charData.profile?.name || 'Unbenannt',
+            ruleset:  'worldsapart',
+            class:    charData.class?.name || '',
+            portrait: charData.portrait || charData.profile?.portrait || '',
+            data: {
+                role:   charData.class?.name || '',
+                race:   charData.profile?.race || '',
+                age:    charData.profile?.age || '',
+                gender: charData.profile?.gender || '',
+                status: {
+                    health: charData.hp ? Math.round((charData.hp.current / (charData.hp.max || 100)) * 100) : 100,
+                    moral:  charData.resource ? Math.round((charData.resource.current / (charData.resource.max || 100)) * 100) : 100
+                },
+                attributes: {
+                    power:     a.kraft || 0,
+                    agility:   a.geschick || 0,
+                    endurance: a.belastbarkeit || 0,
+                    mind:      a.intellekt || 0,
+                    presence:  a.autoritaet || 0
+                },
+                _v2: charData
+            }
+        };
+
+        CharacterStorage.save(hubChar);
+    } catch (e) {
+        console.warn('[Character] CharacterStorage bridge error:', e);
+    }
+}
+
+/** Get or create a stable local char ID so repeated saves update same slot */
+function _getOrCreateLocalCharId() {
+    let id = localStorage.getItem('rift_wa_local_char_id');
+    if (!id) {
+        id = 'wa_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        localStorage.setItem('rift_wa_local_char_id', id);
+    }
+    return id;
+}
+
 function _loadLocal() {
+    // 1. Try direct v2 storage
     try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!raw) {
-            console.log('[Character] No saved data in localStorage');
-            return null;
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.profile) {
+                console.log('[Character] Loaded from localStorage:', parsed.profile?.name || '');
+                return parsed;
+            }
         }
-        const parsed = JSON.parse(raw);
-        console.log('[Character] Loaded from localStorage:', parsed?.profile?.name || '(no name)');
-        return parsed;
-    } catch (e) {
-        console.error('[Character] localStorage load FAILED:', e);
-        return null;
-    }
+    } catch (e) { /* ignore */ }
+
+    // 2. Try loading from CharacterStorage (hub may have saved data there)
+    try {
+        if (typeof CharacterStorage !== 'undefined') {
+            const localId = localStorage.getItem('rift_wa_local_char_id');
+            if (localId) {
+                const hubChar = CharacterStorage.getById(localId);
+                if (hubChar?.data?._v2) {
+                    console.log('[Character] Restored from CharacterStorage:', hubChar.name);
+                    return hubChar.data._v2;
+                }
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    console.log('[Character] No saved data found');
+    return null;
 }
 
 // ─── Interactions ───
@@ -1081,6 +1168,7 @@ function doSave() {
     // Flush all current DOM values into charData first
     _flushAllFields();
     _saveLocal();
+    _syncToCharacterStorage(); // immediate, not debounced
     if (charId) {
         _stateSet(`characters.${charId}`, { ...charData });
     }
@@ -1153,8 +1241,14 @@ function _flushAllFields() {
 
 function doSetMainChar() {
     try {
-        const data = { ...charData, savedAt: new Date().toISOString() };
-        localStorage.setItem(LOCAL_MAIN_CHAR_KEY, JSON.stringify(data));
+        const id = charId || localStorage.getItem('rift_wa_local_char_id');
+        if (!id) { notify('Kein Charakter-ID'); return; }
+        
+        // Use CharacterStorage main character system
+        if (typeof CharacterStorage !== 'undefined') {
+            CharacterStorage.setMainCharacter(id, 'worldsapart');
+        }
+
         notify('Als Haupt-Charakter gesetzt');
         _updateMainCharBtn();
     } catch (e) {
@@ -1190,8 +1284,8 @@ function _updateMainCharBtn() {
     const btn = document.querySelector('[data-action="main-char"]');
     if (!btn) return;
     try {
-        const main = JSON.parse(localStorage.getItem(LOCAL_MAIN_CHAR_KEY) || 'null');
-        const isMain = main && main.profile?.name === charData.profile?.name;
+        const id = charId || localStorage.getItem('rift_wa_local_char_id');
+        const isMain = id && typeof CharacterStorage !== 'undefined' && CharacterStorage.isMainCharacter(id);
         btn.classList.toggle('active', !!isMain);
     } catch (e) {}
 }
