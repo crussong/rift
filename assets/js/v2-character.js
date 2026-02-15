@@ -171,8 +171,8 @@ function createDefenseShield(armor, mitigation, resistances = {}) {
 
     return `<svg viewBox="0 0 160 190" class="defense-shield-svg">
 <defs>
-<linearGradient id="shieldBorder" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a4a5f"/><stop offset="100%" stop-color="#2a2a3a"/></linearGradient>
-<linearGradient id="shieldFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a26"/><stop offset="100%" stop-color="#101018"/></linearGradient>
+<linearGradient id="shieldBorder" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="100%" stop-color="#2e2e2e"/></linearGradient>
+<linearGradient id="shieldFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e1e1e"/><stop offset="100%" stop-color="#141414"/></linearGradient>
 <clipPath id="shieldClip"><path d="M80 8 L148 35 C152 37 154 41 154 45 L154 100 C154 135 125 162 80 182 C35 162 6 135 6 100 L6 45 C6 41 8 37 12 35 Z"/></clipPath>
 </defs>
 <path d="M80 8 L148 35 C152 37 154 41 154 45 L154 100 C154 135 125 162 80 182 C35 162 6 135 6 100 L6 45 C6 41 8 37 12 35 Z" fill="url(#shieldFill)" stroke="url(#shieldBorder)" stroke-width="2.5"/>
