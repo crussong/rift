@@ -271,7 +271,7 @@ const BLANK_CHARACTER = {
     xp: { current: 0, max: 1000 },
     attributes: {
         kraft: 0, geschick: 0, belastbarkeit: 0, intellekt: 0, autoritaet: 0,
-        points: { used: 0, total: 15 }
+        points: { used: 0, total: 20 }
     },
     hp: { current: 100, max: 100, regen: 0 },
     resource: { name: '', current: 100, max: 100, perHit: 0 },
@@ -559,6 +559,14 @@ function initAttributeBindings() {
     for (const [id, key] of Object.entries(attrMap)) {
         const el = document.getElementById(id);
         if (!el) continue;
+
+        el.addEventListener('focus', () => {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        });
 
         el.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
