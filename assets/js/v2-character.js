@@ -307,29 +307,15 @@ let _dirty = false;
 function init(characterId, roomCode) {
     charId = characterId;
 
-    // Priority: 1) RiftState, 2) CharacterStorage (hub), 3) localStorage, 4) blank
-    const stateChar = charId ? _stateGet(`characters.${charId}`) : null;
+    // Load priority: 1) localStorage (always authoritative for v2), 2) blank
     let source = 'blank';
+    const localChar = _loadLocal();
     
-    if (stateChar && stateChar.profile) {
-        charData = stateChar;
-        source = 'RiftState';
-    } else if (charId && typeof CharacterStorage !== 'undefined') {
-        const hubChar = CharacterStorage.getById(charId);
-        if (hubChar && hubChar.data && hubChar.data._v2) {
-            charData = hubChar.data._v2;
-            source = 'CharacterStorage';
-        }
-    }
-    
-    if (source === 'blank') {
-        const localChar = _loadLocal();
-        if (localChar && localChar.profile) {
-            charData = localChar;
-            source = 'localStorage';
-        } else {
-            charData = JSON.parse(JSON.stringify(BLANK_CHARACTER));
-        }
+    if (localChar && localChar.profile) {
+        charData = localChar;
+        source = 'localStorage';
+    } else {
+        charData = JSON.parse(JSON.stringify(BLANK_CHARACTER));
     }
     
     console.log('[Character] Source:', source, charData.profile?.name || '(blank)');
@@ -340,20 +326,25 @@ function init(characterId, roomCode) {
     renderAll();
     initCardCorners();
     
-    if (charId) {
-        // Connect via RiftLink for bidirectional Firebase sync
+    if (charId && roomCode && !charId.startsWith('wa_')) {
+        // Connect via RiftLink ONLY for room-assigned characters (not local wa_ IDs)
         if (window.RIFT && RIFT.link) {
             RIFT.link.watchChar(charId, roomCode);
-            console.log('[Character] RiftLink connected for', charId);
+            console.log('[Character] RiftLink connected for', charId, 'in room', roomCode);
         }
 
         // Listen for remote changes (from GM or other sources)
         _stateOn(`characters.${charId}:changed`, (data) => {
-            if (data && data !== charData) {
-                charData = data;
-                _saveLocal();
-                renderAll();
+            if (!data || data === charData) return;
+            // Only accept v2 format data (has hp.current, not hub format with data._v2)
+            if (!data.hp || data.data?._v2) {
+                console.log('[Character] Ignoring non-v2 remote data');
+                return;
             }
+            charData = data;
+            _ensureDefaults();
+            _saveLocal();
+            renderAll();
         });
     }
 
@@ -626,8 +617,7 @@ function _syncToCharacterStorage() {
                     endurance: a.belastbarkeit || 0,
                     mind:      a.intellekt || 0,
                     presence:  a.autoritaet || 0
-                },
-                _v2: charData
+                }
             }
         };
 
@@ -670,33 +660,15 @@ function _deepMergeDefaults(target, defaults) {
 }
 
 function _loadLocal() {
-    // 1. Try direct v2 storage
     try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && parsed.profile) {
-                console.log('[Character] Loaded from localStorage:', parsed.profile?.name || '');
-                return parsed;
-            }
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.profile) {
+            console.log('[Character] Loaded from localStorage:', parsed.profile?.name || '');
+            return parsed;
         }
     } catch (e) { /* ignore */ }
-
-    // 2. Try loading from CharacterStorage (hub may have saved data there)
-    try {
-        if (typeof CharacterStorage !== 'undefined') {
-            const localId = localStorage.getItem('rift_wa_local_char_id');
-            if (localId) {
-                const hubChar = CharacterStorage.getById(localId);
-                if (hubChar?.data?._v2) {
-                    console.log('[Character] Restored from CharacterStorage:', hubChar.name);
-                    return hubChar.data._v2;
-                }
-            }
-        }
-    } catch (e) { /* ignore */ }
-
-    console.log('[Character] No saved data found');
     return null;
 }
 
