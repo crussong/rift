@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/assets/css/v2-components.css">
     <link rel="stylesheet" href="/assets/css/v2-sheet.css">
     <link rel="stylesheet" href="/assets/css/v2-skilltree.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <style>
         /* Bridge: Unified Layout spacing for fixed TopNav + Dock */
         body {
@@ -179,11 +180,14 @@
            Only override for specific sheet containers that need larger SVGs. */
         .orb svg, .level-orb svg,
         .paperdoll-silhouette svg,
-        .profile-portrait svg,
-        .equip-slot svg.empty-slot-icon,
         .chance-token svg {
             width: 100% !important;
             height: 100% !important;
+        }
+        .equip-slot svg.empty-slot-icon {
+            width: 24% !important;
+            height: 24% !important;
+            opacity: 0.04 !important;
         }
         .card-corner svg {
             width: 100% !important;
@@ -239,8 +243,24 @@
         <div class="char-combined">
           <!-- Top: Profile row -->
           <div class="profile-content">
-            <div class="profile-portrait">
-              <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="32" cy="22" r="12"/><path d="M10 58c0-12 10-22 22-22s22 10 22 22"/></svg>
+            <div class="profile-portrait" id="profilePortrait">
+              <img class="portrait-img" id="portraitImg" style="display:none; width:100%; height:100%; object-fit:cover;">
+              <svg class="portrait-placeholder" id="portraitPlaceholder" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="32" cy="22" r="12"/><path d="M10 58c0-12 10-22 22-22s22 10 22 22"/></svg>
+              <div class="portrait-overlay" id="portraitOverlay">
+                <button class="portrait-btn" data-action="upload" title="Bild hochladen">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Hochladen</span>
+                </button>
+                <button class="portrait-btn" data-action="gallery" title="Aus Galerie">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span>Galerie</span>
+                </button>
+                <button class="portrait-btn portrait-btn--danger" data-action="delete" title="Bild entfernen" id="portraitDeleteBtn" style="display:none">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  <span>Entfernen</span>
+                </button>
+              </div>
+              <input type="file" id="portraitFileInput" accept=".jpg,.jpeg,.png,.webp,.gif" style="display:none">
             </div>
             <div class="profile-info">
               <div class="profile-name" id="charName" contenteditable="true" spellcheck="false" data-placeholder="Name eingeben"></div>
@@ -904,6 +924,40 @@
 <div class="context-menu" id="contextMenu"></div>
 <div class="notification" id="notification"></div>
 
+<!-- ═══ Portrait Cropper Modal ═══ -->
+<div class="portrait-modal" id="portraitCropperModal">
+  <div class="portrait-modal__backdrop"></div>
+  <div class="portrait-modal__content">
+    <div class="portrait-modal__header">
+      <h3>Portrait zuschneiden</h3>
+      <button class="portrait-modal__close" id="cropperCloseBtn">&times;</button>
+    </div>
+    <div class="portrait-modal__body">
+      <div class="portrait-cropper-container">
+        <img id="cropperImage" src="" alt="">
+      </div>
+    </div>
+    <div class="portrait-modal__footer">
+      <button class="portrait-modal__btn" id="cropperCancelBtn">Abbrechen</button>
+      <button class="portrait-modal__btn portrait-modal__btn--primary" id="cropperApplyBtn">Zuschneiden</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Portrait Gallery Modal ═══ -->
+<div class="portrait-modal" id="portraitGalleryModal">
+  <div class="portrait-modal__backdrop"></div>
+  <div class="portrait-modal__content portrait-modal__content--gallery">
+    <div class="portrait-modal__header">
+      <h3>Portrait aus Galerie</h3>
+      <button class="portrait-modal__close" id="galleryCloseBtn">&times;</button>
+    </div>
+    <div class="portrait-modal__body">
+      <div class="portrait-gallery-grid" id="portraitGalleryGrid"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ Unified Layout: Dock + Footer ═══ -->
 <div id="dock-placeholder"></div>
 <div id="footer-placeholder"></div>
@@ -939,6 +993,7 @@
 <script src="/assets/js/layout-unified.js"></script>
 <script src="/assets/js/character-storage.js"></script>
 <script src="/assets/js/broadcast.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <script src="/assets/js/v2-character.js"></script>
 <script src="/assets/js/v2-skilltree.js"></script>
 

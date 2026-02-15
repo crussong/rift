@@ -266,6 +266,7 @@ const CLASS_DEFINITIONS = [
 
 const BLANK_CHARACTER = {
     profile: { name: '', race: '', age: '', gender: '', faction: '', description: '' },
+    portrait: '',
     class: { id: '', name: '', label: 'Disziplin' },
     level: 1,
     xp: { current: 0, max: 1000 },
@@ -396,6 +397,7 @@ async function createCharacter(roomCode, userId) {
 
 function renderAll() {
     renderProfile();
+    renderPortrait();
     renderClassAndOrbs();
     renderAttributes();
     renderSkills();
@@ -416,6 +418,198 @@ function renderProfile() {
     txtSafe('fieldGender', p.gender);
     txtSafe('fieldFaction', p.faction);
     val('charDesc', p.description);
+}
+
+function renderPortrait() {
+    const src = charData.portrait || '';
+    const img = document.getElementById('portraitImg');
+    const placeholder = document.getElementById('portraitPlaceholder');
+    const delBtn = document.getElementById('portraitDeleteBtn');
+    if (!img) return;
+
+    if (src) {
+        img.src = src;
+        img.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+        if (delBtn) delBtn.style.display = 'flex';
+    } else {
+        img.style.display = 'none';
+        img.src = '';
+        if (placeholder) placeholder.style.display = '';
+        if (delBtn) delBtn.style.display = 'none';
+    }
+}
+
+// ─── Portrait Gallery Config ───
+const PORTRAIT_GALLERY = [
+    'char_worldsapart_01', 'char_worldsapart_02', 'char_worldsapart_03',
+    'char_worldsapart_04', 'char_worldsapart_05', 'char_worldsapart_06',
+    'char_worldsapart_07'
+];
+
+function initPortrait() {
+    let cropper = null;
+    const fileInput = document.getElementById('portraitFileInput');
+    const overlay = document.getElementById('portraitOverlay');
+    const cropperModal = document.getElementById('portraitCropperModal');
+    const galleryModal = document.getElementById('portraitGalleryModal');
+    const cropperImage = document.getElementById('cropperImage');
+    if (!overlay) return;
+
+    // ── Button actions ──
+    overlay.addEventListener('click', (e) => {
+        const btn = e.target.closest('.portrait-btn');
+        if (!btn) return;
+        e.stopPropagation();
+        const action = btn.dataset.action;
+
+        if (action === 'upload') {
+            fileInput.click();
+        } else if (action === 'gallery') {
+            openGallery();
+        } else if (action === 'delete') {
+            if (confirm('Portrait wirklich entfernen?')) {
+                charData.portrait = '';
+                save('portrait', '');
+                renderPortrait();
+            }
+        }
+    });
+
+    // ── File Upload → Cropper ──
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!allowed.includes(file.type)) {
+            notify('Nur JPG, PNG, WebP und GIF erlaubt');
+            fileInput.value = '';
+            return;
+        }
+
+        // GIF: skip cropper, use directly (preserve animation)
+        if (file.type === 'image/gif') {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                applyPortrait(ev.target.result);
+            };
+            reader.readAsDataURL(file);
+            fileInput.value = '';
+            return;
+        }
+
+        // Other formats: open cropper
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            cropperImage.src = ev.target.result;
+            openCropperModal();
+        };
+        reader.readAsDataURL(file);
+        fileInput.value = '';
+    });
+
+    // ── Cropper Modal ──
+    function openCropperModal() {
+        cropperModal.classList.add('open');
+        if (cropper) cropper.destroy();
+        setTimeout(() => {
+            cropper = new Cropper(cropperImage, {
+                aspectRatio: 130 / 160, // match portrait box
+                viewMode: 1,
+                dragMode: 'move',
+                autoCropArea: 1,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false
+            });
+        }, 100);
+    }
+
+    function closeCropperModal() {
+        cropperModal.classList.remove('open');
+        if (cropper) { cropper.destroy(); cropper = null; }
+    }
+
+    document.getElementById('cropperApplyBtn')?.addEventListener('click', () => {
+        if (!cropper) return;
+        const canvas = cropper.getCroppedCanvas({
+            width: 260,
+            height: 320,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high'
+        });
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        applyPortrait(dataUrl);
+        closeCropperModal();
+    });
+
+    document.getElementById('cropperCancelBtn')?.addEventListener('click', closeCropperModal);
+    document.getElementById('cropperCloseBtn')?.addEventListener('click', closeCropperModal);
+    cropperModal?.querySelector('.portrait-modal__backdrop')?.addEventListener('click', closeCropperModal);
+
+    // ── Gallery Modal ──
+    function openGallery() {
+        galleryModal.classList.add('open');
+        const grid = document.getElementById('portraitGalleryGrid');
+        if (!grid) return;
+
+        // Only build once
+        if (grid.children.length === 0) {
+            PORTRAIT_GALLERY.forEach(name => {
+                const item = document.createElement('div');
+                item.className = 'portrait-gallery-item';
+                item.innerHTML = `<img src="/assets/img/rift_chars/hero_card/${name}.png" alt="${name}" loading="lazy">`;
+                item.addEventListener('click', () => {
+                    // Load full-res version
+                    const fullSrc = `/assets/img/rift_chars/full/${name}.png`;
+                    // Convert to base64 for storage
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 260;
+                        canvas.height = 320;
+                        const ctx = canvas.getContext('2d');
+                        // Cover-fit
+                        const scale = Math.max(260 / img.width, 320 / img.height);
+                        const w = img.width * scale;
+                        const h = img.height * scale;
+                        ctx.drawImage(img, (260 - w) / 2, (320 - h) / 2, w, h);
+                        applyPortrait(canvas.toDataURL('image/jpeg', 0.85));
+                        closeGallery();
+                    };
+                    img.onerror = () => {
+                        // Fallback: use hero_card size
+                        applyPortrait(`/assets/img/rift_chars/hero_card/${name}.png`);
+                        closeGallery();
+                    };
+                    img.src = fullSrc;
+                });
+                grid.appendChild(item);
+            });
+        }
+    }
+
+    function closeGallery() {
+        galleryModal.classList.remove('open');
+    }
+
+    document.getElementById('galleryCloseBtn')?.addEventListener('click', closeGallery);
+    galleryModal?.querySelector('.portrait-modal__backdrop')?.addEventListener('click', closeGallery);
+
+    // ── Apply + Save ──
+    function applyPortrait(dataUrl) {
+        charData.portrait = dataUrl;
+        save('portrait', dataUrl);
+        renderPortrait();
+        notify('Portrait gespeichert');
+    }
 }
 
 function renderClassAndOrbs() {
@@ -456,7 +650,9 @@ function renderAttributes() {
     txtSafe('attrBelastbarkeit', a.belastbarkeit);
     txtSafe('attrIntellekt', a.intellekt);
     txtSafe('attrAutoritaet', a.autoritaet);
-    txt('attrPoints', `${a.points.used} / ${a.points.total} Attributs-Punkte verteilt`);
+    const used = a.kraft + a.geschick + a.belastbarkeit + a.intellekt + a.autoritaet;
+    const remaining = Math.max(0, (a.points?.total || 20) - used);
+    txt('attrPoints', `Noch ${remaining} von ${a.points?.total || 20} Punkten übrig`);
     txtSafe('initValue', charData.offense.initiative);
     txtSafe('combatMovement', charData.defense.movement);
     txtSafe('combatRange', charData.offense.range);
@@ -596,12 +792,15 @@ function _syncToCharacterStorage() {
         const stableId = charId || _getOrCreateLocalCharId();
         const a = charData.attributes || {};
 
+        // Portrait: send path reference, not full base64 (too large for Firebase)
+        const portraitRef = charData.portrait?.startsWith('data:') ? '' : (charData.portrait || '');
+
         const hubChar = {
             id:       stableId,
             name:     charData.profile?.name || 'Unbenannt',
             ruleset:  'worldsapart',
             class:    charData.class?.name || '',
-            portrait: charData.portrait || charData.profile?.portrait || '',
+            portrait: portraitRef,
             data: {
                 role:   charData.class?.name || '',
                 race:   charData.profile?.race || '',
@@ -677,6 +876,7 @@ function _loadLocal() {
 function initInteractions() {
     initSectionNav();
     initProfileBindings();
+    initPortrait();
     initAbilityBindings();
     initCurrencyBindings();
     initSecondChanceBindings();
@@ -763,14 +963,23 @@ function initAttributeBindings() {
 
         el.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
-            // Only allow numbers
             if (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
                 e.preventDefault();
             }
         });
 
         el.addEventListener('blur', () => {
-            const val = parseInt(el.textContent, 10) || 0;
+            let val = parseInt(el.textContent, 10) || 0;
+
+            // Clamp to 0..15 per attribute
+            val = Math.max(0, Math.min(15, val));
+
+            // Check total budget (20 points)
+            const a = charData.attributes;
+            const othersTotal = (a.kraft + a.geschick + a.belastbarkeit + a.intellekt + a.autoritaet) - a[key];
+            const maxForThis = Math.min(15, 20 - othersTotal);
+            val = Math.min(val, maxForThis);
+
             charData.attributes[key] = val;
             el.textContent = val;
             updateAttrPoints();
@@ -783,7 +992,8 @@ function updateAttrPoints() {
     const a = charData.attributes;
     const used = a.kraft + a.geschick + a.belastbarkeit + a.intellekt + a.autoritaet;
     a.points.used = used;
-    txt('attrPoints', `${used} / ${a.points.total} Attributs-Punkte verteilt`);
+    const remaining = Math.max(0, a.points.total - used);
+    txt('attrPoints', `Noch ${remaining} von ${a.points.total} Punkten übrig`);
     save('attributes.points', a.points);
 }
 
