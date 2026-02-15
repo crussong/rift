@@ -300,6 +300,7 @@ const BLANK_CHARACTER = {
 
 let charId = null;
 let charData = null;
+let _dirty = false;
 
 // ─── Initialization ───
 
@@ -309,7 +310,17 @@ function init(characterId, roomCode) {
     // Priority: 1) RiftState (connected), 2) localStorage, 3) blank
     const stateChar = charId ? _stateGet(`characters.${charId}`) : null;
     const localChar = _loadLocal();
-    charData = stateChar || localChar || { ...BLANK_CHARACTER };
+    
+    if (stateChar) {
+        charData = stateChar;
+        console.log('[Character] Loaded from RiftState');
+    } else if (localChar && localChar.profile) {
+        charData = localChar;
+        console.log('[Character] Restored from localStorage:', localChar.profile?.name || '(unnamed)');
+    } else {
+        charData = JSON.parse(JSON.stringify(BLANK_CHARACTER)); // deep copy!
+        console.log('[Character] Starting blank');
+    }
     
     renderAll();
     initCardCorners();
@@ -325,28 +336,49 @@ function init(characterId, roomCode) {
         _stateOn(`characters.${charId}:changed`, (data) => {
             if (data && data !== charData) {
                 charData = data;
-                _saveLocal(); // keep localStorage in sync
+                _saveLocal();
                 renderAll();
             }
         });
     }
-    
-    // Auto-save to localStorage on any future change
-    _saveLocal();
+
+    // Auto-save every 30 seconds
+    setInterval(() => {
+        if (_dirty) { _saveLocal(); _dirty = false; }
+    }, 30000);
+
+    // Save on page leave (covers full reload + tab close)
+    window.addEventListener('beforeunload', () => {
+        _flushAllFields();
+        _saveLocal();
+    });
+    // Also save on SPA transitions and tab switches
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            _flushAllFields();
+            _saveLocal();
+        }
+    });
+    // Catch SPA navigation (link clicks) — save before leaving
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a[href]');
+        if (link && !link.href.includes('#')) {
+            _flushAllFields();
+            _saveLocal();
+        }
+    }, true); // capture phase — fires before transition.js
 
     initInteractions();
     initSheetFooter();
-    console.log('[Character] Initialized', charId || 'LOCAL', localChar ? '(restored)' : '(blank)');
+    console.log('[Character] Initialized', charId || 'LOCAL');
 }
 
 async function createCharacter(roomCode, userId) {
     const id = 'char_' + Date.now().toString(36);
-    const newChar = {
-        ...BLANK_CHARACTER,
-        profile: { ...BLANK_CHARACTER.profile, name: 'Neuer Charakter' },
-        ownerId: userId,
-        createdAt: new Date().toISOString()
-    };
+    const newChar = JSON.parse(JSON.stringify(BLANK_CHARACTER)); // deep copy
+    newChar.profile.name = 'Neuer Charakter';
+    newChar.ownerId = userId;
+    newChar.createdAt = new Date().toISOString();
     _stateSet(`characters.${id}`, newChar);
     return id;
 }
@@ -512,8 +544,9 @@ const LOCAL_MAIN_CHAR_KEY = 'rift_wa_main_character';
 function save(path, value) {
     // Update local charData
     setNested(charData, path, value);
+    _dirty = true;
 
-    // Always persist to localStorage
+    // Persist immediately to localStorage
     _saveLocal();
 
     // If connected to a room, also push to RiftState → RiftLink → Firebase
@@ -524,15 +557,28 @@ function save(path, value) {
 
 function _saveLocal() {
     try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(charData));
-    } catch (e) { /* storage full */ }
+        const json = JSON.stringify(charData);
+        localStorage.setItem(LOCAL_STORAGE_KEY, json);
+        console.log('[Character] Saved to localStorage (' + Math.round(json.length / 1024) + 'kB)', charData.profile?.name || '');
+    } catch (e) {
+        console.error('[Character] localStorage save FAILED:', e);
+    }
 }
 
 function _loadLocal() {
     try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+        if (!raw) {
+            console.log('[Character] No saved data in localStorage');
+            return null;
+        }
+        const parsed = JSON.parse(raw);
+        console.log('[Character] Loaded from localStorage:', parsed?.profile?.name || '(no name)');
+        return parsed;
+    } catch (e) {
+        console.error('[Character] localStorage load FAILED:', e);
+        return null;
+    }
 }
 
 // ─── Interactions ───
@@ -577,7 +623,14 @@ function initProfileBindings() {
         el.addEventListener('input', () => {
             const text = el.textContent.trim();
             setNested(charData, path, text);
-            debounce(id, () => save(path, text));
+            _dirty = true;
+            debounce(id, () => _saveLocal());
+        });
+
+        el.addEventListener('blur', () => {
+            const text = el.textContent.trim();
+            setNested(charData, path, text);
+            _saveLocal(); // immediate save on blur
         });
     }
 
@@ -586,7 +639,12 @@ function initProfileBindings() {
     if (desc) {
         desc.addEventListener('input', () => {
             charData.profile.description = desc.value;
-            debounce('charDesc', () => save('profile.description', desc.value));
+            _dirty = true;
+            debounce('charDesc', () => _saveLocal());
+        });
+        desc.addEventListener('blur', () => {
+            charData.profile.description = desc.value;
+            _saveLocal();
         });
     }
 }
@@ -948,7 +1006,13 @@ function initNotesBinding() {
     const notesArea = document.getElementById('notesArea');
     if (!notesArea) return;
     notesArea.addEventListener('input', () => {
-        debounce('notes', () => save('notes', notesArea.value), 1000);
+        charData.notes = notesArea.value;
+        _dirty = true;
+        debounce('notes', () => _saveLocal(), 1000);
+    });
+    notesArea.addEventListener('blur', () => {
+        charData.notes = notesArea.value;
+        _saveLocal();
     });
 }
 
@@ -1014,13 +1078,77 @@ function initSheetFooter() {
 }
 
 function doSave() {
+    // Flush all current DOM values into charData first
+    _flushAllFields();
     _saveLocal();
     if (charId) {
         _stateSet(`characters.${charId}`, { ...charData });
     }
+    _dirty = false;
     notify('Charakter gespeichert');
     const btn = document.querySelector('[data-action="save"]');
     if (btn) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1200); }
+}
+
+/**
+ * Read all current DOM field values back into charData.
+ * Ensures nothing is lost even if blur handlers haven't fired.
+ */
+function _flushAllFields() {
+    const fieldMap = {
+        charName:     'profile.name',
+        fieldRace:    'profile.race',
+        fieldAge:     'profile.age',
+        fieldGender:  'profile.gender',
+        fieldFaction: 'profile.faction',
+    };
+    for (const [id, path] of Object.entries(fieldMap)) {
+        const el = document.getElementById(id);
+        if (el) setNested(charData, path, el.textContent.trim());
+    }
+    const desc = document.getElementById('charDesc');
+    if (desc) charData.profile.description = desc.value;
+
+    // Attributes
+    const attrMap = { attrKraft: 'kraft', attrGeschick: 'geschick', attrBelastbarkeit: 'belastbarkeit', attrIntellekt: 'intellekt', attrAutoritaet: 'autoritaet' };
+    for (const [id, key] of Object.entries(attrMap)) {
+        const el = document.getElementById(id);
+        if (el) charData.attributes[key] = parseInt(el.textContent) || 0;
+    }
+
+    // Notes
+    const notes = document.getElementById('notesArea');
+    if (notes) charData.notes = notes.value;
+
+    // Defense inline fields
+    const defMap = { 'def-dodge': 'defense.dodge', 'def-block': 'defense.block', 'def-movement': 'defense.movement' };
+    for (const [id, path] of Object.entries(defMap)) {
+        const el = document.getElementById(id);
+        if (el) setNested(charData, path, parseInt(el.textContent) || 0);
+    }
+
+    // Combat inline fields
+    const combatMap = { 'combat-ini': 'offense.initiative', 'combat-movement': 'offense.movement', 'combat-range': 'offense.range', 'combat-ini-formula': 'offense.iniFormula' };
+    for (const [id, path] of Object.entries(combatMap)) {
+        const el = document.getElementById(id);
+        if (el) {
+            const val = el.textContent.trim();
+            setNested(charData, path, isNaN(val) ? val : (parseInt(val) || 0));
+        }
+    }
+
+    // Stats
+    const statMap = { 's-hp-max': 'hp.max', 's-hp-regen': 'hp.regen', 's-res-max': 'resource.max', 's-res-perHit': 'resource.perHit' };
+    for (const [id, path] of Object.entries(statMap)) {
+        const el = document.getElementById(id);
+        if (el) setNested(charData, path, parseInt(el.textContent) || 0);
+    }
+
+    // Weakness
+    const wName = document.getElementById('weakness-name');
+    const wDesc = document.getElementById('weakness-desc');
+    if (wName) charData.weakness.name = wName.textContent.trim();
+    if (wDesc) charData.weakness.description = wDesc.textContent.trim();
 }
 
 function doSetMainChar() {
@@ -1036,7 +1164,7 @@ function doSetMainChar() {
 
 function doReset() {
     if (!confirm('Charakterbogen wirklich zurücksetzen? Alle Daten gehen verloren.')) return;
-    charData = { ...BLANK_CHARACTER };
+    charData = JSON.parse(JSON.stringify(BLANK_CHARACTER)); // deep copy
     _saveLocal();
     if (charId) {
         _stateSet(`characters.${charId}`, { ...charData });
