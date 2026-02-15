@@ -48,6 +48,25 @@ const ItemCatalog = (() => {
         misc:       []
     };
 
+    // Grid sizes for inventory (w x h in cells)
+    const SIZE_PRESETS = [
+        { label: 'Waffe',          w: 2, h: 4, types: ['weapon'] },
+        { label: 'Rüstung Brust',  w: 2, h: 3, types: ['armor'] },
+        { label: 'Nebenhand',      w: 2, h: 3, types: [] },
+        { label: 'Hose',           w: 2, h: 3, types: [] },
+        { label: 'Kopf',           w: 2, h: 2, types: [] },
+        { label: 'Handschuhe',     w: 2, h: 2, types: [] },
+        { label: 'Stiefel',        w: 2, h: 2, types: [] },
+        { label: 'Gürtel',         w: 2, h: 1, types: [] },
+        { label: 'Trank',          w: 1, h: 2, types: ['potion'] },
+        { label: 'Ring',           w: 1, h: 1, types: [] },
+        { label: 'Amulett',        w: 1, h: 1, types: [] },
+        { label: 'Edelstein',      w: 1, h: 1, types: ['gem'] },
+        { label: 'Material',       w: 1, h: 1, types: ['misc'] },
+        { label: 'Schild',         w: 2, h: 3, types: [] },
+        { label: 'Quest',          w: 1, h: 1, types: ['quest'] }
+    ];
+
     const RARITIES = [
         { id: 'common',    label: 'Gewöhnlich',  color: '#9ca3af', affixSlots: 0, valueMul: 1.0 },
         { id: 'uncommon',  label: 'Ungewöhnlich', color: '#22c55e', affixSlots: 1, valueMul: 1.5 },
@@ -280,7 +299,35 @@ const ItemCatalog = (() => {
                         </div>
                     </div>
 
-                    <!-- Row 3: Description -->
+                    <!-- Row 3: Grid Size + Icon -->
+                    <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
+                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">Inventar-Größe &amp; Bild</div>
+                        <div style="display:flex;gap:16px;align-items:flex-start">
+                            <div style="flex:1">
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="ieditSizePresets">
+                                    ${SIZE_PRESETS.map(p => `<button type="button" class="btn btn--outline btn--small" style="font-size:10px;padding:3px 8px;${item.gridW === p.w && item.gridH === p.h ? 'border-color:var(--gold);color:var(--gold)' : ''}" onclick="document.getElementById('ieditGridW').value=${p.w};document.getElementById('ieditGridH').value=${p.h};ItemCatalog._updateSizePreview();this.parentElement.querySelectorAll('button').forEach(b=>b.style.cssText='font-size:10px;padding:3px 8px');this.style.borderColor='var(--gold)';this.style.color='var(--gold)'">${p.label} (${p.w}x${p.h})</button>`).join('')}
+                                </div>
+                                <div style="display:flex;gap:10px;align-items:center">
+                                    <div class="field" style="width:70px"><label class="field__label">Breite</label><input type="number" class="field__input" id="ieditGridW" value="${item.gridW || 1}" min="1" max="6" onchange="ItemCatalog._updateSizePreview()"></div>
+                                    <span style="color:var(--text-muted);font-size:16px;padding-top:16px">&times;</span>
+                                    <div class="field" style="width:70px"><label class="field__label">Höhe</label><input type="number" class="field__input" id="ieditGridH" value="${item.gridH || 1}" min="1" max="6" onchange="ItemCatalog._updateSizePreview()"></div>
+                                    <div id="ieditSizePreview" style="margin-left:8px;padding-top:12px">${_renderSizePreview(item.gridW || 1, item.gridH || 1)}</div>
+                                </div>
+                            </div>
+                            <div style="width:1px;background:var(--border);align-self:stretch"></div>
+                            <div style="flex:1">
+                                <div class="field">
+                                    <label class="field__label">Bild-URL <span style="opacity:0.4">(Cloudinary)</span></label>
+                                    <input type="text" class="field__input" id="ieditIcon" value="${_esc(item.icon || '')}" placeholder="https://res.cloudinary.com/..." oninput="ItemCatalog._updateIconPreview()">
+                                </div>
+                                <div id="ieditIconPreview" style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                                    ${item.icon ? `<img src="${_esc(item.icon)}" style="width:48px;height:48px;object-fit:contain;border-radius:4px;background:rgba(255,255,255,0.03)">` : '<span style="font-size:11px;color:var(--text-muted)">Kein Bild</span>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Description -->
                     <div class="field">
                         <label class="field__label">Beschreibung</label>
                         <textarea class="field__input" id="ieditDesc" rows="2" placeholder="Ein einfaches Schwert...">${_esc(item.description || '')}</textarea>
@@ -426,6 +473,9 @@ const ItemCatalog = (() => {
                 tradeable:  document.getElementById('ieditFlagTrade').checked
             },
             tags:        document.getElementById('ieditTags').value.split(',').map(s => s.trim()).filter(Boolean),
+            gridW:       parseInt(document.getElementById('ieditGridW').value) || 1,
+            gridH:       parseInt(document.getElementById('ieditGridH').value) || 1,
+            icon:        document.getElementById('ieditIcon').value.trim(),
             updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -750,7 +800,8 @@ const ItemCatalog = (() => {
     function _blankItem() {
         return {
             id: '', name: '', type: 'weapon', subType: 'sword', rarity: 'common', slot: 'mainHand',
-            description: '', flavorText: '',
+            description: '', flavorText: '', icon: '',
+            gridW: 1, gridH: 1,
             stats: { damage: '', armor: 0, speed: 0, critChance: 5, critDamage: 150 },
             value: 0, weight: 0, durability: 100, stackable: false, maxStack: 1,
             requirements: { level: 0, kraft: 0, geschick: 0, class: [] },
@@ -774,6 +825,38 @@ const ItemCatalog = (() => {
 
         subEl.innerHTML = (SUB_TYPES[type] || []).map(s => `<option value="${s}">${s}</option>`).join('');
         slotEl.innerHTML = '<option value="">—</option>' + _getSlotsForType(type).map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    function _renderSizePreview(w, h) {
+        const cellPx = 14;
+        const gap = 1;
+        const totalW = w * (cellPx + gap) - gap;
+        const totalH = h * (cellPx + gap) - gap;
+        let cells = '';
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                cells += `<div style="position:absolute;left:${x*(cellPx+gap)}px;top:${y*(cellPx+gap)}px;width:${cellPx}px;height:${cellPx}px;background:rgba(212,168,68,0.15);border:1px solid rgba(212,168,68,0.3);border-radius:1px"></div>`;
+            }
+        }
+        return `<div style="position:relative;width:${totalW}px;height:${totalH}px">${cells}</div>`;
+    }
+
+    function _updateSizePreview() {
+        const w = parseInt(document.getElementById('ieditGridW')?.value) || 1;
+        const h = parseInt(document.getElementById('ieditGridH')?.value) || 1;
+        const el = document.getElementById('ieditSizePreview');
+        if (el) el.innerHTML = _renderSizePreview(w, h);
+    }
+
+    function _updateIconPreview() {
+        const url = document.getElementById('ieditIcon')?.value?.trim();
+        const el = document.getElementById('ieditIconPreview');
+        if (!el) return;
+        if (url) {
+            el.innerHTML = `<img src="${_esc(url)}" style="width:48px;height:48px;object-fit:contain;border-radius:4px;background:rgba(255,255,255,0.03)" onerror="this.style.display='none'">`;
+        } else {
+            el.innerHTML = '<span style="font-size:11px;color:var(--text-muted)">Kein Bild</span>';
+        }
     }
 
     function _slugify(str) {
@@ -819,6 +902,8 @@ const ItemCatalog = (() => {
         setFilter,
         _onTypeChange,
         _doRandomize,
+        _updateSizePreview,
+        _updateIconPreview,
 
         // Expose for other modules
         getItems: () => _items,
@@ -826,7 +911,8 @@ const ItemCatalog = (() => {
         getItem: (id) => _items.find(i => i.id === id),
         RARITIES,
         ITEM_TYPES,
-        SUB_TYPES
+        SUB_TYPES,
+        SIZE_PRESETS
     };
 
 })();

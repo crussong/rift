@@ -574,7 +574,7 @@
 .inv-btn:hover { border-color: var(--gold-dim); color: var(--gold); background: rgba(212,168,68,0.06); }
 .inv-btn svg { width: 12px; height: 12px; }
 
-/* Grid */
+/* Grid — Spatial (Diablo-style, items span multiple cells) */
 .inv-grid {
     display: grid;
     grid-template-columns: repeat(16, var(--cell-size));
@@ -591,39 +591,85 @@
     background: var(--bg-cell);
     border: 1px solid rgba(255,255,255,0.03);
     border-radius: 2px;
-    transition: background 0.15s;
+    transition: background 0.15s, border-color 0.15s;
     display: flex; align-items: center; justify-content: center;
-    position: relative; overflow: hidden;
+    position: relative;
 }
+.inv-cell.occupied { background: transparent; border-color: transparent; }
 .inv-cell.drag-over { background: rgba(212,168,68,0.1); border-color: var(--gold-dim); }
+.inv-cell.drag-valid { background: rgba(46,204,113,0.10); border-color: rgba(46,204,113,0.35); }
+.inv-cell.drag-invalid { background: rgba(192,57,43,0.12); border-color: rgba(192,57,43,0.3); }
 
 /* Empty slot placeholder icon */
 .empty-slot-icon { width: 16px; height: 16px; flex-shrink: 0; pointer-events: none; }
 .equip-slot .empty-slot-icon { width: 20px; height: 20px; }
-/* Hide X when slot has an item */
 .equipped-item ~ .empty-slot-icon,
 .equipped-item ~ .slot-label,
 .inv-cell:has(.item-icon) .empty-slot-icon,
 .inv-cell:has(.inv-item) .empty-slot-icon { display: none; }
 
+/* Item Overlay — spans grid cells via grid-column/grid-row */
 .inv-item {
-    width: 100%; height: 100%;
-    border-radius: 2px;
+    border-radius: 3px;
     cursor: grab;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    border: 1px solid;
-    transition: transform 0.1s, box-shadow 0.2s;
+    border: 1px solid var(--rb, rgba(154,154,170,0.22));
+    background: var(--rbg, rgba(154,154,170,0.06));
+    color: var(--rc, #9a9aaa);
+    transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
     z-index: 2; position: relative;
+    overflow: hidden;
+    padding: 2px;
 }
-.inv-item:hover { z-index: 3; transform: scale(1.06); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.inv-item:hover {
+    z-index: 10;
+    transform: scale(1.03);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 12px color-mix(in srgb, var(--rc) 30%, transparent);
+    border-color: var(--rc, #9a9aaa);
+}
 .inv-item:active { cursor: grabbing; }
-.inv-item svg { width: 55%; height: 55%; opacity: 0.8; }
-.inv-item .item-qty {
-    position: absolute; bottom: 1px; right: 2px;
-    font-family: var(--font-mono); font-size: 8px; font-weight: 700;
-    color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+
+/* Item image — fills entire cell area */
+.inv-item__img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    position: absolute; inset: 0;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
 }
+/* Fallback SVG icon */
+.inv-item__svg {
+    width: 45%; height: 45%;
+    opacity: 0.7;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+/* Item name (shown on larger items) */
+.inv-item__name {
+    position: absolute;
+    bottom: 2px; left: 2px; right: 2px;
+    font-size: 9px; font-weight: 700;
+    color: var(--rc, #9a9aaa);
+    text-align: center;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.1;
+    pointer-events: none;
+    z-index: 1;
+}
+/* Quantity badge */
+.inv-item__qty {
+    position: absolute; top: 2px; right: 3px;
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+    color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    pointer-events: none; z-index: 1;
+    background: rgba(0,0,0,0.5);
+    padding: 0 3px; border-radius: 3px;
+    line-height: 1.3;
+}
+
+/* Equip slot valid drop target */
+.equip-slot.valid-target { border-color: var(--gold) !important; box-shadow: 0 0 8px rgba(212,168,68,0.3); }
 
 /* Quickbar / Potion Slots */
 .quickbar-row { display: flex; gap: 6px; margin-top: 8px; }
@@ -950,15 +996,6 @@
 
 /* ── Skill Lock label ── */
 .skill-slot .skill-lock{font-size:9px;color:var(--text-dim);font-family:'Fira Code',monospace}
-
-/* ── Inventory Grid ── */
-.inventory-grid{display:grid;gap:var(--cell-gap);background:var(--bg-dark);border:1px solid var(--border);border-radius:4px;padding:var(--cell-gap);position:relative}
-.inv-cell.drag-invalid{background:rgba(192,57,43,0.12);border-color:rgba(192,57,43,0.3)}
-
-/* ── Item display ── */
-.item-icon{display:flex;align-items:center;justify-content:center;flex-direction:column}
-.item-icon-svg{width:20px;height:20px;opacity:0.6}
-.item-name{font-size:9px;color:var(--text-dim);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 2px}
 
 /* ── Tooltips ── */
 .tooltip{display:none;position:fixed;z-index:1000;background:#0d0d14;border:1px solid var(--border-light);border-radius:4px;padding:10px 12px;max-width:280px;min-width:190px;pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,0.7)}

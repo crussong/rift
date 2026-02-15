@@ -1,78 +1,62 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- *  RIFT Inventory System — Worlds Apart Character Sheet
+ *  RIFT Inventory — Diablo-Style Spatial Grid
  *
- *  Handles: Inventory grid rendering, equipment slots, quickbar,
- *           drag & drop, tooltips, sort/filter, context menus.
+ *  Items occupy gridW × gridH cells. Each item stores placement
+ *  {col, row}. A 2D occupancy map tracks collisions.
+ *  Items render as absolutely-positioned overlays via CSS grid.
  *
  *  Data model:
- *    charData.inventory.items[]      — Item instances in bag
- *    charData.equipment              — { slotName: itemInstance }
- *    charData.quickbar               — [ itemInstance | null ] x8
- *    charData.currency               — { gold, silver, copper }
+ *    item.gridW, item.gridH  — size in cells
+ *    item.col, item.row      — top-left placement (null = unplaced)
+ *    item.icon                — Cloudinary URL for item image
  *
- *  Init:  RiftInventory.init(getCharData, setCharData)
- *  API:   RiftInventory.render()
- *         RiftInventory.addItem(itemInstance)
- *         RiftInventory.removeItem(instanceId)
- *         RiftInventory.equipItem(instanceId)
- *         RiftInventory.unequipSlot(slotName)
+ *  Init:  RiftInventory.init(getCharFn, saveCharFn, charId)
+ *  API:   .render(), .addItem(), .removeItem(), .loadStarterKit()
  * ═══════════════════════════════════════════════════════════════
  */
 
 const RiftInventory = (() => {
     'use strict';
 
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
     //  CONSTANTS
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
-    const RARITY_COLORS = {
-        common:    { color: '#9a9aaa', bg: 'rgba(154,154,170,0.08)', border: 'rgba(154,154,170,0.25)', label: 'Gewöhnlich' },
-        uncommon:  { color: '#2ecc71', bg: 'rgba(46,204,113,0.08)',  border: 'rgba(46,204,113,0.30)',  label: 'Ungewöhnlich' },
-        rare:      { color: '#3498db', bg: 'rgba(52,152,219,0.08)',  border: 'rgba(52,152,219,0.35)',  label: 'Selten' },
-        epic:      { color: '#9b59b6', bg: 'rgba(155,89,182,0.08)',  border: 'rgba(155,89,182,0.40)',  label: 'Episch' },
-        legendary: { color: '#e67e22', bg: 'rgba(230,126,34,0.10)',  border: 'rgba(230,126,34,0.45)',  label: 'Legendär' },
-        unique:    { color: '#e74c3c', bg: 'rgba(231,76,60,0.10)',   border: 'rgba(231,76,60,0.45)',   label: 'Einzigartig' }
+    const GRID_COLS = 16;
+    const GRID_ROWS = 11;
+
+    const RARITY = {
+        common:    { color: '#9a9aaa', bg: 'rgba(154,154,170,0.06)', border: 'rgba(154,154,170,0.22)', label: 'Gewöhnlich' },
+        uncommon:  { color: '#2ecc71', bg: 'rgba(46,204,113,0.06)',  border: 'rgba(46,204,113,0.28)',  label: 'Ungewöhnlich' },
+        rare:      { color: '#3498db', bg: 'rgba(52,152,219,0.07)',  border: 'rgba(52,152,219,0.32)',  label: 'Selten' },
+        epic:      { color: '#9b59b6', bg: 'rgba(155,89,182,0.07)',  border: 'rgba(155,89,182,0.35)',  label: 'Episch' },
+        legendary: { color: '#e67e22', bg: 'rgba(230,126,34,0.08)',  border: 'rgba(230,126,34,0.40)',  label: 'Legendär' },
+        unique:    { color: '#e74c3c', bg: 'rgba(231,76,60,0.08)',   border: 'rgba(231,76,60,0.40)',   label: 'Einzigartig' }
     };
 
-    // Icon SVG paths by item type (simple silhouettes)
-    const TYPE_ICONS = {
+    const FALLBACK_ICONS = {
         weapon:     'M14.5 2.5L6 11l2.5 2.5L3 19l5.5-5.5L11 16l8.5-8.5z',
         sword:      'M14.5 2.5L6 11l2.5 2.5L3 19l5.5-5.5L11 16l8.5-8.5z',
-        greatsword: 'M14.5 2.5L6 11l2.5 2.5L3 19l5.5-5.5L11 16l8.5-8.5z',
-        axe:        'M10 2v6H6l4 4 4-4h-4V2h-0zM6 14l-4 8h20l-4-8H6z',
-        mace:       'M12 2v8M8 10h8M9 4h6v6H9zM10 18l2-8 2 8H10z',
-        bow:        'M4 4c4 4 4 12 0 16M8 4l8 8-8 8M20 12H8',
-        crossbow:   'M4 4c4 4 4 12 0 16M8 4l8 8-8 8M20 12H8',
-        staff:      'M12 2v18M8 2h8M10 20h4',
-        dagger:     'M12 2l-3 9 3 3 3-3-3-9zM10 18l2-4 2 4H10z',
-        spear:      'M12 2l-3 6h6l-3-6zM11 8h2v14h-2z',
-        wand:       'M6 2l2 6 8 8 2 6-6-2-8-8L6 2z',
-        hammer:     'M8 2h8v6H8V2zM11 8h2v12h-2z',
+        axe:        'M14 4l-5 5 2.5 2.5 5-5M6 12l-3 7 7-3 8.5-8.5L16 5z',
         armor:      'M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5z',
         armorPiece: 'M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5z',
-        helmet:     'M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8H4zM6 12v4h12v-4',
-        shield:     'M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5z',
-        boots:      'M6 8v8c0 2 1 4 3 4h6c2 0 3-2 3-4V8H6z',
-        gloves:     'M6 4v12c0 2 2 4 4 4h4c2 0 4-2 4-4V4H6z',
         potion:     'M9 3h6v2l-2 4v8a2 2 0 01-2 2 2 2 0 01-2-2V9L7 5V3h2z',
-        health:     'M9 3h6v2l-2 4v8a2 2 0 01-2 2 2 2 0 01-2-2V9L7 5V3h2z',
         quest:      'M12 2l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z',
         gem:        'M12 2L2 12l10 10 10-10L12 2z',
-        diamond:    'M12 2L2 12l10 10 10-10L12 2z',
-        ruby:       'M12 2L2 12l10 10 10-10L12 2z',
-        misc:       'M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z',
-        food:       'M18 8h-1V3c0-.55-.45-1-1-1h-4c-.55 0-1 .45-1 1v5H8c-1.1 0-2 .9-2 2v10h16V10c0-1.1-.9-2-2-2z',
-        book:       'M4 19.5A2.5 2.5 0 016.5 17H20V2H6.5A2.5 2.5 0 014 4.5v15z',
-        scroll:     'M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zM7 7h10M7 12h10M7 17h4',
-        key:        'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
-        ring:       'M12 8a4 4 0 100 8 4 4 0 000-8zM12 2a10 10 0 100 20 10 10 0 000-20z',
-        material:   'M12 2l-5.5 9h11L12 2zM17.5 11H6.5L2 20h20l-4.5-9z',
-        default:    'M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z'
+        misc:       'M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z',
+        helmet:     'M12 2C8 2 4 5 4 9v3h2v6h12v-6h2V9c0-4-4-7-8-7z',
+        shield:     'M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5z',
+        ring:       'M12 4a8 8 0 100 16 8 8 0 000-16zm0 3a5 5 0 110 10 5 5 0 010-10z',
+        boots:      'M4 17h16v3H4zM6 10h4v7H6zM14 10h4v7h-4z',
+        gloves:     'M7 2v8l-2 4v6h4v-4l2-2 2 2v4h4v-6l-2-4V2z',
+        belt:       'M2 10h20v4H2z',
+        amulet:     'M12 2a4 4 0 00-4 4c0 3 4 6 4 6s4-3 4-6a4 4 0 00-4-4z',
+        dagger:     'M14.5 3L9 10l2 2L5 18l6-6 2 2z',
+        bow:        'M4 20C4 8 12 4 20 4M4 20l3-3M20 4l-3 3',
+        staff:      'M12 2v18M8 4h8M10 20h4',
     };
 
-    // Slot → allowed item types/subTypes mapping
     const SLOT_ACCEPTS = {
         head:      { types: ['armorPiece'], subTypes: ['helmet'] },
         shoulders: { types: ['armorPiece'], subTypes: ['shoulders'] },
@@ -81,1082 +65,873 @@ const RiftInventory = (() => {
         belt:      { types: ['armorPiece'], subTypes: ['belt'] },
         legs:      { types: ['armorPiece'], subTypes: ['legs'] },
         boots:     { types: ['armorPiece'], subTypes: ['boots'] },
-        cape:      { types: ['armorPiece'], subTypes: ['cape','back'] },
+        cape:      { types: ['armorPiece'], subTypes: ['cape', 'back'] },
         mainhand:  { types: ['weapon'] },
-        offhand:   { types: ['weapon','armorPiece'], subTypes: ['shield','dagger','wand'] },
-        ring1:     { types: ['armorPiece','misc'], subTypes: ['ring'] },
-        ring2:     { types: ['armorPiece','misc'], subTypes: ['ring'] },
-        amulet:    { types: ['armorPiece','misc'], subTypes: ['amulet','necklace'] },
-        talisman:  { types: ['armorPiece','misc'], subTypes: ['talisman'] },
-        ammo:      { types: ['misc'], subTypes: ['ammo','ammunition','arrow','bolt'] }
+        offhand:   { types: ['weapon', 'armorPiece'], subTypes: ['shield', 'dagger', 'wand'] },
+        ring1:     { types: ['armorPiece', 'misc'], subTypes: ['ring'] },
+        ring2:     { types: ['armorPiece', 'misc'], subTypes: ['ring'] },
+        amulet:    { types: ['armorPiece', 'misc'], subTypes: ['amulet', 'necklace'] },
+        talisman:  { types: ['armorPiece', 'misc'], subTypes: ['talisman'] },
+        ammo:      { types: ['misc'], subTypes: ['ammo', 'arrow', 'bolt'] }
     };
 
-    // German type labels
     const TYPE_LABELS = {
         weapon: 'Waffe', armor: 'Rüstung', armorPiece: 'Rüstungsteil',
-        potion: 'Trank', quest: 'Quest-Item', gem: 'Edelstein', misc: 'Sonstiges',
+        potion: 'Trank', quest: 'Quest', gem: 'Edelstein', misc: 'Sonstiges',
         sword: 'Schwert', greatsword: 'Großschwert', axe: 'Axt', mace: 'Keule',
-        bow: 'Bogen', crossbow: 'Armbrust', staff: 'Stab', dagger: 'Dolch',
-        spear: 'Speer', wand: 'Zauberstab', hammer: 'Hammer', flail: 'Flegel',
-        plate: 'Platte', leather: 'Leder', cloth: 'Stoff', chain: 'Kette',
-        helmet: 'Helm', gloves: 'Handschuhe', boots: 'Stiefel', shoulders: 'Schulterstücke',
-        shield: 'Schild', belt: 'Gürtel', health: 'Heiltrank', resource: 'Ressourcentrank',
-        buff: 'Stärkungstrank', resist: 'Widerstandstrank', key: 'Schlüssel',
-        letter: 'Brief', artifact: 'Artefakt', fragment: 'Fragment',
-        diamond: 'Diamant', ruby: 'Rubin', emerald: 'Smaragd', sapphire: 'Saphir',
-        material: 'Material', junk: 'Schrott', food: 'Nahrung', tool: 'Werkzeug',
-        book: 'Buch', scroll: 'Schriftrolle', trophy: 'Trophäe'
+        bow: 'Bogen', staff: 'Stab', dagger: 'Dolch', spear: 'Speer',
+        shield: 'Schild', helmet: 'Helm', gloves: 'Handschuhe', boots: 'Stiefel',
+        belt: 'Gürtel', health: 'Heiltrank', resource: 'Ressourcentrank',
+        key: 'Schlüssel', ring: 'Ring', amulet: 'Amulett'
     };
 
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
     //  STATE
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
-    let _getChar = null;   // () => charData
-    let _saveChar = null;  // (charData) => void (calls _stateSet)
+    let _getChar = null;
+    let _saveChar = null;
     let _charId = null;
     let _filter = { rarity: 'all', type: 'all' };
-    let _dragItem = null;
-    let _dragSource = null; // { area: 'inventory'|'equipment'|'quickbar', index/slot }
     let _tooltipEl = null;
     let _ctxEl = null;
+    let _dragItem = null;
+    let _dragSource = null;
 
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
     //  INIT
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
     function init(getCharFn, saveCharFn, currentCharId) {
         _getChar = getCharFn;
         _saveChar = saveCharFn;
         _charId = currentCharId;
-
         _ensureTooltip();
         _ensureContextMenu();
-        _bindEventDelegation();
+        _bindEvents();
         _bindFilterUI();
         _bindSortButton();
-        _bindDragDrop();
-
         render();
-        console.log('[Inventory] Initialized');
+        console.log('[Inventory] Spatial grid init — ' + GRID_COLS + 'x' + GRID_ROWS);
     }
 
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
+    //  OCCUPANCY MAP
+    // ═══════════════════════════════════════
+
+    function _buildOccMap(items, excludeId) {
+        const map = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+        for (const it of items) {
+            if (it.instanceId === excludeId) continue;
+            if (it.col == null || it.row == null) continue;
+            const w = it.gridW || 1, h = it.gridH || 1;
+            for (let r = it.row; r < it.row + h && r < GRID_ROWS; r++)
+                for (let c = it.col; c < it.col + w && c < GRID_COLS; c++)
+                    map[r][c] = it.instanceId;
+        }
+        return map;
+    }
+
+    function _canPlace(map, col, row, w, h) {
+        if (col < 0 || row < 0 || col + w > GRID_COLS || row + h > GRID_ROWS) return false;
+        for (let r = row; r < row + h; r++)
+            for (let c = col; c < col + w; c++)
+                if (map[r][c]) return false;
+        return true;
+    }
+
+    function _findFreeSpot(map, w, h) {
+        for (let r = 0; r <= GRID_ROWS - h; r++)
+            for (let c = 0; c <= GRID_COLS - w; c++)
+                if (_canPlace(map, c, r, w, h)) return { col: c, row: r };
+        return null;
+    }
+
+    // ═══════════════════════════════════════
     //  RENDER — Main
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
     function render() {
-        const char = _getChar();
-        if (!char) return;
-
-        renderInventoryGrid(char);
-        renderEquipment(char);
-        renderQuickbar(char);
-        renderWeight(char);
+        const ch = _getChar();
+        if (!ch) return;
+        _renderGrid(ch);
+        _renderEquipment(ch);
+        _renderQuickbar(ch);
+        _renderWeight(ch);
     }
 
-    // ════════════════════════════════════════
-    //  RENDER — Inventory Grid
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
+    //  RENDER — Spatial Grid
+    // ═══════════════════════════════════════
 
-    function renderInventoryGrid(char) {
+    function _renderGrid(ch) {
         const grid = document.getElementById('inventoryGrid');
         if (!grid) return;
 
-        const items = char.inventory?.items || [];
+        const items = ch.inventory?.items || [];
+        _ensurePlacements(ch);
 
-        // Clear existing item overlays (keep cells)
+        // Remove old overlays
         grid.querySelectorAll('.inv-item').forEach(el => el.remove());
-
-        // Clear cell occupied markers
+        // Reset cell states
         grid.querySelectorAll('.inv-cell').forEach(c => {
-            c.classList.remove('occupied', 'filtered-out');
-            c.dataset.instanceId = '';
+            c.classList.remove('occupied', 'drag-valid', 'drag-invalid');
         });
 
-        // Apply filter
-        const filtered = items.filter(item => _passesFilter(item));
-        const hiddenIds = new Set(items.filter(item => !_passesFilter(item)).map(i => i.instanceId));
+        // Mark occupied
+        const map = _buildOccMap(items);
+        for (let r = 0; r < GRID_ROWS; r++)
+            for (let c = 0; c < GRID_COLS; c++)
+                if (map[r][c]) {
+                    const cell = grid.querySelector(`.inv-cell[data-row="${r}"][data-col="${c}"]`);
+                    if (cell) cell.classList.add('occupied');
+                }
 
-        // Place items in cells (simple: 1 item per cell, left-to-right top-to-bottom)
-        const cols = char.inventory?.cols || 16;
-        const cells = grid.querySelectorAll('.inv-cell');
-
-        filtered.forEach((item, idx) => {
-            if (idx >= cells.length) return;
-
-            const cell = cells[idx];
-            cell.classList.add('occupied');
-            cell.dataset.instanceId = item.instanceId;
-
-            const rarity = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
-            const iconPath = _getIconPath(item);
+        // Render filtered items as overlays
+        for (const item of items) {
+            if (item.col == null || item.row == null) continue;
+            if (!_passesFilter(item)) continue;
+            const w = item.gridW || 1, h = item.gridH || 1;
+            const rar = RARITY[item.rarity] || RARITY.common;
 
             const el = document.createElement('div');
             el.className = 'inv-item';
-            el.draggable = true;
             el.dataset.instanceId = item.instanceId;
             el.dataset.area = 'inventory';
-            el.style.background = rarity.bg;
-            el.style.borderColor = rarity.border;
-            el.style.color = rarity.color;
-            el.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="${iconPath}"/></svg>
-                ${item.quantity > 1 ? `<span class="item-qty">${item.quantity}</span>` : ''}
-            `;
+            el.draggable = true;
 
-            cell.appendChild(el);
-        });
+            // CSS grid placement
+            el.style.gridColumn = `${item.col + 1} / span ${w}`;
+            el.style.gridRow = `${item.row + 1} / span ${h}`;
+            el.style.setProperty('--rc', rar.color);
+            el.style.setProperty('--rb', rar.border);
+            el.style.setProperty('--rbg', rar.bg);
+
+            // Inner HTML
+            let inner = '';
+            if (item.icon) {
+                inner += `<img src="${_esc(item.icon)}" class="inv-item__img" draggable="false" alt="">`;
+            } else {
+                const d = FALLBACK_ICONS[item.subType] || FALLBACK_ICONS[item.type] || FALLBACK_ICONS.misc;
+                inner += `<svg viewBox="0 0 24 24" fill="currentColor" class="inv-item__svg"><path d="${d}"/></svg>`;
+            }
+            // Name — show if item is big enough
+            if (w >= 2 || h >= 3) {
+                inner += `<span class="inv-item__name">${_esc(item.displayName || item.name)}</span>`;
+            }
+            // Quantity badge
+            if (item.quantity > 1) {
+                inner += `<span class="inv-item__qty">${item.quantity}</span>`;
+            }
+
+            el.innerHTML = inner;
+            grid.appendChild(el);
+        }
     }
 
-    // ════════════════════════════════════════
-    //  RENDER — Equipment Slots
-    // ════════════════════════════════════════
+    function _ensurePlacements(ch) {
+        const items = ch.inventory?.items || [];
+        let dirty = false;
+        const placed = items.filter(i => i.col != null && i.row != null);
+        const map = _buildOccMap(placed);
 
-    function renderEquipment(char) {
-        const equipment = char.equipment || {};
+        for (const item of items) {
+            if (item.col != null && item.row != null) continue;
+            const w = item.gridW || 1, h = item.gridH || 1;
+            const spot = _findFreeSpot(map, w, h);
+            if (spot) {
+                item.col = spot.col;
+                item.row = spot.row;
+                for (let r = spot.row; r < spot.row + h; r++)
+                    for (let c = spot.col; c < spot.col + w; c++)
+                        map[r][c] = item.instanceId;
+                dirty = true;
+            }
+        }
+        if (dirty) _saveChar(ch);
+    }
 
+    // ═══════════════════════════════════════
+    //  RENDER — Equipment / Quickbar / Weight
+    // ═══════════════════════════════════════
+
+    function _renderEquipment(ch) {
+        const eq = ch.equipment || {};
         document.querySelectorAll('.equip-slot').forEach(slot => {
-            const slotName = slot.dataset.slot;
-            const item = equipment[slotName];
-
-            // Remove old item rendering
+            const sn = slot.dataset.slot;
+            const item = eq[sn];
             const old = slot.querySelector('.equipped-item');
             if (old) old.remove();
-
-            // Restore label and X-icon visibility
-            const label = slot.querySelector('.slot-label');
-            const xIcon = slot.querySelector('.empty-slot-icon');
-            if (label) label.style.display = item ? 'none' : '';
-            if (xIcon) xIcon.style.display = item ? 'none' : '';
-
+            const lab = slot.querySelector('.slot-label');
+            const xic = slot.querySelector('.empty-slot-icon');
+            if (lab) lab.style.display = item ? 'none' : '';
+            if (xic) xic.style.display = item ? 'none' : '';
             if (!item) return;
 
-            const rarity = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
-            const iconPath = _getIconPath(item);
-
+            const r = RARITY[item.rarity] || RARITY.common;
             const el = document.createElement('div');
             el.className = 'equipped-item';
             el.draggable = true;
             el.dataset.instanceId = item.instanceId;
             el.dataset.area = 'equipment';
-            el.dataset.slot = slotName;
-            el.style.cssText = `background:${rarity.bg};color:${rarity.color};border:1px solid ${rarity.border};border-radius:3px;`;
+            el.dataset.slot = sn;
+            el.style.cssText = `background:${r.bg};color:${r.color};border:1px solid ${r.border};border-radius:3px;`;
 
-            el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:50%;height:50%;opacity:0.8"><path d="${iconPath}"/></svg>`;
-
+            if (item.icon) {
+                el.innerHTML = `<img src="${_esc(item.icon)}" style="width:90%;height:90%;object-fit:contain" draggable="false">`;
+            } else {
+                const d = FALLBACK_ICONS[item.subType] || FALLBACK_ICONS[item.type] || FALLBACK_ICONS.misc;
+                el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:50%;height:50%;opacity:0.8"><path d="${d}"/></svg>`;
+            }
             slot.appendChild(el);
         });
     }
 
-    // ════════════════════════════════════════
-    //  RENDER — Quickbar
-    // ════════════════════════════════════════
-
-    function renderQuickbar(char) {
-        const quickbar = char.quickbar || [];
-
+    function _renderQuickbar(ch) {
+        const qb = ch.quickbar || [];
         document.querySelectorAll('.potion-slot').forEach((slot, idx) => {
-            const item = quickbar[idx];
-
-            // Remove old
             const old = slot.querySelector('.potion-item');
             if (old) old.remove();
-
+            const item = qb[idx];
             if (!item) return;
 
-            const rarity = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
-            const iconPath = _getIconPath(item);
-
+            const r = RARITY[item.rarity] || RARITY.common;
             const el = document.createElement('div');
             el.className = 'potion-item';
             el.draggable = true;
             el.dataset.instanceId = item.instanceId;
             el.dataset.area = 'quickbar';
             el.dataset.qbIndex = idx;
-            el.style.cssText = `
-                position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-                background:${rarity.bg};color:${rarity.color};border-radius:3px;z-index:1;cursor:grab;
-            `;
-            el.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="currentColor" style="width:50%;height:50%;opacity:0.8"><path d="${iconPath}"/></svg>
-                ${item.quantity > 1 ? `<span class="item-qty">${item.quantity}</span>` : ''}
-            `;
-
+            el.style.cssText = `position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:${r.bg};color:${r.color};border-radius:3px;z-index:1;cursor:grab;`;
+            if (item.icon) {
+                el.innerHTML = `<img src="${_esc(item.icon)}" style="width:80%;height:80%;object-fit:contain" draggable="false">`;
+            } else {
+                const d = FALLBACK_ICONS[item.subType] || FALLBACK_ICONS[item.type] || FALLBACK_ICONS.misc;
+                el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:50%;height:50%;opacity:0.8"><path d="${d}"/></svg>`;
+            }
+            if (item.quantity > 1) el.innerHTML += `<span class="inv-item__qty">${item.quantity}</span>`;
             slot.appendChild(el);
         });
     }
 
-    // ════════════════════════════════════════
-    //  RENDER — Weight
-    // ════════════════════════════════════════
-
-    function renderWeight(char) {
+    function _renderWeight(ch) {
         const el = document.getElementById('inv-weight');
         if (!el) return;
-
-        const items = char.inventory?.items || [];
-        const equipment = char.equipment || {};
-
-        let total = 0;
-        items.forEach(i => total += (i.weight || 0) * (i.quantity || 1));
-        Object.values(equipment).forEach(i => { if (i) total += (i.weight || 0); });
-
-        el.textContent = total.toFixed(1);
+        let t = 0;
+        (ch.inventory?.items || []).forEach(i => t += (i.weight || 0) * (i.quantity || 1));
+        Object.values(ch.equipment || {}).forEach(i => { if (i) t += (i.weight || 0); });
+        el.textContent = t.toFixed(1);
     }
 
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
     //  TOOLTIP
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
     function _ensureTooltip() {
-        if (document.getElementById('riftTooltip')) {
-            _tooltipEl = document.getElementById('riftTooltip');
-            return;
-        }
+        if (document.getElementById('riftTooltip')) { _tooltipEl = document.getElementById('riftTooltip'); return; }
         _tooltipEl = document.createElement('div');
         _tooltipEl.id = 'riftTooltip';
         _tooltipEl.className = 'tooltip';
         document.body.appendChild(_tooltipEl);
     }
 
-    function showTooltip(item, x, y) {
+    function _showTooltip(item, x, y) {
         if (!_tooltipEl || !item) return;
+        const r = RARITY[item.rarity] || RARITY.common;
+        const tl = TYPE_LABELS[item.subType] || TYPE_LABELS[item.type] || item.type || '';
+        const s = item.finalStats || item.stats || {};
 
-        const r = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
-        const typeLabel = TYPE_LABELS[item.subType] || TYPE_LABELS[item.type] || item.type || '';
-        const stats = item.finalStats || item.stats || {};
-
-        let statsHtml = '';
-        if (stats.damage) statsHtml += `<div class="tt-stat"><span class="label">Schaden:</span> ${stats.damage}</div>`;
-        if (stats.armor)  statsHtml += `<div class="tt-stat"><span class="label">Rüstung:</span> ${stats.armor}</div>`;
-        if (stats.speed)  statsHtml += `<div class="tt-stat"><span class="label">Tempo:</span> ${stats.speed}s</div>`;
-        if (stats.critChance && stats.critChance !== 5) statsHtml += `<div class="tt-stat"><span class="label">Krit:</span> ${stats.critChance}%</div>`;
-        if (stats.critDamage && stats.critDamage !== 150) statsHtml += `<div class="tt-stat"><span class="label">Krit-DMG:</span> ${stats.critDamage}%</div>`;
-
-        // Stat bonuses from affixes
-        for (const [key, val] of Object.entries(stats)) {
-            if (['damage','armor','speed','critChance','critDamage'].includes(key)) continue;
-            if (val) statsHtml += `<div class="tt-stat" style="color:${r.color}"><span class="label">${key}:</span> +${val}</div>`;
+        let sh = '';
+        if (s.damage) sh += `<div class="tt-stat"><span class="label">Schaden:</span> ${s.damage}</div>`;
+        if (s.armor)  sh += `<div class="tt-stat"><span class="label">Rüstung:</span> ${s.armor}</div>`;
+        if (s.speed)  sh += `<div class="tt-stat"><span class="label">Tempo:</span> ${s.speed}s</div>`;
+        if (s.critChance && s.critChance !== 5) sh += `<div class="tt-stat"><span class="label">Krit:</span> ${s.critChance}%</div>`;
+        if (s.critDamage && s.critDamage !== 150) sh += `<div class="tt-stat"><span class="label">Krit-DMG:</span> ${s.critDamage}%</div>`;
+        for (const [k, v] of Object.entries(s)) {
+            if (['damage','armor','speed','critChance','critDamage','heal','restore'].includes(k)) continue;
+            if (v) sh += `<div class="tt-stat" style="color:${r.color}"><span class="label">${k}:</span> +${v}</div>`;
         }
 
-        const affixHtml = (item.affixes || []).length
-            ? `<div class="tt-affixes">${item.affixes.map(a => `<div class="tt-affix">${a}</div>`).join('')}</div><div class="tt-divider"></div>`
-            : '';
+        const rq = [];
+        if (item.requirements?.level) rq.push('Lvl ' + item.requirements.level);
+        if (item.requirements?.kraft) rq.push('Kraft ' + item.requirements.kraft);
+        if (item.requirements?.geschick) rq.push('Geschick ' + item.requirements.geschick);
 
-        const reqHtml = _renderRequirements(item);
-        const flagsHtml = _renderFlags(item);
+        const fl = [];
+        if (item.flags?.questItem) fl.push('<span style="color:#e67e22">Quest</span>');
+        if (item.flags?.soulbound) fl.push('<span style="color:#e74c3c">Seelengebunden</span>');
+        if (item.flags?.unique) fl.push('<span style="color:#e74c3c">Einzigartig</span>');
 
         _tooltipEl.innerHTML = `
-            <div class="tt-name" style="color:${r.color}">${_esc(item.displayName || item.name || 'Unbekannt')}</div>
-            <div class="tt-type">${_esc(typeLabel)} ${item.slot ? '&middot; ' + _esc(item.slot) : ''}</div>
+            <div class="tt-name" style="color:${r.color}">${_esc(item.displayName || item.name)}</div>
+            <div class="tt-type">${_esc(tl)}${item.slot ? ' \u00B7 ' + _esc(item.slot) : ''}</div>
+            <div class="tt-rarity" style="color:${r.color}">${r.label}</div>
+            ${sh ? '<div class="tt-divider"></div><div class="tt-stats">' + sh + '</div>' : ''}
+            ${rq.length ? '<div class="tt-divider"></div><div style="font-size:10px;color:#999">Ben\u00F6tigt: ' + rq.join(' \u00B7 ') + '</div>' : ''}
+            ${fl.length ? '<div style="font-size:10px;margin-top:4px">' + fl.join(' \u00B7 ') + '</div>' : ''}
+            ${item.description ? '<div class="tt-divider"></div><div class="tt-desc">' + _esc(item.description) + '</div>' : ''}
+            ${item.flavorText ? '<div class="tt-flavor">\u201E' + _esc(item.flavorText) + '\u201C</div>' : ''}
             <div class="tt-divider"></div>
-            ${statsHtml ? `<div class="tt-stats">${statsHtml}</div><div class="tt-divider"></div>` : ''}
-            ${affixHtml}
-            ${reqHtml}
-            ${flagsHtml}
-            ${item.description ? `<div class="tt-flavor" style="font-style:normal;color:var(--text-mid)">${_esc(item.description)}</div>` : ''}
-            ${item.flavorText ? `<div class="tt-flavor">"${_esc(item.flavorText)}"</div>` : ''}
             <div class="tt-footer">
                 <span class="tt-value">${item.finalValue ?? item.value ?? 0} Gold</span>
                 <span>${item.weight ?? 0} kg</span>
-                ${item.durability ? `<span>${item.durability.current ?? item.durability}/${item.durability.max ?? item.durability}</span>` : ''}
-            </div>
-        `;
-
+                <span style="opacity:0.5">${item.gridW || 1}\u00D7${item.gridH || 1}</span>
+            </div>`;
         _tooltipEl.classList.add('visible');
-        _positionTooltip(x, y);
-    }
 
-    function _renderRequirements(item) {
-        const req = item.requirements;
-        if (!req) return '';
-        const parts = [];
-        if (req.level) parts.push(`Lvl ${req.level}`);
-        if (req.kraft) parts.push(`Kraft ${req.kraft}`);
-        if (req.geschick) parts.push(`Geschick ${req.geschick}`);
-        if (req.class?.length) parts.push(req.class.join(', '));
-        if (!parts.length) return '';
-        return `<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">Benötigt: ${parts.join(' &middot; ')}</div>`;
-    }
-
-    function _renderFlags(item) {
-        const flags = item.flags;
-        if (!flags) return '';
-        const parts = [];
-        if (flags.questItem) parts.push('<span style="color:var(--rarity-legendary)">Quest-Item</span>');
-        if (flags.soulbound) parts.push('<span style="color:#e74c3c">Seelengebunden</span>');
-        if (flags.unique) parts.push('<span style="color:#e74c3c">Einzigartig</span>');
-        if (flags.consumable) parts.push('<span style="color:var(--rarity-uncommon)">Verbrauchbar</span>');
-        if (!parts.length) return '';
-        return `<div style="font-size:10px;margin-bottom:4px">${parts.join(' &middot; ')}</div>`;
-    }
-
-    function hideTooltip() {
-        if (_tooltipEl) _tooltipEl.classList.remove('visible');
-    }
-
-    function _positionTooltip(x, y) {
-        const tt = _tooltipEl;
         const pad = 12;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-
-        tt.style.left = '0';
-        tt.style.top = '0';
-        const rect = tt.getBoundingClientRect();
-
-        let left = x + pad;
-        let top = y + pad;
-        if (left + rect.width > vw - pad) left = x - rect.width - pad;
-        if (top + rect.height > vh - pad) top = y - rect.height - pad;
-        if (left < pad) left = pad;
-        if (top < pad) top = pad;
-
-        tt.style.left = left + 'px';
-        tt.style.top = top + 'px';
+        requestAnimationFrame(() => {
+            const rc = _tooltipEl.getBoundingClientRect();
+            let l = x + pad, t = y + pad;
+            if (l + rc.width > window.innerWidth - pad) l = x - rc.width - pad;
+            if (t + rc.height > window.innerHeight - pad) t = y - rc.height - pad;
+            _tooltipEl.style.left = Math.max(pad, l) + 'px';
+            _tooltipEl.style.top = Math.max(pad, t) + 'px';
+        });
     }
 
-    // ════════════════════════════════════════
+    function _hideTooltip() { if (_tooltipEl) _tooltipEl.classList.remove('visible'); }
+
+    // ═══════════════════════════════════════
     //  CONTEXT MENU
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
     function _ensureContextMenu() {
-        if (document.getElementById('riftCtxMenu')) {
-            _ctxEl = document.getElementById('riftCtxMenu');
-            return;
-        }
+        if (document.getElementById('riftCtxMenu')) { _ctxEl = document.getElementById('riftCtxMenu'); return; }
         _ctxEl = document.createElement('div');
         _ctxEl.id = 'riftCtxMenu';
         _ctxEl.className = 'inv-ctx';
         _ctxEl.style.display = 'none';
         document.body.appendChild(_ctxEl);
-
-        document.addEventListener('click', () => _closeCtx());
-        document.addEventListener('contextmenu', (e) => {
-            if (!e.target.closest('.inv-item, .equipped-item, .potion-item')) _closeCtx();
-        });
+        document.addEventListener('click', () => { _ctxEl.style.display = 'none'; });
     }
 
-    function _showCtx(item, sourceArea, sourceKey, x, y) {
+    function _showCtx(item, area, key, x, y) {
         if (!_ctxEl || !item) return;
-        hideTooltip();
+        _hideTooltip();
+        const acts = [];
 
-        const actions = [];
-
-        if (sourceArea === 'inventory') {
-            // Can equip?
-            const slot = _findEquipSlot(item);
-            if (slot) actions.push({ label: 'Ausrüsten', icon: 'M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5z', action: () => equipItem(item.instanceId) });
-
-            // Can use (consumable)?
-            if (item.flags?.consumable) actions.push({ label: 'Benutzen', icon: 'M9 3h6v2l-2 4v8a2 2 0 01-2 2 2 2 0 01-2-2V9L7 5V3h2z', action: () => useItem(item.instanceId) });
-
-            // Quickbar
-            actions.push({ label: 'Schnellzugriff', icon: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', action: () => addToQuickbar(item.instanceId) });
-
-            // Split stack
-            if (item.quantity > 1) actions.push({ label: 'Teilen', icon: 'M16 3h5v5M4 20L21 3M21 16v5h-5M3 4l18 17', action: () => splitStack(item.instanceId) });
-
-            // Drop
-            if (!item.flags?.questItem) actions.push({ label: 'Ablegen', icon: 'M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2', action: () => dropItem(item.instanceId), danger: true });
-
-        } else if (sourceArea === 'equipment') {
-            actions.push({ label: 'Ablegen', icon: 'M3 6h18M8 6V4h8v2', action: () => unequipSlot(sourceKey) });
-
-        } else if (sourceArea === 'quickbar') {
-            actions.push({ label: 'Entfernen', icon: 'M18 6L6 18M6 6l12 12', action: () => removeFromQuickbar(parseInt(sourceKey)) });
-            if (item.flags?.consumable) actions.push({ label: 'Benutzen', icon: 'M9 3h6v2l-2 4v8a2 2 0 01-2 2 2 2 0 01-2-2V9L7 5V3h2z', action: () => useItem(item.instanceId) });
+        if (area === 'inventory') {
+            if (_findEquipSlot(item)) acts.push({ l: 'Ausrüsten', i: FALLBACK_ICONS.shield, fn: () => equipItem(item.instanceId) });
+            if (item.flags?.consumable) acts.push({ l: 'Benutzen', i: FALLBACK_ICONS.potion, fn: () => useItem(item.instanceId) });
+            acts.push({ l: 'Schnellzugriff', i: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', fn: () => addToQuickbar(item.instanceId) });
+            if (item.quantity > 1) acts.push({ l: 'Teilen', i: 'M16 3h5v5M4 20L21 3M21 16v5h-5M3 4l18 17', fn: () => splitStack(item.instanceId) });
+            if (!item.flags?.questItem) acts.push({ l: 'Ablegen', i: 'M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2', fn: () => dropItem(item.instanceId), d: true });
+        } else if (area === 'equipment') {
+            acts.push({ l: 'Ablegen', i: 'M3 6h18M8 6V4h8v2', fn: () => unequipSlot(key) });
+        } else if (area === 'quickbar') {
+            acts.push({ l: 'Entfernen', i: 'M18 6L6 18M6 6l12 12', fn: () => removeFromQuickbar(parseInt(key)) });
+            if (item.flags?.consumable) acts.push({ l: 'Benutzen', i: FALLBACK_ICONS.potion, fn: () => useItem(item.instanceId) });
         }
+        if (!acts.length) return;
 
-        if (!actions.length) return;
+        _ctxEl.innerHTML = acts.map((a, idx) => `
+            <div class="inv-ctx__item${a.d ? ' inv-ctx__item--danger' : ''}" data-i="${idx}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${a.i}"/></svg>
+                ${a.l}
+            </div>`).join('');
 
-        _ctxEl.innerHTML = actions.map(a => `
-            <div class="inv-ctx__item${a.danger ? ' inv-ctx__item--danger' : ''}" data-idx="${actions.indexOf(a)}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${a.icon}"/></svg>
-                ${a.label}
-            </div>
-        `).join('');
-
-        _ctxEl.querySelectorAll('.inv-ctx__item').forEach((el, i) => {
-            el.addEventListener('click', (e) => { e.stopPropagation(); actions[i].action(); _closeCtx(); });
+        _ctxEl.querySelectorAll('.inv-ctx__item').forEach((el, idx) => {
+            el.addEventListener('click', e => { e.stopPropagation(); acts[idx].fn(); _ctxEl.style.display = 'none'; });
         });
 
         _ctxEl.style.display = 'block';
-        const rect = _ctxEl.getBoundingClientRect();
-        let left = x, top = y;
-        if (left + rect.width > window.innerWidth - 8) left = x - rect.width;
-        if (top + rect.height > window.innerHeight - 8) top = y - rect.height;
-        _ctxEl.style.left = Math.max(8, left) + 'px';
-        _ctxEl.style.top = Math.max(8, top) + 'px';
-    }
-
-    function _closeCtx() {
-        if (_ctxEl) _ctxEl.style.display = 'none';
-    }
-
-    // ════════════════════════════════════════
-    //  EVENT DELEGATION
-    // ════════════════════════════════════════
-
-    function _bindEventDelegation() {
-        const container = document.getElementById('sec-inventar');
-        if (!container) return;
-
-        // Mouseover for tooltips
-        container.addEventListener('mousemove', (e) => {
-            const itemEl = e.target.closest('.inv-item, .equipped-item, .potion-item');
-            if (!itemEl) { hideTooltip(); return; }
-            const item = _findItemByInstanceId(itemEl.dataset.instanceId);
-            if (item) showTooltip(item, e.clientX, e.clientY);
+        requestAnimationFrame(() => {
+            const rc = _ctxEl.getBoundingClientRect();
+            _ctxEl.style.left = Math.min(x, window.innerWidth - rc.width - 8) + 'px';
+            _ctxEl.style.top = Math.min(y, window.innerHeight - rc.height - 8) + 'px';
         });
+    }
 
-        container.addEventListener('mouseleave', hideTooltip);
+    // ═══════════════════════════════════════
+    //  EVENTS
+    // ═══════════════════════════════════════
 
-        // Right-click for context menu
-        container.addEventListener('contextmenu', (e) => {
-            const itemEl = e.target.closest('.inv-item, .equipped-item, .potion-item');
-            if (!itemEl) return;
+    function _bindEvents() {
+        const root = document.getElementById('sec-inventar');
+        if (!root) return;
+
+        // Tooltip
+        root.addEventListener('mousemove', e => {
+            const el = e.target.closest('.inv-item, .equipped-item, .potion-item');
+            if (!el) { _hideTooltip(); return; }
+            const it = _findById(el.dataset.instanceId);
+            if (it) _showTooltip(it, e.clientX, e.clientY);
+        });
+        root.addEventListener('mouseleave', _hideTooltip);
+
+        // Context
+        root.addEventListener('contextmenu', e => {
+            const el = e.target.closest('.inv-item, .equipped-item, .potion-item');
+            if (!el) return;
             e.preventDefault();
-            const item = _findItemByInstanceId(itemEl.dataset.instanceId);
-            if (!item) return;
-
-            const area = itemEl.dataset.area || (itemEl.classList.contains('equipped-item') ? 'equipment' : 'inventory');
-            const key = itemEl.dataset.slot || itemEl.dataset.qbIndex || '';
-            _showCtx(item, area, key, e.clientX, e.clientY);
+            const it = _findById(el.dataset.instanceId);
+            if (!it) return;
+            const area = el.dataset.area || (el.classList.contains('equipped-item') ? 'equipment' : 'inventory');
+            _showCtx(it, area, el.dataset.slot || el.dataset.qbIndex || '', e.clientX, e.clientY);
         });
 
-        // Double-click to equip/use
-        container.addEventListener('dblclick', (e) => {
-            const itemEl = e.target.closest('.inv-item');
-            if (!itemEl) {
-                // Double-click equipped item → unequip
-                const eqEl = e.target.closest('.equipped-item');
-                if (eqEl) { unequipSlot(eqEl.dataset.slot); return; }
+        // Dblclick equip / unequip
+        root.addEventListener('dblclick', e => {
+            const inv = e.target.closest('.inv-item[data-area="inventory"]');
+            if (inv) {
+                const it = _findById(inv.dataset.instanceId);
+                if (!it) return;
+                if (it.flags?.consumable) { useItem(it.instanceId); return; }
+                if (_findEquipSlot(it)) equipItem(it.instanceId);
                 return;
             }
-            const item = _findItemByInstanceId(itemEl.dataset.instanceId);
-            if (!item) return;
-
-            if (item.flags?.consumable) { useItem(item.instanceId); return; }
-            const slot = _findEquipSlot(item);
-            if (slot) equipItem(item.instanceId);
+            const eq = e.target.closest('.equipped-item');
+            if (eq) unequipSlot(eq.dataset.slot);
         });
-    }
 
-    // ════════════════════════════════════════
-    //  DRAG & DROP
-    // ════════════════════════════════════════
-
-    function _bindDragDrop() {
-        const container = document.getElementById('sec-inventar');
-        if (!container) return;
-
-        container.addEventListener('dragstart', (e) => {
-            const itemEl = e.target.closest('.inv-item, .equipped-item, .potion-item');
-            if (!itemEl) return;
-
-            _dragItem = _findItemByInstanceId(itemEl.dataset.instanceId);
+        // ── Drag & Drop ──
+        root.addEventListener('dragstart', e => {
+            const el = e.target.closest('.inv-item, .equipped-item, .potion-item');
+            if (!el) return;
+            _dragItem = _findById(el.dataset.instanceId);
             _dragSource = {
-                area: itemEl.dataset.area || (itemEl.classList.contains('equipped-item') ? 'equipment' : (itemEl.classList.contains('potion-item') ? 'quickbar' : 'inventory')),
-                slot: itemEl.dataset.slot || '',
-                index: itemEl.dataset.qbIndex || ''
+                area: el.dataset.area || (el.classList.contains('equipped-item') ? 'equipment' : 'quickbar'),
+                slot: el.dataset.slot || '',
+                index: el.dataset.qbIndex || ''
             };
-
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', _dragItem?.instanceId || '');
-            itemEl.style.opacity = '0.4';
+            el.style.opacity = '0.25';
 
-            // Highlight valid targets
-            _highlightValidTargets(_dragItem);
+            // Highlight valid equip slots
+            if (_dragItem) {
+                document.querySelectorAll('.equip-slot').forEach(s => {
+                    if (_canEquipInSlot(_dragItem, s.dataset.slot)) s.classList.add('valid-target');
+                });
+            }
         });
 
-        container.addEventListener('dragend', (e) => {
-            const itemEl = e.target.closest('.inv-item, .equipped-item, .potion-item');
-            if (itemEl) itemEl.style.opacity = '1';
-            _clearHighlights();
+        root.addEventListener('dragend', e => {
+            const el = e.target.closest('.inv-item, .equipped-item, .potion-item');
+            if (el) el.style.opacity = '1';
+            document.querySelectorAll('.valid-target, .drag-over, .drag-valid, .drag-invalid').forEach(
+                x => x.classList.remove('valid-target', 'drag-over', 'drag-valid', 'drag-invalid')
+            );
             _dragItem = null;
             _dragSource = null;
         });
 
-        container.addEventListener('dragover', (e) => {
-            const target = e.target.closest('.inv-cell, .equip-slot, .potion-slot');
-            if (!target) return;
+        // Dragover on grid cells — highlight placement validity
+        root.addEventListener('dragover', e => {
+            const t = e.target.closest('.inv-cell, .equip-slot, .potion-slot');
+            if (!t || !_dragItem) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            target.classList.add('drag-over');
-        });
 
-        container.addEventListener('dragleave', (e) => {
-            const target = e.target.closest('.inv-cell, .equip-slot, .potion-slot');
-            if (target) target.classList.remove('drag-over');
-        });
-
-        container.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const target = e.target.closest('.inv-cell, .equip-slot, .potion-slot');
-            if (!target || !_dragItem) { _clearHighlights(); return; }
-            target.classList.remove('drag-over');
-
-            if (target.classList.contains('equip-slot')) {
-                _dropOnEquipSlot(target.dataset.slot, _dragItem, _dragSource);
-            } else if (target.classList.contains('potion-slot')) {
-                const idx = Array.from(target.parentElement.children).indexOf(target);
-                _dropOnQuickbar(idx, _dragItem, _dragSource);
-            } else if (target.classList.contains('inv-cell')) {
-                _dropOnInventory(_dragItem, _dragSource);
+            // Show ghost overlay for grid cells
+            if (t.classList.contains('inv-cell')) {
+                _highlightGridDrop(parseInt(t.dataset.col), parseInt(t.dataset.row));
             }
+        });
 
-            _clearHighlights();
+        root.addEventListener('drop', e => {
+            e.preventDefault();
+            if (!_dragItem) return;
+            const t = e.target.closest('.inv-cell, .equip-slot, .potion-slot');
+            if (!t) return;
+
+            if (t.classList.contains('equip-slot')) _dropEquip(t.dataset.slot);
+            else if (t.classList.contains('potion-slot')) _dropQuickbar(Array.from(t.parentElement.children).indexOf(t));
+            else if (t.classList.contains('inv-cell')) _dropInventory(parseInt(t.dataset.col), parseInt(t.dataset.row));
+
+            document.querySelectorAll('.valid-target, .drag-over, .drag-valid, .drag-invalid').forEach(
+                x => x.classList.remove('valid-target', 'drag-over', 'drag-valid', 'drag-invalid')
+            );
             _dragItem = null;
             _dragSource = null;
         });
     }
 
-    function _highlightValidTargets(item) {
-        if (!item) return;
-        document.querySelectorAll('.equip-slot').forEach(slot => {
-            if (_canEquipInSlot(item, slot.dataset.slot)) {
-                slot.classList.add('valid-target');
+    function _highlightGridDrop(col, row) {
+        const grid = document.getElementById('inventoryGrid');
+        if (!grid || !_dragItem) return;
+        const w = _dragItem.gridW || 1, h = _dragItem.gridH || 1;
+        const ch = _getChar();
+        const map = _buildOccMap(ch.inventory?.items || [], _dragItem.instanceId);
+        const valid = _canPlace(map, col, row, w, h);
+
+        // Clear previous highlights
+        grid.querySelectorAll('.drag-valid, .drag-invalid').forEach(c => c.classList.remove('drag-valid', 'drag-invalid'));
+
+        for (let r = row; r < row + h && r < GRID_ROWS; r++) {
+            for (let c = col; c < col + w && c < GRID_COLS; c++) {
+                const cell = grid.querySelector(`.inv-cell[data-row="${r}"][data-col="${c}"]`);
+                if (cell) cell.classList.add(valid ? 'drag-valid' : 'drag-invalid');
             }
-        });
+        }
     }
 
-    function _clearHighlights() {
-        document.querySelectorAll('.valid-target, .drag-over').forEach(el => el.classList.remove('valid-target', 'drag-over'));
+    // ═══════════════════════════════════════
+    //  DROP HANDLERS
+    // ═══════════════════════════════════════
+
+    function _dropInventory(col, row) {
+        const ch = _getChar();
+        const item = _dragItem;
+        const src = _dragSource;
+        const w = item.gridW || 1, h = item.gridH || 1;
+
+        if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
+        if (!ch.inventory.items) ch.inventory.items = [];
+
+        // Temporarily nullify old placement if moving within inventory
+        if (src.area === 'inventory') {
+            const ex = ch.inventory.items.find(i => i.instanceId === item.instanceId);
+            if (ex) { ex.col = null; ex.row = null; }
+        }
+
+        const map = _buildOccMap(ch.inventory.items, item.instanceId);
+        if (!_canPlace(map, col, row, w, h)) {
+            // Restore old placement
+            if (src.area === 'inventory') {
+                const ex = ch.inventory.items.find(i => i.instanceId === item.instanceId);
+                if (ex) _ensurePlacements(ch);
+            }
+            return;
+        }
+
+        _removeFromSource(item, src, ch);
+        item.col = col;
+        item.row = row;
+
+        if (!ch.inventory.items.find(i => i.instanceId === item.instanceId)) {
+            ch.inventory.items.push(item);
+        }
+        _save(ch);
     }
 
-    function _dropOnEquipSlot(slotName, item, source) {
-        if (!_canEquipInSlot(item, slotName)) return;
+    function _dropEquip(slotName) {
+        if (!_canEquipInSlot(_dragItem, slotName)) return;
+        const ch = _getChar();
+        if (!ch.equipment) ch.equipment = {};
 
-        const char = _getChar();
-        if (!char.equipment) char.equipment = {};
-
-        // If slot is occupied, swap to inventory
-        const existing = char.equipment[slotName];
+        const existing = ch.equipment[slotName];
         if (existing) {
-            if (!char.inventory.items) char.inventory.items = [];
-            char.inventory.items.push(existing);
+            if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
+            if (!ch.inventory.items) ch.inventory.items = [];
+            existing.col = null; existing.row = null;
+            ch.inventory.items.push(existing);
         }
-
-        // Remove from source
-        _removeFromSource(item, source, char);
-
-        // Place in slot
-        char.equipment[slotName] = item;
-        _save(char);
+        _removeFromSource(_dragItem, _dragSource, ch);
+        ch.equipment[slotName] = _dragItem;
+        _save(ch);
     }
 
-    function _dropOnQuickbar(idx, item, source) {
-        const char = _getChar();
-        if (!char.quickbar) char.quickbar = Array(8).fill(null);
+    function _dropQuickbar(idx) {
+        const ch = _getChar();
+        if (!ch.quickbar) ch.quickbar = Array(8).fill(null);
 
-        // Swap existing back if needed
-        const existing = char.quickbar[idx];
-        if (existing && source.area === 'quickbar') {
-            char.quickbar[parseInt(source.index)] = existing;
+        const existing = ch.quickbar[idx];
+        if (existing && _dragSource.area === 'quickbar') {
+            ch.quickbar[parseInt(_dragSource.index)] = existing;
         } else if (existing) {
-            if (!char.inventory.items) char.inventory.items = [];
-            char.inventory.items.push(existing);
+            if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
+            if (!ch.inventory.items) ch.inventory.items = [];
+            existing.col = null; existing.row = null;
+            ch.inventory.items.push(existing);
         }
+        if (_dragSource.area !== 'quickbar') _removeFromSource(_dragItem, _dragSource, ch);
+        else ch.quickbar[parseInt(_dragSource.index)] = null;
 
-        if (source.area !== 'quickbar') _removeFromSource(item, source, char);
-        else char.quickbar[parseInt(source.index)] = null;
-
-        char.quickbar[idx] = { ...item };
-        _save(char);
+        ch.quickbar[idx] = { ..._dragItem };
+        _save(ch);
     }
 
-    function _dropOnInventory(item, source) {
-        if (source.area === 'inventory') return; // Same area, no-op for now
-
-        const char = _getChar();
-        _removeFromSource(item, source, char);
-
-        if (!char.inventory.items) char.inventory.items = [];
-        char.inventory.items.push(item);
-        _save(char);
+    function _removeFromSource(item, src, ch) {
+        if (src.area === 'inventory')
+            ch.inventory.items = (ch.inventory.items || []).filter(i => i.instanceId !== item.instanceId);
+        else if (src.area === 'equipment' && ch.equipment?.[src.slot])
+            ch.equipment[src.slot] = null;
+        else if (src.area === 'quickbar' && ch.quickbar)
+            ch.quickbar[parseInt(src.index)] = null;
     }
 
-    function _removeFromSource(item, source, char) {
-        if (source.area === 'inventory') {
-            char.inventory.items = (char.inventory.items || []).filter(i => i.instanceId !== item.instanceId);
-        } else if (source.area === 'equipment') {
-            if (char.equipment?.[source.slot]) char.equipment[source.slot] = null;
-        } else if (source.area === 'quickbar') {
-            if (char.quickbar) char.quickbar[parseInt(source.index)] = null;
-        }
-    }
+    // ═══════════════════════════════════════
+    //  ITEM ACTIONS
+    // ═══════════════════════════════════════
 
-    // ════════════════════════════════════════
-    //  ACTIONS
-    // ════════════════════════════════════════
-
-    function equipItem(instanceId) {
-        const char = _getChar();
-        const items = char.inventory?.items || [];
-        const idx = items.findIndex(i => i.instanceId === instanceId);
+    function equipItem(id) {
+        const ch = _getChar();
+        const items = ch.inventory?.items || [];
+        const idx = items.findIndex(i => i.instanceId === id);
         if (idx === -1) return;
-
         const item = items[idx];
-        const slotName = _findEquipSlot(item);
-        if (!slotName) return;
-
-        if (!char.equipment) char.equipment = {};
-
-        // Swap existing
-        const existing = char.equipment[slotName];
-        if (existing) items.push(existing);
-
+        const sn = _findEquipSlot(item);
+        if (!sn) return;
+        if (!ch.equipment) ch.equipment = {};
+        const old = ch.equipment[sn];
+        if (old) { old.col = null; old.row = null; items.push(old); }
         items.splice(idx, 1);
-        char.equipment[slotName] = item;
-        _save(char);
+        ch.equipment[sn] = item;
+        _save(ch);
     }
 
-    function unequipSlot(slotName) {
-        const char = _getChar();
-        if (!char.equipment?.[slotName]) return;
-
-        const item = char.equipment[slotName];
-        char.equipment[slotName] = null;
-        if (!char.inventory.items) char.inventory.items = [];
-        char.inventory.items.push(item);
-        _save(char);
+    function unequipSlot(sn) {
+        const ch = _getChar();
+        if (!ch.equipment?.[sn]) return;
+        const item = ch.equipment[sn];
+        ch.equipment[sn] = null;
+        if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
+        if (!ch.inventory.items) ch.inventory.items = [];
+        item.col = null; item.row = null;
+        ch.inventory.items.push(item);
+        _save(ch);
     }
 
-    function useItem(instanceId) {
-        const char = _getChar();
-        const item = _findItemInChar(char, instanceId);
+    function useItem(id) {
+        const ch = _getChar();
+        const item = _findInChar(ch, id);
         if (!item || !item.flags?.consumable) return;
-
-        // Apply effects
         if (item.type === 'potion' || item.subType === 'health') {
-            // Heal effect
-            const healAmount = parseInt(item.stats?.heal || item.stats?.damage || '25');
-            char.hp = Math.min((char.hp || 0) + healAmount, char.hpMax || 100);
-            _notify(`${item.displayName || item.name}: +${healAmount} LP`);
-        } else if (item.subType === 'resource') {
-            const amount = parseInt(item.stats?.restore || '25');
-            char.resource = Math.min((char.resource || 0) + amount, char.resourceMax || 100);
-            _notify(`${item.displayName || item.name}: +${amount} Ressource`);
+            const heal = parseInt(item.stats?.heal || item.stats?.damage || '25');
+            if (ch.hp && typeof ch.hp === 'object')
+                ch.hp.current = Math.min((ch.hp.current || 0) + heal, ch.hp.max || 100);
+            _notify(`${item.displayName || item.name}: +${heal} LP`);
         } else {
             _notify(`${item.displayName || item.name} benutzt`);
         }
-
-        // Reduce quantity or remove
-        if (item.quantity > 1) {
-            item.quantity--;
-        } else {
-            _removeItemFromChar(char, instanceId);
-        }
-
-        _save(char);
+        if (item.quantity > 1) item.quantity--;
+        else _removeFromChar(ch, id);
+        _save(ch);
     }
 
-    function dropItem(instanceId) {
+    function dropItem(id) {
         if (!confirm('Item ablegen?')) return;
-        const char = _getChar();
-        _removeItemFromChar(char, instanceId);
-        _save(char);
+        const ch = _getChar();
+        _removeFromChar(ch, id);
+        _save(ch);
     }
 
-    function addToQuickbar(instanceId) {
-        const char = _getChar();
-        if (!char.quickbar) char.quickbar = Array(8).fill(null);
-
-        const item = _findItemInChar(char, instanceId);
+    function addToQuickbar(id) {
+        const ch = _getChar();
+        if (!ch.quickbar) ch.quickbar = Array(8).fill(null);
+        const item = _findInChar(ch, id);
         if (!item) return;
-
-        // Find first empty quickbar slot
-        const emptyIdx = char.quickbar.findIndex(s => !s);
-        if (emptyIdx === -1) { _notify('Schnellzugriff voll'); return; }
-
-        // Copy reference
-        char.quickbar[emptyIdx] = { ...item };
-        _save(char);
+        const slot = ch.quickbar.findIndex(s => !s);
+        if (slot === -1) { _notify('Schnellzugriff voll'); return; }
+        ch.quickbar[slot] = { ...item };
+        _save(ch);
     }
 
     function removeFromQuickbar(idx) {
-        const char = _getChar();
-        if (!char.quickbar) return;
-        char.quickbar[idx] = null;
-        _save(char);
+        const ch = _getChar();
+        if (!ch.quickbar) return;
+        ch.quickbar[idx] = null;
+        _save(ch);
     }
 
-    function splitStack(instanceId) {
-        const char = _getChar();
-        const items = char.inventory?.items || [];
-        const item = items.find(i => i.instanceId === instanceId);
+    function splitStack(id) {
+        const ch = _getChar();
+        const items = ch.inventory?.items || [];
+        const item = items.find(i => i.instanceId === id);
         if (!item || item.quantity <= 1) return;
-
         const half = Math.floor(item.quantity / 2);
         item.quantity -= half;
-
-        const clone = { ...item, instanceId: 'inst_' + _uid(8), quantity: half };
-        items.push(clone);
-        _save(char);
+        items.push({ ...item, instanceId: 'inst_' + _uid(8), quantity: half, col: null, row: null });
+        _save(ch);
     }
 
-    function addItem(itemInstance) {
-        const char = _getChar();
-        if (!char.inventory) char.inventory = { cols: 16, rows: 11, items: [] };
-        if (!char.inventory.items) char.inventory.items = [];
-
-        // Check if stackable and already exists
-        if (itemInstance.stackable || itemInstance.flags?.consumable) {
-            const existing = char.inventory.items.find(i => i.baseItemId === itemInstance.baseItemId);
-            if (existing) {
-                existing.quantity = (existing.quantity || 1) + (itemInstance.quantity || 1);
-                _save(char);
-                return;
-            }
+    function addItem(inst) {
+        const ch = _getChar();
+        if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
+        if (!ch.inventory.items) ch.inventory.items = [];
+        if (inst.stackable || inst.flags?.consumable) {
+            const ex = ch.inventory.items.find(i => i.baseItemId === inst.baseItemId);
+            if (ex) { ex.quantity = (ex.quantity || 1) + (inst.quantity || 1); _save(ch); return; }
         }
-
-        if (!itemInstance.instanceId) itemInstance.instanceId = 'inst_' + _uid(8);
-        char.inventory.items.push(itemInstance);
-        _save(char);
+        if (!inst.instanceId) inst.instanceId = 'inst_' + _uid(8);
+        inst.col = null; inst.row = null;
+        ch.inventory.items.push(inst);
+        _save(ch);
     }
 
-    function removeItem(instanceId) {
-        const char = _getChar();
-        _removeItemFromChar(char, instanceId);
-        _save(char);
+    function removeItem(id) {
+        const ch = _getChar();
+        _removeFromChar(ch, id);
+        _save(ch);
     }
 
-    // ════════════════════════════════════════
-    //  SORT & FILTER
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
+    //  SORT (bin-packing: biggest first)
+    // ═══════════════════════════════════════
 
     function _bindSortButton() {
         const btn = document.getElementById('sortBtn');
         if (!btn) return;
         btn.addEventListener('click', () => {
-            const char = _getChar();
-            if (!char.inventory?.items) return;
-
-            const rarityOrder = { legendary: 0, unique: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
-            char.inventory.items.sort((a, b) => {
-                const ra = rarityOrder[a.rarity] ?? 9;
-                const rb = rarityOrder[b.rarity] ?? 9;
-                if (ra !== rb) return ra - rb;
-                const ta = a.type || '';
-                const tb = b.type || '';
-                if (ta !== tb) return ta.localeCompare(tb);
-                return (a.displayName || a.name || '').localeCompare(b.displayName || b.name || '');
+            const ch = _getChar();
+            if (!ch.inventory?.items?.length) return;
+            const ro = { unique: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
+            const items = ch.inventory.items.slice().sort((a, b) => {
+                const area = (b.gridW || 1) * (b.gridH || 1) - (a.gridW || 1) * (a.gridH || 1);
+                if (area !== 0) return area;
+                return (ro[a.rarity] ?? 9) - (ro[b.rarity] ?? 9);
             });
-            _save(char);
+            items.forEach(i => { i.col = null; i.row = null; });
+            const map = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+            for (const item of items) {
+                const w = item.gridW || 1, h = item.gridH || 1;
+                const spot = _findFreeSpot(map, w, h);
+                if (spot) {
+                    item.col = spot.col; item.row = spot.row;
+                    for (let r = spot.row; r < spot.row + h; r++)
+                        for (let c = spot.col; c < spot.col + w; c++) map[r][c] = item.instanceId;
+                }
+            }
+            ch.inventory.items = items;
+            _save(ch);
         });
     }
 
+    // ═══════════════════════════════════════
+    //  FILTER
+    // ═══════════════════════════════════════
+
     function _bindFilterUI() {
         const filterBtn = document.getElementById('filterBtn');
-        const dropdown = document.getElementById('filterDropdown');
-        if (!filterBtn || !dropdown) return;
+        const dd = document.getElementById('filterDropdown');
+        if (!filterBtn || !dd) return;
+        filterBtn.addEventListener('click', e => { e.stopPropagation(); dd.classList.toggle('open'); });
+        document.addEventListener('click', () => dd.classList.remove('open'));
+        dd.addEventListener('click', e => e.stopPropagation());
 
-        filterBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdown.classList.toggle('open');
-        });
-        document.addEventListener('click', () => dropdown.classList.remove('open'));
-        dropdown.addEventListener('click', (e) => e.stopPropagation());
-
-        // Rarity chips
-        dropdown.querySelectorAll('#filterRarity .filter-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                dropdown.querySelectorAll('#filterRarity .filter-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-                _filter.rarity = chip.dataset.val;
-                render();
-            });
-        });
-
-        // Type chips
-        dropdown.querySelectorAll('#filterType .filter-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                dropdown.querySelectorAll('#filterType .filter-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-                _filter.type = chip.dataset.val;
-                render();
-            });
-        });
+        dd.querySelectorAll('#filterRarity .filter-chip').forEach(c => c.addEventListener('click', () => {
+            dd.querySelectorAll('#filterRarity .filter-chip').forEach(x => x.classList.remove('active'));
+            c.classList.add('active'); _filter.rarity = c.dataset.val; render();
+        }));
+        dd.querySelectorAll('#filterType .filter-chip').forEach(c => c.addEventListener('click', () => {
+            dd.querySelectorAll('#filterType .filter-chip').forEach(x => x.classList.remove('active'));
+            c.classList.add('active'); _filter.type = c.dataset.val; render();
+        }));
     }
 
     function _passesFilter(item) {
         if (_filter.rarity !== 'all' && item.rarity !== _filter.rarity) return false;
         if (_filter.type !== 'all') {
-            const ft = _filter.type;
-            if (ft === 'armor' && item.type !== 'armor' && item.type !== 'armorPiece') return false;
-            if (ft === 'weapon' && item.type !== 'weapon') return false;
-            if (ft === 'jewelry' && !['ring','amulet','talisman','necklace'].includes(item.subType)) return false;
-            if (ft === 'consumable' && !item.flags?.consumable && item.type !== 'potion') return false;
-            if (ft === 'quest' && item.type !== 'quest' && !item.flags?.questItem) return false;
-            if (ft === 'other' && ['weapon','armor','armorPiece','potion','quest'].includes(item.type) && !['ring','amulet','talisman'].includes(item.subType) && !item.flags?.questItem) return false;
+            const f = _filter.type;
+            if (f === 'armor' && item.type !== 'armor' && item.type !== 'armorPiece') return false;
+            if (f === 'weapon' && item.type !== 'weapon') return false;
+            if (f === 'jewelry' && !['ring','amulet','talisman','necklace'].includes(item.subType)) return false;
+            if (f === 'consumable' && !item.flags?.consumable && item.type !== 'potion') return false;
+            if (f === 'quest' && item.type !== 'quest' && !item.flags?.questItem) return false;
+            if (f === 'other' && ['weapon','armor','armorPiece','potion','quest'].includes(item.type)) return false;
         }
         return true;
     }
 
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
+    //  STARTER KIT (Demo)
+    // ═══════════════════════════════════════
+
+    function loadStarterKit() {
+        const ch = _getChar();
+        if (!ch) return;
+        if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
+        if (!ch.inventory.items) ch.inventory.items = [];
+
+        const demo = [
+            { instanceId:'demo_01', baseItemId:'eisenklinge', displayName:'Eisenklinge', name:'Eisenklinge', type:'weapon', subType:'sword', slot:'mainHand', rarity:'common', gridW:2, gridH:4, quantity:1, weight:3.5, value:50, stats:{damage:'2d6+2',speed:1.2}, flags:{tradeable:true} },
+            { instanceId:'demo_02', baseItemId:'klingenstahl', displayName:'Klingenstahl', name:'Klingenstahl', type:'weapon', subType:'sword', slot:'mainHand', rarity:'uncommon', gridW:2, gridH:4, quantity:1, weight:4, value:180, stats:{damage:'2d8+3',speed:1.1,critChance:8}, flags:{tradeable:true} },
+            { instanceId:'demo_03', baseItemId:'nachtklinge', displayName:'Nachtklinge', name:'Nachtklinge', type:'weapon', subType:'sword', slot:'mainHand', rarity:'common', gridW:2, gridH:4, quantity:1, weight:3, value:60, stats:{damage:'2d6+1',speed:1.3}, flags:{tradeable:true} },
+            { instanceId:'demo_04', baseItemId:'seelenfresser', displayName:'Seelenfresser', name:'Seelenfresser', type:'weapon', subType:'greatsword', slot:'mainHand', rarity:'rare', gridW:2, gridH:4, quantity:1, weight:6, value:420, stats:{damage:'3d6+4',speed:1.6,critDamage:200}, flags:{tradeable:true}, flavorText:'Flüstert in der Dunkelheit.' },
+            { instanceId:'demo_05', baseItemId:'schuppenruestung', displayName:'Schuppenrüstung', name:'Schuppenrüstung', type:'armor', subType:'plate', slot:'chest', rarity:'common', gridW:2, gridH:3, quantity:1, weight:18, value:200, stats:{armor:10}, flags:{tradeable:true} },
+            { instanceId:'demo_06', baseItemId:'wollwams', displayName:'Wollwams', name:'Wollwams', type:'armor', subType:'cloth', slot:'chest', rarity:'common', gridW:2, gridH:3, quantity:1, weight:3, value:45, stats:{armor:3}, flags:{tradeable:true} },
+            { instanceId:'demo_07', baseItemId:'fellkappe', displayName:'Fellkappe', name:'Fellkappe', type:'armorPiece', subType:'helmet', slot:'head', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1.5, value:35, stats:{armor:4}, flags:{tradeable:true} },
+            { instanceId:'demo_08', baseItemId:'kampfhandschuhe', displayName:'Kampfhandschuhe', name:'Kampfhandschuhe', type:'armorPiece', subType:'gloves', slot:'hands', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1, value:28, stats:{armor:2}, flags:{tradeable:true} },
+            { instanceId:'demo_09', baseItemId:'wanderstiefel', displayName:'Wanderstiefel', name:'Wanderstiefel', type:'armorPiece', subType:'boots', slot:'feet', rarity:'common', gridW:2, gridH:2, quantity:1, weight:1.5, value:35, stats:{armor:3}, flags:{tradeable:true} },
+            { instanceId:'demo_10', baseItemId:'kettenhose', displayName:'Kettenhose', name:'Kettenhose', type:'armorPiece', subType:'legs', slot:'legs', rarity:'common', gridW:2, gridH:3, quantity:1, weight:5, value:80, stats:{armor:6}, flags:{tradeable:true} },
+            { instanceId:'demo_11', baseItemId:'lederguertel', displayName:'Ledergürtel', name:'Ledergürtel', type:'armorPiece', subType:'belt', slot:'belt', rarity:'common', gridW:2, gridH:1, quantity:1, weight:0.5, value:15, stats:{armor:1}, flags:{tradeable:true} },
+            { instanceId:'demo_12', baseItemId:'eisenring', displayName:'Eisenring', name:'Eisenring', type:'armorPiece', subType:'ring', slot:'ring', rarity:'common', gridW:1, gridH:1, quantity:1, weight:0.05, value:30, stats:{}, flags:{tradeable:true} },
+            { instanceId:'demo_13', baseItemId:'blutring', displayName:'Blutring', name:'Blutring', type:'armorPiece', subType:'ring', slot:'ring', rarity:'rare', gridW:1, gridH:1, quantity:1, weight:0.05, value:350, stats:{kraft:3,critChance:5}, flags:{tradeable:true} },
+            { instanceId:'demo_14', baseItemId:'smaragdamulett', displayName:'Smaragdamulett', name:'Smaragdamulett', type:'armorPiece', subType:'amulet', slot:'amulet', rarity:'uncommon', gridW:1, gridH:2, quantity:1, weight:0.1, value:180, stats:{intellekt:2}, flags:{tradeable:true} },
+            { instanceId:'demo_15', baseItemId:'kl_heiltrank', displayName:'Kl. Heiltrank', name:'Kl. Heiltrank', type:'potion', subType:'health', rarity:'common', gridW:1, gridH:2, quantity:3, weight:0.3, value:25, stackable:true, stats:{heal:'25'}, flags:{consumable:true,tradeable:true} },
+            { instanceId:'demo_16', baseItemId:'heiltrank', displayName:'Heiltrank', name:'Heiltrank', type:'potion', subType:'health', rarity:'uncommon', gridW:1, gridH:2, quantity:2, weight:0.3, value:50, stackable:true, stats:{heal:'50'}, flags:{consumable:true,tradeable:true} },
+            { instanceId:'demo_17', baseItemId:'kl_manatrank', displayName:'Kl. Manatrank', name:'Kl. Manatrank', type:'potion', subType:'resource', rarity:'common', gridW:1, gridH:2, quantity:2, weight:0.3, value:30, stackable:true, stats:{restore:'30'}, flags:{consumable:true,tradeable:true} },
+            { instanceId:'demo_18', baseItemId:'gr_manatrank', displayName:'Gr. Manatrank', name:'Gr. Manatrank', type:'potion', subType:'resource', rarity:'uncommon', gridW:1, gridH:2, quantity:1, weight:0.3, value:65, stackable:true, stats:{restore:'60'}, flags:{consumable:true,tradeable:true} },
+            { instanceId:'demo_19', baseItemId:'drachenzahn', displayName:'Drachenzahn', name:'Drachenzahn', type:'weapon', subType:'greatsword', slot:'mainHand', rarity:'legendary', gridW:2, gridH:4, quantity:1, weight:8, value:3200, stats:{damage:'4d6+6',speed:1.8,critChance:12,critDamage:220}, flags:{unique:true}, flavorText:'Aus einem Drachenzahn geschmiedet.' },
+            { instanceId:'demo_20', baseItemId:'schattenschnitt', displayName:'Schattenschnitt', name:'Schattenschnitt', type:'weapon', subType:'sword', slot:'mainHand', rarity:'rare', gridW:2, gridH:4, quantity:1, weight:3.5, value:680, stats:{damage:'2d10+4',speed:1.0,critChance:15}, flags:{tradeable:true} },
+        ];
+
+        const existing = new Set(ch.inventory.items.map(i => i.instanceId));
+        let added = 0;
+        for (const d of demo) {
+            if (!existing.has(d.instanceId)) { d.col = null; d.row = null; ch.inventory.items.push(d); added++; }
+        }
+        if (added) { _save(ch); _notify(added + ' Demo-Items hinzugefügt'); }
+        else _notify('Demo-Items bereits vorhanden');
+    }
+
+    // ═══════════════════════════════════════
     //  HELPERS
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
-    function _getIconPath(item) {
-        return TYPE_ICONS[item.subType] || TYPE_ICONS[item.type] || TYPE_ICONS.default;
-    }
-
-    function _findItemByInstanceId(instanceId) {
-        if (!instanceId) return null;
-        const char = _getChar();
-        if (!char) return null;
-
-        // Search inventory
-        const invItem = (char.inventory?.items || []).find(i => i.instanceId === instanceId);
-        if (invItem) return invItem;
-
-        // Search equipment
-        for (const item of Object.values(char.equipment || {})) {
-            if (item?.instanceId === instanceId) return item;
-        }
-
-        // Search quickbar
-        for (const item of (char.quickbar || [])) {
-            if (item?.instanceId === instanceId) return item;
-        }
-
+    function _findById(id) {
+        if (!id) return null;
+        const ch = _getChar(); if (!ch) return null;
+        let it = (ch.inventory?.items || []).find(i => i.instanceId === id);
+        if (it) return it;
+        for (const v of Object.values(ch.equipment || {})) if (v?.instanceId === id) return v;
+        for (const v of (ch.quickbar || [])) if (v?.instanceId === id) return v;
         return null;
     }
 
-    function _findItemInChar(char, instanceId) {
-        const inv = (char.inventory?.items || []).find(i => i.instanceId === instanceId);
-        if (inv) return inv;
-        for (const item of Object.values(char.equipment || {})) {
-            if (item?.instanceId === instanceId) return item;
-        }
-        for (const item of (char.quickbar || [])) {
-            if (item?.instanceId === instanceId) return item;
-        }
+    function _findInChar(ch, id) {
+        let it = (ch.inventory?.items || []).find(i => i.instanceId === id);
+        if (it) return it;
+        for (const v of Object.values(ch.equipment || {})) if (v?.instanceId === id) return v;
+        for (const v of (ch.quickbar || [])) if (v?.instanceId === id) return v;
         return null;
     }
 
-    function _removeItemFromChar(char, instanceId) {
-        if (char.inventory?.items) {
-            char.inventory.items = char.inventory.items.filter(i => i.instanceId !== instanceId);
-        }
-        if (char.equipment) {
-            for (const [slot, item] of Object.entries(char.equipment)) {
-                if (item?.instanceId === instanceId) char.equipment[slot] = null;
-            }
-        }
-        if (char.quickbar) {
-            char.quickbar = char.quickbar.map(i => i?.instanceId === instanceId ? null : i);
-        }
+    function _removeFromChar(ch, id) {
+        if (ch.inventory?.items) ch.inventory.items = ch.inventory.items.filter(i => i.instanceId !== id);
+        if (ch.equipment) for (const [k, v] of Object.entries(ch.equipment)) if (v?.instanceId === id) ch.equipment[k] = null;
+        if (ch.quickbar) ch.quickbar = ch.quickbar.map(i => i?.instanceId === id ? null : i);
     }
 
-    function _canEquipInSlot(item, slotName) {
-        const accepts = SLOT_ACCEPTS[slotName];
-        if (!accepts) return false;
-        if (accepts.types && !accepts.types.includes(item.type)) return false;
-        if (accepts.subTypes && !accepts.subTypes.includes(item.subType)) return false;
+    function _canEquipInSlot(item, sn) {
+        const a = SLOT_ACCEPTS[sn];
+        if (!a) return false;
+        if (a.types && !a.types.includes(item.type)) return false;
+        if (a.subTypes && !a.subTypes.includes(item.subType)) return false;
         return true;
     }
 
     function _findEquipSlot(item) {
-        // Direct slot from item data
+        const m = { mainHand:'mainhand',offHand:'offhand',head:'head',chest:'chest',legs:'legs',
+            feet:'boots',hands:'gloves',shoulders:'shoulders',belt:'belt',back:'cape',
+            ring:'ring1',amulet:'amulet',boots:'boots',gloves:'gloves',cape:'cape',
+            talisman:'talisman',mainhand:'mainhand',offhand:'offhand' };
         if (item.slot) {
-            const mapped = _mapSlotName(item.slot);
-            if (mapped) return mapped;
+            const mapped = m[item.slot] || item.slot;
+            if (SLOT_ACCEPTS[mapped] && _canEquipInSlot(item, mapped)) return mapped;
         }
-        // Find first matching slot
-        for (const [slotName, accepts] of Object.entries(SLOT_ACCEPTS)) {
-            if (_canEquipInSlot(item, slotName)) {
-                const char = _getChar();
-                if (!char.equipment?.[slotName]) return slotName;
-            }
-        }
-        // All matching slots full, return first match anyway
-        for (const [slotName] of Object.entries(SLOT_ACCEPTS)) {
-            if (_canEquipInSlot(item, slotName)) return slotName;
-        }
+        const ch = _getChar();
+        for (const s of Object.keys(SLOT_ACCEPTS)) if (_canEquipInSlot(item, s) && !ch.equipment?.[s]) return s;
+        for (const s of Object.keys(SLOT_ACCEPTS)) if (_canEquipInSlot(item, s)) return s;
         return null;
     }
 
-    function _mapSlotName(slot) {
-        const map = {
-            mainHand: 'mainhand', offHand: 'offhand', head: 'head',
-            chest: 'chest', legs: 'legs', feet: 'boots', hands: 'gloves',
-            shoulders: 'shoulders', belt: 'belt', back: 'cape',
-            ring: 'ring1', amulet: 'amulet', mainhand: 'mainhand', offhand: 'offhand',
-            boots: 'boots', gloves: 'gloves', cape: 'cape', talisman: 'talisman'
-        };
-        return map[slot] || slot;
-    }
+    function _save(ch) { _saveChar(ch); render(); }
+    function _notify(msg) { if (window.RIFTToast?.show) RIFTToast.show(msg, 'info'); else console.log('[Inv]', msg); }
+    function _esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function _uid(n) { const c = 'abcdefghijklmnopqrstuvwxyz0123456789'; let r = ''; for (let i = 0; i < n; i++) r += c[Math.floor(Math.random() * c.length)]; return r; }
 
-    function _save(char) {
-        _saveChar(char);
-        render();
-    }
-
-    function _notify(msg) {
-        if (window.RIFTToast?.show) RIFTToast.show(msg, 'info');
-        else console.log('[Inventory]', msg);
-    }
-
-    function _esc(str) {
-        if (!str) return '';
-        const d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-    }
-
-    function _uid(len) {
-        const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        let r = '';
-        for (let i = 0; i < len; i++) r += c[Math.floor(Math.random() * c.length)];
-        return r;
-    }
-
-    // ════════════════════════════════════════
-    //  STARTER KIT / DEV TOOLS
-    // ════════════════════════════════════════
-
-    function loadStarterKit() {
-        const char = _getChar();
-        if (!char) return;
-        if (!char.inventory) char.inventory = { cols: 16, rows: 11, items: [] };
-        if (!char.inventory.items) char.inventory.items = [];
-
-        const demoItems = [
-            {
-                instanceId: 'inst_demo_001', baseItemId: 'iron_sword', displayName: 'Eisenschwert',
-                type: 'weapon', subType: 'sword', slot: 'mainHand', rarity: 'common',
-                quantity: 1, weight: 3.5, value: 50,
-                stats: { damage: '2d6+2', speed: 1.2, critChance: 5, critDamage: 150 },
-                flags: { tradeable: true }, description: 'Ein einfaches Schwert aus Eisen.',
-                flavorText: 'Geschmiedet in der Schmiede von Kaldur.'
-            },
-            {
-                instanceId: 'inst_demo_002', baseItemId: 'flame_axe', displayName: 'Flammendes Kriegsbeil',
-                type: 'weapon', subType: 'axe', slot: 'mainHand', rarity: 'rare',
-                affixes: ['flaming'], quantity: 1, weight: 5.0, value: 280, finalValue: 280,
-                finalStats: { damage: '2d8+3 + 1d4 Feuer', speed: 1.5, critChance: 8, critDamage: 175 },
-                stats: { damage: '2d8+3 + 1d4 Feuer', speed: 1.5, critChance: 8, critDamage: 175 },
-                flags: { tradeable: true }, description: 'Eine Axt, durchzogen von Flammenmagie.',
-                flavorText: 'Wer sie schwingt, spürt die Hitze der Schmiede der Alten.'
-            },
-            {
-                instanceId: 'inst_demo_003', baseItemId: 'steel_plate', displayName: 'Stahlplattenrüstung',
-                type: 'armor', subType: 'plate', slot: 'chest', rarity: 'uncommon',
-                quantity: 1, weight: 18.0, value: 320,
-                stats: { armor: 12, speed: -0.2 },
-                flags: { tradeable: true }, description: 'Schwere Plattenrüstung aus gehärtetem Stahl.'
-            },
-            {
-                instanceId: 'inst_demo_004', baseItemId: 'leather_boots', displayName: 'Laufstiefel des Windes',
-                type: 'armorPiece', subType: 'boots', slot: 'feet', rarity: 'rare',
-                affixes: ['of_wind'], quantity: 1, weight: 1.5, value: 175, finalValue: 175,
-                finalStats: { armor: 3, speed: 0.3, geschick: 2 },
-                stats: { armor: 3, speed: 0.3, geschick: 2 },
-                flags: { tradeable: true }, description: 'Leichte Stiefel, die den Träger schneller machen.'
-            },
-            {
-                instanceId: 'inst_demo_005', baseItemId: 'hp_potion', displayName: 'Heiltrank',
-                type: 'potion', subType: 'health', rarity: 'common',
-                quantity: 5, weight: 0.3, value: 25, stackable: true,
-                stats: { heal: '35' },
-                flags: { consumable: true, tradeable: true }, description: 'Stellt 35 LP wieder her.'
-            },
-            {
-                instanceId: 'inst_demo_006', baseItemId: 'res_potion', displayName: 'Manatrank',
-                type: 'potion', subType: 'resource', rarity: 'uncommon',
-                quantity: 3, weight: 0.3, value: 45, stackable: true,
-                stats: { restore: '40' },
-                flags: { consumable: true, tradeable: true }, description: 'Stellt 40 Ressource wieder her.'
-            },
-            {
-                instanceId: 'inst_demo_007', baseItemId: 'ancient_key', displayName: 'Schlüssel der Vergessenen Kammer',
-                type: 'quest', subType: 'key', rarity: 'epic',
-                quantity: 1, weight: 0.1, value: 0,
-                flags: { questItem: true, soulbound: true }, description: 'Öffnet die Kammer unter dem Turm von Eldrath.',
-                flavorText: 'Kalt wie der Tod und alt wie die Welt selbst.'
-            },
-            {
-                instanceId: 'inst_demo_008', baseItemId: 'ruby_gem', displayName: 'Makelioser Rubin',
-                type: 'gem', subType: 'ruby', rarity: 'epic',
-                quantity: 2, weight: 0.1, value: 500, stackable: true,
-                flags: { tradeable: true }, description: 'Ein funkelnder Rubin von außergewöhnlicher Reinheit.'
-            },
-            {
-                instanceId: 'inst_demo_009', baseItemId: 'iron_helmet', displayName: 'Eisenhelm',
-                type: 'armorPiece', subType: 'helmet', slot: 'head', rarity: 'common',
-                quantity: 1, weight: 2.0, value: 35,
-                stats: { armor: 4 },
-                flags: { tradeable: true }, description: 'Ein einfacher Helm aus Eisen.'
-            },
-            {
-                instanceId: 'inst_demo_010', baseItemId: 'shadow_ring', displayName: 'Schattenring der Dämmerung',
-                type: 'armorPiece', subType: 'ring', slot: 'ring', rarity: 'legendary',
-                affixes: ['shadow', 'of_dusk'], quantity: 1, weight: 0.05, value: 2500, finalValue: 2500,
-                finalStats: { critChance: 12, geschick: 5, kraft: -2 },
-                stats: { critChance: 12, geschick: 5, kraft: -2 },
-                flags: { unique: true }, description: 'Verleiht dem Träger übernatürliche Reflexe auf Kosten roher Kraft.',
-                flavorText: 'Geformt aus dem letzten Schatten eines sterbenden Gottes.'
-            },
-            {
-                instanceId: 'inst_demo_011', baseItemId: 'wolf_pelt', displayName: 'Wolfsfell',
-                type: 'misc', subType: 'material', rarity: 'common',
-                quantity: 4, weight: 1.0, value: 8, stackable: true,
-                flags: { tradeable: true }, description: 'Ein grobes Fell, gut zum Verkaufen oder Verarbeiten.'
-            },
-            {
-                instanceId: 'inst_demo_012', baseItemId: 'dragon_shield', displayName: 'Drachenschuppenschild',
-                type: 'armorPiece', subType: 'shield', slot: 'offHand', rarity: 'legendary',
-                quantity: 1, weight: 6.0, value: 3200, finalValue: 3200,
-                finalStats: { armor: 18, resist_fire: 25 },
-                stats: { armor: 18, resist_fire: 25 },
-                flags: { tradeable: true }, description: 'Ein mächtiger Schild aus echten Drachenschuppen.',
-                flavorText: 'Kein Feuer kann den durchdringen, der Shurak bezwungen hat.'
-            }
-        ];
-
-        // Only add items that don't already exist
-        const existingIds = new Set(char.inventory.items.map(i => i.instanceId));
-        let added = 0;
-        for (const item of demoItems) {
-            if (!existingIds.has(item.instanceId)) {
-                char.inventory.items.push(item);
-                added++;
-            }
-        }
-
-        if (added > 0) {
-            _save(char);
-            _notify(`${added} Demo-Items hinzugefügt`);
-        } else {
-            _notify('Demo-Items bereits vorhanden');
-        }
-    }
-
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
     //  PUBLIC API
-    // ════════════════════════════════════════
+    // ═══════════════════════════════════════
 
     return {
-        init,
-        render,
-        addItem,
-        removeItem,
-        equipItem,
-        unequipSlot,
-        useItem,
-        dropItem,
-        addToQuickbar,
-        removeFromQuickbar,
-        splitStack,
-        showTooltip,
-        hideTooltip,
+        init, render, addItem, removeItem, equipItem, unequipSlot,
+        useItem, dropItem, addToQuickbar, removeFromQuickbar, splitStack,
         loadStarterKit,
-        RARITY_COLORS,
-        TYPE_ICONS,
-        TYPE_LABELS
+        RARITY, FALLBACK_ICONS, TYPE_LABELS, GRID_COLS, GRID_ROWS
     };
 
 })();
