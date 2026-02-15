@@ -229,11 +229,15 @@
 <main class="main main--hub">
 <div class="main__content">
 
-<div class="app-header" id="sheetHeader">
-  <h1 id="sheetSessionTitle">Worlds Apart</h1>
-</div>
-
 <div class="sheet">
+  <!-- Campaign Banner -->
+  <div class="campaign-banner" id="sheetHeader">
+    <h1 id="sheetSessionTitle">Worlds Apart</h1>
+    <button class="campaign-edit-btn" id="campaignEditBtn" style="display:none" title="Kampagnenname bearbeiten">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    </button>
+  </div>
+
   <!-- ROW 1 -->
   <div class="row-2">
     <!-- Charakter & Disziplin (merged) -->
@@ -1065,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Session/Campaign title
     function updateSessionTitle() {
         var titleEl = document.getElementById('sheetSessionTitle');
+        var editBtn = document.getElementById('campaignEditBtn');
         if (!titleEl) return;
         var session = window.RIFT && RIFT.state ? RIFT.state.get('session') : null;
         var room = window.RIFT && RIFT.state ? RIFT.state.get('room') : null;
@@ -1073,10 +1078,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // GM can edit campaign name
         var isGM = window.currentUser && window.currentUser.isGM;
-        if (isGM) {
+        if (isGM && editBtn) {
+            editBtn.style.display = '';
             titleEl.contentEditable = 'true';
             titleEl.spellcheck = false;
-            titleEl.title = 'Kampagnenname bearbeiten';
+
+            editBtn.addEventListener('click', function() {
+                titleEl.focus();
+                // Select all text
+                var range = document.createRange();
+                range.selectNodeContents(titleEl);
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            });
 
             titleEl.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
@@ -1087,12 +1102,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!newName) { titleEl.textContent = name; return; }
                 if (newName === name) return;
 
-                // Save to room via RoomService or direct Firebase
                 var rc = localStorage.getItem('rift_current_room');
                 if (rc && window.RIFT && RIFT.state) {
                     RIFT.state.set('room.name', newName);
                 }
-                // Also save to Firebase directly
                 if (rc && firebase && firebase.firestore) {
                     firebase.firestore().collection('rooms').doc(rc).update({ name: newName })
                         .then(function() { console.log('[Sheet] Campaign name saved:', newName); })
