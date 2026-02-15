@@ -653,6 +653,10 @@ function renderAttributes() {
     const used = a.kraft + a.geschick + a.belastbarkeit + a.intellekt + a.autoritaet;
     const remaining = Math.max(0, (a.points?.total || 20) - used);
     txt('attrPoints', `Noch ${remaining} von ${a.points?.total || 20} Punkten übrig`);
+
+    const attrContent = document.querySelector('.attr-content');
+    if (attrContent) attrContent.classList.toggle('attr-full', remaining === 0);
+
     txtSafe('initValue', charData.offense.initiative);
     txtSafe('combatMovement', charData.defense.movement);
     txtSafe('combatRange', charData.offense.range);
@@ -994,6 +998,13 @@ function updateAttrPoints() {
     a.points.used = used;
     const remaining = Math.max(0, a.points.total - used);
     txt('attrPoints', `Noch ${remaining} von ${a.points.total} Punkten übrig`);
+
+    // Toggle full state — pill collapses, boxes grow
+    const attrContent = document.querySelector('.attr-content');
+    if (attrContent) {
+        attrContent.classList.toggle('attr-full', remaining === 0);
+    }
+
     save('attributes.points', a.points);
 }
 
