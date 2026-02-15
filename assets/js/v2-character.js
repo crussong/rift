@@ -245,49 +245,45 @@ function createDivider() {
 // (renderer functions already defined above in this IIFE)
 
 // ─── Demo-Charakter ───
-const DEMO_CHARACTER = {
-    profile: {
-        name: 'Grimjaw',
-        race: 'Mensch',
-        age: '34 Jahre',
-        gender: 'Männlich',
-        faction: 'Blutclan',
-        description: 'Ein ehemaliger Gladiator aus den nördlichen Eiswüsten. Spricht wenig, schlägt viel.'
-    },
-    class: { name: 'Barbar', label: 'Disziplin' },
-    level: 5,
-    xp: { current: 1750, max: 5000 },
+// ═══════════════════════════════════════
+//  CLASS DEFINITIONS
+// ═══════════════════════════════════════
+
+const CLASS_DEFINITIONS = [
+    { id: 'barbar',       name: 'Barbar',       resource: 'Rage',     color: 'var(--rage-red)' },
+    { id: 'magier',       name: 'Magier',       resource: 'Mana',     color: 'var(--xp-blue)' },
+    { id: 'assassine',    name: 'Assassine',    resource: 'Fokus',    color: '#a855f7' },
+    { id: 'paladin',      name: 'Paladin',      resource: 'Glaube',   color: 'var(--gold)' },
+    { id: 'druide',       name: 'Druide',       resource: 'Essenz',   color: 'var(--hp-green)' },
+    { id: 'hexenmeister', name: 'Hexenmeister', resource: 'Seelen',   color: '#c084fc' },
+    { id: 'waldlaeufer',  name: 'Waldl\u00e4ufer',  resource: 'Ausdauer', color: '#fb923c' },
+    { id: 'kleriker',     name: 'Kleriker',     resource: 'Hingabe',  color: '#e2e8f0' },
+];
+
+// ═══════════════════════════════════════
+//  BLANK CHARACTER TEMPLATE
+// ═══════════════════════════════════════
+
+const BLANK_CHARACTER = {
+    profile: { name: '', race: '', age: '', gender: '', faction: '', description: '' },
+    class: { id: '', name: '', label: 'Disziplin' },
+    level: 1,
+    xp: { current: 0, max: 1000 },
     attributes: {
-        kraft: 6, geschick: 2, belastbarkeit: 0, intellekt: 0, autoritaet: 0,
-        points: { used: 8, total: 15 }
+        kraft: 0, geschick: 0, belastbarkeit: 0, intellekt: 0, autoritaet: 0,
+        points: { used: 0, total: 15 }
     },
-    hp: { current: 78, max: 100, regen: 2 },
-    resource: { name: 'Rage', current: 45, max: 100, perHit: 8 },
+    hp: { current: 0, max: 100, regen: 0 },
+    resource: { name: '', current: 0, max: 100, perHit: 0 },
     defense: {
-        armor: 24, mitigation: 18,
-        dodge: 5, block: null, movement: 3,
+        armor: 0, mitigation: 0,
+        dodge: 0, block: null, movement: 0,
         resistances: { fire: 0, cold: 0, poison: 0, arcane: 0 }
     },
-    offense: {
-        initiative: 13, iniFormula: 'W20+RES/5',
-        range: 'Nahkampf (1)', carry: 120
-    },
-    skills: [
-        { name: 'Wilder Hieb', cost: '15 Rage', hotkey: 'Q', active: true, icon: '\u2694', iconColor: 'var(--rage-red)' },
-        { name: 'Gesperrt', level: 5, hotkey: 'W', locked: true },
-        { name: 'Gesperrt', level: 8, hotkey: 'E', locked: true },
-        { name: 'Gesperrt', level: 10, hotkey: 'R', locked: true },
-        { name: 'Gesperrt', level: 12, locked: true },
-        { name: 'Gesperrt', level: 15, locked: true },
-        { name: 'Gesperrt', level: 18, locked: true },
-        { name: 'Gesperrt', level: 20, locked: true }
-    ],
-    skillPoints: 1,
-    weakness: {
-        name: 'Blutrausch',
-        description: 'Bei unter 25% HP: -2 auf alle Intellektproben. Kann Freund und Feind nicht unterscheiden.',
-        icon: '\u2717'
-    },
+    offense: { initiative: 0, iniFormula: '', range: '', carry: 0 },
+    skills: [],
+    skillPoints: 0,
+    weakness: { name: '', description: '', icon: '' },
     abilities: {
         koerper: Array(10).fill(null).map(() => ({ name: '', value: '', active: true })),
         verstand: Array(10).fill(null).map(() => ({ name: '', value: '', active: true })),
@@ -295,7 +291,7 @@ const DEMO_CHARACTER = {
     },
     secondChance: { used: [false, false, false] },
     notes: '',
-    currency: { gold: 12, silver: 45, copper: 230 },
+    currency: { gold: 0, silver: 0, copper: 0 },
     inventory: { cols: 16, rows: 11, placements: [] },
     equipment: {},
     quickbar: Array(8).fill(null),
@@ -310,7 +306,7 @@ let charData = null;
 function init(characterId) {
     charId = characterId;
     const stateChar = charId ? _stateGet(`characters.${charId}`) : null;
-    charData = stateChar || { ...DEMO_CHARACTER };
+    charData = stateChar || { ...BLANK_CHARACTER };
     
     renderAll();
     initCardCorners();
@@ -328,8 +324,8 @@ function init(characterId) {
 async function createCharacter(roomCode, userId) {
     const id = 'char_' + Date.now().toString(36);
     await _stateSet(`characters.${id}`, {
-        ...DEMO_CHARACTER,
-        profile: { ...DEMO_CHARACTER.profile, name: 'Neuer Charakter' },
+        ...BLANK_CHARACTER,
+        profile: { ...BLANK_CHARACTER.profile, name: 'Neuer Charakter' },
         ownerId: userId,
         createdAt: new Date().toISOString()
     });
@@ -363,8 +359,8 @@ function renderProfile() {
 }
 
 function renderClassAndOrbs() {
-    txt('className', charData.class.name);
-    txt('classSubLabel', charData.class.label);
+    txt('className', charData.class.name || '\u2014');
+    txt('classSubLabel', charData.class.name ? charData.class.label : 'Klasse wählen');
     
     const levelEl = document.getElementById('levelOrb');
     if (levelEl) levelEl.innerHTML = createLevelOrb(charData.level);
@@ -375,10 +371,11 @@ function renderClassAndOrbs() {
     
     const rageEl = document.getElementById('rageOrb');
     if (rageEl) rageEl.innerHTML = createRageOrb(charData.resource.current, charData.resource.max);
-    txt('rageLabel', charData.resource.name);
+    txt('rageLabel', charData.resource.name || 'Ressource');
     txt('rageValues', `${charData.resource.current} / ${charData.resource.max}`);
     
-    const xpPct = (charData.xp.current / charData.xp.max) * 100;
+    const xpMax = charData.xp.max || 1;
+    const xpPct = Math.min(100, (charData.xp.current / xpMax) * 100);
     const xpFill = document.getElementById('xpFill');
     if (xpFill) xpFill.style.width = xpPct + '%';
     txt('xpText', `${charData.xp.current.toLocaleString('de-DE')} / ${charData.xp.max.toLocaleString('de-DE')} XP`);
@@ -387,23 +384,23 @@ function renderClassAndOrbs() {
 
 function renderAttributes() {
     const a = charData.attributes;
-    txt('attrKraft', a.kraft);
-    txt('attrGeschick', a.geschick);
-    txt('attrBelastbarkeit', a.belastbarkeit);
-    txt('attrIntellekt', a.intellekt);
-    txt('attrAutoritaet', a.autoritaet);
+    txtSafe('attrKraft', a.kraft);
+    txtSafe('attrGeschick', a.geschick);
+    txtSafe('attrBelastbarkeit', a.belastbarkeit);
+    txtSafe('attrIntellekt', a.intellekt);
+    txtSafe('attrAutoritaet', a.autoritaet);
     txt('attrPoints', `${a.points.used} / ${a.points.total} Attributs-Punkte verteilt`);
-    txt('initValue', charData.offense.initiative);
-    txt('combatMovement', charData.defense.movement);
-    txt('combatRange', charData.offense.range);
-    txt('combatIniFormula', charData.offense.iniFormula);
+    txtSafe('initValue', charData.offense.initiative);
+    txtSafe('combatMovement', charData.defense.movement);
+    txtSafe('combatRange', charData.offense.range);
+    txtSafe('combatIniFormula', charData.offense.iniFormula);
 }
 
 function renderSkills() {
     txt('skillPointsBadge', `${charData.skillPoints} Skillpunkt${charData.skillPoints !== 1 ? 'e' : ''} verfügbar`);
     if (charData.weakness) {
-        txt('weaknessName', charData.weakness.name);
-        txt('weaknessDesc', charData.weakness.description);
+        txtSafe('weaknessName', charData.weakness.name);
+        txtSafe('weaknessDesc', charData.weakness.description);
     }
 }
 
@@ -411,9 +408,10 @@ function renderDefense() {
     const d = charData.defense;
     const el = document.getElementById('defenseShield');
     if (el) el.innerHTML = createDefenseShield(d.armor, d.mitigation, d.resistances);
-    txt('ds-block', d.block != null ? d.block + '%' : '\u2014');
-    txt('ds-dodge', d.dodge + '%');
-    txt('ds-movement', d.movement + ' Felder');
+    el.style.cursor = 'pointer';
+    txtSafe('ds-block', d.block != null ? d.block + '%' : '\u2014');
+    txtSafe('ds-dodge', d.dodge + '%');
+    txtSafe('ds-movement', d.movement + ' Felder');
 }
 
 function renderStats() {
@@ -423,8 +421,12 @@ function renderStats() {
     txt('s-res-cold', (r.cold || 0) + '%');
     txt('s-res-poison', (r.poison || 0) + '%');
     txt('s-res-arcane', (r.arcane || 0) + '%');
-    txt('s-movement', d.movement + ' Felder');
-    txt('s-carry', charData.offense.carry + ' kg');
+    txtSafe('s-movement', d.movement + ' Felder');
+    txtSafe('s-carry', charData.offense.carry + ' kg');
+    txtSafe('s-hp-max', charData.hp.max);
+    txtSafe('s-hp-regen', charData.hp.regen + '/Runde');
+    txtSafe('s-res-max', charData.resource.max);
+    txtSafe('s-res-perHit', charData.resource.perHit);
 }
 
 function renderInventoryGrid() {
@@ -498,6 +500,14 @@ function initInteractions() {
     initCurrencyBindings();
     initSecondChanceBindings();
     initNotesBinding();
+    initAttributeBindings();
+    initOrbBindings();
+    initLevelBinding();
+    initDefenseBindings();
+    initCombatBindings();
+    initWeaknessBindings();
+    initClassPicker();
+    initXpBinding();
 }
 
 // ── Profile fields (contenteditable divs + textarea) ──
@@ -522,6 +532,7 @@ function initProfileBindings() {
 
         el.addEventListener('input', () => {
             const text = el.textContent.trim();
+            setNested(charData, path, text);
             debounce(id, () => save(path, text));
         });
     }
@@ -530,9 +541,267 @@ function initProfileBindings() {
     const desc = document.getElementById('charDesc');
     if (desc) {
         desc.addEventListener('input', () => {
+            charData.profile.description = desc.value;
             debounce('charDesc', () => save('profile.description', desc.value));
         });
     }
+}
+
+// ── Attribute editing ──
+
+function initAttributeBindings() {
+    const attrMap = {
+        attrKraft: 'kraft', attrGeschick: 'geschick',
+        attrBelastbarkeit: 'belastbarkeit', attrIntellekt: 'intellekt',
+        attrAutoritaet: 'autoritaet'
+    };
+
+    for (const [id, key] of Object.entries(attrMap)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+            // Only allow numbers
+            if (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+            }
+        });
+
+        el.addEventListener('blur', () => {
+            const val = parseInt(el.textContent, 10) || 0;
+            charData.attributes[key] = val;
+            el.textContent = val;
+            updateAttrPoints();
+            save(`attributes.${key}`, val);
+        });
+    }
+}
+
+function updateAttrPoints() {
+    const a = charData.attributes;
+    const used = a.kraft + a.geschick + a.belastbarkeit + a.intellekt + a.autoritaet;
+    a.points.used = used;
+    txt('attrPoints', `${used} / ${a.points.total} Attributs-Punkte verteilt`);
+    save('attributes.points', a.points);
+}
+
+// ── Orb editing (HP + Resource) ──
+
+function initOrbBindings() {
+    bindOrbClick('hpValues', 'hp');
+    bindOrbClick('rageValues', 'resource');
+}
+
+function bindOrbClick(id, dataKey) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener('click', () => {
+        const data = charData[dataKey];
+        const input = prompt(`${dataKey === 'hp' ? 'Leben' : charData.resource.name || 'Ressource'} (aktuell / max):`, `${data.current} / ${data.max}`);
+        if (input === null) return;
+        const parts = input.split('/').map(s => parseInt(s.trim(), 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            data.current = parts[0];
+            data.max = parts[1];
+        } else if (parts.length === 1 && !isNaN(parts[0])) {
+            data.current = parts[0];
+        }
+        save(dataKey, data);
+        renderClassAndOrbs();
+    });
+}
+
+// ── Level editing ──
+
+function initLevelBinding() {
+    const el = document.getElementById('levelOrb');
+    if (!el) return;
+
+    el.addEventListener('click', () => {
+        const input = prompt('Level:', charData.level);
+        if (input === null) return;
+        const val = parseInt(input, 10);
+        if (!isNaN(val) && val >= 1) {
+            charData.level = val;
+            save('level', val);
+            renderClassAndOrbs();
+        }
+    });
+}
+
+// ── XP editing ──
+
+function initXpBinding() {
+    const el = document.getElementById('xpText');
+    if (!el) return;
+
+    el.addEventListener('click', () => {
+        const input = prompt('XP (aktuell / max):', `${charData.xp.current} / ${charData.xp.max}`);
+        if (input === null) return;
+        const parts = input.split('/').map(s => parseInt(s.trim(), 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            charData.xp.current = parts[0];
+            charData.xp.max = parts[1];
+        } else if (parts.length === 1 && !isNaN(parts[0])) {
+            charData.xp.current = parts[0];
+        }
+        save('xp', charData.xp);
+        renderClassAndOrbs();
+    });
+}
+
+// ── Defense editing ──
+
+function initDefenseBindings() {
+    const defMap = {
+        'ds-dodge': 'defense.dodge',
+        'ds-block': 'defense.block',
+        'ds-movement': 'defense.movement'
+    };
+
+    for (const [id, path] of Object.entries(defMap)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+        });
+
+        el.addEventListener('blur', () => {
+            const raw = el.textContent.replace(/[^0-9.\-]/g, '');
+            const val = parseFloat(raw) || 0;
+            setNested(charData, path, val);
+            debounce(id, () => save(path, val));
+            renderDefense();
+        });
+    }
+
+    // Shield click → edit armor + mitigation
+    const shield = document.getElementById('defenseShield');
+    if (shield) {
+        shield.addEventListener('click', () => {
+            const input = prompt('Rüstung / Mitigation %:', `${charData.defense.armor} / ${charData.defense.mitigation}`);
+            if (input === null) return;
+            const parts = input.split('/').map(s => parseInt(s.trim(), 10));
+            if (parts.length >= 1 && !isNaN(parts[0])) charData.defense.armor = parts[0];
+            if (parts.length >= 2 && !isNaN(parts[1])) charData.defense.mitigation = parts[1];
+            save('defense', charData.defense);
+            renderDefense();
+        });
+        shield.style.cursor = 'pointer';
+    }
+}
+
+// ── Combat stat editing ──
+
+function initCombatBindings() {
+    const combatMap = {
+        initValue: 'offense.initiative',
+        combatMovement: 'defense.movement',
+        combatRange: 'offense.range',
+        combatIniFormula: 'offense.iniFormula'
+    };
+
+    for (const [id, path] of Object.entries(combatMap)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+        });
+
+        el.addEventListener('blur', () => {
+            const text = el.textContent.trim();
+            const isNum = path.includes('initiative') || path.includes('movement');
+            const val = isNum ? (parseInt(text, 10) || 0) : text;
+            setNested(charData, path, val);
+            debounce(id, () => save(path, val));
+        });
+    }
+}
+
+// ── Weakness editing ──
+
+function initWeaknessBindings() {
+    const nameEl = document.getElementById('weaknessName');
+    const descEl = document.getElementById('weaknessDesc');
+
+    if (nameEl) {
+        nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); } });
+        nameEl.addEventListener('input', () => {
+            charData.weakness.name = nameEl.textContent.trim();
+            debounce('wkName', () => save('weakness.name', charData.weakness.name));
+        });
+    }
+    if (descEl) {
+        descEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); descEl.blur(); } });
+        descEl.addEventListener('input', () => {
+            charData.weakness.description = descEl.textContent.trim();
+            debounce('wkDesc', () => save('weakness.description', charData.weakness.description));
+        });
+    }
+}
+
+// ── Class Picker ──
+
+function initClassPicker() {
+    const portrait = document.getElementById('classPortrait');
+    const overlay = document.getElementById('classPicker');
+    const grid = document.getElementById('classPickerGrid');
+    const closeBtn = document.getElementById('classPickerClose');
+    if (!portrait || !overlay || !grid) return;
+
+    // Build class cards
+    grid.innerHTML = CLASS_DEFINITIONS.map(cls => `
+        <div class="class-card${charData.class.id === cls.id ? ' selected' : ''}" data-class-id="${cls.id}">
+            <div class="class-card-name">${cls.name}</div>
+            <div class="class-card-resource" style="color:${cls.color}">${cls.resource}</div>
+        </div>
+    `).join('');
+
+    portrait.addEventListener('click', () => { overlay.style.display = 'flex'; });
+    if (closeBtn) closeBtn.addEventListener('click', () => { overlay.style.display = 'none'; });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.style.display = 'none'; });
+
+    grid.addEventListener('click', (e) => {
+        const card = e.target.closest('.class-card');
+        if (!card) return;
+        const clsId = card.dataset.classId;
+        const cls = CLASS_DEFINITIONS.find(c => c.id === clsId);
+        if (!cls) return;
+
+        charData.class = { id: cls.id, name: cls.name, label: 'Disziplin' };
+        charData.resource.name = cls.resource;
+        save('class', charData.class);
+        save('resource.name', cls.resource);
+
+        // Update UI
+        txt('className', cls.name);
+        txt('classSubLabel', 'Disziplin');
+        txt('rageLabel', cls.resource);
+        renderClassAndOrbs();
+
+        // Update selected state
+        grid.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+
+        overlay.style.display = 'none';
+        notify(`Disziplin: ${cls.name}`);
+    });
+}
+
+// ── Helper: set nested value ──
+
+function setNested(obj, path, value) {
+    const keys = path.split('.');
+    let current = obj;
+    for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) current[keys[i]] = {};
+        current = current[keys[i]];
+    }
+    current[keys[keys.length - 1]] = value;
 }
 
 // ── Abilities (3 categories x 10 rows) ──
