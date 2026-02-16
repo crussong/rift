@@ -131,6 +131,7 @@ const ItemCatalog = (() => {
     async function init() {
         _ensureDb();
         if (!_db) { console.error('[ItemCatalog] No Firestore available'); return; }
+        console.log('[ItemCatalog] Loading from:', ITEMS_COL);
         await loadItems();
         await loadAffixes();
         render();
@@ -139,20 +140,26 @@ const ItemCatalog = (() => {
 
     async function loadItems() {
         try {
-            const snap = await _ensureDb().collection(ITEMS_COL).orderBy('name').get();
+            const db = _ensureDb();
+            if (!db) { console.error('[ItemCatalog] No DB for loadItems'); return; }
+            const snap = await db.collection(ITEMS_COL).get();
             _items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            _items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            console.log('[ItemCatalog] Loaded', _items.length, 'items from', ITEMS_COL);
         } catch (e) {
-            console.warn('[ItemCatalog] Load items error:', e);
+            console.error('[ItemCatalog] Load items error:', e);
             _items = [];
         }
     }
 
     async function loadAffixes() {
         try {
-            const snap = await _ensureDb().collection(AFFIXES_COL).orderBy('name').get();
+            const db = _ensureDb();
+            if (!db) return;
+            const snap = await db.collection(AFFIXES_COL).get();
             _affixes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (e) {
-            console.warn('[ItemCatalog] Load affixes error:', e);
+            console.error('[ItemCatalog] Load affixes error:', e);
             _affixes = [];
         }
     }
@@ -542,8 +549,21 @@ const ItemCatalog = (() => {
         try {
             const db = _ensureDb();
             if (!db) { alert('Keine Datenbankverbindung. Bitte Seite neu laden.'); return; }
-            await db.collection(ITEMS_COL).doc(id).set(item, { merge: true });
-            console.log('[ItemCatalog] Saved:', id);
+            
+            const docRef = db.collection(ITEMS_COL).doc(id);
+            await docRef.set(item, { merge: true });
+            
+            // Verify the write actually persisted to server
+            try {
+                const verify = await docRef.get({ source: 'server' });
+                if (!verify.exists) {
+                    throw new Error('Item wurde nicht auf dem Server gespeichert. Firestore Rules prüfen!');
+                }
+                console.log('[ItemCatalog] Saved & verified on server:', id);
+            } catch (verifyErr) {
+                console.warn('[ItemCatalog] Server-Verify fehlgeschlagen (offline?):', verifyErr.message);
+                console.log('[ItemCatalog] Saved (möglicherweise nur lokal):', id);
+            }
 
             // Update local cache
             if (existingIdx >= 0) {

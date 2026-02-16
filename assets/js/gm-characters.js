@@ -721,8 +721,9 @@
         try {
             const db = window.RIFT?.firebase?.getFirestore?.();
             if (!db) throw new Error('No Firestore');
-            const snap = await db.collection('itemCatalog/worldsapart/items').orderBy('name').get();
+            const snap = await db.collection('itemCatalog/worldsapart/items').get();
             _itemCatalogCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            _itemCatalogCache.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
             return _itemCatalogCache;
         } catch (e) {
             console.error(LOG, 'Load item catalog error:', e);

@@ -143,8 +143,9 @@ const RiftEntities = (() => {
     async function _getItemCatalog() {
         if (_itemCatalog) return _itemCatalog;
         try {
-            const snap = await _db.collection('itemCatalog/worldsapart/items').orderBy('name').get();
+            const snap = await _db.collection('itemCatalog/worldsapart/items').get();
             _itemCatalog = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            _itemCatalog.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         } catch (e) { _itemCatalog = []; }
         return _itemCatalog;
     }
