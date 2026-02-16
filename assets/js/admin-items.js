@@ -112,8 +112,20 @@ const ItemCatalog = (() => {
     //  INIT
     // ════════════════════════════════════════
 
+    function _ensureDb() {
+        if (!_db) {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                _db = firebase.firestore();
+            } else if (window.RIFT?.firebase?.getFirestore) {
+                _db = window.RIFT.firebase.getFirestore();
+            }
+        }
+        return _db;
+    }
+
     async function init() {
-        _db = firebase.firestore();
+        _ensureDb();
+        if (!_db) { console.error('[ItemCatalog] No Firestore available'); return; }
         await loadItems();
         await loadAffixes();
         render();
@@ -122,7 +134,7 @@ const ItemCatalog = (() => {
 
     async function loadItems() {
         try {
-            const snap = await _db.collection(COLLECTION + '/items').orderBy('name').get();
+            const snap = await _ensureDb().collection(COLLECTION + '/items').orderBy('name').get();
             _items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (e) {
             console.warn('[ItemCatalog] Load items error:', e);
@@ -132,7 +144,7 @@ const ItemCatalog = (() => {
 
     async function loadAffixes() {
         try {
-            const snap = await _db.collection(COLLECTION + '/affixes').orderBy('name').get();
+            const snap = await _ensureDb().collection(COLLECTION + '/affixes').orderBy('name').get();
             _affixes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (e) {
             console.warn('[ItemCatalog] Load affixes error:', e);
@@ -523,7 +535,9 @@ const ItemCatalog = (() => {
         }
 
         try {
-            await _db.collection(COLLECTION + '/items').doc(id).set(item, { merge: true });
+            const db = _ensureDb();
+            if (!db) { alert('Keine Datenbankverbindung. Bitte Seite neu laden.'); return; }
+            await db.collection(COLLECTION + '/items').doc(id).set(item, { merge: true });
             console.log('[ItemCatalog] Saved:', id);
 
             // Update local cache
@@ -544,7 +558,7 @@ const ItemCatalog = (() => {
     async function deleteItem(id) {
         if (!confirm(`Item "${id}" wirklich löschen?`)) return;
         try {
-            await _db.collection(COLLECTION + '/items').doc(id).delete();
+            await (_ensureDb()).collection(COLLECTION + '/items').doc(id).delete();
             _items = _items.filter(i => i.id !== id);
             closeEditor();
             render();
@@ -635,7 +649,7 @@ const ItemCatalog = (() => {
         };
 
         try {
-            await _db.collection(COLLECTION + '/affixes').doc(id).set(affix, { merge: true });
+            await (_ensureDb()).collection(COLLECTION + '/affixes').doc(id).set(affix, { merge: true });
             const idx = _affixes.findIndex(a => a.id === id);
             if (idx >= 0) _affixes[idx] = affix; else _affixes.push(affix);
             closeAffixEditor();
@@ -649,7 +663,7 @@ const ItemCatalog = (() => {
     async function deleteAffix(id) {
         if (!confirm(`Affix "${id}" löschen?`)) return;
         try {
-            await _db.collection(COLLECTION + '/affixes').doc(id).delete();
+            await (_ensureDb()).collection(COLLECTION + '/affixes').doc(id).delete();
             _affixes = _affixes.filter(a => a.id !== id);
             renderAffixes();
         } catch (e) { alert('Fehler: ' + e.message); }
