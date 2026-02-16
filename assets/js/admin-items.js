@@ -50,15 +50,15 @@ const ItemCatalog = (() => {
 
     // Grid sizes for inventory (w x h in cells) — BINDING
     const SIZE_PRESETS = [
-        { label: 'Waffe',          w: 4, h: 3, types: ['weapon'] },
+        { label: 'Waffe',          w: 2, h: 4, types: ['weapon'] },
         { label: 'Rüstung Brust',  w: 2, h: 3, types: ['armor'] },
         { label: 'Rüstung Hose',   w: 2, h: 3, types: [] },
         { label: 'Nebenhand',      w: 2, h: 3, types: [] },
         { label: 'Kopf',           w: 2, h: 2, types: [] },
         { label: 'Handschuhe',     w: 2, h: 2, types: [] },
         { label: 'Stiefel',        w: 2, h: 2, types: [] },
-        { label: 'Gürtel',         w: 1, h: 2, types: [] },
-        { label: 'Trank',          w: 2, h: 1, types: ['potion'] },
+        { label: 'Gürtel',         w: 2, h: 1, types: [] },
+        { label: 'Trank',          w: 1, h: 2, types: ['potion'] },
         { label: 'Ring',           w: 1, h: 1, types: [] },
         { label: 'Amulett',        w: 1, h: 1, types: [] },
         { label: 'Edelstein',      w: 1, h: 1, types: ['gem'] },
