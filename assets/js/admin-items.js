@@ -1069,3 +1069,27 @@ const ItemCatalog = (() => {
 
 // Make globally accessible
 window.ItemCatalog = ItemCatalog;
+
+// Self-init: if itemCatalog tab is already active (e.g. after refresh with tab restore)
+(function _autoInit() {
+    const page = document.getElementById('page-itemCatalog');
+    const isActive = page && (page.classList.contains('active') || page.style.display !== 'none');
+    const savedTab = localStorage.getItem('rift_admin_tab');
+    
+    if (isActive || savedTab === 'itemCatalog') {
+        console.log('[ItemCatalog] Auto-init detected (savedTab=' + savedTab + ', active=' + isActive + ')');
+        // Wait for auth, then init
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            const unsub = firebase.auth().onAuthStateChanged(user => {
+                unsub();
+                if (user) {
+                    console.log('[ItemCatalog] Auth ready, auto-initializing...');
+                    ItemCatalog.init();
+                }
+            });
+        } else {
+            // Fallback: try after short delay
+            setTimeout(() => ItemCatalog.init(), 1500);
+        }
+    }
+})();
