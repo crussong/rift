@@ -312,7 +312,7 @@ let _dirty = false;
 
 // ─── Initialization ───
 
-function init(characterId, roomCode) {
+async function init(characterId, roomCode) {
     // Detect ?new=true → always start fresh
     const urlParams = new URLSearchParams(window.location.search);
     const isNew = urlParams.get('new') === 'true';
@@ -359,21 +359,74 @@ function init(characterId, roomCode) {
     initCardCorners();
     
     if (charId && roomCode) {
-        // Connect via RiftLink for any character with a room assignment
+        // If local wa_ ID, look up the actual Firestore character ID for this user
+        let riftCharId = charId;
+        
+        if (charId.startsWith('wa_')) {
+            try {
+                const db = firebase.firestore();
+                // Wait for auth if not ready
+                let uid = firebase.auth().currentUser?.uid;
+                if (!uid) {
+                    console.log('[Character] Waiting for auth before Firestore lookup...');
+                    uid = await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error('Auth timeout')), 5000);
+                        const unsub = firebase.auth().onAuthStateChanged(user => {
+                            clearTimeout(timeout);
+                            unsub();
+                            resolve(user?.uid);
+                        });
+                    });
+                }
+                
+                if (db && uid) {
+                    const normalizedCode = roomCode.replace(/-/g, '').toUpperCase();
+                    console.log('[Character] Looking up Firestore char for uid:', uid, 'in room:', normalizedCode);
+                    const snap = await db.collection('rooms').doc(normalizedCode)
+                        .collection('characters')
+                        .where('ownerId', '==', uid)
+                        .limit(1)
+                        .get();
+                    if (!snap.empty) {
+                        riftCharId = snap.docs[0].id;
+                        console.log('[Character] Resolved wa_ ID to Firestore ID:', charId, '→', riftCharId);
+                    } else {
+                        console.warn('[Character] No Firestore character found for uid', uid, 'in room', normalizedCode);
+                    }
+                } else {
+                    console.warn('[Character] No db or uid — skipping Firestore lookup');
+                }
+            } catch (e) {
+                console.warn('[Character] Firestore ID lookup failed:', e.message);
+            }
+        }
+        
+        // Connect via RiftLink
         if (window.RIFT && RIFT.link) {
-            RIFT.link.watchChar(charId, roomCode);
-            console.log('[Character] RiftLink connected for', charId, 'in room', roomCode);
+            RIFT.link.watchChar(riftCharId, roomCode);
+            console.log('[Character] RiftLink connected for', riftCharId, 'in room', roomCode);
         }
 
         // Listen for remote changes (from GM or other sources)
-        _stateOn(`characters.${charId}:changed`, (data) => {
+        _stateOn(`characters.${riftCharId}:changed`, (data) => {
             if (!data || data === charData) return;
-            // Only accept v2 format data (has hp.current, not hub format with data._v2)
-            if (!data.hp || data.data?._v2) {
-                console.log('[Character] Ignoring non-v2 remote data');
-                return;
+            
+            console.log('[Character] Remote data received — keys:', Object.keys(data).join(','), 'has hp:', !!data.hp, 'has inventory:', !!data.inventory);
+            
+            // Merge inventory/equipment from remote into local charData
+            if (data.inventory) {
+                console.log('[Character] Merging remote inventory (' + (data.inventory.items?.length || 0) + ' items)');
+                charData.inventory = data.inventory;
             }
-            charData = data;
+            if (data.equipment) {
+                charData.equipment = data.equipment;
+            }
+            
+            // For full v2 data, do full replace
+            if (data.hp && !data.data?._v2) {
+                charData = data;
+            }
+            
             _ensureDefaults();
             _saveLocal();
             renderAll();
