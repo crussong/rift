@@ -2,8 +2,8 @@
  * ═══════════════════════════════════════════════════════════════
  *  RIFT Admin: Item-Katalog (Worlds Apart)
  *  
- *  Firestore:  admin/itemCatalog/worldsapart/items/{itemId}
- *              admin/itemCatalog/worldsapart/affixes/{affixId}
+ *  Firestore:  itemCatalog/worldsapart/items/{itemId}
+ *              itemCatalog/worldsapart/affixes/{affixId}
  *
  *  Usage:      ItemCatalog.init()  — called from admin.html
  * ═══════════════════════════════════════════════════════════════
@@ -16,7 +16,12 @@ const ItemCatalog = (() => {
     //  CONSTANTS
     // ════════════════════════════════════════
 
-    const COLLECTION = 'admin/itemCatalog/worldsapart';
+    // Firestore paths (collections must have odd segment count)
+    // Items:   itemCatalog/worldsapart/items/{itemId}   (3 segments = collection ✓)
+    // Affixes: itemCatalog/worldsapart/affixes/{affixId} (3 segments = collection ✓)
+    const COLLECTION_BASE = 'itemCatalog/worldsapart';
+    const ITEMS_COL = COLLECTION_BASE + '/items';
+    const AFFIXES_COL = COLLECTION_BASE + '/affixes';
 
     const ITEM_TYPES = [
         { id: 'weapon',     label: 'Waffe',         icon: 'M14.5 2.5L6 11l2.5 2.5L3 19l5.5-5.5L11 16l8.5-8.5z' },
@@ -134,7 +139,7 @@ const ItemCatalog = (() => {
 
     async function loadItems() {
         try {
-            const snap = await _ensureDb().collection(COLLECTION + '/items').orderBy('name').get();
+            const snap = await _ensureDb().collection(ITEMS_COL).orderBy('name').get();
             _items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (e) {
             console.warn('[ItemCatalog] Load items error:', e);
@@ -144,7 +149,7 @@ const ItemCatalog = (() => {
 
     async function loadAffixes() {
         try {
-            const snap = await _ensureDb().collection(COLLECTION + '/affixes').orderBy('name').get();
+            const snap = await _ensureDb().collection(AFFIXES_COL).orderBy('name').get();
             _affixes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (e) {
             console.warn('[ItemCatalog] Load affixes error:', e);
@@ -537,7 +542,7 @@ const ItemCatalog = (() => {
         try {
             const db = _ensureDb();
             if (!db) { alert('Keine Datenbankverbindung. Bitte Seite neu laden.'); return; }
-            await db.collection(COLLECTION + '/items').doc(id).set(item, { merge: true });
+            await db.collection(ITEMS_COL).doc(id).set(item, { merge: true });
             console.log('[ItemCatalog] Saved:', id);
 
             // Update local cache
@@ -558,7 +563,7 @@ const ItemCatalog = (() => {
     async function deleteItem(id) {
         if (!confirm(`Item "${id}" wirklich löschen?`)) return;
         try {
-            await (_ensureDb()).collection(COLLECTION + '/items').doc(id).delete();
+            await (_ensureDb()).collection(ITEMS_COL).doc(id).delete();
             _items = _items.filter(i => i.id !== id);
             closeEditor();
             render();
@@ -649,7 +654,7 @@ const ItemCatalog = (() => {
         };
 
         try {
-            await (_ensureDb()).collection(COLLECTION + '/affixes').doc(id).set(affix, { merge: true });
+            await (_ensureDb()).collection(AFFIXES_COL).doc(id).set(affix, { merge: true });
             const idx = _affixes.findIndex(a => a.id === id);
             if (idx >= 0) _affixes[idx] = affix; else _affixes.push(affix);
             closeAffixEditor();
@@ -663,7 +668,7 @@ const ItemCatalog = (() => {
     async function deleteAffix(id) {
         if (!confirm(`Affix "${id}" löschen?`)) return;
         try {
-            await (_ensureDb()).collection(COLLECTION + '/affixes').doc(id).delete();
+            await (_ensureDb()).collection(AFFIXES_COL).doc(id).delete();
             _affixes = _affixes.filter(a => a.id !== id);
             renderAffixes();
         } catch (e) { alert('Fehler: ' + e.message); }

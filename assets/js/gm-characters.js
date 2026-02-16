@@ -721,7 +721,7 @@
         try {
             const db = window.RIFT?.firebase?.getFirestore?.();
             if (!db) throw new Error('No Firestore');
-            const snap = await db.collection('admin/itemCatalog/worldsapart/items').orderBy('name').get();
+            const snap = await db.collection('itemCatalog/worldsapart/items').orderBy('name').get();
             _itemCatalogCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             return _itemCatalogCache;
         } catch (e) {
