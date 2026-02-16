@@ -378,6 +378,8 @@ function init(characterId, roomCode) {
             _saveLocal();
             renderAll();
         });
+    } else {
+        console.log('[Character] RiftLink SKIPPED — charId:', charId, 'roomCode:', roomCode, 'wa_prefix:', charId ? charId.startsWith('wa_') : 'null');
     }
 
     // Auto-save every 30 seconds

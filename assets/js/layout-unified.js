@@ -1186,7 +1186,7 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     if (actualId && charId !== 'local') {
         url += `?id=${actualId}`;
         if (roomCode) {
-            url += `&roomCode=${roomCode}`;
+            url += `&room=${roomCode}`;
         }
     } else if (roomCode) {
         // No character ID but we have a room - just pass room
