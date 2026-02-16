@@ -734,8 +734,8 @@ function renderInventoryGrid() {
     if (grid && !grid.hasChildNodes()) {
         buildInventoryGrid(grid, charData.inventory.cols, charData.inventory.rows);
     }
-    // Render items, equipment, quickbar via inventory system
-    if (window.RiftInventory) {
+    // Render items, equipment, quickbar via inventory system (only if init() was called)
+    if (window.RiftInventory && RiftInventory.isReady) {
         try { RiftInventory.render(); } catch (e) { console.warn('[Character] Inventory render error:', e); }
     }
 }

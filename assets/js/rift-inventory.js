@@ -92,6 +92,7 @@ const RiftInventory = (() => {
     let _getChar = null;
     let _saveChar = null;
     let _charId = null;
+    let _ready = false;
     let _filter = { rarity: 'all', type: 'all' };
     let _tooltipEl = null;
     let _ctxEl = null;
@@ -106,6 +107,7 @@ const RiftInventory = (() => {
         _getChar = getCharFn;
         _saveChar = saveCharFn;
         _charId = currentCharId;
+        _ready = true;
         _ensureTooltip();
         _ensureContextMenu();
         _bindEvents();
@@ -973,6 +975,7 @@ const RiftInventory = (() => {
         init, render, addItem, removeItem, equipItem, unequipSlot,
         useItem, dropItem, addToQuickbar, removeFromQuickbar, splitStack,
         loadStarterKit,
+        get isReady() { return _ready; },
         RARITY, FALLBACK_ICONS, TYPE_LABELS, GRID_COLS, GRID_ROWS
     };
 
