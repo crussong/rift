@@ -428,7 +428,7 @@ async function init(characterId, roomCode) {
             }
             
             _ensureDefaults();
-            _saveLocal();
+            _saveLocal(true);  // skipSync — data came FROM Firestore, don't write back
             renderAll();
         });
     } else {
@@ -865,16 +865,19 @@ function save(path, value) {
     }
 }
 
-function _saveLocal() {
+function _saveLocal(skipSync) {
     try {
         const json = JSON.stringify(charData);
         const key = _storageKey(charId);
         localStorage.setItem(key, json);
 
         // Bridge to CharacterStorage (debounced — hub doesn't need instant updates)
-        debounce('charStorageBridge', _syncToCharacterStorage, 2000);
+        // Skip sync when saving remote data to prevent echo loops
+        if (!skipSync) {
+            debounce('charStorageBridge', _syncToCharacterStorage, 2000);
+        }
 
-        console.log('[Character] Saved to', key, '(' + Math.round(json.length / 1024) + 'kB)', charData.profile?.name || '');
+        console.log('[Character] Saved to', key, '(' + Math.round(json.length / 1024) + 'kB)', charData.profile?.name || '', skipSync ? '(no sync)' : '');
     } catch (e) {
         console.error('[Character] localStorage save FAILED:', e);
     }
