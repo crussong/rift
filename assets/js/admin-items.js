@@ -988,7 +988,54 @@ const ItemCatalog = (() => {
         RARITIES,
         ITEM_TYPES,
         SUB_TYPES,
-        SIZE_PRESETS
+        SIZE_PRESETS,
+
+        // Debug: call ItemCatalog.debugFirestore() from console
+        async debugFirestore() {
+            console.log('=== FIRESTORE DEBUG ===');
+            console.log('ITEMS_COL:', ITEMS_COL);
+            const db = _ensureDb();
+            console.log('DB instance:', db ? 'OK' : 'NULL');
+            if (!db) return;
+
+            // 1. Test write
+            const testId = '_debug_test_' + Date.now();
+            try {
+                await db.collection(ITEMS_COL).doc(testId).set({ name: 'DEBUG', _test: true });
+                console.log('WRITE: OK');
+            } catch (e) {
+                console.error('WRITE FAILED:', e.code, e.message);
+                return;
+            }
+
+            // 2. Test read from server
+            try {
+                const doc = await db.collection(ITEMS_COL).doc(testId).get({ source: 'server' });
+                console.log('SERVER READ:', doc.exists ? 'EXISTS' : 'NOT FOUND');
+            } catch (e) {
+                console.error('SERVER READ FAILED:', e.code, e.message);
+            }
+
+            // 3. Test read from cache
+            try {
+                const doc = await db.collection(ITEMS_COL).doc(testId).get({ source: 'cache' });
+                console.log('CACHE READ:', doc.exists ? 'EXISTS' : 'NOT FOUND');
+            } catch (e) {
+                console.warn('CACHE READ FAILED:', e.code, e.message);
+            }
+
+            // 4. List all docs in collection
+            try {
+                const snap = await db.collection(ITEMS_COL).get();
+                console.log('COLLECTION LIST:', snap.size, 'docs →', snap.docs.map(d => d.id));
+            } catch (e) {
+                console.error('COLLECTION LIST FAILED:', e.code, e.message);
+            }
+
+            // 5. Cleanup
+            try { await db.collection(ITEMS_COL).doc(testId).delete(); } catch (e) {}
+            console.log('=== END DEBUG ===');
+        }
     };
 
 })();
