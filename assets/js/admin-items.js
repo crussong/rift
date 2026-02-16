@@ -129,9 +129,36 @@ const ItemCatalog = (() => {
     }
 
     async function init() {
-        _ensureDb();
-        if (!_db) { console.error('[ItemCatalog] No Firestore available'); return; }
+        console.log('[ItemCatalog] init() called');
+        
+        // Wait for Firebase auth to be ready (rules require isAuthenticated)
+        const db = _ensureDb();
+        if (!db) { 
+            console.error('[ItemCatalog] No Firestore — retrying in 1s'); 
+            setTimeout(() => init(), 1000);
+            return; 
+        }
+
+        // Wait for auth if not yet signed in
+        if (firebase.auth && !firebase.auth().currentUser) {
+            console.log('[ItemCatalog] Waiting for auth...');
+            try {
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Auth timeout')), 5000);
+                    const unsub = firebase.auth().onAuthStateChanged(user => {
+                        clearTimeout(timeout);
+                        unsub();
+                        resolve(user);
+                    });
+                });
+            } catch (e) {
+                console.warn('[ItemCatalog] Auth wait failed:', e.message);
+            }
+        }
+        
+        console.log('[ItemCatalog] Auth:', firebase.auth?.().currentUser?.uid || 'NONE');
         console.log('[ItemCatalog] Loading from:', ITEMS_COL);
+        
         await loadItems();
         await loadAffixes();
         render();
