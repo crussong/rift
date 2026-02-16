@@ -313,23 +313,47 @@ let _dirty = false;
 // ─── Initialization ───
 
 function init(characterId, roomCode) {
+    // Detect ?new=true → always start fresh
+    const urlParams = new URLSearchParams(window.location.search);
+    const isNew = urlParams.get('new') === 'true';
+
+    // For new characters, generate a fresh ID if none provided
+    if (isNew && !characterId) {
+        characterId = 'wa_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        // Update URL so refreshes don't create yet another new one
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('char', characterId);
+        newUrl.searchParams.delete('new');
+        history.replaceState(null, '', newUrl.toString());
+        console.log('[Character] New character created:', characterId);
+    }
+
     charId = characterId;
 
-    // Load priority: 1) localStorage (always authoritative for v2), 2) blank
     let source = 'blank';
-    const localChar = _loadLocal();
-    
-    if (localChar && localChar.profile) {
-        charData = localChar;
-        source = 'localStorage';
-    } else {
+
+    if (isNew) {
+        // Force blank — never load old data for new characters
         charData = JSON.parse(JSON.stringify(BLANK_CHARACTER));
+        source = 'new (blank)';
+    } else {
+        // Load from per-character localStorage, fallback to blank
+        const localChar = _loadLocal();
+        if (localChar && localChar.profile) {
+            charData = localChar;
+            source = 'localStorage';
+        } else {
+            charData = JSON.parse(JSON.stringify(BLANK_CHARACTER));
+        }
     }
     
-    console.log('[Character] Source:', source, charData.profile?.name || '(blank)');
+    console.log('[Character] Source:', source, '| ID:', charId || 'LOCAL', '|', charData.profile?.name || '(blank)');
     
     // Ensure all required fields exist (merge with BLANK defaults)
     _ensureDefaults();
+    
+    // Save immediately so the new char persists under its own key
+    _saveLocal();
     
     renderAll();
     initCardCorners();
@@ -764,7 +788,12 @@ function debounce(key, fn, ms = 800) {
 }
 
 // ─── Storage Keys ───
-const LOCAL_STORAGE_KEY = 'rift_wa_character';
+// Per-character storage: 'rift_wa_char_{charId}'
+function _storageKey(id) {
+    return 'rift_wa_char_' + (id || 'local');
+}
+// Legacy single key (migration)
+const LEGACY_STORAGE_KEY = 'rift_wa_character';
 
 // ─── State write (localStorage always + RiftLink when connected) ───
 function save(path, value) {
@@ -784,12 +813,13 @@ function save(path, value) {
 function _saveLocal() {
     try {
         const json = JSON.stringify(charData);
-        localStorage.setItem(LOCAL_STORAGE_KEY, json);
+        const key = _storageKey(charId);
+        localStorage.setItem(key, json);
 
         // Bridge to CharacterStorage (debounced — hub doesn't need instant updates)
         debounce('charStorageBridge', _syncToCharacterStorage, 2000);
 
-        console.log('[Character] Saved (' + Math.round(json.length / 1024) + 'kB)', charData.profile?.name || '');
+        console.log('[Character] Saved to', key, '(' + Math.round(json.length / 1024) + 'kB)', charData.profile?.name || '');
     } catch (e) {
         console.error('[Character] localStorage save FAILED:', e);
     }
@@ -890,11 +920,26 @@ function _deepMergeDefaults(target, defaults) {
 
 function _loadLocal() {
     try {
-        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const key = _storageKey(charId);
+        let raw = localStorage.getItem(key);
+
+        // Migration: if no per-char data, check legacy single key
+        if (!raw && charId) {
+            const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+            if (legacyRaw) {
+                const legacy = JSON.parse(legacyRaw);
+                if (legacy && legacy.profile) {
+                    console.log('[Character] Migrating from legacy key to', key);
+                    localStorage.setItem(key, legacyRaw);
+                    raw = legacyRaw;
+                }
+            }
+        }
+
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (parsed && parsed.profile) {
-            console.log('[Character] Loaded from localStorage:', parsed.profile?.name || '');
+            console.log('[Character] Loaded from', key + ':', parsed.profile?.name || '');
             return parsed;
         }
     } catch (e) { /* ignore */ }
