@@ -259,153 +259,190 @@ const ItemCatalog = (() => {
             `<option value="${s}" ${item.slot === s ? 'selected' : ''}>${s}</option>`
         ).join('');
 
+        const presetBtns = SIZE_PRESETS.map(p => {
+            const active = item.gridW === p.w && item.gridH === p.h;
+            return `<button type="button" class="ie-preset${active ? ' ie-preset--active' : ''}" onclick="document.getElementById('ieditGridW').value=${p.w};document.getElementById('ieditGridH').value=${p.h};ItemCatalog._updateSizePreview();this.parentElement.querySelectorAll('.ie-preset').forEach(b=>b.classList.remove('ie-preset--active'));this.classList.add('ie-preset--active')">${p.label} <span>${p.w}x${p.h}</span></button>`;
+        }).join('');
+
         const html = `
         <div class="modal active" id="itemEditorModal" onclick="if(event.target===this)ItemCatalog.closeEditor()">
-            <div class="modal__card" style="max-width:720px;max-height:90vh;overflow-y:auto">
+            <div class="modal__content modal__content--wide" style="max-height:92vh;display:flex;flex-direction:column">
+                <!-- HEADER -->
                 <div class="modal__header">
-                    <h2>${isNew ? 'Neues Item' : _esc(item.name) + ' bearbeiten'}</h2>
-                    <button class="modal__close" onclick="ItemCatalog.closeEditor()">&times;</button>
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div style="width:36px;height:36px;border-radius:10px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                        </div>
+                        <div>
+                            <div class="modal__title">${isNew ? 'Neues Item erstellen' : _esc(item.name)}</div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${isNew ? 'Aus dem Katalog heraus an Spieler vergeben' : 'ID: ' + _esc(item.id)}</div>
+                        </div>
+                    </div>
+                    <button onclick="ItemCatalog.closeEditor()" style="background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#fff'" onmouseout="this.style.background='';this.style.color='var(--text-muted)'">&times;</button>
                 </div>
-                <div class="modal__body" style="display:flex;flex-direction:column;gap:16px">
-                    <!-- Row 1: Basics -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                        <div class="field">
-                            <label class="field__label">Name</label>
-                            <input type="text" class="field__input" id="ieditName" value="${_esc(item.name)}" placeholder="Eisenschwert">
-                        </div>
-                        <div class="field">
-                            <label class="field__label">ID <span style="opacity:0.4">(auto)</span></label>
-                            <input type="text" class="field__input" id="ieditId" value="${_esc(item.id)}" placeholder="iron_sword_01" ${isNew ? '' : 'readonly style="opacity:0.5"'}>
-                        </div>
-                    </div>
 
-                    <!-- Row 2: Type, SubType, Rarity, Slot -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
-                        <div class="field">
-                            <label class="field__label">Typ</label>
-                            <select class="field__input" id="ieditType" onchange="ItemCatalog._onTypeChange()">${typeOptions}</select>
-                        </div>
-                        <div class="field">
-                            <label class="field__label">Sub-Typ</label>
-                            <select class="field__input" id="ieditSubType">${subTypeOptions}</select>
-                        </div>
-                        <div class="field">
-                            <label class="field__label">Rarität</label>
-                            <select class="field__input" id="ieditRarity">${rarityOptions}</select>
-                        </div>
-                        <div class="field">
-                            <label class="field__label">Slot</label>
-                            <select class="field__input" id="ieditSlot"><option value="">—</option>${slotOptions}</select>
-                        </div>
-                    </div>
+                <!-- BODY -->
+                <div class="modal__body" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:20px">
 
-                    <!-- Row 3: Grid Size + Icon -->
-                    <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
-                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">Inventar-Größe &amp; Bild</div>
-                        <div style="display:flex;gap:16px;align-items:flex-start">
-                            <div style="flex:1">
-                                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="ieditSizePresets">
-                                    ${SIZE_PRESETS.map(p => `<button type="button" class="btn btn--outline btn--small" style="font-size:10px;padding:3px 8px;${item.gridW === p.w && item.gridH === p.h ? 'border-color:var(--gold);color:var(--gold)' : ''}" onclick="document.getElementById('ieditGridW').value=${p.w};document.getElementById('ieditGridH').value=${p.h};ItemCatalog._updateSizePreview();this.parentElement.querySelectorAll('button').forEach(b=>b.style.cssText='font-size:10px;padding:3px 8px');this.style.borderColor='var(--gold)';this.style.color='var(--gold)'">${p.label} (${p.w}x${p.h})</button>`).join('')}
-                                </div>
-                                <div style="display:flex;gap:10px;align-items:center">
-                                    <div class="field" style="width:70px"><label class="field__label">Breite</label><input type="number" class="field__input" id="ieditGridW" value="${item.gridW || 1}" min="1" max="6" onchange="ItemCatalog._updateSizePreview()"></div>
-                                    <span style="color:var(--text-muted);font-size:16px;padding-top:16px">&times;</span>
-                                    <div class="field" style="width:70px"><label class="field__label">Höhe</label><input type="number" class="field__input" id="ieditGridH" value="${item.gridH || 1}" min="1" max="6" onchange="ItemCatalog._updateSizePreview()"></div>
-                                    <div id="ieditSizePreview" style="margin-left:8px;padding-top:12px">${_renderSizePreview(item.gridW || 1, item.gridH || 1)}</div>
-                                </div>
+                    <!-- BASICS -->
+                    <div class="ie-section">
+                        <div class="ie-section__title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Grunddaten
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">Name</label>
+                                <input type="text" class="form-input" id="ieditName" value="${_esc(item.name)}" placeholder="Eisenschwert">
                             </div>
-                            <div style="width:1px;background:var(--border);align-self:stretch"></div>
-                            <div style="flex:1">
-                                <div class="field">
-                                    <label class="field__label">Bild-URL <span style="opacity:0.4">(Cloudinary)</span></label>
-                                    <input type="text" class="field__input" id="ieditIcon" value="${_esc(item.icon || '')}" placeholder="https://res.cloudinary.com/..." oninput="ItemCatalog._updateIconPreview()">
-                                </div>
-                                <div id="ieditIconPreview" style="margin-top:8px;display:flex;align-items:center;gap:8px">
-                                    ${item.icon ? `<img src="${_esc(item.icon)}" style="width:48px;height:48px;object-fit:contain;border-radius:4px;background:rgba(255,255,255,0.03)">` : '<span style="font-size:11px;color:var(--text-muted)">Kein Bild</span>'}
-                                </div>
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">ID <span>(auto)</span></label>
+                                <input type="text" class="form-input" id="ieditId" value="${_esc(item.id)}" placeholder="iron_sword_01" ${isNew ? '' : 'readonly style="opacity:0.4;cursor:not-allowed"'}>
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:12px">
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">Typ</label>
+                                <select class="form-select" id="ieditType" onchange="ItemCatalog._onTypeChange()">${typeOptions}</select>
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">Sub-Typ</label>
+                                <select class="form-select" id="ieditSubType">${subTypeOptions}</select>
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">Rarität</label>
+                                <select class="form-select" id="ieditRarity" style="color:${rarity.color}">${rarityOptions}</select>
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">Slot</label>
+                                <select class="form-select" id="ieditSlot"><option value="">—</option>${slotOptions}</select>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Row 4: Description -->
-                    <div class="field">
-                        <label class="field__label">Beschreibung</label>
-                        <textarea class="field__input" id="ieditDesc" rows="2" placeholder="Ein einfaches Schwert...">${_esc(item.description || '')}</textarea>
-                    </div>
-                    <div class="field">
-                        <label class="field__label">Flavor-Text <span style="opacity:0.4">(kursiv)</span></label>
-                        <input type="text" class="field__input" id="ieditFlavor" value="${_esc(item.flavorText || '')}" placeholder="Geschmiedet in der Schmiede von Kaldur...">
+                    <!-- GRID SIZE & IMAGE — side by side -->
+                    <div class="ie-section" style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+                        <div style="padding-right:16px;border-right:1px solid var(--border)">
+                            <div class="ie-section__title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                                Inventar-Größe
+                            </div>
+                            <div class="ie-presets">${presetBtns}</div>
+                            <div style="display:flex;gap:10px;align-items:flex-end;margin-top:12px">
+                                <div class="form-group" style="margin:0;width:72px">
+                                    <label class="form-label">Breite</label>
+                                    <input type="number" class="form-input" id="ieditGridW" value="${item.gridW || 1}" min="1" max="6" style="text-align:center" onchange="ItemCatalog._updateSizePreview()">
+                                </div>
+                                <span style="color:var(--text-muted);font-size:16px;padding-bottom:10px">&times;</span>
+                                <div class="form-group" style="margin:0;width:72px">
+                                    <label class="form-label">Höhe</label>
+                                    <input type="number" class="form-input" id="ieditGridH" value="${item.gridH || 1}" min="1" max="6" style="text-align:center" onchange="ItemCatalog._updateSizePreview()">
+                                </div>
+                                <div id="ieditSizePreview" style="margin-left:12px">${_renderSizePreview(item.gridW || 1, item.gridH || 1)}</div>
+                            </div>
+                        </div>
+                        <div style="padding-left:16px">
+                            <div class="ie-section__title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                Item-Bild
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">Cloudinary URL</label>
+                                <input type="text" class="form-input" id="ieditIcon" value="${_esc(item.icon || '')}" placeholder="https://res.cloudinary.com/..." oninput="ItemCatalog._updateIconPreview()">
+                            </div>
+                            <div id="ieditIconPreview" style="margin-top:12px;display:flex;align-items:center;justify-content:center;height:80px;background:rgba(255,255,255,0.02);border:1px dashed var(--border);border-radius:8px">
+                                ${item.icon ? `<img src="${_esc(item.icon)}" style="max-width:72px;max-height:72px;object-fit:contain;border-radius:4px">` : '<span style="font-size:12px;color:var(--text-muted)">Kein Bild</span>'}
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Row 4: Stats -->
-                    <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
-                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">Stats</div>
+                    <!-- DESCRIPTION -->
+                    <div class="ie-section">
+                        <div class="ie-section__title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                            Beschreibung
+                        </div>
+                        <div class="form-group" style="margin:0">
+                            <textarea class="form-input" id="ieditDesc" rows="2" placeholder="Ein einfaches Schwert..." style="resize:vertical">${_esc(item.description || '')}</textarea>
+                        </div>
+                        <div class="form-group" style="margin:8px 0 0">
+                            <label class="form-label">Flavor-Text <span>(kursiv im Tooltip)</span></label>
+                            <input type="text" class="form-input" id="ieditFlavor" value="${_esc(item.flavorText || '')}" placeholder="Geschmiedet in den Feuern von Kaldur..." style="font-style:italic">
+                        </div>
+                    </div>
+
+                    <!-- STATS + ECONOMY — compact grid -->
+                    <div class="ie-section">
+                        <div class="ie-section__title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                            Stats & Ökonomie
+                        </div>
                         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
-                            <div class="field"><label class="field__label">Schaden</label><input type="text" class="field__input" id="ieditDamage" value="${_esc(item.stats?.damage || '')}" placeholder="2d6+2"></div>
-                            <div class="field"><label class="field__label">Rüstung</label><input type="number" class="field__input" id="ieditArmor" value="${item.stats?.armor || 0}"></div>
-                            <div class="field"><label class="field__label">Tempo</label><input type="number" step="0.1" class="field__input" id="ieditSpeed" value="${item.stats?.speed || 0}"></div>
-                            <div class="field"><label class="field__label">Krit %</label><input type="number" class="field__input" id="ieditCrit" value="${item.stats?.critChance || 5}"></div>
-                            <div class="field"><label class="field__label">Krit-DMG %</label><input type="number" class="field__input" id="ieditCritDmg" value="${item.stats?.critDamage || 150}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Schaden</label><input type="text" class="form-input" id="ieditDamage" value="${_esc(item.stats?.damage || '')}" placeholder="2d6+2"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Rüstung</label><input type="number" class="form-input" id="ieditArmor" value="${item.stats?.armor || 0}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Tempo</label><input type="number" step="0.1" class="form-input" id="ieditSpeed" value="${item.stats?.speed || 0}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Krit %</label><input type="number" class="form-input" id="ieditCrit" value="${item.stats?.critChance || 5}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Krit-DMG %</label><input type="number" class="form-input" id="ieditCritDmg" value="${item.stats?.critDamage || 150}"></div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+                            <div class="form-group" style="margin:0"><label class="form-label">Wert <span>(Gold)</span></label><input type="number" class="form-input" id="ieditValue" value="${item.value || 0}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Gewicht <span>(kg)</span></label><input type="number" step="0.1" class="form-input" id="ieditWeight" value="${item.weight || 0}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Haltbarkeit</label><input type="number" class="form-input" id="ieditDurability" value="${item.durability || 100}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Max Stack</label><input type="number" class="form-input" id="ieditStack" value="${item.maxStack || 1}"></div>
                         </div>
                     </div>
 
-                    <!-- Row 5: Economy -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
-                        <div class="field"><label class="field__label">Wert (Gold)</label><input type="number" class="field__input" id="ieditValue" value="${item.value || 0}"></div>
-                        <div class="field"><label class="field__label">Gewicht (kg)</label><input type="number" step="0.1" class="field__input" id="ieditWeight" value="${item.weight || 0}"></div>
-                        <div class="field"><label class="field__label">Haltbarkeit</label><input type="number" class="field__input" id="ieditDurability" value="${item.durability || 100}" title="0 = unzerstörbar"></div>
-                        <div class="field"><label class="field__label">Max Stack</label><input type="number" class="field__input" id="ieditStack" value="${item.maxStack || 1}"></div>
-                    </div>
-
-                    <!-- Row 6: Requirements -->
-                    <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
-                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">Voraussetzungen</div>
+                    <!-- REQUIREMENTS -->
+                    <div class="ie-section">
+                        <div class="ie-section__title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            Voraussetzungen
+                        </div>
                         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-                            <div class="field"><label class="field__label">Level</label><input type="number" class="field__input" id="ieditReqLevel" value="${item.requirements?.level || 0}"></div>
-                            <div class="field"><label class="field__label">Kraft</label><input type="number" class="field__input" id="ieditReqKraft" value="${item.requirements?.kraft || 0}"></div>
-                            <div class="field"><label class="field__label">Geschick</label><input type="number" class="field__input" id="ieditReqGes" value="${item.requirements?.geschick || 0}"></div>
-                            <div class="field"><label class="field__label">Klassen <span style="opacity:0.4">(kommagetrennt)</span></label><input type="text" class="field__input" id="ieditReqClass" value="${(item.requirements?.class || []).join(', ')}" placeholder="alle"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Level</label><input type="number" class="form-input" id="ieditReqLevel" value="${item.requirements?.level || 0}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Kraft</label><input type="number" class="form-input" id="ieditReqKraft" value="${item.requirements?.kraft || 0}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Geschick</label><input type="number" class="form-input" id="ieditReqGes" value="${item.requirements?.geschick || 0}"></div>
+                            <div class="form-group" style="margin:0"><label class="form-label">Klassen <span>(komma)</span></label><input type="text" class="form-input" id="ieditReqClass" value="${(item.requirements?.class || []).join(', ')}" placeholder="alle"></div>
                         </div>
                     </div>
 
-                    <!-- Row 7: Flags -->
-                    <div style="display:flex;gap:16px;flex-wrap:wrap;padding:8px 0">
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                            <input type="checkbox" id="ieditFlagQuest" ${item.flags?.questItem ? 'checked' : ''}> Quest-Item
-                        </label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                            <input type="checkbox" id="ieditFlagBound" ${item.flags?.soulbound ? 'checked' : ''}> Seelengebunden
-                        </label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                            <input type="checkbox" id="ieditFlagUnique" ${item.flags?.unique ? 'checked' : ''}> Einzigartig
-                        </label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                            <input type="checkbox" id="ieditFlagConsume" ${item.flags?.consumable ? 'checked' : ''}> Verbrauchbar
-                        </label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                            <input type="checkbox" id="ieditFlagTrade" ${item.flags?.tradeable !== false ? 'checked' : ''}> Handelbar
-                        </label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                            <input type="checkbox" id="ieditFlagStack" ${item.stackable ? 'checked' : ''}> Stapelbar
-                        </label>
-                    </div>
-
-                    <!-- Row 8: Tags -->
-                    <div class="field">
-                        <label class="field__label">Tags <span style="opacity:0.4">(kommagetrennt)</span></label>
-                        <input type="text" class="field__input" id="ieditTags" value="${(item.tags || []).join(', ')}" placeholder="melee, iron, starter">
+                    <!-- FLAGS -->
+                    <div class="ie-section">
+                        <div class="ie-section__title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                            Flags & Tags
+                        </div>
+                        <div class="ie-flags">
+                            <label class="ie-flag"><input type="checkbox" id="ieditFlagQuest" ${item.flags?.questItem ? 'checked' : ''}><span class="ie-flag__box"></span> Quest-Item</label>
+                            <label class="ie-flag"><input type="checkbox" id="ieditFlagBound" ${item.flags?.soulbound ? 'checked' : ''}><span class="ie-flag__box"></span> Seelengebunden</label>
+                            <label class="ie-flag"><input type="checkbox" id="ieditFlagUnique" ${item.flags?.unique ? 'checked' : ''}><span class="ie-flag__box"></span> Einzigartig</label>
+                            <label class="ie-flag"><input type="checkbox" id="ieditFlagConsume" ${item.flags?.consumable ? 'checked' : ''}><span class="ie-flag__box"></span> Verbrauchbar</label>
+                            <label class="ie-flag"><input type="checkbox" id="ieditFlagTrade" ${item.flags?.tradeable !== false ? 'checked' : ''}><span class="ie-flag__box"></span> Handelbar</label>
+                            <label class="ie-flag"><input type="checkbox" id="ieditFlagStack" ${item.stackable ? 'checked' : ''}><span class="ie-flag__box"></span> Stapelbar</label>
+                        </div>
+                        <div class="form-group" style="margin:12px 0 0">
+                            <label class="form-label">Tags <span>(kommagetrennt)</span></label>
+                            <input type="text" class="form-input" id="ieditTags" value="${(item.tags || []).join(', ')}" placeholder="melee, iron, starter">
+                        </div>
                     </div>
                 </div>
 
-                <div class="modal__footer" style="display:flex;gap:8px;justify-content:space-between">
-                    <div>
-                        ${!isNew ? `<button class="btn btn--danger btn--small" onclick="ItemCatalog.deleteItem('${item.id}')">Löschen</button>` : ''}
-                        <button class="btn btn--outline btn--small" onclick="ItemCatalog.duplicateItem()">Duplizieren</button>
+                <!-- FOOTER -->
+                <div class="modal__footer" style="justify-content:space-between">
+                    <div style="display:flex;gap:8px">
+                        ${!isNew ? `<button class="btn btn--danger btn--small" onclick="ItemCatalog.deleteItem('${item.id}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                            Löschen
+                        </button>` : ''}
+                        <button class="btn btn--ghost btn--small" onclick="ItemCatalog.duplicateItem()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                            Duplizieren
+                        </button>
                     </div>
                     <div style="display:flex;gap:8px">
-                        <button class="btn btn--outline" onclick="ItemCatalog.closeEditor()">Abbrechen</button>
+                        <button class="btn btn--secondary" onclick="ItemCatalog.closeEditor()">Abbrechen</button>
                         <button class="btn btn--primary" onclick="ItemCatalog.saveItem()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                             Speichern
                         </button>
                     </div>
@@ -828,14 +865,14 @@ const ItemCatalog = (() => {
     }
 
     function _renderSizePreview(w, h) {
-        const cellPx = 14;
-        const gap = 1;
+        const cellPx = 16;
+        const gap = 2;
         const totalW = w * (cellPx + gap) - gap;
         const totalH = h * (cellPx + gap) - gap;
         let cells = '';
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
-                cells += `<div style="position:absolute;left:${x*(cellPx+gap)}px;top:${y*(cellPx+gap)}px;width:${cellPx}px;height:${cellPx}px;background:rgba(212,168,68,0.15);border:1px solid rgba(212,168,68,0.3);border-radius:1px"></div>`;
+                cells += `<div style="position:absolute;left:${x*(cellPx+gap)}px;top:${y*(cellPx+gap)}px;width:${cellPx}px;height:${cellPx}px;background:rgba(139,92,246,0.18);border:1px solid rgba(139,92,246,0.4);border-radius:2px"></div>`;
             }
         }
         return `<div style="position:relative;width:${totalW}px;height:${totalH}px">${cells}</div>`;
@@ -853,9 +890,9 @@ const ItemCatalog = (() => {
         const el = document.getElementById('ieditIconPreview');
         if (!el) return;
         if (url) {
-            el.innerHTML = `<img src="${_esc(url)}" style="width:48px;height:48px;object-fit:contain;border-radius:4px;background:rgba(255,255,255,0.03)" onerror="this.style.display='none'">`;
+            el.innerHTML = `<img src="${_esc(url)}" style="max-width:72px;max-height:72px;object-fit:contain;border-radius:4px" onerror="this.outerHTML='<span style=\\'font-size:12px;color:#ef4444\\'>Bild nicht ladbar</span>'">`;
         } else {
-            el.innerHTML = '<span style="font-size:11px;color:var(--text-muted)">Kein Bild</span>';
+            el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Kein Bild</span>';
         }
     }
 
