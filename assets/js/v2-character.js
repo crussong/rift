@@ -15,7 +15,11 @@ function _stateGet(path) {
     return undefined;
 }
 
+let _applyingRemote = false;
+let _lastLocalInvChange = 0;  // timestamp of last local inventory modification
+
 function _stateSet(path, value) {
+    if (_applyingRemote) return;  // Suppress write-back during remote apply
     if (window.RIFT && RIFT.state) RIFT.state.set(path, value);
 }
 
@@ -409,27 +413,40 @@ async function init(characterId, roomCode) {
 
         // Listen for remote changes (from GM or other sources)
         _stateOn(`characters.${riftCharId}:changed`, (data) => {
-            if (!data || data === charData) return;
+            if (!data || data === charData || _applyingRemote) return;
             
-            console.log('[Character] Remote data received — keys:', Object.keys(data).join(','), 'has hp:', !!data.hp, 'has inventory:', !!data.inventory);
+            _applyingRemote = true;
+            let changed = false;
             
-            // Merge inventory/equipment from remote into local charData
-            if (data.inventory) {
-                console.log('[Character] Merging remote inventory (' + (data.inventory.items?.length || 0) + ' items)');
-                charData.inventory = data.inventory;
+            // Merge inventory from remote — but NOT if user just edited locally
+            const timeSinceLocalInv = Date.now() - _lastLocalInvChange;
+            if (data.inventory && timeSinceLocalInv > 3000) {
+                const incoming = JSON.stringify(data.inventory.items || []);
+                const current = JSON.stringify(charData.inventory?.items || []);
+                if (incoming !== current) {
+                    console.log('[Character] Remote inventory merge (' + (data.inventory.items?.length || 0) + ' items)');
+                    charData.inventory = data.inventory;
+                    changed = true;
+                }
             }
-            if (data.equipment) {
+            if (data.equipment && timeSinceLocalInv > 3000) {
                 charData.equipment = data.equipment;
+                changed = true;
             }
             
             // For full v2 data, do full replace
             if (data.hp && !data.data?._v2) {
                 charData = data;
+                changed = true;
             }
             
-            _ensureDefaults();
-            _saveLocal(true);  // skipSync — data came FROM Firestore, don't write back
-            renderAll();
+            if (changed) {
+                _ensureDefaults();
+                _saveLocal(true);
+                renderAll();
+            }
+            
+            setTimeout(() => { _applyingRemote = false; }, 200);
         });
     } else {
         console.log('[Character] RiftLink SKIPPED — charId:', charId, 'roomCode:', roomCode, '(no room)');
@@ -1835,6 +1852,7 @@ function initInventorySystem() {
         () => charData,
         // setter: saves charData via _stateSet and re-renders orbs etc.
         (updatedChar) => {
+            _lastLocalInvChange = Date.now();
             Object.assign(charData, updatedChar);
             _stateSet(`characters.${charId}`, { ...charData });
             // Re-render orbs if HP/Resource changed
