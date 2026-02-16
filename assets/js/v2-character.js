@@ -358,8 +358,8 @@ function init(characterId, roomCode) {
     renderAll();
     initCardCorners();
     
-    if (charId && roomCode && !charId.startsWith('wa_')) {
-        // Connect via RiftLink ONLY for room-assigned characters (not local wa_ IDs)
+    if (charId && roomCode) {
+        // Connect via RiftLink for any character with a room assignment
         if (window.RIFT && RIFT.link) {
             RIFT.link.watchChar(charId, roomCode);
             console.log('[Character] RiftLink connected for', charId, 'in room', roomCode);
@@ -379,7 +379,7 @@ function init(characterId, roomCode) {
             renderAll();
         });
     } else {
-        console.log('[Character] RiftLink SKIPPED — charId:', charId, 'roomCode:', roomCode, 'wa_prefix:', charId ? charId.startsWith('wa_') : 'null');
+        console.log('[Character] RiftLink SKIPPED — charId:', charId, 'roomCode:', roomCode, '(no room)');
     }
 
     // Auto-save every 30 seconds
