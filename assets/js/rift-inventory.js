@@ -304,7 +304,7 @@ const RiftInventory = (() => {
             el.dataset.instanceId = item.instanceId;
             el.dataset.area = 'quickbar';
             el.dataset.qbIndex = idx;
-            el.style.cssText = `position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:${r.bg};color:${r.color};border-radius:3px;z-index:1;cursor:grab;--rc:${r.color};`;
+            el.style.cssText = `position:absolute;inset:-2px;display:flex;align-items:center;justify-content:center;background:${r.bg};color:${r.color};border:1px solid ${r.border || 'transparent'};border-radius:3px;z-index:1;cursor:grab;--rc:${r.color};transition:transform 0.12s,box-shadow 0.15s,z-index 0s;`;
             if (item.icon) {
                 el.innerHTML = `<img src="${_esc(item.icon)}" style="width:80%;height:80%;object-fit:contain" draggable="false">`;
             } else {
