@@ -47,6 +47,8 @@
 
         // Listen for character updates from RiftLink
         RIFT.state.on('riftlink:characters', (allChars) => {
+            const ids = Object.keys(allChars || {});
+            console.log(LOG, 'All chars received:', ids.length, ids.join(', '));
             _chars = allChars || {};
             render();
         });
@@ -54,7 +56,14 @@
         RIFT.state.on('riftlink:char:updated', (evt) => {
             if (evt.charId && _chars[evt.charId]) {
                 const updated = RIFT.state.get(`characters.${evt.charId}`);
-                if (updated) _chars[evt.charId] = updated;
+                if (updated) {
+                    const invCount = (updated.inventory?.items || []).length;
+                    const qbCount = (updated.quickbar || []).filter(Boolean).length;
+                    console.log(LOG, '← Remote update:', evt.charId,
+                        '| fields:', (evt.fields || []).join(', '),
+                        '| inv:', invCount, '| qb:', qbCount);
+                    _chars[evt.charId] = updated;
+                }
                 _updateCard(evt.charId);
             }
         });
@@ -111,6 +120,11 @@
         _updateStatValue(card, 'resource', c);
         _updateStatValue(card, 'level', c);
         _updateAttributeValues(card, c);
+
+        // If expanded, also refresh inventory section
+        _refreshInvSection(charId);
+
+        console.log(LOG, 'Card updated:', charId, '| inv:', (c.inventory?.items || []).length, 'items');
     }
 
     function _updateStatValue(card, type, c) {
@@ -397,7 +411,7 @@
                 <div class="gmc-detail__title" style="display:flex;align-items:center;justify-content:space-between">
                     <span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg>
-                        Inventar (${(c.inventory?.items || []).length})
+                        Inventar (${(c.inventory?.items || []).length + (c.quickbar || []).filter(Boolean).length})
                     </span>
                     <span style="font-size:10px;color:#fbbf24;font-weight:400">${c.currency?.gold || 0} Gold</span>
                 </div>
@@ -658,11 +672,11 @@
     function _openSheet(charId) {
         const c = _chars[charId];
         if (!c) return;
-        const url = `sheet-worldsapart.html?char=${charId}&room=${_roomCode}`;
+        const url = `sheet-worldsapart.html?char=${charId}&room=${_roomCode}&embed=true`;
 
         // Use BC modal if available, otherwise new tab
         if (window.BC?.openCharacterSheet) {
-            BC.openCharacterSheet(charId, c.profile?.name || 'Charakter', url);
+            BC.openCharacterSheet(charId, c.profile?.name || c.name || 'Charakter', url);
         } else {
             window.open('/pages/sheets/' + url, '_blank');
         }
@@ -865,7 +879,7 @@
         const eq = c.equipment || {};
         const charId = c.id || '';
 
-        if (!items.length && !Object.values(eq).some(Boolean)) {
+        if (!items.length && !Object.values(eq).some(Boolean) && !(c.quickbar || []).some(Boolean)) {
             return '<div style="padding:20px;text-align:center;color:#555;font-size:11px">Inventar leer</div>';
         }
 
@@ -877,6 +891,15 @@
             html += '<div style="padding:4px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666;background:rgba(255,255,255,0.02)">Ausgerüstet</div>';
             for (const [slot, item] of eqItems) {
                 html += _renderInvRow(item, charId, 'equip', slot);
+            }
+        }
+
+        // Quickbar
+        const qbItems = (c.quickbar || []).filter(Boolean);
+        if (qbItems.length) {
+            html += '<div style="padding:4px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666;background:rgba(255,255,255,0.02)">Schnellzugriff</div>';
+            for (let i = 0; i < c.quickbar.length; i++) {
+                if (c.quickbar[i]) html += _renderInvRow(c.quickbar[i], charId, 'qb', i);
             }
         }
 
@@ -1054,6 +1077,13 @@
             c.equipment[key] = null;
             try { await RIFT.link.write(charId, 'equipment', c.equipment); _toast(`${name} entfernt`); _refreshInvSection(charId); }
             catch (e) { _toast('Fehler', 'error'); }
+        } else if (area === 'qb') {
+            const idx = parseInt(key);
+            if (!c.quickbar?.[idx]) return;
+            const name = c.quickbar[idx].displayName || c.quickbar[idx].name || '';
+            c.quickbar[idx] = null;
+            try { await RIFT.link.write(charId, 'quickbar', c.quickbar); _toast(`${name} entfernt`); _refreshInvSection(charId); }
+            catch (e) { _toast('Fehler', 'error'); }
         } else {
             const idx = parseInt(key);
             const items = c.inventory?.items;
@@ -1071,6 +1101,7 @@
 
         let source;
         if (area === 'equip') source = c.equipment?.[key];
+        else if (area === 'qb') source = c.quickbar?.[parseInt(key)];
         else source = c.inventory?.items?.[parseInt(key)];
         if (!source) return;
 
@@ -1114,8 +1145,9 @@
 
         c.inventory = { cols: 16, rows: 11, items: [] };
         c.equipment = { head:null,shoulders:null,chest:null,gloves:null,belt:null,legs:null,boots:null,cape:null,mainhand:null,offhand:null,ring1:null,ring2:null,amulet:null,talisman:null,ammo:null };
+        c.quickbar = Array(8).fill(null);
         try {
-            await RIFT.link.writeBatch(charId, { inventory: c.inventory, equipment: c.equipment });
+            await RIFT.link.writeBatch(charId, { inventory: c.inventory, equipment: c.equipment, quickbar: c.quickbar });
             _toast('Inventar geleert');
             _refreshInvSection(charId);
         } catch (e) { _toast('Fehler', 'error'); }
@@ -1132,7 +1164,7 @@
         // Update title count
         const title = section.querySelector('.gmc-detail__title span');
         if (title) {
-            const count = (c.inventory?.items || []).length;
+            const count = (c.inventory?.items || []).length + (c.quickbar || []).filter(Boolean).length;
             title.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg> Inventar (${count})`;
         }
     }

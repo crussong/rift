@@ -20,7 +20,10 @@ let _lastLocalInvChange = 0;  // timestamp of last local inventory modification
 let _riftLinkActive = false;  // true when RiftLink manages Firestore sync
 
 function _stateSet(path, value) {
-    if (_applyingRemote) return;  // Suppress write-back during remote apply
+    if (_applyingRemote) {
+        console.log('[Character] _stateSet BLOCKED (applying remote):', path.substring(0, 40));
+        return;
+    }
     if (window.RIFT && RIFT.state) RIFT.state.set(path, value);
 }
 
@@ -1867,6 +1870,8 @@ function initInventorySystem() {
         (updatedChar) => {
             _lastLocalInvChange = Date.now();
             Object.assign(charData, updatedChar);
+            console.log('[Character] Inventory save →', (charData.inventory?.items || []).length, 'items,',
+                (charData.quickbar || []).filter(Boolean).length, 'quickbar');
             _stateSet(`characters.${charId}`, { ...charData });
             // Re-render orbs if HP/Resource changed
             if (typeof renderOrbs === 'function') renderOrbs();

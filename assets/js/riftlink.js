@@ -224,10 +224,14 @@
             // Filter out echoed fields (changes we just wrote)
             const realChanges = changed.filter(path => !_isEchoed(charId, path));
 
-            if (realChanges.length === 0) return;
+            if (realChanges.length === 0) {
+                console.log(LOG_PREFIX, `← Echo suppressed [${charId}]:`, changed.join(', '));
+                return;
+            }
 
             // Apply remote data to RiftState
             // Use full replace to ensure consistency
+            console.log(LOG_PREFIX, `← Remote update [${charId}]:`, realChanges.join(', '), '| keys:', Object.keys(remote).join(','));
             RIFT.state.set(`characters.${charId}`, { id: charId, ...remote });
 
             RIFT.state.emit('riftlink:char:updated', {
@@ -236,8 +240,6 @@
                 origin: 'remote',
                 data: remote
             });
-
-            console.log(LOG_PREFIX, `← Remote update [${charId}]:`, realChanges.join(', '));
 
         }, err => {
             console.error(LOG_PREFIX, `Firebase watch error [${charId}]:`, err);
@@ -273,6 +275,9 @@
 
         // Mark entire data as pending
         tracker.pendingData = data;
+        const invCount = (data.inventory?.items || []).length;
+        const qbCount = (data.quickbar || []).filter(Boolean).length;
+        console.log(LOG_PREFIX, `→ Queued write [${charId}]: inv=${invCount} qb=${qbCount}`);
 
         // Debounce
         clearTimeout(tracker.writeTimer);

@@ -25,6 +25,29 @@
             padding-bottom: var(--dock-height, 72px);
         }
 
+        /* Embed mode: pure sheet, no shell */
+        html.embed-mode body {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        html.embed-mode .topnav,
+        html.embed-mode .mega-nav,
+        html.embed-mode .dock-bar,
+        html.embed-mode .rift-dock,
+        html.embed-mode #topnav,
+        html.embed-mode #meganav,
+        html.embed-mode #rift-dock,
+        html.embed-mode .sheet-footer,
+        html.embed-mode .rift-main-footer {
+            display: none !important;
+        }
+        html.embed-mode .app,
+        html.embed-mode .main,
+        html.embed-mode .main__content {
+            padding-top: 0 !important;
+            margin-top: 0 !important;
+        }
+
         /* Remove gap between meganav and content */
         .app, .main, .main__content { padding-top: 0 !important; margin-top: 0; }
         .main--hub .main__content { padding-top: 0 !important; padding-bottom: 0; }
@@ -1001,7 +1024,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="/assets/js/firebase-config.js"></script>
 <script src="/assets/js/rift-state.js"></script>
-<script src="/assets/js/riftlink.js"></script>
+<script src="/assets/js/riftlink.js?v=20260217"></script>
 <script src="/assets/js/room-service.js"></script>
 <script src="/assets/js/user-service.js"></script>
 <script src="/assets/js/pro-status.js"></script>
@@ -1010,7 +1033,7 @@
 <script src="/assets/js/character-storage.js?v=20260217"></script>
 <script src="/assets/js/broadcast.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<script src="/assets/js/v2-character.js?v=20260217"></script>
+<script src="/assets/js/v2-character.js?v=20260217b"></script>
 <script src="/assets/js/rift-inventory.js?v=20260217b"></script>
 <script src="/assets/js/v2-skilltree.js"></script>
 
@@ -1061,10 +1084,35 @@ document.addEventListener('DOMContentLoaded', function() {
         var params = new URLSearchParams(window.location.search);
         var charId = params.get('id') || params.get('char') || params.get('characterId') || null;
         var roomCode = params.get('room') || params.get('roomCode') || (window.RIFT && RIFT.state ? RIFT.state.get('room.code') : null) || localStorage.getItem('rift_current_room');
+        var isEmbed = params.get('embed') === 'true';
         
         console.log('[SheetInit] URL:', window.location.href);
-        console.log('[SheetInit] charId:', charId, '| roomCode:', roomCode);
+        console.log('[SheetInit] charId:', charId, '| roomCode:', roomCode, '| embed:', isEmbed);
         console.log('[SheetInit] wa_ prefix:', charId ? charId.startsWith('wa_') : 'no charId');
+
+        // Embed mode: hide shell (TopNav, MegaNav, Dock, Footer)
+        if (isEmbed) {
+            document.documentElement.classList.add('embed-mode');
+            // Hide navigation elements as soon as they appear
+            var hideShell = function() {
+                ['topnav','meganav','rift-dock','rift-main-footer','dock-bar'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                // Also by class
+                document.querySelectorAll('.topnav, .mega-nav, .dock-bar, .rift-dock').forEach(function(el) {
+                    el.style.display = 'none';
+                });
+                document.body.style.paddingTop = '0';
+                document.body.style.paddingBottom = '0';
+                var main = document.querySelector('main, .rift-main, .sheet-container');
+                if (main) { main.style.paddingTop = '0'; main.style.marginTop = '0'; }
+            };
+            hideShell();
+            // Re-apply after layout init (layout-unified runs async)
+            setTimeout(hideShell, 500);
+            setTimeout(hideShell, 1500);
+        }
         
         // Store charId for local persistence
         if (charId) {
