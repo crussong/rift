@@ -304,7 +304,7 @@ const RiftInventory = (() => {
             el.dataset.instanceId = item.instanceId;
             el.dataset.area = 'quickbar';
             el.dataset.qbIndex = idx;
-            el.style.cssText = `position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:${r.bg};color:${r.color};border-radius:3px;z-index:1;cursor:grab;`;
+            el.style.cssText = `position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:${r.bg};color:${r.color};border-radius:3px;z-index:1;cursor:grab;--rc:${r.color};`;
             if (item.icon) {
                 el.innerHTML = `<img src="${_esc(item.icon)}" style="width:80%;height:80%;object-fit:contain" draggable="false">`;
             } else {
@@ -322,6 +322,7 @@ const RiftInventory = (() => {
         let t = 0;
         (ch.inventory?.items || []).forEach(i => t += (i.weight || 0) * (i.quantity || 1));
         Object.values(ch.equipment || {}).forEach(i => { if (i) t += (i.weight || 0); });
+        (ch.quickbar || []).forEach(i => { if (i) t += (i.weight || 0) * (i.quantity || 1); });
         el.textContent = t.toFixed(1);
     }
 
@@ -422,7 +423,7 @@ const RiftInventory = (() => {
         } else if (area === 'equipment') {
             acts.push({ l: 'Ablegen', i: 'M3 6h18M8 6V4h8v2', fn: () => unequipSlot(key) });
         } else if (area === 'quickbar') {
-            acts.push({ l: 'Entfernen', i: 'M18 6L6 18M6 6l12 12', fn: () => removeFromQuickbar(parseInt(key)) });
+            acts.push({ l: 'Ins Inventar', i: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v6m0 0H3m6 0h12M3 9v10a2 2 0 002 2h14a2 2 0 002-2V9', fn: () => removeFromQuickbar(parseInt(key)) });
             if (item.flags?.consumable) acts.push({ l: 'Benutzen', i: FALLBACK_ICONS.potion, fn: () => useItem(item.instanceId) });
         }
         if (!acts.length) return;
@@ -727,21 +728,35 @@ const RiftInventory = (() => {
         if (!ch.quickbar) ch.quickbar = Array(8).fill(null);
         const item = _findInChar(ch, id);
         if (!item) return;
-        // Prevent duplicates — check if already on quickbar
+        // Prevent duplicates
         if (ch.quickbar.some(s => s && s.instanceId === id)) {
             _notify('Bereits im Schnellzugriff');
             return;
         }
         const slot = ch.quickbar.findIndex(s => !s);
         if (slot === -1) { _notify('Schnellzugriff voll'); return; }
+        // MOVE: copy to quickbar, remove from inventory grid
         ch.quickbar[slot] = { ...item };
+        if (ch.inventory?.items) {
+            ch.inventory.items = ch.inventory.items.filter(i => i.instanceId !== id);
+        }
         _save(ch);
     }
 
     function removeFromQuickbar(idx) {
         const ch = _getChar();
         if (!ch.quickbar) return;
+        const item = ch.quickbar[idx];
         ch.quickbar[idx] = null;
+        // MOVE back: return item to inventory
+        if (item) {
+            if (!ch.inventory) ch.inventory = { cols: GRID_COLS, rows: GRID_ROWS, items: [] };
+            if (!ch.inventory.items) ch.inventory.items = [];
+            // Clear grid position so _ensurePlacements finds a new spot
+            item.col = null;
+            item.row = null;
+            ch.inventory.items.push(item);
+        }
         _save(ch);
     }
 
