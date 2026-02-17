@@ -288,7 +288,7 @@ const CharacterStorage = {
             }
             
             // Also save to Firebase (async, don't wait)
-            if (this.isOnline()) {
+            if (this.isOnline() && !window._riftLinkActive) {
                 this.firebaseSave(character).catch(e => {
                     console.warn('[CharacterStorage] Firebase sync failed:', e);
                 });
@@ -306,6 +306,10 @@ const CharacterStorage = {
     
     // Sync character to current room (if in one)
     async syncToRoom(character) {
+        // Skip if RiftLink is handling Firestore sync (set by v2-character.js)
+        if (window._riftLinkActive) {
+            return;
+        }
         try {
             const roomCode = localStorage.getItem('rift_current_room');
             if (!roomCode) {
@@ -783,9 +787,11 @@ if (typeof window !== 'undefined') {
     document.addEventListener('DOMContentLoaded', () => {
         // Try to sync after a short delay to let Firebase initialize
         setTimeout(() => {
-            if (CharacterStorage.isOnline()) {
+            if (CharacterStorage.isOnline() && !window._riftLinkActive) {
                 console.log('[CharacterStorage] Auto-syncing from Firebase...');
                 CharacterStorage.syncFromFirebase();
+            } else if (window._riftLinkActive) {
+                console.log('[CharacterStorage] Auto-sync skipped (RiftLink active)');
             }
         }, 2000);
     });

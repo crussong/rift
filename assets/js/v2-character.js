@@ -410,6 +410,7 @@ async function init(characterId, roomCode) {
         if (window.RIFT && RIFT.link) {
             RIFT.link.watchChar(riftCharId, roomCode);
             _riftLinkActive = true;
+            window._riftLinkActive = true;  // expose for CharacterStorage
             console.log('[Character] RiftLink connected for', riftCharId, 'in room', roomCode);
         }
 

@@ -965,7 +965,10 @@ const RiftInventory = (() => {
     }
 
     function _save(ch) { _saveChar(ch); render(); }
-    function _notify(msg) { if (window.RIFTToast?.show) RIFTToast.show(msg, 'info'); else console.log('[Inv]', msg); }
+    function _notify(msg) {
+        if (window.RIFTToast?.show) RIFTToast.show({ type: 'hpGain', title: msg });
+        else console.log('[Inv]', msg);
+    }
 
     function _highlightSlots(item) {
         _clearSlotHighlight();
