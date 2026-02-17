@@ -312,16 +312,6 @@ const RiftInventory = (() => {
                 el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:50%;height:50%;opacity:0.8"><path d="${d}"/></svg>`;
             }
             if (item.quantity > 1) el.innerHTML += `<span class="inv-item__qty">${item.quantity}</span>`;
-
-            // Hover glow via class toggle (inline styles can't be overridden reliably)
-            el.onmouseenter = function() {
-                console.log('[INV] QB hover enter', item.instanceId);
-                this.classList.add('qb-hover');
-            };
-            el.onmouseleave = function() {
-                this.classList.remove('qb-hover');
-            };
-
             slot.appendChild(el);
         });
     }
@@ -1018,12 +1008,20 @@ const RiftInventory = (() => {
 
     function _highlightSlots(item) {
         _clearSlotHighlight();
+        // Equipment slots
         document.querySelectorAll('.equip-slot').forEach(s => {
             if (_canEquipInSlot(item, s.dataset.slot)) s.classList.add('slot-hint');
         });
+        // Quickbar slots — highlight for consumables/potions
+        if (item.flags?.consumable || item.type === 'consumable' || item.subType === 'potion') {
+            document.querySelectorAll('.potion-slot').forEach(s => {
+                // Only highlight empty slots or all if dragging
+                if (!s.querySelector('.potion-item')) s.classList.add('slot-hint');
+            });
+        }
     }
     function _clearSlotHighlight() {
-        document.querySelectorAll('.equip-slot.slot-hint').forEach(s => s.classList.remove('slot-hint'));
+        document.querySelectorAll('.equip-slot.slot-hint, .potion-slot.slot-hint').forEach(s => s.classList.remove('slot-hint'));
     }
     function _esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
     function _uid(n) { const c = 'abcdefghijklmnopqrstuvwxyz0123456789'; let r = ''; for (let i = 0; i < n; i++) r += c[Math.floor(Math.random() * c.length)]; return r; }
