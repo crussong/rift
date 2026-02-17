@@ -552,21 +552,94 @@
             'level': 'Level', 'xp.current': 'XP'
         };
         const label = labels[path] || path;
-        const amount = parseInt(prompt(`${label}-Änderung:`, '10'), 10);
-        if (!amount || isNaN(amount)) return;
-
-        modifyStat(charId, path, amount * direction);
+        _showPrompt(`${label}-Änderung:`, '10', (val) => {
+            const amount = parseInt(val, 10);
+            if (!amount || isNaN(amount)) return;
+            modifyStat(charId, path, amount * direction);
+        });
     }
 
     function _promptSetValue(charId, path) {
         const c = _chars[charId];
         if (!c) return;
         const current = _getNestedValue(c, path);
-        const input = prompt(`Neuer Wert für ${path}:`, current);
-        if (input === null) return;
-        const val = parseInt(input, 10);
-        if (isNaN(val)) return;
-        setStat(charId, path, val);
+        _showPrompt(`Neuer Wert für ${path}:`, current, (val) => {
+            if (val === null) return;
+            const num = parseInt(val, 10);
+            if (isNaN(num)) return;
+            setStat(charId, path, num);
+        });
+    }
+
+    /** Non-blocking confirm replacement */
+    function _showConfirm(message, callback, danger) {
+        const old = document.getElementById('gmc-prompt');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'gmc-prompt';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)';
+
+        const btnColor = danger ? '#ef4444' : '#7c3aed';
+        overlay.innerHTML = `
+            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:24px;min-width:280px;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+                <div style="color:#ccc;font-size:13px;margin-bottom:20px;font-family:Inter,sans-serif;line-height:1.5">${message}</div>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button id="gmc-prompt-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#999;cursor:pointer;font-size:13px;font-family:Inter,sans-serif">Abbrechen</button>
+                    <button id="gmc-prompt-ok" style="padding:8px 20px;border-radius:8px;border:none;background:${btnColor};color:white;cursor:pointer;font-size:13px;font-weight:600;font-family:Inter,sans-serif">Bestätigen</button>
+                </div>
+            </div>`;
+
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+        document.getElementById('gmc-prompt-ok').addEventListener('click', () => { close(); callback(); });
+        document.getElementById('gmc-prompt-cancel').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
+            if (e.key === 'Enter') { close(); callback(); document.removeEventListener('keydown', handler); }
+        });
+    }
+    function _showPrompt(label, defaultVal, callback) {
+        // Remove existing
+        const old = document.getElementById('gmc-prompt');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'gmc-prompt';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)';
+
+        overlay.innerHTML = `
+            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:24px;min-width:280px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+                <div style="color:#ccc;font-size:13px;margin-bottom:12px;font-family:Inter,sans-serif">${label}</div>
+                <input id="gmc-prompt-input" type="number" value="${defaultVal}" 
+                    style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:white;font-size:15px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box"
+                    autofocus>
+                <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+                    <button id="gmc-prompt-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#999;cursor:pointer;font-size:13px;font-family:Inter,sans-serif">Abbrechen</button>
+                    <button id="gmc-prompt-ok" style="padding:8px 20px;border-radius:8px;border:none;background:#7c3aed;color:white;cursor:pointer;font-size:13px;font-weight:600;font-family:Inter,sans-serif">OK</button>
+                </div>
+            </div>`;
+
+        document.body.appendChild(overlay);
+
+        const input = document.getElementById('gmc-prompt-input');
+        const okBtn = document.getElementById('gmc-prompt-ok');
+        const cancelBtn = document.getElementById('gmc-prompt-cancel');
+
+        input.select();
+
+        const close = () => overlay.remove();
+        const confirm = () => { const v = input.value; close(); callback(v); };
+
+        okBtn.addEventListener('click', confirm);
+        cancelBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') confirm();
+            if (e.key === 'Escape') close();
+        });
     }
 
     /**
@@ -606,38 +679,40 @@
     async function modifyAll(path, direction) {
         const labels = { 'hp.current': 'LP', 'resource.current': 'Ressource' };
         const label = labels[path] || path;
-        const amount = parseInt(prompt(`${label}-Änderung für ALLE:`, '10'), 10);
-        if (!amount || isNaN(amount)) return;
+        _showPrompt(`${label}-Änderung für ALLE:`, '10', async (val) => {
+            const amount = parseInt(val, 10);
+            if (!amount || isNaN(amount)) return;
 
-        const delta = amount * direction;
-        const maxField = path === 'hp.current' ? 'hp.max' : path === 'resource.current' ? 'resource.max' : null;
+            const delta = amount * direction;
+            const maxField = path === 'hp.current' ? 'hp.max' : path === 'resource.current' ? 'resource.max' : null;
 
-        const count = await RIFT.link.writeAll(path, (current, charData) => {
-            const max = maxField ? _getNestedValue(charData, maxField) || 100 : Infinity;
-            return Math.max(0, Math.min(max, (current || 0) + delta));
+            const count = await RIFT.link.writeAll(path, (current, charData) => {
+                const max = maxField ? _getNestedValue(charData, maxField) || 100 : Infinity;
+                return Math.max(0, Math.min(max, (current || 0) + delta));
+            });
+
+            _toast(`${label} für ${count} Charakter(e) geändert (${delta > 0 ? '+' : ''}${delta})`);
         });
-
-        _toast(`${label} für ${count} Charakter(e) geändert (${delta > 0 ? '+' : ''}${delta})`);
     }
 
     /**
      * Full heal all characters.
      */
     async function healAll() {
-        if (!confirm('Alle Charaktere voll heilen (LP + Ressource)?')) return;
+        _showConfirm('Alle Charaktere voll heilen (LP + Ressource)?', async () => {
+            const chars = Object.values(_chars).filter(c => c && !c.id?.startsWith('_'));
+            let count = 0;
 
-        const chars = Object.values(_chars).filter(c => c && !c.id?.startsWith('_'));
-        let count = 0;
+            for (const c of chars) {
+                await RIFT.link.writeBatch(c.id, {
+                    'hp.current': c.hp?.max || 100,
+                    'resource.current': c.resource?.max || 100
+                });
+                count++;
+            }
 
-        for (const c of chars) {
-            await RIFT.link.writeBatch(c.id, {
-                'hp.current': c.hp?.max || 100,
-                'resource.current': c.resource?.max || 100
-            });
-            count++;
-        }
-
-        _toast(`${count} Charakter(e) vollständig geheilt`);
+            _toast(`${count} Charakter(e) vollständig geheilt`);
+        });
     }
 
 
@@ -684,18 +759,18 @@
 
     async function _removeCharacter(charId) {
         const name = _charName(charId);
-        if (!confirm(`"${name}" aus dem Raum entfernen?`)) return;
-
-        try {
-            const db = window.RIFT?.firebase?.getFirestore?.();
-            if (db && _roomCode) {
-                await db.collection('rooms').doc(_roomCode).collection('characters').doc(charId).delete();
-                _toast(`${name} entfernt`);
+        _showConfirm(`"${name}" aus dem Raum entfernen?`, async () => {
+            try {
+                const db = window.RIFT?.firebase?.getFirestore?.();
+                if (db && _roomCode) {
+                    await db.collection('rooms').doc(_roomCode).collection('characters').doc(charId).delete();
+                    _toast(`${name} entfernt`);
+                }
+            } catch (err) {
+                console.error(LOG, 'Remove error:', err);
+                _toast('Fehler: ' + err.message, 'error');
             }
-        } catch (err) {
-            console.error(LOG, 'Remove error:', err);
-            _toast('Fehler: ' + err.message, 'error');
-        }
+        }, true);
     }
 
 
@@ -1124,33 +1199,35 @@
         const item = c?.inventory?.items?.[idx];
         if (!item) return;
 
-        const val = prompt(`Menge für ${item.displayName || item.name}:`, item.quantity || 1);
-        if (val === null) return;
-        const qty = parseInt(val);
-        if (isNaN(qty) || qty < 0) return;
+        _showPrompt(`Menge für ${item.displayName || item.name}:`, item.quantity || 1, async (val) => {
+            if (val === null) return;
+            const qty = parseInt(val);
+            if (isNaN(qty) || qty < 0) return;
 
-        if (qty === 0) {
-            c.inventory.items.splice(idx, 1);
-        } else {
-            item.quantity = qty;
-        }
-        try { await RIFT.link.write(charId, 'inventory', c.inventory); _toast('Menge geändert'); _refreshInvSection(charId); }
-        catch (e) { _toast('Fehler', 'error'); }
+            if (qty === 0) {
+                c.inventory.items.splice(idx, 1);
+            } else {
+                item.quantity = qty;
+            }
+            try { await RIFT.link.write(charId, 'inventory', c.inventory); _toast('Menge geändert'); _refreshInvSection(charId); }
+            catch (e) { _toast('Fehler', 'error'); }
+        });
     }
 
     async function _invClearAll(charId) {
-        if (!confirm('Komplettes Inventar leeren?')) return;
-        const c = _chars[charId];
-        if (!c) return;
+        _showConfirm('Komplettes Inventar leeren?', async () => {
+            const c = _chars[charId];
+            if (!c) return;
 
-        c.inventory = { cols: 16, rows: 11, items: [] };
-        c.equipment = { head:null,shoulders:null,chest:null,gloves:null,belt:null,legs:null,boots:null,cape:null,mainhand:null,offhand:null,ring1:null,ring2:null,amulet:null,talisman:null,ammo:null };
-        c.quickbar = Array(8).fill(null);
-        try {
-            await RIFT.link.writeBatch(charId, { inventory: c.inventory, equipment: c.equipment, quickbar: c.quickbar });
-            _toast('Inventar geleert');
-            _refreshInvSection(charId);
-        } catch (e) { _toast('Fehler', 'error'); }
+            c.inventory = { cols: 16, rows: 11, items: [] };
+            c.equipment = { head:null,shoulders:null,chest:null,gloves:null,belt:null,legs:null,boots:null,cape:null,mainhand:null,offhand:null,ring1:null,ring2:null,amulet:null,talisman:null,ammo:null };
+            c.quickbar = Array(8).fill(null);
+            try {
+                await RIFT.link.writeBatch(charId, { inventory: c.inventory, equipment: c.equipment, quickbar: c.quickbar });
+                _toast('Inventar geleert');
+                _refreshInvSection(charId);
+            } catch (e) { _toast('Fehler', 'error'); }
+        }, true);
     }
 
     function _refreshInvSection(charId) {

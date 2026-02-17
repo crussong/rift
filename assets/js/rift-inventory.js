@@ -717,10 +717,31 @@ const RiftInventory = (() => {
     }
 
     function dropItem(id) {
-        if (!confirm('Item ablegen?')) return;
-        const ch = _getChar();
-        _removeFromChar(ch, id);
-        _save(ch);
+        _showConfirm('Item ablegen?', () => {
+            const ch = _getChar();
+            _removeFromChar(ch, id);
+            _save(ch);
+        });
+    }
+
+    /** Non-blocking confirm (native confirm() can freeze with Firebase) */
+    function _showConfirm(msg, cb) {
+        const old = document.getElementById('inv-confirm');
+        if (old) old.remove();
+        const o = document.createElement('div');
+        o.id = 'inv-confirm';
+        o.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)';
+        o.innerHTML = `<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:24px;min-width:260px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+            <div style="color:#ccc;font-size:13px;margin-bottom:20px;font-family:Inter,sans-serif">${msg}</div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button id="inv-c-no" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#999;cursor:pointer;font-size:13px;font-family:Inter,sans-serif">Abbrechen</button>
+                <button id="inv-c-yes" style="padding:8px 20px;border-radius:8px;border:none;background:#ef4444;color:white;cursor:pointer;font-size:13px;font-weight:600;font-family:Inter,sans-serif">Ablegen</button>
+            </div></div>`;
+        document.body.appendChild(o);
+        const close = () => o.remove();
+        document.getElementById('inv-c-yes').addEventListener('click', () => { close(); cb(); });
+        document.getElementById('inv-c-no').addEventListener('click', close);
+        o.addEventListener('click', (e) => { if (e.target === o) close(); });
     }
 
     function addToQuickbar(id) {
