@@ -88,17 +88,17 @@
         /* Class Picker Overlay */
         .class-picker-overlay {
             position: fixed; inset: 0; z-index: 2000;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(6px);
+            background: rgba(0,0,0,0.88); backdrop-filter: blur(8px);
             display: flex; align-items: center; justify-content: center;
         }
         .class-picker {
             background: var(--bg-card, #1c1c1c); border: 1px solid var(--border, rgba(255,255,255,0.08));
-            border-radius: 12px; padding: 28px; max-width: 800px; width: 90%;
-            max-height: 85vh; overflow-y: auto;
+            border-radius: 16px; padding: 28px 20px; max-width: 920px; width: 95%;
+            max-height: 90vh; overflow: visible;
         }
         .class-picker-header {
             display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 20px; padding: 0 8px;
         }
         .class-picker-header h2 {
             font-family: var(--font-display, 'Cinzel'); font-size: 16px;
@@ -110,27 +110,134 @@
         }
         .class-picker-close:hover { color: var(--text-bright, #f0f0f0); }
         .class-picker-grid {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            position: relative;
         }
-        .class-card {
-            background: var(--bg-slot, #222); border: 1px solid var(--border, rgba(255,255,255,0.08));
-            border-radius: 8px; padding: 16px; text-align: center; cursor: pointer;
-            transition: all 0.2s;
+
+        /* ── Scroll wrapper ── */
+        .cp-scroll-wrap {
+            overflow: hidden; /* arrows control scroll */
+            border-radius: 10px;
         }
-        .class-card:hover {
-            border-color: var(--gold-dim, #8a6e2e); background: rgba(212,168,68,0.05);
-            transform: translateY(-2px);
+        .cp-track {
+            display: flex; gap: 14px; overflow-x: auto;
+            scroll-behavior: smooth; padding: 8px 4px 12px;
+            scrollbar-width: none;
         }
-        .class-card.selected { border-color: var(--gold, #d4a844); background: rgba(212,168,68,0.08); }
-        .class-card-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.6; }
-        .class-card-name {
+        .cp-track::-webkit-scrollbar { display: none; }
+
+        /* ── Scroll arrows ── */
+        .cp-arrow {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.12);
+            color: #ccc; cursor: pointer; z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.2s, background 0.15s;
+            backdrop-filter: blur(4px);
+        }
+        .cp-arrow svg { width: 18px; height: 18px; }
+        .cp-arrow:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .cp-arrow--left { left: -12px; }
+        .cp-arrow--right { right: -12px; }
+
+        /* ── Class card ── */
+        .cp-card {
+            flex: 0 0 190px; min-width: 0;
+            background: var(--bg-slot, #1a1a24);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px; cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.3s;
+            overflow: hidden;
+        }
+        .cp-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--cls-color, #888);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px color-mix(in srgb, var(--cls-color, #888) 15%, transparent);
+        }
+        .cp-card--selected {
+            border-color: var(--cls-color, var(--gold)) !important;
+            box-shadow: 0 0 16px color-mix(in srgb, var(--cls-color, var(--gold)) 25%, transparent);
+        }
+
+        /* ── Portrait area ── */
+        .cp-card__portrait {
+            position: relative; width: 100%;
+            aspect-ratio: 3/4; overflow: hidden;
+            background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));
+        }
+        .cp-card__portrait img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.3s;
+        }
+        .cp-card:hover .cp-card__portrait img {
+            transform: scale(1.05);
+        }
+        .cp-card__fallback {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--cls-color, #666); opacity: 0.25;
+        }
+        .cp-card__fallback svg { width: 50%; height: 50%; }
+
+        /* ── Hover info overlay ── */
+        .cp-card__info {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(8,8,16,0.97) 40%, rgba(8,8,16,0.7) 70%, transparent);
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding: 14px 12px; gap: 8px;
+            opacity: 0; transition: opacity 0.25s;
+        }
+        .cp-card:hover .cp-card__info { opacity: 1; }
+        .cp-card__desc {
+            font-size: 10.5px; line-height: 1.5; color: #bbb;
+            display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .cp-card__traits { display: flex; flex-wrap: wrap; gap: 4px; }
+        .cp-card__trait {
+            font-size: 9px; padding: 2px 6px; border-radius: 4px;
+            background: color-mix(in srgb, var(--cls-color, #888) 15%, transparent);
+            color: var(--cls-color, #aaa); font-weight: 600;
+            border: 1px solid color-mix(in srgb, var(--cls-color, #888) 25%, transparent);
+        }
+
+        /* ── Name + Resource ── */
+        .cp-card__meta {
+            padding: 10px 12px 8px; text-align: center;
+        }
+        .cp-card__name {
             font-family: var(--font-display, 'Cinzel'); font-size: 13px;
-            font-weight: 700; color: var(--text-bright, #f0f0f0); margin-bottom: 4px;
+            font-weight: 700; color: var(--text-bright, #f0f0f0);
+            margin-bottom: 2px;
         }
-        .class-card-resource {
-            font-size: 10px; color: var(--text-dim, #888); letter-spacing: 0.5px;
+        .cp-card__resource {
+            font-size: 10px; color: var(--cls-color, #888);
+            letter-spacing: 0.5px; font-weight: 600;
         }
-        @media (max-width: 600px) { .class-picker-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        /* ── Session members under card ── */
+        .cp-card__members {
+            display: flex; justify-content: center; gap: 4px;
+            padding: 0 8px 10px; flex-wrap: wrap;
+        }
+        .cp-card__avatar {
+            width: 24px; height: 24px; border-radius: 50%;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700; color: #999;
+            overflow: hidden; transition: transform 0.15s, border-color 0.15s;
+        }
+        .cp-card__avatar img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .cp-card__avatar:hover {
+            transform: scale(1.2); border-color: var(--cls-color, #888);
+        }
+
+        @media (max-width: 600px) {
+            .cp-card { flex: 0 0 150px; }
+            .cp-card__desc { -webkit-line-clamp: 3; }
+        }
 
         /* Sheet Footer */
         .sheet-footer {
@@ -1033,7 +1140,7 @@
 <script src="/assets/js/character-storage.js?v=20260217"></script>
 <script src="/assets/js/broadcast.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<script src="/assets/js/v2-character.js?v=20260217b"></script>
+<script src="/assets/js/v2-character.js?v=20260217c"></script>
 <script src="/assets/js/rift-inventory.js?v=20260217g"></script>
 <script src="/assets/js/v2-skilltree.js"></script>
 

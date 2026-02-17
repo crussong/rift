@@ -261,14 +261,38 @@ function createDivider() {
 // ═══════════════════════════════════════
 
 const CLASS_DEFINITIONS = [
-    { id: 'barbar',       name: 'Barbar',       resource: 'Rage',     color: 'var(--rage-red)' },
-    { id: 'magier',       name: 'Magier',       resource: 'Mana',     color: 'var(--xp-blue)' },
-    { id: 'assassine',    name: 'Assassine',    resource: 'Fokus',    color: '#a855f7' },
-    { id: 'paladin',      name: 'Paladin',      resource: 'Glaube',   color: 'var(--gold)' },
-    { id: 'druide',       name: 'Druide',       resource: 'Essenz',   color: 'var(--hp-green)' },
-    { id: 'hexenmeister', name: 'Hexenmeister', resource: 'Seelen',   color: '#c084fc' },
-    { id: 'waldlaeufer',  name: 'Waldl\u00e4ufer',  resource: 'Ausdauer', color: '#fb923c' },
-    { id: 'kleriker',     name: 'Kleriker',     resource: 'Hingabe',  color: '#e2e8f0' },
+    { id: 'barbar',       name: 'Barbar',       resource: 'Rage',     color: 'var(--rage-red)',
+      desc: 'Ungezähmte Krieger, die ihre Wut in rohe Zerstörungskraft verwandeln. Im Kampf kennen sie weder Furcht noch Gnade.',
+      traits: ['Nahkampf-Spezialist', 'Hohe LP', 'Berserker-Rage'],
+      image: '/assets/img/classes/barbar.png' },
+    { id: 'magier',       name: 'Magier',       resource: 'Mana',     color: 'var(--xp-blue)',
+      desc: 'Meister der arkanen Künste. Sie formen die Realität durch pure Willenskraft und entfesseln verheerende Zauber.',
+      traits: ['Fernkampf-Magie', 'Flächenschaden', 'Mana-Management'],
+      image: '/assets/img/classes/magier.png' },
+    { id: 'assassine',    name: 'Assassine',    resource: 'Fokus',    color: '#a855f7',
+      desc: 'Lautlose Jäger aus den Schatten. Präzision und Geschwindigkeit sind ihre tödlichsten Waffen.',
+      traits: ['Kritische Treffer', 'Stealth', 'Einzelziel-Schaden'],
+      image: '/assets/img/classes/assassine.png' },
+    { id: 'paladin',      name: 'Paladin',      resource: 'Glaube',   color: 'var(--gold)',
+      desc: 'Heilige Streiter, die göttliche Macht mit Schwert und Schild vereinen. Sie schützen die Schwachen und richten die Verdorbenen.',
+      traits: ['Tank/Heiler-Hybrid', 'Auren', 'Göttliche Macht'],
+      image: '/assets/img/classes/paladin.png' },
+    { id: 'druide',       name: 'Druide',       resource: 'Essenz',   color: 'var(--hp-green)',
+      desc: 'Hüter der Natur, die das Gleichgewicht der Welt bewahren. Sie rufen die Elemente und wandeln ihre Gestalt.',
+      traits: ['Gestaltwandler', 'Naturmagie', 'Heilung'],
+      image: '/assets/img/classes/druide.png' },
+    { id: 'hexenmeister', name: 'Hexenmeister', resource: 'Seelen',   color: '#c084fc',
+      desc: 'Dunkle Paktmagier, die mit verbotenen Mächten handeln. Ihre Kraft hat einen hohen Preis — für andere.',
+      traits: ['DoT-Schaden', 'Beschwörungen', 'Lebensentzug'],
+      image: '/assets/img/classes/hexenmeister.png' },
+    { id: 'waldlaeufer',  name: 'Waldl\u00e4ufer',  resource: 'Ausdauer', color: '#fb923c',
+      desc: 'Meister der Wildnis mit tödlicher Präzision auf Distanz. Kein Pfad ist ihnen zu verborgen, kein Ziel zu weit.',
+      traits: ['Fernkampf-Experte', 'Fallen', 'Tierbegleiter'],
+      image: '/assets/img/classes/waldlaeufer.png' },
+    { id: 'kleriker',     name: 'Kleriker',     resource: 'Hingabe',  color: '#e2e8f0',
+      desc: 'Priester und Heiler, deren Gebete Wunden schließen und Verbündete stärken. Im Angesicht des Bösen strahlt ihr Licht am hellsten.',
+      traits: ['Primär-Heiler', 'Buffs', 'Untoten-Bann'],
+      image: '/assets/img/classes/kleriker.png' },
 ];
 
 // ═══════════════════════════════════════
@@ -1514,43 +1538,184 @@ function initClassPicker() {
     const closeBtn = document.getElementById('classPickerClose');
     if (!portrait || !overlay || !grid) return;
 
-    // Build class cards
-    grid.innerHTML = CLASS_DEFINITIONS.map(cls => `
-        <div class="class-card${charData.class.id === cls.id ? ' selected' : ''}" data-class-id="${cls.id}">
-            <div class="class-card-name">${cls.name}</div>
-            <div class="class-card-resource" style="color:${cls.color}">${cls.resource}</div>
-        </div>
-    `).join('');
+    // ── Fetch session members from Firestore ──
+    let sessionMembers = {}; // classId → [{name, portrait}]
 
-    portrait.addEventListener('click', () => { overlay.style.display = 'flex'; });
+    async function _loadSessionMembers() {
+        sessionMembers = {};
+        try {
+            const urlP = new URLSearchParams(window.location.search);
+            const rc = urlP.get('room') || urlP.get('roomCode') || RIFT?.state?.get('room.code');
+            if (!rc) return;
+            const db = RIFT?.firebase?.getFirestore?.() || (typeof firebase !== 'undefined' ? firebase.firestore() : null);
+            if (!db) return;
+            const snap = await db.collection('rooms').doc(rc.replace(/-/g, '').toUpperCase())
+                .collection('characters').get();
+            snap.docs.forEach(doc => {
+                const d = doc.data();
+                const cid = d.class?.id;
+                if (!cid) return;
+                if (!sessionMembers[cid]) sessionMembers[cid] = [];
+                sessionMembers[cid].push({
+                    name: d.profile?.name || d.name || 'Unbekannt',
+                    portrait: d.portrait || ''
+                });
+            });
+        } catch (e) {
+            console.warn('[ClassPicker] Could not load session members:', e);
+        }
+    }
+
+    // ── Fallback SVG icons per class ──
+    const CLASS_ICONS = {
+        barbar:       'M14.5 2.5L12 5 9.5 2.5 7 5l5 5 5-5-2.5-2.5zM7 12l-5 5h7l3 5 3-5h7l-5-5-5 5-5-5z',
+        magier:       'M12 2L2 19h20L12 2zm0 4l6.5 11h-13L12 6z',
+        assassine:    'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3l2.5 5H15l-3 7-3-7h.5L12 5z',
+        paladin:      'M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5zm0 3.2L18 9v4.5c0 4-2.5 7.8-6 9-3.5-1.2-6-5-6-9V9l6-3.8z',
+        druide:       'M12 2C8 2 4 4.5 4 9c0 3.5 2 6 4 7.5V22h8v-5.5c2-1.5 4-4 4-7.5 0-4.5-4-7-8-7zm0 2c3 0 6 2 6 5s-2 5.5-3.5 6.5L14 16h-4l-.5-.5C8 14.5 6 12 6 9c0-3 3-5 6-5z',
+        hexenmeister: 'M12 2L8 8l-6 2 4 5-1 6 7-3 7 3-1-6 4-5-6-2-4-6z',
+        waldlaeufer:  'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2zm0 4.24L16.66 18H7.34L12 6.24z',
+        kleriker:     'M12 2v6H8v4h4v10h2V12h4V8h-4V2h-2z'
+    };
+
+    function _buildCards() {
+        grid.innerHTML = '';
+
+        // Scroll wrapper
+        const scrollWrap = document.createElement('div');
+        scrollWrap.className = 'cp-scroll-wrap';
+
+        const track = document.createElement('div');
+        track.className = 'cp-track';
+
+        CLASS_DEFINITIONS.forEach(cls => {
+            const isSelected = charData.class.id === cls.id;
+            const members = sessionMembers[cls.id] || [];
+
+            const card = document.createElement('div');
+            card.className = `cp-card${isSelected ? ' cp-card--selected' : ''}`;
+            card.dataset.classId = cls.id;
+            card.style.setProperty('--cls-color', cls.color);
+
+            // Portrait
+            const portraitDiv = document.createElement('div');
+            portraitDiv.className = 'cp-card__portrait';
+            const img = document.createElement('img');
+            img.src = cls.image;
+            img.alt = cls.name;
+            img.draggable = false;
+            img.onerror = function() {
+                // Fallback: SVG icon
+                this.style.display = 'none';
+                const svg = document.createElement('div');
+                svg.className = 'cp-card__fallback';
+                svg.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${CLASS_ICONS[cls.id] || CLASS_ICONS.barbar}"/></svg>`;
+                this.parentElement.appendChild(svg);
+            };
+            portraitDiv.appendChild(img);
+
+            // Hover info overlay
+            const info = document.createElement('div');
+            info.className = 'cp-card__info';
+            info.innerHTML = `
+                <div class="cp-card__desc">${cls.desc}</div>
+                <div class="cp-card__traits">
+                    ${cls.traits.map(t => `<span class="cp-card__trait">${t}</span>`).join('')}
+                </div>`;
+            portraitDiv.appendChild(info);
+            card.appendChild(portraitDiv);
+
+            // Name + Resource
+            const meta = document.createElement('div');
+            meta.className = 'cp-card__meta';
+            meta.innerHTML = `
+                <div class="cp-card__name">${cls.name}</div>
+                <div class="cp-card__resource">${cls.resource}</div>`;
+            card.appendChild(meta);
+
+            // Session members
+            if (members.length > 0) {
+                const mDiv = document.createElement('div');
+                mDiv.className = 'cp-card__members';
+                members.forEach(m => {
+                    const avatar = document.createElement('div');
+                    avatar.className = 'cp-card__avatar';
+                    avatar.title = m.name;
+                    if (m.portrait) {
+                        avatar.innerHTML = `<img src="${m.portrait}" alt="${m.name}">`;
+                    } else {
+                        avatar.textContent = m.name.charAt(0).toUpperCase();
+                    }
+                    mDiv.appendChild(avatar);
+                });
+                card.appendChild(mDiv);
+            }
+
+            track.appendChild(card);
+        });
+
+        scrollWrap.appendChild(track);
+        grid.appendChild(scrollWrap);
+
+        // Scroll arrows
+        const arrowL = document.createElement('button');
+        arrowL.className = 'cp-arrow cp-arrow--left';
+        arrowL.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>';
+        arrowL.onclick = () => track.scrollBy({ left: -240, behavior: 'smooth' });
+
+        const arrowR = document.createElement('button');
+        arrowR.className = 'cp-arrow cp-arrow--right';
+        arrowR.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
+        arrowR.onclick = () => track.scrollBy({ left: 240, behavior: 'smooth' });
+
+        grid.appendChild(arrowL);
+        grid.appendChild(arrowR);
+
+        // Show/hide arrows based on scroll position
+        function _updateArrows() {
+            arrowL.style.opacity = track.scrollLeft > 10 ? '1' : '0';
+            arrowL.style.pointerEvents = track.scrollLeft > 10 ? 'auto' : 'none';
+            const maxScroll = track.scrollWidth - track.clientWidth;
+            arrowR.style.opacity = track.scrollLeft < maxScroll - 10 ? '1' : '0';
+            arrowR.style.pointerEvents = track.scrollLeft < maxScroll - 10 ? 'auto' : 'none';
+        }
+        track.addEventListener('scroll', _updateArrows);
+        requestAnimationFrame(_updateArrows);
+
+        // Click handler
+        track.addEventListener('click', (e) => {
+            const cardEl = e.target.closest('.cp-card');
+            if (!cardEl) return;
+            const clsId = cardEl.dataset.classId;
+            const cls = CLASS_DEFINITIONS.find(c => c.id === clsId);
+            if (!cls) return;
+
+            charData.class = { id: cls.id, name: cls.name, label: 'Disziplin' };
+            charData.resource.name = cls.resource;
+            save('class', charData.class);
+            save('resource.name', cls.resource);
+
+            txt('className', cls.name);
+            txt('classSubLabel', 'Disziplin');
+            txt('rageLabel', cls.resource);
+            renderClassAndOrbs();
+
+            track.querySelectorAll('.cp-card').forEach(c => c.classList.remove('cp-card--selected'));
+            cardEl.classList.add('cp-card--selected');
+
+            overlay.style.display = 'none';
+            notify(`Disziplin: ${cls.name}`);
+        });
+    }
+
+    // Open picker
+    portrait.addEventListener('click', async () => {
+        overlay.style.display = 'flex';
+        await _loadSessionMembers();
+        _buildCards();
+    });
     if (closeBtn) closeBtn.addEventListener('click', () => { overlay.style.display = 'none'; });
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.style.display = 'none'; });
-
-    grid.addEventListener('click', (e) => {
-        const card = e.target.closest('.class-card');
-        if (!card) return;
-        const clsId = card.dataset.classId;
-        const cls = CLASS_DEFINITIONS.find(c => c.id === clsId);
-        if (!cls) return;
-
-        charData.class = { id: cls.id, name: cls.name, label: 'Disziplin' };
-        charData.resource.name = cls.resource;
-        save('class', charData.class);
-        save('resource.name', cls.resource);
-
-        // Update UI
-        txt('className', cls.name);
-        txt('classSubLabel', 'Disziplin');
-        txt('rageLabel', cls.resource);
-        renderClassAndOrbs();
-
-        // Update selected state
-        grid.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-
-        overlay.style.display = 'none';
-        notify(`Disziplin: ${cls.name}`);
-    });
 }
 
 // ── Helper: set nested value ──
