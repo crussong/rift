@@ -313,17 +313,14 @@ const RiftInventory = (() => {
             }
             if (item.quantity > 1) el.innerHTML += `<span class="inv-item__qty">${item.quantity}</span>`;
 
-            // Hover glow via JS (CSS can't override inline styles reliably)
-            el.addEventListener('mouseenter', () => {
-                el.style.transform = 'scale(1.12)';
-                el.style.boxShadow = `0 4px 20px rgba(0,0,0,0.6), 0 0 14px ${r.color}66`;
-                el.style.zIndex = '20';
-            });
-            el.addEventListener('mouseleave', () => {
-                el.style.transform = '';
-                el.style.boxShadow = '';
-                el.style.zIndex = '1';
-            });
+            // Hover glow via class toggle (inline styles can't be overridden reliably)
+            el.onmouseenter = function() {
+                console.log('[INV] QB hover enter', item.instanceId);
+                this.classList.add('qb-hover');
+            };
+            el.onmouseleave = function() {
+                this.classList.remove('qb-hover');
+            };
 
             slot.appendChild(el);
         });
