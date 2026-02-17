@@ -703,8 +703,15 @@ const RiftInventory = (() => {
         } else {
             _notify(`${item.displayName || item.name} benutzt`);
         }
-        if (item.quantity > 1) item.quantity--;
-        else _removeFromChar(ch, id);
+        if (item.quantity > 1) {
+            item.quantity--;
+            // Sync quickbar copy quantity
+            if (ch.quickbar) ch.quickbar.forEach(s => {
+                if (s && s.instanceId === id) s.quantity = item.quantity;
+            });
+        } else {
+            _removeFromChar(ch, id);
+        }
         _save(ch);
     }
 
@@ -720,6 +727,11 @@ const RiftInventory = (() => {
         if (!ch.quickbar) ch.quickbar = Array(8).fill(null);
         const item = _findInChar(ch, id);
         if (!item) return;
+        // Prevent duplicates — check if already on quickbar
+        if (ch.quickbar.some(s => s && s.instanceId === id)) {
+            _notify('Bereits im Schnellzugriff');
+            return;
+        }
         const slot = ch.quickbar.findIndex(s => !s);
         if (slot === -1) { _notify('Schnellzugriff voll'); return; }
         ch.quickbar[slot] = { ...item };

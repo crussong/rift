@@ -17,6 +17,7 @@ function _stateGet(path) {
 
 let _applyingRemote = false;
 let _lastLocalInvChange = 0;  // timestamp of last local inventory modification
+let _riftLinkActive = false;  // true when RiftLink manages Firestore sync
 
 function _stateSet(path, value) {
     if (_applyingRemote) return;  // Suppress write-back during remote apply
@@ -408,6 +409,7 @@ async function init(characterId, roomCode) {
         // Connect via RiftLink
         if (window.RIFT && RIFT.link) {
             RIFT.link.watchChar(riftCharId, roomCode);
+            _riftLinkActive = true;
             console.log('[Character] RiftLink connected for', riftCharId, 'in room', roomCode);
         }
 
@@ -939,6 +941,16 @@ function _syncToCharacterStorage() {
                 }
             }
         };
+
+        // When RiftLink is active, only save locally — RiftLink handles Firestore
+        if (_riftLinkActive) {
+            if (!hubChar.createdAt) hubChar.createdAt = new Date().toISOString();
+            hubChar.updatedAt = new Date().toISOString();
+            const all = CharacterStorage.getLocalAll();
+            all[hubChar.id] = hubChar;
+            localStorage.setItem(CharacterStorage.STORAGE_KEY, JSON.stringify(all));
+            return;
+        }
 
         CharacterStorage.save(hubChar);
     } catch (e) {
