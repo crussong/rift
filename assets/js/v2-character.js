@@ -551,6 +551,7 @@ function renderProfile() {
     txtSafe('fieldGender', p.gender);
     txtSafe('fieldFaction', p.faction);
     val('charDesc', p.description);
+    _updateSilhouette(p.gender);
 }
 
 function renderPortrait() {
@@ -1098,23 +1099,34 @@ function initProfileBindings() {
         const el = document.getElementById(id);
         if (!el) continue;
 
-        // Prevent newlines in contenteditable
-        el.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
-        });
+        if (el.tagName === 'SELECT') {
+            // Select dropdowns
+            el.addEventListener('change', () => {
+                setNested(charData, path, el.value);
+                _dirty = true;
+                _saveLocal();
+                // Swap silhouette on gender change
+                if (id === 'fieldGender') _updateSilhouette(el.value);
+            });
+        } else {
+            // Contenteditable divs
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+            });
 
-        el.addEventListener('input', () => {
-            const text = el.textContent.trim();
-            setNested(charData, path, text);
-            _dirty = true;
-            debounce(id, () => _saveLocal());
-        });
+            el.addEventListener('input', () => {
+                const text = el.textContent.trim();
+                setNested(charData, path, text);
+                _dirty = true;
+                debounce(id, () => _saveLocal());
+            });
 
-        el.addEventListener('blur', () => {
-            const text = el.textContent.trim();
-            setNested(charData, path, text);
-            _saveLocal(); // immediate save on blur
-        });
+            el.addEventListener('blur', () => {
+                const text = el.textContent.trim();
+                setNested(charData, path, text);
+                _saveLocal();
+            });
+        }
     }
 
     // Description textarea
@@ -1129,6 +1141,19 @@ function initProfileBindings() {
             charData.profile.description = desc.value;
             _saveLocal();
         });
+    }
+
+    // Initial silhouette based on saved gender
+    _updateSilhouette(charData.profile?.gender);
+}
+
+function _updateSilhouette(gender) {
+    const img = document.getElementById('equipSilhouette');
+    if (!img) return;
+    if (gender === 'Weiblich') {
+        img.src = '/assets/img/inventory/silhouette_female.png';
+    } else {
+        img.src = '/assets/img/inventory/silhouette_male.png';
     }
 }
 
@@ -1864,8 +1889,8 @@ function initSectionNav() {
 }
 
 // ─── Helpers ───
-function txt(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
-function txtSafe(id, text) { const el = document.getElementById(id); if (el && el !== document.activeElement) el.textContent = text; }
+function txt(id, text) { const el = document.getElementById(id); if (el) { if (el.tagName === 'SELECT') el.value = text; else el.textContent = text; } }
+function txtSafe(id, text) { const el = document.getElementById(id); if (el && el !== document.activeElement) { if (el.tagName === 'SELECT') el.value = text; else el.textContent = text; } }
 function val(id, v) { const el = document.getElementById(id); if (!el) return; if (el === document.activeElement) return; if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') el.value = v || ''; else el.textContent = v || ''; }
 
 function notify(msg) {
