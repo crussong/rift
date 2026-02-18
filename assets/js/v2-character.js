@@ -1100,31 +1100,23 @@ function initProfileBindings() {
         if (!el) continue;
 
         if (el.tagName === 'SELECT') {
-            // Select dropdowns
             el.addEventListener('change', () => {
-                setNested(charData, path, el.value);
-                _dirty = true;
-                _saveLocal();
-                // Swap silhouette on gender change
+                save(path, el.value);
                 if (id === 'fieldGender') _updateSilhouette(el.value);
             });
         } else {
-            // Contenteditable divs
             el.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
             });
 
             el.addEventListener('input', () => {
-                const text = el.textContent.trim();
-                setNested(charData, path, text);
+                setNested(charData, path, el.textContent.trim());
                 _dirty = true;
-                debounce(id, () => _saveLocal());
+                debounce(id, () => save(path, el.textContent.trim()));
             });
 
             el.addEventListener('blur', () => {
-                const text = el.textContent.trim();
-                setNested(charData, path, text);
-                _saveLocal();
+                save(path, el.textContent.trim());
             });
         }
     }
@@ -1133,13 +1125,12 @@ function initProfileBindings() {
     const desc = document.getElementById('charDesc');
     if (desc) {
         desc.addEventListener('input', () => {
-            charData.profile.description = desc.value;
+            setNested(charData, 'profile.description', desc.value);
             _dirty = true;
-            debounce('charDesc', () => _saveLocal());
+            debounce('charDesc', () => save('profile.description', desc.value));
         });
         desc.addEventListener('blur', () => {
-            charData.profile.description = desc.value;
-            _saveLocal();
+            save('profile.description', desc.value);
         });
     }
 
@@ -1954,7 +1945,7 @@ function _flushAllFields() {
     };
     for (const [id, path] of Object.entries(fieldMap)) {
         const el = document.getElementById(id);
-        if (el) setNested(charData, path, el.textContent.trim());
+        if (el) setNested(charData, path, el.tagName === 'SELECT' ? el.value : el.textContent.trim());
     }
     const desc = document.getElementById('charDesc');
     if (desc) charData.profile.description = desc.value;
