@@ -463,14 +463,35 @@ async function init(characterId, roomCode) {
                 charData.equipment = data.equipment;
                 changed = true;
             }
-            
-            // For full v2 data, do full replace
-            if (data.hp && !data.data?._v2) {
-                charData = data;
+            if (data.quickbar && timeSinceLocalInv > 3000) {
+                charData.quickbar = data.quickbar;
                 changed = true;
             }
             
+            // Deep merge all other fields — never wipe local with empty remote
+            const mergeKeys = ['hp', 'resource', 'class', 'level', 'xp', 'attributes',
+                'defense', 'offense', 'skills', 'skillPoints', 'weakness', 'abilities',
+                'secondChance', 'notes', 'currency', 'buffs', 'profile', 'portrait'];
+            for (const key of mergeKeys) {
+                if (data[key] === undefined) continue;
+                // For profile: merge sub-fields, don't wipe
+                if (key === 'profile' && typeof data.profile === 'object') {
+                    for (const [pk, pv] of Object.entries(data.profile)) {
+                        if (pv !== undefined && pv !== null && pv !== '') {
+                            if (charData.profile[pk] !== pv) {
+                                charData.profile[pk] = pv;
+                                changed = true;
+                            }
+                        }
+                    }
+                } else if (JSON.stringify(charData[key]) !== JSON.stringify(data[key])) {
+                    charData[key] = data[key];
+                    changed = true;
+                }
+            }
+            
             if (changed) {
+                console.log('[Character] ← Remote update:', riftCharId);
                 _ensureDefaults();
                 _saveLocal(true);
                 renderAll();
