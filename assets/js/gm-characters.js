@@ -789,7 +789,10 @@
     }
 
     const CLASS_COLORS = {
-        barbar: '#ef4444', magier: '#3b82f6', assassine: '#a855f7', paladin: '#d4a844',
+        barbarian: '#ef4444', mage: '#3b82f6', assassin: '#a855f7', paladin: '#d4a844',
+        druid: '#22c55e', warlock: '#c084fc', ranger: '#fb923c', cleric: '#e2e8f0',
+        // Legacy IDs
+        barbar: '#ef4444', magier: '#3b82f6', assassine: '#a855f7',
         druide: '#22c55e', hexenmeister: '#c084fc', waldlaeufer: '#fb923c', kleriker: '#e2e8f0'
     };
     function _classColor(id) { return CLASS_COLORS[id] || null; }
