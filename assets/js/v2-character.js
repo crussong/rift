@@ -921,17 +921,34 @@ const LEGACY_STORAGE_KEY = 'rift_wa_character';
 
 // ─── State write (localStorage always + RiftLink when connected) ───
 function save(path, value) {
-    // Update local charData
     setNested(charData, path, value);
     _dirty = true;
-
-    // Persist immediately to localStorage
     _saveLocal();
-
-    // If connected to a room, also push to RiftState → RiftLink → Firebase
     if (charId) {
         _stateSet(`characters.${charId}`, { ...charData });
     }
+    _flashSave();
+}
+
+/** Save indicator — floppy icon that flashes on save */
+let _saveIndicator = null;
+let _saveFlashTimer = null;
+
+function _flashSave() {
+    if (!_saveIndicator) {
+        _saveIndicator = document.createElement('div');
+        _saveIndicator.id = 'saveIndicator';
+        _saveIndicator.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Gespeichert</span>`;
+        _saveIndicator.style.cssText = 'position:fixed;bottom:72px;right:20px;z-index:9000;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:#4ade80;font-size:11px;font-family:Inter,sans-serif;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity 0.2s,transform 0.2s;backdrop-filter:blur(6px)';
+        document.body.appendChild(_saveIndicator);
+    }
+    _saveIndicator.style.opacity = '1';
+    _saveIndicator.style.transform = 'translateY(0)';
+    clearTimeout(_saveFlashTimer);
+    _saveFlashTimer = setTimeout(() => {
+        _saveIndicator.style.opacity = '0';
+        _saveIndicator.style.transform = 'translateY(4px)';
+    }, 1200);
 }
 
 function _saveLocal(skipSync) {
@@ -2083,7 +2100,7 @@ function initInventorySystem() {
             console.log('[Character] Inventory save →', (charData.inventory?.items || []).length, 'items,',
                 (charData.quickbar || []).filter(Boolean).length, 'quickbar');
             _stateSet(`characters.${charId}`, { ...charData });
-            // Re-render orbs if HP/Resource changed
+            _flashSave();
             if (typeof renderOrbs === 'function') renderOrbs();
         },
         charId
