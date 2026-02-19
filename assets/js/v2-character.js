@@ -812,25 +812,37 @@ function _renderClassIcon(classId) {
     container.classList.add('has-class');
     container.style.setProperty('--cls-glow', theme.c[1] + '60');
     container.style.setProperty('--cls-glow-dim', theme.c[2] + '25');
-    // Color the class name
     const nameEl = document.getElementById('className');
     if (nameEl) nameEl.style.color = theme.highlight;
 
-    const uid = 'ci' + Date.now().toString(36).slice(-4);
-    container.innerHTML = `<svg viewBox="0 0 24 24" width="65" height="65" style="filter:drop-shadow(0 0 10px ${theme.glow}50)">
-        <defs>
-            <radialGradient id="${uid}bg" cx="50%" cy="40%" r="55%">
-                <stop offset="0%" stop-color="${theme.c[0]}" stop-opacity="0.2"/>
-                <stop offset="100%" stop-color="${theme.bg}" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="${uid}fg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="${theme.highlight}"/>
-                <stop offset="100%" stop-color="${theme.c[2]}"/>
-            </linearGradient>
-        </defs>
-        <circle cx="12" cy="12" r="11" fill="url(#${uid}bg)"/>
-        <path d="${iconPath}" fill="url(#${uid}fg)" opacity="0.85"/>
-    </svg>`;
+    // Try PNG icon first, fallback to SVG
+    const img = new Image();
+    img.src = `/assets/img/classes/icon_${classId}.png?v=1`;
+    img.alt = classId;
+    img.draggable = false;
+    img.style.cssText = `width:65px;height:65px;object-fit:contain;filter:drop-shadow(0 0 10px ${theme.glow}50)`;
+    img.onerror = () => {
+        // Fallback: SVG icon
+        const uid = 'ci' + Date.now().toString(36).slice(-4);
+        container.innerHTML = `<svg viewBox="0 0 24 24" width="65" height="65" style="filter:drop-shadow(0 0 10px ${theme.glow}50)">
+            <defs>
+                <radialGradient id="${uid}bg" cx="50%" cy="40%" r="55%">
+                    <stop offset="0%" stop-color="${theme.c[0]}" stop-opacity="0.2"/>
+                    <stop offset="100%" stop-color="${theme.bg}" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="${uid}fg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="${theme.highlight}"/>
+                    <stop offset="100%" stop-color="${theme.c[2]}"/>
+                </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="11" fill="url(#${uid}bg)"/>
+            <path d="${iconPath}" fill="url(#${uid}fg)" opacity="0.85"/>
+        </svg>`;
+    };
+    img.onload = () => {
+        container.innerHTML = '';
+        container.appendChild(img);
+    };
 }
 
 function renderClassAndOrbs() {
