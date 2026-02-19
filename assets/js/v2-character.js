@@ -115,13 +115,28 @@ function createHPOrb(current, max) {
 }
 
 // ─── Rage Orb SVG (7 lava layers, meniscus, embers+glow, core pulse) ───
-function createRageOrb(current, max) {
+// Class-specific orb color themes
+const ORB_THEMES = {
+    barbarian:  { c: ['#ff5744','#e74c3c','#b83226','#8e1a1a','#5c1010','#3a0a0a','#1a0404'], ring: '#2a0808', bg: '#080303', glow: '#ff4422', highlight: '#ff9080' },
+    mage:       { c: ['#60a5fa','#3b82f6','#2563eb','#1d4ed8','#1e3a8a','#172554','#0c1631'], ring: '#0c1a3a', bg: '#030810', glow: '#3b82f6', highlight: '#93c5fd' },
+    assassin:   { c: ['#c084fc','#a855f7','#9333ea','#7e22ce','#581c87','#3b0764','#1e0338'], ring: '#1a0833', bg: '#080312', glow: '#a855f7', highlight: '#d8b4fe' },
+    paladin:    { c: ['#fcd34d','#f59e0b','#d97706','#b45309','#78350f','#451a03','#271001'], ring: '#2a1f08', bg: '#0a0803', glow: '#f59e0b', highlight: '#fde68a' },
+    druid:      { c: ['#6ee7b7','#34d399','#10b981','#059669','#065f46','#064e3b','#022c22'], ring: '#082a1a', bg: '#030a08', glow: '#10b981', highlight: '#a7f3d0' },
+    warlock:    { c: ['#d8b4fe','#c084fc','#a855f7','#7e22ce','#581c87','#3b0764','#1e0338'], ring: '#1a0833', bg: '#080312', glow: '#c084fc', highlight: '#e9d5ff' },
+    ranger:     { c: ['#fdba74','#fb923c','#f97316','#ea580c','#9a3412','#5c1f08','#2d0f04'], ring: '#2a1508', bg: '#0a0603', glow: '#fb923c', highlight: '#fed7aa' },
+    cleric:     { c: ['#f1f5f9','#e2e8f0','#cbd5e1','#94a3b8','#64748b','#475569','#334155'], ring: '#1e293b', bg: '#0f172a', glow: '#e2e8f0', highlight: '#f8fafc' },
+};
+
+function createRageOrb(current, max, classId) {
+    const theme = ORB_THEMES[classId] || ORB_THEMES.barbarian;
+    const C = theme.c;
     const pct = Math.max(0, Math.min(1, current / max));
     const s = surfaceY(pct);
     const L = [s, s+2, s+4, s+7, s+10, s+13, s+17];
     const D = [1, 1.3, 1.7, 2.2, 2.8, 3.8, 5];
-    const C = ['#ff5744','#e74c3c','#b83226','#8e1a1a','#5c1010','#3a0a0a','#1a0404'];
     const O = [0.3, 0.35, 0.45, 0.55, 0.7, 0.9, 1];
+
+    const uid = 'r' + (classId || 'x') + Date.now().toString(36).slice(-4);
 
     let waves = '';
     for (let i = 6; i >= 0; i--) {
@@ -131,32 +146,33 @@ function createRageOrb(current, max) {
 
     return `<svg viewBox="0 0 120 120">
 <defs>
-<clipPath id="cRage"><circle cx="60" cy="60" r="52"/></clipPath>
-<radialGradient id="gRage" cx="30%" cy="25%" r="60%"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
-<radialGradient id="ember" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ff4422" stop-opacity="0.9"/><stop offset="50%" stop-color="#ff6633" stop-opacity="0.4"/><stop offset="100%" stop-color="#ff6633" stop-opacity="0"/></radialGradient>
-<filter id="emberGlow"><feGaussianBlur stdDeviation="1.5"/></filter>
+<clipPath id="c${uid}"><circle cx="60" cy="60" r="52"/></clipPath>
+<radialGradient id="g${uid}" cx="30%" cy="25%" r="60%"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
+<radialGradient id="e${uid}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${theme.glow}" stop-opacity="0.9"/><stop offset="50%" stop-color="${theme.glow}" stop-opacity="0.4"/><stop offset="100%" stop-color="${theme.glow}" stop-opacity="0"/></radialGradient>
+<filter id="f${uid}"><feGaussianBlur stdDeviation="1.5"/></filter>
 </defs>
-<circle cx="60" cy="60" r="56" fill="none" stroke="#2a0808" stroke-width="1.5"/>
-<circle cx="60" cy="60" r="55" fill="none" stroke="#3a1515" stroke-width="3"/>
-<circle cx="60" cy="60" r="52" fill="#080303"/>
-<g clip-path="url(#cRage)">
-<ellipse cx="60" cy="100" rx="35" ry="18" fill="rgba(255,68,34,0.06)"><animate attributeName="rx" dur="1.2s" repeatCount="indefinite" values="35;44;35"/><animate attributeName="ry" dur="1.2s" repeatCount="indefinite" values="18;22;18"/><animate attributeName="opacity" dur="1.2s" repeatCount="indefinite" values="1;1.8;1"/></ellipse>
+<circle cx="60" cy="60" r="56" fill="none" stroke="${theme.ring}" stroke-width="1.5"/>
+<circle cx="60" cy="60" r="55" fill="none" stroke="${theme.ring}" stroke-width="3" opacity="0.6"/>
+<circle cx="60" cy="60" r="52" fill="${theme.bg}"/>
+<g clip-path="url(#c${uid})">
+<ellipse cx="60" cy="100" rx="35" ry="18" fill="${theme.glow}" opacity="0.06"><animate attributeName="rx" dur="1.2s" repeatCount="indefinite" values="35;44;35"/><animate attributeName="ry" dur="1.2s" repeatCount="indefinite" values="18;22;18"/><animate attributeName="opacity" dur="1.2s" repeatCount="indefinite" values="0.06;0.12;0.06"/></ellipse>
 <g>${waves}</g>
-<path fill="none" stroke="rgba(255,100,80,0.4)" stroke-width="1.5" stroke-linecap="round"><animate attributeName="d" dur="1.2s" repeatCount="indefinite" values="M9 ${s-2} Q11 ${s+1} 18 ${s+1} Q30 ${s-3} 42 ${s+1} Q54 ${s+5} 66 ${s+1} Q78 ${s-3} 90 ${s+1} Q102 ${s+5} 112 ${s+1} Q114 ${s+1} 115 ${s-2};M9 ${s-2} Q11 ${s+1} 18 ${s+1} Q30 ${s+5} 42 ${s+1} Q54 ${s-3} 66 ${s+1} Q78 ${s+5} 90 ${s+1} Q102 ${s-3} 112 ${s+1} Q114 ${s+1} 115 ${s-2};M9 ${s-2} Q11 ${s+1} 18 ${s+1} Q30 ${s-3} 42 ${s+1} Q54 ${s+5} 66 ${s+1} Q78 ${s-3} 90 ${s+1} Q102 ${s+5} 112 ${s+1} Q114 ${s+1} 115 ${s-2}"/></path>
-<circle r="2.5" fill="url(#ember)"><animate attributeName="cx" dur="2.5s" repeatCount="indefinite" values="30;34;27;30"/><animate attributeName="cy" dur="2.5s" repeatCount="indefinite" values="102;52;40;102"/><animate attributeName="opacity" dur="2.5s" repeatCount="indefinite" values="0;1;0.3;0"/></circle>
-<circle r="5" fill="#ff4422" opacity="0" filter="url(#emberGlow)"><animate attributeName="cx" dur="2.5s" repeatCount="indefinite" values="30;34;27;30"/><animate attributeName="cy" dur="2.5s" repeatCount="indefinite" values="102;52;40;102"/><animate attributeName="opacity" dur="2.5s" repeatCount="indefinite" values="0;0.15;0.04;0"/></circle>
-<circle r="1.8" fill="url(#ember)"><animate attributeName="cx" dur="1.8s" repeatCount="indefinite" values="75;72;78;75"/><animate attributeName="cy" dur="1.8s" repeatCount="indefinite" values="108;58;44;108"/><animate attributeName="opacity" dur="1.8s" repeatCount="indefinite" values="0;0.9;0.2;0"/></circle>
-<circle r="4" fill="#ff4422" opacity="0" filter="url(#emberGlow)"><animate attributeName="cx" dur="1.8s" repeatCount="indefinite" values="75;72;78;75"/><animate attributeName="cy" dur="1.8s" repeatCount="indefinite" values="108;58;44;108"/><animate attributeName="opacity" dur="1.8s" repeatCount="indefinite" values="0;0.12;0.03;0"/></circle>
-<circle r="2" fill="url(#ember)"><animate attributeName="cx" dur="3.2s" repeatCount="indefinite" values="55;50;60;55"/><animate attributeName="cy" dur="3.2s" repeatCount="indefinite" values="100;48;34;100"/><animate attributeName="opacity" dur="3.2s" repeatCount="indefinite" values="0;0.8;0.12;0"/></circle>
-<circle r="1.2" fill="#ff9080"><animate attributeName="cx" dur="1.5s" repeatCount="indefinite" values="45;42;48;45"/><animate attributeName="cy" dur="1.5s" repeatCount="indefinite" values="96;60;48;96"/><animate attributeName="opacity" dur="1.5s" repeatCount="indefinite" values="0;0.6;0;0"/></circle>
-<circle r="1.5" fill="url(#ember)"><animate attributeName="cx" dur="3.8s" repeatCount="indefinite" values="88;84;92;88"/><animate attributeName="cy" dur="3.8s" repeatCount="indefinite" values="104;55;38;104"/><animate attributeName="opacity" dur="3.8s" repeatCount="indefinite" values="0;0.7;0.08;0"/></circle>
+<path fill="none" stroke="${theme.glow}" stroke-width="1.5" stroke-linecap="round" opacity="0.4"><animate attributeName="d" dur="1.2s" repeatCount="indefinite" values="M9 ${s-2} Q11 ${s+1} 18 ${s+1} Q30 ${s-3} 42 ${s+1} Q54 ${s+5} 66 ${s+1} Q78 ${s-3} 90 ${s+1} Q102 ${s+5} 112 ${s+1} Q114 ${s+1} 115 ${s-2};M9 ${s-2} Q11 ${s+1} 18 ${s+1} Q30 ${s+5} 42 ${s+1} Q54 ${s-3} 66 ${s+1} Q78 ${s+5} 90 ${s+1} Q102 ${s-3} 112 ${s+1} Q114 ${s+1} 115 ${s-2};M9 ${s-2} Q11 ${s+1} 18 ${s+1} Q30 ${s-3} 42 ${s+1} Q54 ${s+5} 66 ${s+1} Q78 ${s-3} 90 ${s+1} Q102 ${s+5} 112 ${s+1} Q114 ${s+1} 115 ${s-2}"/></path>
+<circle r="2.5" fill="url(#e${uid})"><animate attributeName="cx" dur="2.5s" repeatCount="indefinite" values="30;34;27;30"/><animate attributeName="cy" dur="2.5s" repeatCount="indefinite" values="102;52;40;102"/><animate attributeName="opacity" dur="2.5s" repeatCount="indefinite" values="0;1;0.3;0"/></circle>
+<circle r="5" fill="${theme.glow}" opacity="0" filter="url(#f${uid})"><animate attributeName="cx" dur="2.5s" repeatCount="indefinite" values="30;34;27;30"/><animate attributeName="cy" dur="2.5s" repeatCount="indefinite" values="102;52;40;102"/><animate attributeName="opacity" dur="2.5s" repeatCount="indefinite" values="0;0.15;0.04;0"/></circle>
+<circle r="1.8" fill="url(#e${uid})"><animate attributeName="cx" dur="1.8s" repeatCount="indefinite" values="75;72;78;75"/><animate attributeName="cy" dur="1.8s" repeatCount="indefinite" values="108;58;44;108"/><animate attributeName="opacity" dur="1.8s" repeatCount="indefinite" values="0;0.9;0.2;0"/></circle>
+<circle r="4" fill="${theme.glow}" opacity="0" filter="url(#f${uid})"><animate attributeName="cx" dur="1.8s" repeatCount="indefinite" values="75;72;78;75"/><animate attributeName="cy" dur="1.8s" repeatCount="indefinite" values="108;58;44;108"/><animate attributeName="opacity" dur="1.8s" repeatCount="indefinite" values="0;0.12;0.03;0"/></circle>
+<circle r="2" fill="url(#e${uid})"><animate attributeName="cx" dur="3.2s" repeatCount="indefinite" values="55;50;60;55"/><animate attributeName="cy" dur="3.2s" repeatCount="indefinite" values="100;48;34;100"/><animate attributeName="opacity" dur="3.2s" repeatCount="indefinite" values="0;0.8;0.12;0"/></circle>
+<circle r="1.2" fill="${theme.highlight}"><animate attributeName="cx" dur="1.5s" repeatCount="indefinite" values="45;42;48;45"/><animate attributeName="cy" dur="1.5s" repeatCount="indefinite" values="96;60;48;96"/><animate attributeName="opacity" dur="1.5s" repeatCount="indefinite" values="0;0.6;0;0"/></circle>
+<circle r="1.5" fill="url(#e${uid})"><animate attributeName="cx" dur="3.8s" repeatCount="indefinite" values="88;84;92;88"/><animate attributeName="cy" dur="3.8s" repeatCount="indefinite" values="104;55;38;104"/><animate attributeName="opacity" dur="3.8s" repeatCount="indefinite" values="0;0.7;0.08;0"/></circle>
 </g>
-<circle cx="60" cy="60" r="52" fill="url(#gRage)"/>
+<circle cx="60" cy="60" r="52" fill="url(#g${uid})"/>
 <ellipse cx="42" cy="36" rx="10" ry="5" fill="rgba(255,255,255,0.05)" transform="rotate(-25 42 36)"/>
 <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
 <text x="60" y="65" text-anchor="middle" fill="white" font-family="Cinzel,serif" font-size="20" font-weight="700" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8))">${current}</text>
 </svg>`;
 }
+
 
 // ─── Level Orb (matches prototype) ───
 function createLevelOrb(level) {
@@ -786,9 +802,16 @@ function renderClassAndOrbs() {
     txt('hpValues', `${charData.hp.current} / ${charData.hp.max}`);
     
     const rageEl = document.getElementById('rageOrb');
-    if (rageEl) rageEl.innerHTML = createRageOrb(charData.resource.current, charData.resource.max);
+    const clsId = charData.class?.id || 'barbarian';
+    if (rageEl) rageEl.innerHTML = createRageOrb(charData.resource.current, charData.resource.max, clsId);
     txt('rageLabel', charData.resource.name || 'Ressource');
     txt('rageValues', `${charData.resource.current} / ${charData.resource.max}`);
+    // Color the label + values to match class
+    const labelEl = document.getElementById('rageLabel');
+    const valEl = document.getElementById('rageValues');
+    const theme = ORB_THEMES[clsId] || ORB_THEMES.barbarian;
+    if (labelEl) labelEl.style.color = theme.c[0];
+    if (valEl) valEl.style.color = theme.c[1];
     
     const xpMax = charData.xp.max || 1;
     const xpPct = Math.min(100, (charData.xp.current / xpMax) * 100);
