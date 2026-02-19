@@ -127,6 +127,18 @@ const ORB_THEMES = {
     cleric:     { c: ['#f1f5f9','#e2e8f0','#cbd5e1','#94a3b8','#64748b','#475569','#334155'], ring: '#1e293b', bg: '#0f172a', glow: '#e2e8f0', highlight: '#f8fafc' },
 };
 
+// Class icon SVG paths (viewBox 0 0 24 24)
+const CLASS_ICON_PATHS = {
+    barbarian:  'M14.5 2.5L12 5 9.5 2.5 7 5l5 5 5-5-2.5-2.5zM7 12l-5 5h7l3 5 3-5h7l-5-5-5 5-5-5z',
+    mage:       'M12 2L2 19h20L12 2zm0 4l6.5 11h-13L12 6z',
+    assassin:   'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3l2.5 5H15l-3 7-3-7h.5L12 5z',
+    paladin:    'M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5zm0 3.2L18 9v4.5c0 4-2.5 7.8-6 9-3.5-1.2-6-5-6-9V9l6-3.8z',
+    druid:      'M12 2C8 2 4 4.5 4 9c0 3.5 2 6 4 7.5V22h8v-5.5c2-1.5 4-4 4-7.5 0-4.5-4-7-8-7zm0 2c3 0 6 2 6 5s-2 5.5-3.5 6.5L14 16h-4l-.5-.5C8 14.5 6 12 6 9c0-3 3-5 6-5z',
+    warlock:    'M12 2L8 8l-6 2 4 5-1 6 7-3 7 3-1-6 4-5-6-2-4-6z',
+    ranger:     'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2zm0 4.24L16.66 18H7.34L12 6.24z',
+    cleric:     'M12 2v6H8v4h4v10h2V12h4V8h-4V2h-2z',
+};
+
 function createRageOrb(current, max, classId) {
     const theme = ORB_THEMES[classId] || ORB_THEMES.barbarian;
     const C = theme.c;
@@ -783,6 +795,44 @@ function initPortrait() {
     }
 }
 
+function _renderClassIcon(classId) {
+    const container = document.querySelector('.class-img');
+    if (!container) return;
+    const theme = ORB_THEMES[classId];
+    const iconPath = CLASS_ICON_PATHS[classId];
+
+    if (!theme || !iconPath) {
+        container.classList.remove('has-class');
+        container.style.removeProperty('--cls-glow');
+        container.style.removeProperty('--cls-glow-dim');
+        container.innerHTML = `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" width="46" height="46" opacity="0.2"><path d="M20 50V30l12-16 12 16v20"/><path d="M26 50V40h12v10"/></svg>`;
+        return;
+    }
+
+    container.classList.add('has-class');
+    container.style.setProperty('--cls-glow', theme.c[1] + '60');
+    container.style.setProperty('--cls-glow-dim', theme.c[2] + '25');
+    // Color the class name
+    const nameEl = document.getElementById('className');
+    if (nameEl) nameEl.style.color = theme.highlight;
+
+    const uid = 'ci' + Date.now().toString(36).slice(-4);
+    container.innerHTML = `<svg viewBox="0 0 24 24" width="65" height="65" style="filter:drop-shadow(0 0 10px ${theme.glow}50)">
+        <defs>
+            <radialGradient id="${uid}bg" cx="50%" cy="40%" r="55%">
+                <stop offset="0%" stop-color="${theme.c[0]}" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="${theme.bg}" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="${uid}fg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${theme.highlight}"/>
+                <stop offset="100%" stop-color="${theme.c[2]}"/>
+            </linearGradient>
+        </defs>
+        <circle cx="12" cy="12" r="11" fill="url(#${uid}bg)"/>
+        <path d="${iconPath}" fill="url(#${uid}fg)" opacity="0.85"/>
+    </svg>`;
+}
+
 function renderClassAndOrbs() {
     // Defensive defaults for incomplete data
     if (!charData.class) charData.class = { id: '', name: '', label: 'Disziplin' };
@@ -793,6 +843,7 @@ function renderClassAndOrbs() {
 
     txt('className', charData.class.name || '\u2014');
     txt('classSubLabel', charData.class.name ? charData.class.label : 'Klasse wählen');
+    _renderClassIcon(charData.class.id);
     
     const levelEl = document.getElementById('levelOrb');
     if (levelEl) levelEl.innerHTML = createLevelOrb(charData.level);
