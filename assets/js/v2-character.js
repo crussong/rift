@@ -1663,17 +1663,20 @@ function initClassPicker() {
             const portraitDiv = document.createElement('div');
             portraitDiv.className = 'cp-card__portrait';
             const img = document.createElement('img');
-            img.src = cls.image;
             img.alt = cls.name;
             img.draggable = false;
             img.onerror = function() {
-                // Fallback: SVG icon
+                console.warn('[ClassPicker] Image failed:', cls.id, cls.image);
                 this.style.display = 'none';
                 const svg = document.createElement('div');
                 svg.className = 'cp-card__fallback';
                 svg.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${CLASS_ICONS[cls.id] || CLASS_ICONS.barbarian}"/></svg>`;
                 this.parentElement.appendChild(svg);
             };
+            img.onload = function() {
+                console.log('[ClassPicker] Image loaded:', cls.id);
+            };
+            img.src = cls.image + '?v=1';
             portraitDiv.appendChild(img);
 
             // Hover info overlay
