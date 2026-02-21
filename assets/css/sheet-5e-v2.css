@@ -5900,37 +5900,35 @@ body {
 
 
 /* ═══════════════════════════════════════════════════════════════
-   QoL FEATURES — Combat Mode, Spell Cards, HP Flash, etc.
+   QoL FEATURES — Combat Mode, Spell Cards, HP Flash, Rest Summary
    ═══════════════════════════════════════════════════════════════ */
 
 
-/* ─── COMBAT MODE TOGGLE BUTTON ──────────── */
+/* ─── COMBAT MODE TOGGLE ─────────────────── */
 
 .qol-combat-toggle {
     position: fixed;
-    bottom: 80px;
-    right: 20px;
-    z-index: 9000;
+    bottom: calc(var(--dock-height, 72px) + 12px);
+    right: 16px;
+    z-index: 999;
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
     background: #262626;
-    border: 2px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 4px;
     color: #888;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.5px;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.3px;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
 .qol-combat-toggle svg {
-    width: 16px;
-    height: 16px;
     flex-shrink: 0;
 }
 
@@ -5950,7 +5948,7 @@ body {
 }
 
 
-/* ─── COMBAT MODE: Hide non-combat sections ─── */
+/* ─── COMBAT MODE: Hide non-combat ───────── */
 
 body.combat-mode .section[data-section="start"],
 body.combat-mode .section[data-section="abilities"],
@@ -5963,17 +5961,12 @@ body.combat-mode .section[data-section="rules"] {
     display: none !important;
 }
 
-/* Compact header in combat mode */
 body.combat-mode .header-section .portrait-box {
     display: none;
 }
 
-body.combat-mode .header-section .header-meta {
-    display: none;
-}
-
-/* Combat indicator bar */
-body.combat-mode::before {
+/* Gold line at top in combat mode */
+body.combat-mode::after {
     content: '';
     position: fixed;
     top: 0;
@@ -5987,7 +5980,7 @@ body.combat-mode::before {
 }
 
 @keyframes combatPulse {
-    0%, 100% { opacity: 0.4; }
+    0%, 100% { opacity: 0.3; }
     50% { opacity: 1; }
 }
 
@@ -5996,10 +5989,10 @@ body.combat-mode::before {
 
 .spell-card-inline {
     background: #1e1e1e;
-    border: 1px solid rgba(212, 168, 68, 0.15);
+    border: 1px solid rgba(212, 168, 68, 0.12);
     border-top: none;
     border-radius: 0 0 4px 4px;
-    padding: 0;
+    padding: 0 16px;
     max-height: 0;
     overflow: hidden;
     opacity: 0;
@@ -6007,7 +6000,7 @@ body.combat-mode::before {
 }
 
 .spell-card-inline.open {
-    max-height: 600px;
+    max-height: 500px;
     opacity: 1;
     padding: 14px 16px;
 }
@@ -6019,112 +6012,100 @@ body.combat-mode::before {
 }
 
 .spell-row.spell-card-open {
-    border-color: rgba(212, 168, 68, 0.2);
-    border-radius: 4px 4px 0 0;
-    background: rgba(212, 168, 68, 0.03);
+    border-color: rgba(212, 168, 68, 0.15) !important;
+    background: rgba(212, 168, 68, 0.02) !important;
 }
 
-.spell-card-header {
+.sc-head {
     display: flex;
+    justify-content: space-between;
     align-items: flex-start;
-    gap: 8px;
     margin-bottom: 10px;
-    position: relative;
 }
 
-.spell-card-title {
+.sc-name {
     font-family: 'Cinzel', serif;
     font-size: 15px;
     font-weight: 700;
     color: #f0f0f0;
-    letter-spacing: 0.3px;
 }
 
-.spell-card-subtitle {
+.sc-sub {
     font-family: 'Inter', sans-serif;
     font-size: 10px;
     color: #8a6e2e;
     margin-top: 2px;
-    letter-spacing: 0.3px;
 }
 
-.spell-card-close {
-    position: absolute;
-    top: 0;
-    right: 0;
+.sc-close {
     background: none;
     border: none;
-    color: #888;
+    color: #666;
     cursor: pointer;
     padding: 2px;
-    border-radius: 2px;
     transition: color 0.15s;
+    flex-shrink: 0;
 }
 
-.spell-card-close:hover {
+.sc-close:hover {
     color: #d4a844;
 }
 
-.spell-card-meta {
+.sc-meta {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
     padding: 10px 12px;
     background: #262626;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: 4px;
     margin-bottom: 10px;
 }
 
-.spell-card-meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.spell-card-meta-label {
+.sc-ml {
+    display: block;
     font-family: 'Inter', sans-serif;
     font-size: 8px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #666;
+    color: #555;
+    margin-bottom: 2px;
 }
 
-.spell-card-meta-value {
+.sc-mv {
     font-family: 'Inter', sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     color: #ccc;
 }
 
-.spell-card-desc {
+.sc-desc {
     font-family: 'Inter', sans-serif;
     font-size: 12px;
     line-height: 1.6;
     color: #aaa;
-    margin-bottom: 6px;
 }
 
-.spell-card-higher {
-    padding: 8px 12px;
-    background: rgba(212, 168, 68, 0.04);
-    border: 1px solid rgba(212, 168, 68, 0.1);
-    border-radius: 4px;
+.sc-higher {
     margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(212, 168, 68, 0.03);
+    border: 1px solid rgba(212, 168, 68, 0.08);
+    border-radius: 4px;
     font-family: 'Inter', sans-serif;
     font-size: 11px;
     line-height: 1.5;
     color: #aaa;
 }
 
-.spell-card-higher-label {
+.sc-hl {
     display: block;
     font-weight: 700;
     color: #d4a844;
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 
@@ -6142,30 +6123,25 @@ body.combat-mode::before {
     100% { box-shadow: inset 0 0 0 0 rgba(39, 174, 96, 0); }
 }
 
-.hp-flash-damage {
-    animation: hpFlashDamage 0.6s ease-out !important;
-}
-
-.hp-flash-heal {
-    animation: hpFlashHeal 0.6s ease-out !important;
-}
+.hp-flash-damage { animation: hpFlashDamage 0.6s ease-out !important; }
+.hp-flash-heal { animation: hpFlashHeal 0.6s ease-out !important; }
 
 
 /* ─── REST SUMMARY POPUP ─────────────────── */
 
 .qol-rest-summary {
     position: fixed;
-    bottom: 80px;
+    bottom: calc(var(--dock-height, 72px) + 12px);
     left: 50%;
-    transform: translateX(-50%) translateY(20px);
+    transform: translateX(-50%) translateY(10px);
     z-index: 10000;
     background: #1e1e1e;
-    border: 1px solid rgba(212, 168, 68, 0.2);
+    border: 1px solid rgba(212, 168, 68, 0.15);
     border-radius: 4px;
     padding: 12px 16px;
-    min-width: 250px;
-    max-width: 380px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    min-width: 220px;
+    max-width: 340px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
     opacity: 0;
     transition: all 0.3s ease;
     pointer-events: none;
@@ -6176,7 +6152,7 @@ body.combat-mode::before {
     transform: translateX(-50%) translateY(0);
 }
 
-.qol-rest-summary-header {
+.qol-rs-head {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -6184,92 +6160,49 @@ body.combat-mode::before {
     font-family: 'Inter', sans-serif;
     font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.3px;
     margin-bottom: 8px;
     padding-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.qol-rest-summary-header svg {
+.qol-rs-head svg {
     color: #d4a844;
+    flex-shrink: 0;
 }
 
-.qol-rest-change {
+.qol-rs-item {
     font-family: 'Inter', sans-serif;
     font-size: 11px;
     color: #ccc;
     padding: 3px 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    padding-left: 12px;
+    position: relative;
 }
 
-.qol-rest-change::before {
+.qol-rs-item::before {
     content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
     width: 4px;
     height: 4px;
     background: #27ae60;
     border-radius: 50%;
-    flex-shrink: 0;
 }
 
 
-/* ─── SCROLL-TO-TOP FAB ──────────────────── */
-
-.qol-scroll-top {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 8999;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #262626;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    color: #888;
-    cursor: pointer;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: all 0.2s ease;
-    pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.qol-scroll-top.visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-.qol-scroll-top:hover {
-    border-color: #8a6e2e;
-    color: #d4a844;
-}
-
-
-/* ─── MOBILE: Reposition FABs ────────────── */
+/* ─── MOBILE ─────────────────────────────── */
 
 @media (max-width: 768px) {
     .qol-combat-toggle {
-        bottom: 70px;
-        right: 12px;
+        bottom: calc(var(--dock-height, 72px) + 8px);
+        right: 10px;
         padding: 6px 10px;
         font-size: 10px;
     }
 
-    .qol-combat-toggle .qol-combat-label {
-        display: none;
-    }
-
-    .qol-scroll-top {
-        bottom: 12px;
-        right: 12px;
-    }
-
-    .spell-card-meta {
+    .sc-meta {
         grid-template-columns: 1fr 1fr;
     }
 }
