@@ -5091,7 +5091,7 @@
             for (let i = 1; i <= 9; i++) {
                 char.spellSlots[i] = {
                     total: parseInt(document.getElementById(`slot${i}Total`).value) || 0,
-                    expended: parseInt(document.getElementById(`slot${i}Exp`).value) || 0
+                    expended: (char.spellSlots[i] && char.spellSlots[i].expended) || 0
                 };
             }
             char.pactSlots = {
@@ -6752,9 +6752,24 @@
             applyLanguage(); // Apply again after dynamic content loaded
         }, 800);
 
+
         /* ═══════════════════════════════════════════
-           QoL MODULE — Combat, Spells, HP Flash, Rest
+           QoL MODULE v2
            ═══════════════════════════════════════════ */
+
+        // --- WA-STYLE CORNER ORNAMENTS ---
+        (function injectCorners() {
+            var SVG = '<svg viewBox="0 0 36 36" fill="none"><path d="M0 36V6a6 6 0 016-6h30" stroke="currentColor" stroke-width="2"/><path d="M6 36V10a4 4 0 014-4h26" stroke="currentColor" stroke-width="0.75" opacity="0.3"/><circle cx="3" cy="3" r="3" fill="currentColor"/><path d="M0 14h10M14 0v10" stroke="currentColor" stroke-width="1" opacity="0.5"/><rect x="8" y="8" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.4" transform="rotate(45 10.5 10.5)"/></svg>';
+            document.querySelectorAll('.section, .header-section').forEach(function(card) {
+                if (card.querySelector('.card-corner')) return;
+                ['cc-tl','cc-tr','cc-bl','cc-br'].forEach(function(pos) {
+                    var s = document.createElement('span');
+                    s.className = 'card-corner ' + pos;
+                    s.innerHTML = SVG;
+                    card.prepend(s);
+                });
+            });
+        })();
 
         // --- COMBAT MODE ---
         (function initCombatMode() {
@@ -6762,8 +6777,7 @@
             btn.id = 'combatModeToggle';
             btn.className = 'qol-combat-toggle';
             var isDE = (typeof getLang === 'function' && getLang() === 'de');
-            btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2.5L4 13h6l-1 8.5L20 11h-6l1-8.5"/></svg>' +
-                '<span class="qol-combat-label">' + (isDE ? 'Kampf' : 'Combat') + '</span>';
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2.5L4 13h6l-1 8.5L20 11h-6l1-8.5"/></svg><span class="qol-combat-label">' + (isDE ? 'Kampf' : 'Combat') + '</span>';
             document.body.appendChild(btn);
 
             btn.addEventListener('click', function() {
@@ -6772,29 +6786,21 @@
                 btn.classList.toggle('active', active);
 
                 if (active) {
-                    // Save current collapse states
                     var states = {};
-                    document.querySelectorAll('.section[data-section]').forEach(function(s) {
-                        states[s.dataset.section] = s.classList.contains('collapsed');
-                    });
+                    document.querySelectorAll('.section[data-section]').forEach(function(s) { states[s.dataset.section] = s.classList.contains('collapsed'); });
                     try { localStorage.setItem('rift-5e-precombat', JSON.stringify(states)); } catch(e) {}
-
-                    // Show only combat-relevant sections
                     document.querySelectorAll('.section[data-section]').forEach(function(s) {
                         var keep = ['character','combat','weapons','spells'].indexOf(s.dataset.section) !== -1;
                         s.classList.toggle('collapsed', !keep);
                     });
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                    // Restore pre-combat states
                     try {
                         var raw = localStorage.getItem('rift-5e-precombat');
                         if (raw) {
                             var saved = JSON.parse(raw);
                             document.querySelectorAll('.section[data-section]').forEach(function(s) {
-                                if (s.dataset.section in saved) {
-                                    s.classList.toggle('collapsed', saved[s.dataset.section]);
-                                }
+                                if (s.dataset.section in saved) s.classList.toggle('collapsed', saved[s.dataset.section]);
                             });
                         }
                     } catch(e) {}
@@ -6802,87 +6808,49 @@
             });
         })();
 
-        // --- INLINE SPELL CARDS (override showSpellDetails) ---
+        // --- INLINE SPELL CARDS ---
         (function() {
             window.showSpellDetails = function(index) {
-                var spell = (window.char && window.char.spells) ? window.char.spells[index] : null;
-                if (!spell) return;
-
-                var SRD = window.SRD_SPELLS || [];
-                var spellData = null;
-                for (var i = 0; i < SRD.length; i++) {
-                    if (SRD[i].name === spell.srdName) { spellData = SRD[i]; break; }
-                }
-                var l = (typeof getLang === 'function') ? getLang() : 'en';
-
-                var row = document.querySelector('.spell-row[data-spell-index="' + index + '"]')
-                       || document.querySelector('.cantrip-row[data-cantrip-index="' + index + '"]');
-                if (!row) return;
-
-                // Toggle existing card
-                var existing = row.nextElementSibling;
-                if (existing && existing.classList.contains('spell-card-inline')) {
-                    existing.classList.add('closing');
-                    setTimeout(function() { existing.remove(); }, 200);
-                    row.classList.remove('spell-card-open');
-                    return;
-                }
-
-                // Close any other open card
-                document.querySelectorAll('.spell-card-inline').forEach(function(c) {
-                    if (c.previousElementSibling) c.previousElementSibling.classList.remove('spell-card-open');
-                    c.remove();
-                });
-
-                var desc = spellData
-                    ? (l === 'de' && spellData.desc_de ? spellData.desc_de : (spellData.desc || ''))
-                    : (spell.notes || (l === 'de' ? 'Keine Beschreibung.' : 'No description.'));
-
-                var higher = (spellData && spellData.higher_levels)
-                    ? (l === 'de' && spellData.higher_levels_de ? spellData.higher_levels_de : spellData.higher_levels)
-                    : null;
-
-                var school = spell.school || (spellData ? spellData.school : '') || '';
-                var range = spell.range || (spellData ? spellData.range : '') || '—';
-                var duration = spell.duration || (spellData ? spellData.duration : '') || '—';
-                var castTime = spell.time || (spellData ? spellData.casting_time : '') || '—';
-                var conc = !!spell.conc;
-                var ritual = spell.ritual || (spellData ? spellData.ritual : false);
-                var level = spell.level || '0';
-                var hasV = spell.verbal !== false;
-                var hasS = spell.somatic !== false;
-                var hasM = spell.mat === true;
-                var matDesc = spell.matDesc || (spellData ? spellData.material : '') || '';
-
-                var schoolDE = {'Abjuration':'Bannmagie','Conjuration':'Beschwörung','Divination':'Wahrsagerei','Enchantment':'Verzauberung','Evocation':'Hervorrufung','Illusion':'Illusion','Necromancy':'Nekromantie','Transmutation':'Verwandlung'};
-                var lvlText = level === '0' ? (l==='de'?'Zaubertrick':'Cantrip') : (l==='de'?'Grad '+level:'Level '+level);
-                var schoolText = school ? (l==='de'?(schoolDE[school]||school):school) : '';
-                var comps = [hasV?'V':'',hasS?'S':'',hasM?'M':''].filter(Boolean).join(', ');
-                if (matDesc) comps += ' (' + matDesc + ')';
-                var concPfx = conc ? (l==='de'?'Konz., ':'Conc., ') : '';
-
-                var card = document.createElement('div');
-                card.className = 'spell-card-inline';
-                row.classList.add('spell-card-open');
-
-                card.innerHTML =
-                    '<div class="sc-head"><div>' +
-                        '<div class="sc-name">' + (spell.name||'—') + '</div>' +
-                        '<div class="sc-sub">' + lvlText + (schoolText?' — '+schoolText:'') + (ritual?' (Ritual)':'') + '</div>' +
-                    '</div>' +
-                    '<button class="sc-close" onclick="this.closest(\'.spell-card-inline\').previousElementSibling.classList.remove(\'spell-card-open\');this.closest(\'.spell-card-inline\').remove()">' +
-                        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>' +
-                    '<div class="sc-meta">' +
-                        '<div><span class="sc-ml">'+(l==='de'?'Zeit':'Time')+'</span><span class="sc-mv">'+castTime+'</span></div>' +
-                        '<div><span class="sc-ml">'+(l==='de'?'Reichweite':'Range')+'</span><span class="sc-mv">'+range+'</span></div>' +
-                        '<div><span class="sc-ml">'+(l==='de'?'Komp.':'Comp.')+'</span><span class="sc-mv">'+comps+'</span></div>' +
-                        '<div><span class="sc-ml">'+(l==='de'?'Dauer':'Duration')+'</span><span class="sc-mv">'+concPfx+duration+'</span></div>' +
-                    '</div>' +
-                    '<div class="sc-desc">' + desc.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>') + '</div>' +
-                    (higher ? '<div class="sc-higher"><span class="sc-hl">'+(l==='de'?'Auf höheren Graden':'At Higher Levels')+'</span>'+higher+'</div>' : '');
-
-                row.after(card);
-                requestAnimationFrame(function() { card.classList.add('open'); });
+                try {
+                    var spell = (window.char && window.char.spells) ? window.char.spells[index] : null;
+                    if (!spell) return;
+                    var SRD = window.SRD_SPELLS || [];
+                    var spellData = null;
+                    for (var i = 0; i < SRD.length; i++) { if (SRD[i].name === spell.srdName) { spellData = SRD[i]; break; } }
+                    var l = (typeof getLang === 'function') ? getLang() : 'en';
+                    var row = document.querySelector('.spell-row[data-spell-index="' + index + '"]') || document.querySelector('.cantrip-row[data-cantrip-index="' + index + '"]');
+                    if (!row) return;
+                    var existing = row.nextElementSibling;
+                    if (existing && existing.classList.contains('spell-card-inline')) {
+                        existing.classList.add('closing');
+                        setTimeout(function() { existing.remove(); }, 200);
+                        row.classList.remove('spell-card-open');
+                        return;
+                    }
+                    document.querySelectorAll('.spell-card-inline').forEach(function(c) { if (c.previousElementSibling) c.previousElementSibling.classList.remove('spell-card-open'); c.remove(); });
+                    var desc = spellData ? (l==='de' && spellData.desc_de ? spellData.desc_de : (spellData.desc||'')) : (spell.notes || (l==='de'?'Keine Beschreibung.':'No description.'));
+                    var higher = (spellData && spellData.higher_levels) ? (l==='de' && spellData.higher_levels_de ? spellData.higher_levels_de : spellData.higher_levels) : null;
+                    var school = spell.school || (spellData?spellData.school:'') || '';
+                    var range = spell.range || (spellData?spellData.range:'') || '\u2014';
+                    var duration = spell.duration || (spellData?spellData.duration:'') || '\u2014';
+                    var castTime = spell.time || (spellData?spellData.casting_time:'') || '\u2014';
+                    var conc = !!spell.conc; var ritual = spell.ritual || (spellData?spellData.ritual:false);
+                    var level = spell.level || '0';
+                    var hasV = spell.verbal !== false; var hasS = spell.somatic !== false; var hasM = spell.mat === true;
+                    var matDesc = spell.matDesc || (spellData?spellData.material:'') || '';
+                    var schoolDE = {'Abjuration':'Bannmagie','Conjuration':'Beschw\u00f6rung','Divination':'Wahrsagerei','Enchantment':'Verzauberung','Evocation':'Hervorrufung','Illusion':'Illusion','Necromancy':'Nekromantie','Transmutation':'Verwandlung'};
+                    var lvlText = level==='0' ? (l==='de'?'Zaubertrick':'Cantrip') : (l==='de'?'Grad '+level:'Level '+level);
+                    var schoolText = school ? (l==='de'?(schoolDE[school]||school):school) : '';
+                    var comps = [hasV?'V':'',hasS?'S':'',hasM?'M':''].filter(Boolean).join(', ');
+                    if (matDesc) comps += ' (' + matDesc + ')';
+                    var concPfx = conc ? (l==='de'?'Konz., ':'Conc., ') : '';
+                    var card = document.createElement('div');
+                    card.className = 'spell-card-inline';
+                    row.classList.add('spell-card-open');
+                    card.innerHTML = '<div class="sc-head"><div><div class="sc-name">'+(spell.name||'\u2014')+'</div><div class="sc-sub">'+lvlText+(schoolText?' \u2014 '+schoolText:'')+(ritual?' (Ritual)':'')+'</div></div><button class="sc-close" onclick="this.closest(\'.spell-card-inline\').previousElementSibling.classList.remove(\'spell-card-open\');this.closest(\'.spell-card-inline\').remove()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div><div class="sc-meta"><div><span class="sc-ml">'+(l==='de'?'Zeit':'Time')+'</span><span class="sc-mv">'+castTime+'</span></div><div><span class="sc-ml">'+(l==='de'?'Reichweite':'Range')+'</span><span class="sc-mv">'+range+'</span></div><div><span class="sc-ml">'+(l==='de'?'Komp.':'Comp.')+'</span><span class="sc-mv">'+comps+'</span></div><div><span class="sc-ml">'+(l==='de'?'Dauer':'Duration')+'</span><span class="sc-mv">'+concPfx+duration+'</span></div></div><div class="sc-desc">'+desc.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</div>'+(higher?'<div class="sc-higher"><span class="sc-hl">'+(l==='de'?'Auf h\u00f6heren Graden':'At Higher Levels')+'</span>'+higher+'</div>':'');
+                    row.after(card);
+                    requestAnimationFrame(function() { card.classList.add('open'); });
+                } catch(e) { console.warn('[QoL] Spell card error:', e); }
             };
         })();
 
@@ -6893,25 +6861,10 @@
             window.toggleSection = function(header) {
                 origToggle.call(this, header);
                 if (!document.body.classList.contains('combat-mode')) {
-                    try {
-                        var st = {};
-                        document.querySelectorAll('.section[data-section]').forEach(function(s) {
-                            st[s.dataset.section] = s.classList.contains('collapsed');
-                        });
-                        localStorage.setItem('rift-5e-sec', JSON.stringify(st));
-                    } catch(e) {}
+                    try { var st = {}; document.querySelectorAll('.section[data-section]').forEach(function(s) { st[s.dataset.section] = s.classList.contains('collapsed'); }); localStorage.setItem('rift-5e-sec', JSON.stringify(st)); } catch(e) {}
                 }
             };
-            // Restore on load
-            try {
-                var raw = localStorage.getItem('rift-5e-sec');
-                if (raw) {
-                    var states = JSON.parse(raw);
-                    document.querySelectorAll('.section[data-section]').forEach(function(s) {
-                        if (s.dataset.section in states) s.classList.toggle('collapsed', states[s.dataset.section]);
-                    });
-                }
-            } catch(e) {}
+            try { var raw = localStorage.getItem('rift-5e-sec'); if (raw) { var states = JSON.parse(raw); document.querySelectorAll('.section[data-section]').forEach(function(s) { if (s.dataset.section in states) s.classList.toggle('collapsed', states[s.dataset.section]); }); } } catch(e) {}
         })();
 
         // --- HP FLASH ---
@@ -6934,81 +6887,58 @@
             hp.addEventListener('change', flash);
         })();
 
-        // --- REST SUMMARY ---
+        // --- REST SUMMARY (safe wrapper) ---
         (function() {
             function snap() {
-                var s = {};
-                s.hp = parseInt((document.getElementById('hpCurrent')||{}).value) || 0;
-                s.temp = parseInt((document.getElementById('hpTemp')||{}).value) || 0;
-                s.hd = parseInt((document.getElementById('hdCurrent')||{}).value) || 0;
-                s.ex = parseInt((document.getElementById('exhaustion')||{}).value) || 0;
-                s.pact = parseInt((document.getElementById('pactExpended')||{}).value) || 0;
-                s.slotsExp = 0;
-                if (window.char && window.char.spellSlots) {
-                    for (var i = 1; i <= 9; i++) {
-                        var sl = window.char.spellSlots[i] || window.char.spellSlots[String(i)];
-                        if (sl) s.slotsExp += (parseInt(sl.expended) || 0);
-                    }
-                }
-                s.deathS = document.querySelectorAll('#deathSuccess .death-pip.active').length;
-                s.deathF = document.querySelectorAll('#deathFail .death-pip.active').length;
-                return s;
+                try {
+                    var s = {};
+                    s.hp = parseInt((document.getElementById('hpCurrent')||{}).value) || 0;
+                    s.temp = parseInt((document.getElementById('hpTemp')||{}).value) || 0;
+                    s.hd = parseInt((document.getElementById('hdCurrent')||{}).value) || 0;
+                    s.ex = parseInt((document.getElementById('exhaustion')||{}).value) || 0;
+                    s.pact = parseInt((document.getElementById('pactExpended')||{}).value) || 0;
+                    s.slotsExp = 0;
+                    if (window.char && window.char.spellSlots) { for (var i=1;i<=9;i++) { var sl=window.char.spellSlots[i]||window.char.spellSlots[String(i)]; if(sl) s.slotsExp += (parseInt(sl.expended)||0); } }
+                    s.deathS = document.querySelectorAll('#deathSuccess .death-pip.active').length;
+                    s.deathF = document.querySelectorAll('#deathFail .death-pip.active').length;
+                    return s;
+                } catch(e) { return {}; }
             }
-
             function showDiff(before, after, type) {
-                var l = (typeof getLang === 'function') ? getLang() : 'en';
-                var changes = [];
-                var hpD = after.hp - before.hp;
-                if (hpD > 0) changes.push('HP +' + hpD + ' (' + before.hp + ' → ' + after.hp + ')');
-                if (before.temp > 0 && after.temp === 0) changes.push(l==='de'?'Temp HP entfernt':'Temp HP cleared');
-                var hdD = after.hd - before.hd;
-                if (hdD > 0) changes.push(l==='de'?'+'+hdD+' Trefferwürfel':'+'+hdD+' Hit Dice');
-                if (after.ex < before.ex) changes.push(l==='de'?'Erschöpfung −'+Math.abs(after.ex-before.ex):'Exhaustion −'+Math.abs(after.ex-before.ex));
-                var slBack = before.slotsExp - after.slotsExp;
-                if (slBack > 0) changes.push(l==='de'?slBack+' Zauberplätze':slBack+' spell slots');
-                if (before.pact > 0 && after.pact === 0) changes.push(l==='de'?'Pakt-Plätze':'Pact slots');
-                if ((before.deathS > 0 || before.deathF > 0) && after.deathS === 0 && after.deathF === 0) changes.push(l==='de'?'Todesrettungen':'Death saves');
-
-                if (changes.length === 0) return;
-
-                var old = document.querySelector('.qol-rest-summary');
-                if (old) old.remove();
-
-                var title = type === 'short' ? (l==='de'?'Kurze Rast':'Short Rest') : (l==='de'?'Lange Rast':'Long Rest');
-                var el = document.createElement('div');
-                el.className = 'qol-rest-summary';
-                el.innerHTML = '<div class="qol-rs-head"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-                    (type==='short'?'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>':'<path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>') +
-                    '</svg>' + title + '</div>' +
-                    changes.map(function(c) { return '<div class="qol-rs-item">' + c + '</div>'; }).join('');
-                document.body.appendChild(el);
-                requestAnimationFrame(function() { el.classList.add('visible'); });
-                setTimeout(function() { el.classList.remove('visible'); setTimeout(function(){ el.remove(); }, 300); }, 4500);
+                try {
+                    var l = (typeof getLang === 'function') ? getLang() : 'en';
+                    var ch = [];
+                    var hpD = (after.hp||0) - (before.hp||0);
+                    if (hpD > 0) ch.push('HP +' + hpD + ' (' + before.hp + ' \u2192 ' + after.hp + ')');
+                    if ((before.temp||0) > 0 && (after.temp||0) === 0) ch.push(l==='de'?'Temp HP entfernt':'Temp HP cleared');
+                    var hdD = (after.hd||0) - (before.hd||0);
+                    if (hdD > 0) ch.push(l==='de'?'+'+hdD+' Trefferw\u00fcrfel':'+'+hdD+' Hit Dice');
+                    if ((after.ex||0) < (before.ex||0)) ch.push(l==='de'?'Ersch\u00f6pfung \u2212'+Math.abs((after.ex||0)-(before.ex||0)):'Exhaustion \u2212'+Math.abs((after.ex||0)-(before.ex||0)));
+                    var slBack = (before.slotsExp||0) - (after.slotsExp||0);
+                    if (slBack > 0) ch.push(l==='de'?slBack+' Zauberpl\u00e4tze':slBack+' spell slots');
+                    if ((before.pact||0) > 0 && (after.pact||0) === 0) ch.push(l==='de'?'Pakt-Pl\u00e4tze':'Pact slots');
+                    if (((before.deathS||0) > 0 || (before.deathF||0) > 0) && (after.deathS||0) === 0 && (after.deathF||0) === 0) ch.push(l==='de'?'Todesrettungen':'Death saves');
+                    if (ch.length === 0) return;
+                    var old = document.querySelector('.qol-rest-summary'); if (old) old.remove();
+                    var title = type === 'short' ? (l==='de'?'Kurze Rast':'Short Rest') : (l==='de'?'Lange Rast':'Long Rest');
+                    var el = document.createElement('div'); el.className = 'qol-rest-summary';
+                    el.innerHTML = '<div class="qol-rs-head"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+(type==='short'?'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>':'<path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>')+'</svg>'+title+'</div>'+ch.map(function(c){return '<div class="qol-rs-item">'+c+'</div>';}).join('');
+                    document.body.appendChild(el);
+                    requestAnimationFrame(function() { el.classList.add('visible'); });
+                    setTimeout(function() { el.classList.remove('visible'); setTimeout(function(){ el.remove(); }, 300); }, 4500);
+                } catch(e) { console.warn('[QoL] Rest diff error:', e); }
             }
-
-            // Wrap shortRest
             if (typeof window.shortRest === 'function') {
                 var origShort = window.shortRest;
-                window.shortRest = function() {
-                    var before = snap();
-                    origShort.apply(this, arguments);
-                    // confirm() is blocking, so after it returns the DOM is updated
-                    setTimeout(function() { showDiff(before, snap(), 'short'); }, 50);
-                };
+                window.shortRest = function() { var b = snap(); origShort.apply(this, arguments); setTimeout(function() { showDiff(b, snap(), 'short'); }, 100); };
             }
-
-            // Wrap longRest
             if (typeof window.longRest === 'function') {
                 var origLong = window.longRest;
-                window.longRest = function() {
-                    var before = snap();
-                    origLong.apply(this, arguments);
-                    setTimeout(function() { showDiff(before, snap(), 'long'); }, 50);
-                };
+                window.longRest = function() { var b = snap(); origLong.apply(this, arguments); setTimeout(function() { showDiff(b, snap(), 'long'); }, 100); };
             }
         })();
 
-        console.log('[RIFT QoL] Combat Mode, Spell Cards, HP Flash, Rest Summary loaded');
+        console.log('[RIFT QoL] v2 loaded');
 
     </script>
     
