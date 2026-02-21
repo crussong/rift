@@ -2120,6 +2120,13 @@
                     
                     <!-- ==================== CHARACTERS PANEL ==================== -->
                     <div class="broadcast-panel" id="panel-characters">
+                        <div id="focusRulesetBar" class="focus-ruleset-bar" style="display:none;margin-bottom:12px;padding:10px 14px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <span style="font-size:12px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;">Fokus:</span>
+                            <span id="focusRulesetLabel" style="font-size:13px;color:#d4af37;font-weight:600;">—</span>
+                            <span id="focusSessionLabel" style="font-size:12px;color:rgba(255,255,255,0.5);">—</span>
+                            <div style="flex:1;"></div>
+                            <div id="focusRulesetToggle" style="display:flex;gap:4px;"></div>
+                        </div>
                         <div id="characterGlobalActions"></div>
                         <div id="characterGrid" class="character-grid"></div>
                     </div>
@@ -2424,6 +2431,7 @@
     <script src="/assets/js/firebase-config.js"></script>
     <script src="/assets/js/rift-state.js"></script>
     <script src="/assets/js/riftlink.js?v=20260217"></script>
+    <script src="/assets/js/room-focus.js?v=1"></script>
     <script>
         // Auth Guard - redirect to login if not authenticated
         (function() {
@@ -6514,6 +6522,156 @@
         });
     </script>
     
+
+    <!-- Room Focus Integration -->
+    <script>
+    (function() {
+        'use strict';
+        
+        // Wait for BC to be ready
+        function initFocusIntegration() {
+            if (!window.BC || !window.RIFT?.focus) {
+                return setTimeout(initFocusIntegration, 200);
+            }
+            
+            var RULESETS = {
+                'worldsapart': { label: 'WA', full: 'Worlds Apart', color: '#8b5cf6' },
+                'dnd5e': { label: '5e', full: 'D&D 5e', color: '#d4af37' },
+                'htbah': { label: 'HTBAH', full: 'How To Be A Hero', color: '#3b82f6' },
+                'cyberpunkred': { label: 'CPR', full: 'Cyberpunk RED', color: '#ef4444' }
+            };
+            
+            var currentFocusRuleset = null;
+            
+            // Build toggle buttons
+            function renderToggleBar(focus) {
+                var bar = document.getElementById('focusRulesetBar');
+                var label = document.getElementById('focusRulesetLabel');
+                var sessionLabel = document.getElementById('focusSessionLabel');
+                var toggleContainer = document.getElementById('focusRulesetToggle');
+                if (!bar) return;
+                
+                bar.style.display = 'flex';
+                
+                // Update label
+                if (focus && focus.ruleset) {
+                    var rs = RULESETS[focus.ruleset] || { full: focus.ruleset, color: '#888' };
+                    label.textContent = rs.full;
+                    label.style.color = rs.color;
+                    sessionLabel.textContent = focus.sessionName 
+                        ? '(' + focus.sessionName + (focus.status === 'live' ? ' — Live' : focus.status === 'paused' ? ' — Pausiert' : '') + ')'
+                        : '';
+                } else {
+                    label.textContent = 'Kein Fokus gesetzt';
+                    label.style.color = 'rgba(255,255,255,0.4)';
+                    sessionLabel.textContent = '';
+                }
+                
+                // Build toggle buttons
+                toggleContainer.innerHTML = '';
+                Object.entries(RULESETS).forEach(function(entry) {
+                    var id = entry[0], rs = entry[1];
+                    var btn = document.createElement('button');
+                    btn.textContent = rs.label;
+                    btn.title = rs.full;
+                    var isActive = currentFocusRuleset === id;
+                    btn.style.cssText = 'padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ' + 
+                        (isActive ? rs.color : 'rgba(255,255,255,0.15)') + ';background:' + 
+                        (isActive ? rs.color + '22' : 'transparent') + ';color:' + 
+                        (isActive ? rs.color : 'rgba(255,255,255,0.4)') + ';transition:all 0.2s;';
+                    btn.onmouseenter = function() { if (!isActive) btn.style.borderColor = rs.color; btn.style.color = rs.color; };
+                    btn.onmouseleave = function() { if (!isActive) { btn.style.borderColor = 'rgba(255,255,255,0.15)'; btn.style.color = 'rgba(255,255,255,0.4)'; } };
+                    btn.onclick = function() {
+                        // Manual toggle — GM can switch focus without session
+                        if (currentFocusRuleset === id) return; // Already active
+                        RIFT.focus.set({ ruleset: id, status: 'manual' });
+                    };
+                    toggleContainer.appendChild(btn);
+                });
+                
+                // "Alle" button to clear focus
+                var allBtn = document.createElement('button');
+                allBtn.textContent = 'Alle';
+                allBtn.title = 'Fokus aufheben — alle Regelwerke anzeigen';
+                var allActive = !currentFocusRuleset;
+                allBtn.style.cssText = 'padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ' + 
+                    (allActive ? '#fff' : 'rgba(255,255,255,0.15)') + ';background:' + 
+                    (allActive ? 'rgba(255,255,255,0.1)' : 'transparent') + ';color:' + 
+                    (allActive ? '#fff' : 'rgba(255,255,255,0.4)') + ';transition:all 0.2s;';
+                allBtn.onclick = function() {
+                    if (!currentFocusRuleset) return;
+                    RIFT.focus.clear();
+                };
+                toggleContainer.appendChild(allBtn);
+            }
+            
+            // Filter characters by focus ruleset
+            function applyFocusFilter() {
+                // For gm-characters.js module
+                if (window.RIFT?.gmChars?.setFocusRuleset) {
+                    RIFT.gmChars.setFocusRuleset(currentFocusRuleset);
+                    return;
+                }
+                
+                // Legacy fallback: hide/show character cards by data-ruleset
+                var cards = document.querySelectorAll('.character-card[data-ruleset]');
+                cards.forEach(function(card) {
+                    if (!currentFocusRuleset) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = card.dataset.ruleset === currentFocusRuleset ? '' : 'none';
+                    }
+                });
+                
+                // Update global actions (only show if matching chars exist)
+                var globalActions = document.getElementById('characterGlobalActions');
+                if (globalActions && currentFocusRuleset) {
+                    var visibleCards = document.querySelectorAll('.character-card[data-ruleset="' + currentFocusRuleset + '"]');
+                    if (visibleCards.length === 0 && globalActions.innerHTML) {
+                        globalActions.style.display = 'none';
+                    } else {
+                        globalActions.style.display = '';
+                    }
+                }
+            }
+            
+            // Subscribe to focus changes
+            RIFT.focus.subscribe(function(focus) {
+                var oldRuleset = currentFocusRuleset;
+                currentFocusRuleset = focus?.ruleset || null;
+                renderToggleBar(focus);
+                if (oldRuleset !== currentFocusRuleset) {
+                    applyFocusFilter();
+                }
+            });
+            
+            // Also re-apply filter whenever characters re-render
+            var origRender = BC.renderCharacters;
+            if (origRender) {
+                BC.renderCharacters = function() {
+                    origRender.call(BC);
+                    if (currentFocusRuleset) {
+                        setTimeout(applyFocusFilter, 50);
+                    }
+                };
+            }
+            
+            // Initial render
+            var initialFocus = RIFT.focus.get();
+            currentFocusRuleset = initialFocus?.ruleset || null;
+            renderToggleBar(initialFocus);
+            
+            console.log('[GM-Focus] Initialized, current:', currentFocusRuleset || 'all');
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() { setTimeout(initFocusIntegration, 500); });
+        } else {
+            setTimeout(initFocusIntegration, 500);
+        }
+    })();
+    </script>
+
     <!-- Character Sheet Modal/Popup - MUST be outside all containers -->
     <div id="characterSheetModal" class="character-sheet-modal" onclick="BC.closeCharacterSheet(event)">
         <div class="character-sheet-modal__content" onclick="event.stopPropagation()">

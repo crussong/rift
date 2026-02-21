@@ -27,6 +27,7 @@
     let _expanded = new Set();  // expanded card IDs
     let _members = [];          // room members (for owner display)
     let _onlineIds = new Set(); // online user IDs
+    let _focusRuleset = null;   // filter by ruleset (null = show all)
 
 
     // ════════════════════════════════════════
@@ -92,7 +93,10 @@
         const actions = document.getElementById('characterGlobalActions');
         if (!grid) return;
 
-        const chars = Object.values(_chars).filter(c => c && !c.id?.startsWith('_'));
+        const allChars = Object.values(_chars).filter(c => c && !c.id?.startsWith('_'));
+        const chars = _focusRuleset 
+            ? allChars.filter(c => (c.ruleset || 'worldsapart') === _focusRuleset)
+            : allChars;
 
         // Global actions bar
         if (actions) {
@@ -1267,6 +1271,27 @@
     //  EXPOSE
     // ════════════════════════════════════════
 
+    // ════════════════════════════════════════
+    //  FOCUS RULESET FILTER
+    // ════════════════════════════════════════
+
+    function setFocusRuleset(ruleset) {
+        if (_focusRuleset === ruleset) return;
+        _focusRuleset = ruleset || null;
+        console.log(LOG, 'Focus ruleset:', _focusRuleset || 'all');
+        render();
+    }
+
+    // Auto-subscribe to room focus changes
+    function _initFocusWatcher() {
+        if (window.RIFT?.focus?.subscribe) {
+            RIFT.focus.subscribe(function(focus) {
+                setFocusRuleset(focus?.ruleset || null);
+            });
+        }
+    }
+    setTimeout(_initFocusWatcher, 1000);
+
     window.RIFT = window.RIFT || {};
     window.RIFT.gmChars = {
         init,
@@ -1278,6 +1303,7 @@
         modifyStat,
         setStat,
         modifyAll,
+        setFocusRuleset,
         healAll,
 
         // UI

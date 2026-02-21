@@ -2424,6 +2424,7 @@
     <!-- RIFT Core -->
     <script src="/assets/js/firebase-config.js"></script>
     <script src="/assets/js/rift-state.js"></script>
+<script src="/assets/js/room-focus.js?v=1"></script>
     <script>
         // Auth Guard - redirect to login if not authenticated
         (function() {
@@ -3532,6 +3533,16 @@
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.success('Session gestartet!');
             }
+            
+            // Set room focus for all clients
+            if (window.RIFT?.focus?.set) {
+                RIFT.focus.set({
+                    sessionId: sessionData.id,
+                    sessionName: sessionData.name,
+                    ruleset: sessionData.ruleset || 'worldsapart',
+                    status: 'live'
+                });
+            }
         }
         
         function pauseSession() {
@@ -3552,6 +3563,11 @@
             
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.info('Session pausiert');
+            }
+            
+            // Update focus status
+            if (window.RIFT?.focus?.updateStatus) {
+                RIFT.focus.updateStatus('paused');
             }
         }
         
@@ -3579,6 +3595,11 @@
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.success('Session fortgesetzt!');
             }
+            
+            // Update focus status
+            if (window.RIFT?.focus?.updateStatus) {
+                RIFT.focus.updateStatus('live');
+            }
         }
         
         function endSession() {
@@ -3598,6 +3619,11 @@
             stopTimer();
             
             localStorage.removeItem('rift_active_session');
+            
+            // Clear room focus
+            if (window.RIFT?.focus?.clear) {
+                RIFT.focus.clear();
+            }
             
             saveSession();
             renderSessionPage();
@@ -3631,6 +3657,16 @@
             
             if (window.RIFT?.ui?.Toast) {
                 RIFT.ui.Toast.success('Session wiederaufgenommen!');
+            
+            // Re-set room focus
+            if (window.RIFT?.focus?.set) {
+                RIFT.focus.set({
+                    sessionId: sessionData.id,
+                    sessionName: sessionData.name,
+                    ruleset: sessionData.ruleset || 'worldsapart',
+                    status: 'live'
+                });
+            }
             }
         }
 

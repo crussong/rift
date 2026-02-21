@@ -1023,19 +1023,28 @@ async function initDockCharacterCard() {
     
     // Source 2: CharacterStorage as fallback
     if (!charData && typeof CharacterStorage !== 'undefined') {
-        // Get session ruleset
+        // Get focused ruleset — prefer RIFT.focus (Firestore-synced), fallback to localStorage
         let ruleset = 'worldsapart';
-        const activeSessionData = localStorage.getItem('rift_active_session');
-        const sessionsData = localStorage.getItem('rift_sessions');
-        
-        if (activeSessionData && sessionsData) {
+        if (window.RIFT?.focus?.getRuleset) {
+            const focusRuleset = RIFT.focus.getRuleset();
+            if (focusRuleset) ruleset = focusRuleset;
+        }
+        if (ruleset === 'worldsapart') {
+            // Fallback: check localStorage session data
+            const activeSessionData = localStorage.getItem('rift_active_session');
+            const sessionsData = localStorage.getItem('rift_sessions');
+            if (activeSessionData && sessionsData) {
+                try {
+                    const activeSession = JSON.parse(activeSessionData);
+                    const sessions = JSON.parse(sessionsData);
+                    const fullSession = sessions.find(s => s.id === activeSession.id);
+                    if (fullSession?.ruleset) ruleset = fullSession.ruleset;
+                } catch (e) {}
+            }
+            // Also check rift_room_focus localStorage (cross-tab)
             try {
-                const activeSession = JSON.parse(activeSessionData);
-                const sessions = JSON.parse(sessionsData);
-                const fullSession = sessions.find(s => s.id === activeSession.id);
-                if (fullSession?.ruleset) {
-                    ruleset = fullSession.ruleset;
-                }
+                const focusData = JSON.parse(localStorage.getItem('rift_room_focus') || 'null');
+                if (focusData?.ruleset) ruleset = focusData.ruleset;
             } catch (e) {}
         }
         
@@ -1083,6 +1092,20 @@ async function initDockCharacterCard() {
         window.addEventListener('rift-character-saved', (e) => {
             console.log('[DockChar] Character saved in same tab, refreshing...');
             initDockCharacterCard();
+        });
+        
+        // Subscribe to room focus changes (ruleset switch → show different character)
+        if (window.RIFT?.focus?.subscribe) {
+            RIFT.focus.subscribe(() => {
+                console.log('[DockChar] Focus changed, refreshing...');
+                initDockCharacterCard();
+            });
+        }
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'rift_room_focus') {
+                console.log('[DockChar] Focus changed (cross-tab), refreshing...');
+                initDockCharacterCard();
+            }
         });
     }
 }
