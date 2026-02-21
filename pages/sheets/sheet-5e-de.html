@@ -1031,6 +1031,7 @@
     <!-- RIFT Services -->
     <script src="/assets/js/firebase-config.js"></script>
     <script src="/assets/js/rift-state.js"></script>
+    <script src="/assets/js/riftlink.js?v=2"></script>
     <script>
         // Auth Guard - redirect to login if not authenticated
         (function() {
@@ -1746,9 +1747,13 @@
         }
 
         function syncToFirebase() {
-            if (typeof isFirebaseOnline === 'function' && isFirebaseOnline()) {
-                const u = getCurrentUser();
-                if (u) getRef(`characters/${sanitizeKey(u.username)}`).set({ ...char, updatedAt: Date.now() });
+            // RiftLink bridge: push char to RiftState → RiftLink syncs to Firestore
+            if (window._riftBridgeCharId && window.RIFT && RIFT.state) {
+                const charCopy = JSON.parse(JSON.stringify(char));
+                charCopy.ruleset = 'dnd5e';
+                charCopy.updatedAt = Date.now();
+                charCopy.name = char.header?.name || 'Unbenannt';
+                RIFT.state.set('characters.' + window._riftBridgeCharId, charCopy);
             }
         }
 
@@ -5547,11 +5552,19 @@
         async function initGMView() {
             const u = getCurrentUser();
             isGM = u?.isGM || false;
-            if (typeof initFirebase === 'function') await initFirebase();
-            if (isGM && typeof isFirebaseOnline === 'function' && isFirebaseOnline()) {
-                createPlayerBar();
-                loadPlayers();
-            }
+            if (!isGM || typeof firebase === 'undefined' || !firebase.firestore) return;
+            const roomCode = localStorage.getItem('rift_current_room')?.replace(/-/g, '').toUpperCase();
+            if (!roomCode) return;
+            createPlayerBar();
+            // Watch Firestore characters collection for this room
+            try {
+                firebase.firestore().collection('rooms').doc(roomCode).collection('characters')
+                    .onSnapshot(function(snap) {
+                        var chars = {};
+                        snap.forEach(function(doc) { chars[doc.id] = doc.data(); });
+                        renderPlayerBar(chars);
+                    });
+            } catch(e) { console.warn('[5e-GM] Firestore watch failed:', e); }
         }
 
         function createPlayerBar() {
@@ -5564,37 +5577,31 @@
             sheet.insertBefore(b, sheet.firstChild);
         }
 
-        async function loadPlayers() {
-            getRef('players').on('value', snap => {
-                const ps = snap.val() || {};
-                const b = document.querySelector('.player-bar');
-                if (!b) return;
-                
-                const currentUser = getCurrentUser();
-                const userColor = currentUser?.color || '#6750a4';
-                
-                b.innerHTML = `<span class="player-bar-label">Players:</span>`;
-                
-                // Own character button
-                const ob = document.createElement('button');
-                ob.className = 'player-tab own' + (!viewingPlayer ? ' active' : '');
-                ob.innerHTML = `<span class="player-tab-dot" style="background: ${userColor}"></span> Eigener Charakter`;
-                ob.onclick = () => { viewingPlayer = null; loadChar(); enableEdit(); updatePB(); removeGMBanner(); };
-                b.appendChild(ob);
-                
-                // Other players
-                Object.entries(ps).forEach(([n, d]) => {
-                    if (d.isGM) return;
-                    if (n === currentUser?.username) return; // Skip self
-                    
-                    const btn = document.createElement('button');
-                    btn.className = 'player-tab' + (viewingPlayer === n ? ' active' : '');
-                    btn.innerHTML = `<span class="player-tab-dot" style="background: ${d.color || '#888'}"></span> ${n}`;
-                    btn.onclick = () => viewPlayer(n);
-                    b.appendChild(btn);
-                });
+        function renderPlayerBar(chars) {
+            var b = document.querySelector('.player-bar');
+            if (!b) return;
+            var currentUser = getCurrentUser();
+            b.innerHTML = '<span class="player-bar-label">Players:</span>';
+            // Own character button
+            var ob = document.createElement('button');
+            ob.className = 'player-tab own' + (!viewingPlayer ? ' active' : '');
+            ob.innerHTML = '<span class="player-tab-dot" style="background:' + (currentUser?.color || '#6750a4') + '"></span> Eigener Charakter';
+            ob.onclick = function() { viewingPlayer = null; loadChar(); enableEdit(); updatePB(); removeGMBanner(); };
+            b.appendChild(ob);
+            // Other characters from Firestore
+            Object.entries(chars).forEach(function(entry) {
+                var cid = entry[0], cd = entry[1];
+                if (cd.ownerId === firebase.auth().currentUser?.uid) return;
+                var name = cd.name || cd.header?.name || cid;
+                var btn = document.createElement('button');
+                btn.className = 'player-tab' + (viewingPlayer === cid ? ' active' : '');
+                btn.innerHTML = '<span class="player-tab-dot" style="background:#888"></span> ' + name;
+                btn.onclick = function() { viewPlayerFirestore(cid, cd); };
+                b.appendChild(btn);
             });
         }
+
+        function loadPlayers() { /* replaced by Firestore watcher in initGMView */ }
 
         function updatePB() {
             document.querySelectorAll('.player-tab').forEach(b => {
@@ -5605,11 +5612,20 @@
         }
 
         async function viewPlayer(n) {
-            viewingPlayer = n;
+            // Legacy stub — replaced by viewPlayerFirestore
+        }
+
+        function viewPlayerFirestore(charId, charData) {
+            viewingPlayer = charId;
             updatePB();
-            showGMBanner(n);
-            const snap = await getRef(`characters/${sanitizeKey(n)}`).once('value');
-            if (snap.val()) { char = snap.val(); populateFields(); }
+            showGMBanner(charData.name || charData.header?.name || charId);
+            // Load character data into sheet
+            if (charData.data) {
+                char = charData.data;
+            } else {
+                char = charData;
+            }
+            populateFields();
             disableEdit();
         }
 
@@ -6944,6 +6960,91 @@
             applyLanguage(); // Apply again after dynamic content loaded
         }, 800);
 
+
+
+        /* ═══════════════════════════════════════════
+           RIFTLINK BRIDGE — Real-time sync for 5e
+           Connects char object ↔ RiftLink ↔ Firestore
+           ═══════════════════════════════════════════ */
+        (function initRiftLinkBridge() {
+            if (!window.RIFT || !RIFT.link || !RIFT.state) {
+                console.log('[5e-Bridge] RiftLink not available, offline mode');
+                return;
+            }
+
+            var roomCode = (new URLSearchParams(window.location.search)).get('room')
+                || localStorage.getItem('rift_current_room');
+            if (roomCode) roomCode = roomCode.replace(/-/g, '').toUpperCase();
+            if (!roomCode) {
+                console.log('[5e-Bridge] No room code, offline mode');
+                return;
+            }
+
+            // Resolve character ID
+            var charId = currentCharId;
+            if (!charId) {
+                // Generate stable ID from user
+                var uid = firebase.auth().currentUser?.uid;
+                if (uid) charId = 'dnd5e_' + uid.slice(0, 8);
+            }
+            if (!charId) {
+                console.warn('[5e-Bridge] No character ID');
+                return;
+            }
+
+            window._riftBridgeCharId = charId;
+            window._riftBridgeRoom = roomCode;
+
+            // Push initial state to Firestore
+            function pushToFirestore() {
+                if (typeof collectData === 'function') collectData();
+                var charCopy = JSON.parse(JSON.stringify(char));
+                charCopy.ruleset = 'dnd5e';
+                charCopy.updatedAt = Date.now();
+                charCopy.name = char.header?.name || 'Unbenannt';
+                charCopy.ownerId = firebase.auth().currentUser?.uid || '';
+                RIFT.state.set('characters.' + charId, charCopy);
+            }
+
+            // Connect via RiftLink
+            RIFT.link.watchChar(charId, roomCode);
+            console.log('[5e-Bridge] Connected:', charId, 'in room', roomCode);
+
+            // Push initial data after short delay
+            setTimeout(pushToFirestore, 1500);
+
+            // Listen for remote changes (GM modifying stats, etc.)
+            RIFT.state.on('characters.' + charId + ':changed', function(data) {
+                if (!data || window._applyingRemote5e) return;
+                // Check if this is our own echo
+                if (data.updatedAt && data.lastModifiedBy === (firebase.auth().currentUser?.uid || '')) return;
+
+                window._applyingRemote5e = true;
+                try {
+                    // Merge remote data into local char object
+                    var changed = false;
+                    var keys = ['combat', 'header', 'abilities', 'spellSlots', 'spells',
+                                'weapons', 'classFeatures', 'training', 'narrative', 'coins',
+                                'conditions', 'pactSlots', 'speciesTraits', 'feats', 'senses'];
+                    for (var i = 0; i < keys.length; i++) {
+                        var k = keys[i];
+                        if (data[k] !== undefined && JSON.stringify(char[k]) !== JSON.stringify(data[k])) {
+                            char[k] = data[k];
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        console.log('[5e-Bridge] Remote update applied');
+                        if (typeof populateFields === 'function') populateFields();
+                    }
+                } catch(e) { console.warn('[5e-Bridge] Remote merge error:', e); }
+                setTimeout(function() { window._applyingRemote5e = false; }, 300);
+            });
+
+            // Emit bridge ready event
+            RIFT.state.emit('5e:bridge:ready', { charId: charId, roomCode: roomCode });
+            console.log('[5e-Bridge] Ready');
+        })();
 
         /* ═══════════════════════════════════════════
            QoL MODULE v2
