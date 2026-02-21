@@ -999,8 +999,8 @@ async function initDockCharacterCard() {
     // Helper function to validate character data
     const isValidCharacter = (data) => {
         if (!data) return false;
-        // Must have a name that's not empty or default
-        if (!data.name || data.name === 'Unbenannt' || data.name.trim() === '') return false;
+        // Must have a name that's not empty
+        if (!data.name || data.name.trim() === '') return false;
         return true;
     };
     
@@ -1062,25 +1062,29 @@ async function initDockCharacterCard() {
     if (!charData) {
         console.log('[DockChar] No valid character found, showing empty state');
         showEmptyCharacterCard(card);
-        return;
+    } else {
+        console.log('[DockChar] Displaying character:', charData.name);
+        updateDockCharacterCard(charData, charId, roomCode);
     }
     
-    console.log('[DockChar] Displaying character:', charData.name);
-    updateDockCharacterCard(charData, charId, roomCode);
-    
-    // Subscribe to localStorage changes for real-time updates
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5') {
-            console.log('[DockChar] Characters updated, refreshing...');
+    // ALWAYS subscribe to changes - even when empty, so new characters are detected
+    if (!card._dockListenersAttached) {
+        card._dockListenersAttached = true;
+        
+        // Subscribe to localStorage changes for real-time updates
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5') {
+                console.log('[DockChar] Characters updated, refreshing...');
+                initDockCharacterCard();
+            }
+        });
+        
+        // Subscribe to same-tab character saves (custom event)
+        window.addEventListener('rift-character-saved', (e) => {
+            console.log('[DockChar] Character saved in same tab, refreshing...');
             initDockCharacterCard();
-        }
-    });
-    
-    // Subscribe to same-tab character saves (custom event)
-    window.addEventListener('rift-character-saved', (e) => {
-        console.log('[DockChar] Character saved in same tab, refreshing...');
-        initDockCharacterCard();
-    });
+        });
+    }
 }
 
 function showEmptyCharacterCard(card) {
