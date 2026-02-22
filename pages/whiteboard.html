@@ -4119,9 +4119,9 @@ const WB = {
             return;
         }
         
-        // Track attack usage
+        // Track attack usage IMMEDIATELY and sync to Firebase
         attacker._turnAttacksUsed = usedAtks + 1;
-        const remaining = maxAtks - attacker._turnAttacksUsed;
+        this.syncToken(attacker);
         this.renderInitiative();
         
         // Roll attack
@@ -8160,10 +8160,16 @@ const WB = {
                 const existing = this.tokens.find(t => t.id === rt.id);
                 if (existing) { 
                     if (rt.userId !== this.userId) {
+                        // Preserve runtime combat state before overwrite
+                        const turnMv = existing._turnMovementUsed;
+                        const turnAtk = existing._turnAttacksUsed;
                         // Smooth interpolation for position changes
                         const oldX = existing.x, oldY = existing.y;
                         const newX = rt.x, newY = rt.y;
                         Object.assign(existing, rt);
+                        // Restore combat state
+                        if (turnMv !== undefined) existing._turnMovementUsed = turnMv;
+                        if (turnAtk !== undefined) existing._turnAttacksUsed = turnAtk;
                         const dx = newX - oldX, dy = newY - oldY;
                         const dist = Math.sqrt(dx * dx + dy * dy);
                         if (dist > 2 && dist < 2000) {
