@@ -1200,7 +1200,7 @@ function updateDockCharacterCard(charData, charId, roomCode) {
     const ruleset = charData.ruleset || 'worldsapart';
     const sheetMap = {
         'worldsapart': '/sheet/worldsapart',
-        'dnd5e': '/sheet/5e',
+        'dnd5e': '/sheet/5e-de',
         'htbah': '/sheet/htbah',
         'cyberpunkred': '/sheet/cyberpunk'
     };
