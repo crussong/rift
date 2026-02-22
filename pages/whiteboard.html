@@ -1860,6 +1860,14 @@ const WB = {
         ui.addEventListener('mousedown', e => {
             if (e.button === 1) { e.preventDefault(); this.isPanning = true; this.lastPan = { x: e.clientX, y: e.clientY }; this.hideTokenTooltip(); }
         });
+        
+        // Right mouse drag pan
+        ui.addEventListener('mousedown', e => {
+            if (e.button === 2) {
+                this._rightDragStart = { x: e.clientX, y: e.clientY };
+                this._rightDragPanning = false;
+            }
+        });
         window.addEventListener('mousemove', e => {
             if (this.isPanning && this.lastPan) {
                 const dx = e.clientX - this.lastPan.x;
@@ -1871,8 +1879,32 @@ const WB = {
                 this.lastPan = { x: e.clientX, y: e.clientY };
                 this.scheduleRender();
             }
+            // Right-click drag pan
+            if (this._rightDragStart && !this._rightDragPanning) {
+                const dx = e.clientX - this._rightDragStart.x;
+                const dy = e.clientY - this._rightDragStart.y;
+                if (Math.abs(dx) + Math.abs(dy) > 5) {
+                    this._rightDragPanning = true;
+                    this.isPanning = true;
+                    this.lastPan = { x: e.clientX, y: e.clientY };
+                    this.hideTokenTooltip();
+                    wrapper.style.cursor = 'grabbing';
+                }
+            }
         });
-        window.addEventListener('mouseup', e => { if (e.button === 1) this.isPanning = false; });
+        window.addEventListener('mouseup', e => {
+            if (e.button === 1) this.isPanning = false;
+            if (e.button === 2) {
+                if (this._rightDragPanning) {
+                    this.isPanning = false;
+                    this.lastPan = null;
+                    wrapper.style.cursor = '';
+                    this.updateCursor();
+                }
+                this._rightDragStart = null;
+                this._rightDragPanning = false;
+            }
+        });
         
         // Spacebar hand tool (pan mode)
         window.addEventListener('keydown', e => {
@@ -2332,6 +2364,8 @@ const WB = {
     
     onContext(e) {
         e.preventDefault();
+        // Suppress context menu if right-click was used for panning
+        if (this._rightDragPanning) return;
         const p = this.getPoint(e);
         const hit = this.hitTest(p) || this._contextHit;
         this._contextHit = null;
