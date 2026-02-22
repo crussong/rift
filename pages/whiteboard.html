@@ -1328,6 +1328,9 @@ const WB = {
         
         if (this.roomCode) await this.connectFirebase();
         
+        // Verify GM status from Firestore (localStorage can be stale)
+        await this.verifyGMStatus();
+        
         // Init entity system
         if (window.RiftEntities) {
             RiftEntities.init(this.roomCode, this.isGM);
@@ -6734,6 +6737,82 @@ const WB = {
     // ==================== FIREBASE ====================
     firebaseListeners: [], // Track listeners for cleanup
     isClearing: false, // Flag to prevent re-adding during clear
+    
+    async verifyGMStatus() {
+        if (!this.roomCode) return;
+        try {
+            // Check Firestore room document for authoritative GM status
+            const uid = window.firebase?.auth?.()?.currentUser?.uid;
+            if (!uid) {
+                // Auth not ready yet — wait and retry once
+                await new Promise(r => setTimeout(r, 1500));
+                const retryUid = window.firebase?.auth?.()?.currentUser?.uid;
+                if (!retryUid) { console.log('[WB] No auth uid, cannot verify GM'); return; }
+                return this._checkGMFromFirestore(retryUid);
+            }
+            await this._checkGMFromFirestore(uid);
+        } catch (e) {
+            console.warn('[WB] GM verification failed:', e);
+        }
+    },
+    
+    async _checkGMFromFirestore(uid) {
+        const fs = window.firebase?.firestore?.();
+        if (!fs) return;
+        
+        const roomDoc = await fs.collection('rooms').doc(this.roomCode).get();
+        if (!roomDoc.exists) return;
+        
+        const data = roomDoc.data();
+        const wasGM = this.isGM;
+        this.isGM = data.gmId === uid;
+        
+        // Also check members collection for co-GM
+        if (!this.isGM) {
+            try {
+                const memberDoc = await fs.collection('rooms').doc(this.roomCode).collection('members').doc(uid).get();
+                if (memberDoc.exists && memberDoc.data()?.role === 'gm') {
+                    this.isGM = true;
+                }
+            } catch (e) { /* ignore */ }
+        }
+        
+        console.log('[WB] GM verified from Firestore:', this.isGM, '(was:', wasGM, ')');
+        
+        // Update localStorage to keep in sync
+        const stored = JSON.parse(localStorage.getItem('rift_user') || '{}');
+        stored.isGM = this.isGM;
+        localStorage.setItem('rift_user', JSON.stringify(stored));
+        
+        // If status changed, update UI
+        if (this.isGM && !wasGM) {
+            console.log('[WB] GM status upgraded! Enabling GM features...');
+            document.getElementById('gmMenu').style.display = '';
+            document.getElementById('fogTab').style.display = '';
+            document.body.classList.remove('player-mode');
+            
+            // Show GM panels
+            document.getElementById('tokenSidebar')?.classList.add('visible');
+            document.getElementById('initiativePanel')?.classList.add('visible');
+            document.getElementById('tokenSidebarBtn')?.classList.add('active-red');
+            document.getElementById('initiativeBtn')?.classList.add('active-red');
+            this.renderTokenSidebar();
+            
+            // Re-enable fog canvas for GM
+            const fc = document.getElementById('fogCanvas');
+            if (fc) {
+                fc.style.zIndex = '';
+                fc.style.pointerEvents = '';
+            }
+            
+            // Re-init entity system with GM flag
+            if (window.RiftEntities) {
+                RiftEntities.init(this.roomCode, true);
+            }
+            
+            this.render();
+        }
+    },
     
     async connectFirebase() {
         try {
