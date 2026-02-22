@@ -1120,12 +1120,24 @@
                         
                         <div style="margin-bottom:16px">
                             <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase">Raster-Farbe</div>
-                            <div style="display:flex;gap:6px" id="gridColorPicker">
-                                <button class="wb-grid-color active" data-color="rgba(255,255,255,0.12)" style="background:rgba(255,255,255,0.3)"></button>
-                                <button class="wb-grid-color" data-color="rgba(0,0,0,0.2)" style="background:rgba(0,0,0,0.5)"></button>
-                                <button class="wb-grid-color" data-color="rgba(139,92,246,0.3)" style="background:rgba(139,92,246,0.6)"></button>
-                                <button class="wb-grid-color" data-color="rgba(59,130,246,0.3)" style="background:rgba(59,130,246,0.6)"></button>
-                                <button class="wb-grid-color" data-color="rgba(234,179,8,0.3)" style="background:rgba(234,179,8,0.6)"></button>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap" id="gridColorPicker">
+                                <button class="wb-grid-color active" data-color="255,255,255" style="background:#fff"></button>
+                                <button class="wb-grid-color" data-color="180,180,180" style="background:#b4b4b4"></button>
+                                <button class="wb-grid-color" data-color="0,0,0" style="background:#000;border-color:rgba(255,255,255,0.2)"></button>
+                                <button class="wb-grid-color" data-color="139,92,246" style="background:#8b5cf6"></button>
+                                <button class="wb-grid-color" data-color="59,130,246" style="background:#3b82f6"></button>
+                                <button class="wb-grid-color" data-color="16,185,129" style="background:#10b981"></button>
+                                <button class="wb-grid-color" data-color="234,179,8" style="background:#eab308"></button>
+                                <button class="wb-grid-color" data-color="239,68,68" style="background:#ef4444"></button>
+                                <button class="wb-grid-color" data-color="236,72,153" style="background:#ec4899"></button>
+                                <button class="wb-grid-color" data-color="249,115,22" style="background:#f97316"></button>
+                            </div>
+                            <div style="margin-top:10px">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                                    <span style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase">Transparenz</span>
+                                    <span style="font-size:11px;color:rgba(255,255,255,0.7)" id="gridOpacityValue">20%</span>
+                                </div>
+                                <input type="range" min="5" max="80" value="20" id="gridOpacitySlider" style="width:100%;accent-color:#8b5cf6">
                             </div>
                         </div>
                         
@@ -1227,7 +1239,7 @@ const WB = {
     // State
     layer: 'main', tool: 'select', color: '#ffffff', size: 4,
     fill: false, snap: true, gridSize: 70, gridOffsetX: 0, gridOffsetY: 0,
-    gridColor: 'rgba(0,0,0,0.25)', zoom: 1, panX: 0, panY: 0,
+    gridColor: 'rgba(255,255,255,0.2)', gridColorRGB: '255,255,255', gridOpacity: 20, zoom: 1, panX: 0, panY: 0,
     
     // Smooth animation targets
     targetZoom: 1, targetPanX: 0, targetPanY: 0,
@@ -1698,8 +1710,14 @@ const WB = {
         
         // Update color buttons
         document.querySelectorAll('.wb-grid-color').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.color === this.gridColor);
+            btn.classList.toggle('active', btn.dataset.color === this.gridColorRGB);
         });
+        
+        // Update opacity slider
+        const opSlider = document.getElementById('gridOpacitySlider');
+        const opValue = document.getElementById('gridOpacityValue');
+        if (opSlider) { opSlider.value = this.gridOpacity; }
+        if (opValue) { opValue.textContent = this.gridOpacity + '%'; }
         
         // Setup event handlers if not already done
         if (!this.gridSettingsInitialized) {
@@ -1735,6 +1753,13 @@ const WB = {
                 btn.classList.add('active');
             };
         });
+        
+        // Opacity slider
+        const opSlider = document.getElementById('gridOpacitySlider');
+        const opValue = document.getElementById('gridOpacityValue');
+        if (opSlider) {
+            opSlider.oninput = () => { opValue.textContent = opSlider.value + '%'; };
+        }
         
         // Fit to map button
         document.getElementById('gridFitBtn').onclick = () => this.fitGridToMap();
@@ -1790,10 +1815,13 @@ const WB = {
         this.gridOffsetX = parseInt(document.getElementById('gridOffsetX').value) || 0;
         this.gridOffsetY = parseInt(document.getElementById('gridOffsetY').value) || 0;
         
-        // Get selected color
+        // Get selected color + opacity
         const activeColor = document.querySelector('.wb-grid-color.active');
+        const opSliderVal = parseInt(document.getElementById('gridOpacitySlider').value) || 20;
         if (activeColor) {
-            this.gridColor = activeColor.dataset.color;
+            this.gridColorRGB = activeColor.dataset.color;
+            this.gridOpacity = opSliderVal;
+            this.gridColor = 'rgba(' + this.gridColorRGB + ',' + (this.gridOpacity / 100) + ')';
         }
         
         this.updateGrid();
@@ -4391,7 +4419,7 @@ const WB = {
             gridSize: this.gridSize,
             gridOffsetX: this.gridOffsetX,
             gridOffsetY: this.gridOffsetY,
-            gridColor: this.gridColor
+            gridColor: this.gridColor, gridColorRGB: this.gridColorRGB, gridOpacity: this.gridOpacity
         });
     },
     
@@ -4403,7 +4431,7 @@ const WB = {
                 this.gridSize = s.gridSize || 70;
                 this.gridOffsetX = s.gridOffsetX || 0;
                 this.gridOffsetY = s.gridOffsetY || 0;
-                this.gridColor = s.gridColor || 'rgba(255,255,255,0.12)';
+                this.gridColor = s.gridColor || 'rgba(255,255,255,0.2)'; this.gridColorRGB = s.gridColorRGB || '255,255,255'; this.gridOpacity = s.gridOpacity !== undefined ? s.gridOpacity : 20;
                 this.updateGrid();
             }
         });
@@ -5907,7 +5935,7 @@ const WB = {
             bgOrigWidth: this.bgImage ? this.bgImage.width : null,
             bgOrigHeight: this.bgImage ? this.bgImage.height : null,
             gridSize: this.gridSize, gridOffsetX: this.gridOffsetX, gridOffsetY: this.gridOffsetY,
-            gridColor: this.gridColor, panX: this.panX, panY: this.panY, zoom: this.zoom
+            gridColor: this.gridColor, gridColorRGB: this.gridColorRGB, gridOpacity: this.gridOpacity, panX: this.panX, panY: this.panY, zoom: this.zoom
         };
         
         if (this.db && this.roomCode) {
@@ -6088,7 +6116,7 @@ const WB = {
         if (scene.gridSize) this.gridSize = scene.gridSize;
         if (scene.gridOffsetX !== undefined) this.gridOffsetX = scene.gridOffsetX;
         if (scene.gridOffsetY !== undefined) this.gridOffsetY = scene.gridOffsetY;
-        if (scene.gridColor) this.gridColor = scene.gridColor;
+        if (scene.gridColor) this.gridColor = scene.gridColor; if (scene.gridColorRGB) this.gridColorRGB = scene.gridColorRGB; if (scene.gridOpacity !== undefined) this.gridOpacity = scene.gridOpacity;
         if (scene.panX !== undefined) { this.panX = scene.panX; this.targetPanX = scene.panX; }
         if (scene.panY !== undefined) { this.panY = scene.panY; this.targetPanY = scene.panY; }
         if (scene.zoom) { this.zoom = scene.zoom; this.targetZoom = scene.zoom; }
@@ -6175,7 +6203,7 @@ const WB = {
             gridSize: this.gridSize,
             gridOffsetX: this.gridOffsetX,
             gridOffsetY: this.gridOffsetY,
-            gridColor: this.gridColor,
+            gridColor: this.gridColor, gridColorRGB: this.gridColorRGB, gridOpacity: this.gridOpacity,
             panX: this.panX, panY: this.panY, zoom: this.zoom
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -6199,7 +6227,7 @@ const WB = {
                 if (data.gridSize) this.gridSize = data.gridSize;
                 if (data.gridOffsetX !== undefined) this.gridOffsetX = data.gridOffsetX;
                 if (data.gridOffsetY !== undefined) this.gridOffsetY = data.gridOffsetY;
-                if (data.gridColor) this.gridColor = data.gridColor;
+                if (data.gridColor) this.gridColor = data.gridColor; if (data.gridColorRGB) this.gridColorRGB = data.gridColorRGB; if (data.gridOpacity !== undefined) this.gridOpacity = data.gridOpacity;
                 if (data.panX !== undefined) { this.panX = data.panX; this.targetPanX = data.panX; }
                 if (data.panY !== undefined) { this.panY = data.panY; this.targetPanY = data.panY; }
                 if (data.zoom) { this.zoom = data.zoom; this.targetZoom = data.zoom; }
@@ -7057,7 +7085,7 @@ const WB = {
                 this.gridSize = s.gridSize || 70;
                 this.gridOffsetX = s.gridOffsetX || 0;
                 this.gridOffsetY = s.gridOffsetY || 0;
-                this.gridColor = s.gridColor || 'rgba(255,255,255,0.12)';
+                this.gridColor = s.gridColor || 'rgba(255,255,255,0.2)'; this.gridColorRGB = s.gridColorRGB || '255,255,255'; this.gridOpacity = s.gridOpacity !== undefined ? s.gridOpacity : 20;
                 this.updateGrid();
             }
         });
