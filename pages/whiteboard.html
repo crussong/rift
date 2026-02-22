@@ -260,8 +260,8 @@
         .wb-dice-btn.active { background:rgba(139,92,246,0.2);border-color:#8b5cf6;color:#a78bfa }
         .wb-dice-badge { position:absolute;bottom:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;background:#1a1a1a;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;pointer-events:none }
         .wb-dice-btn.active .wb-dice-badge { background:#8b5cf6;border-color:#8b5cf6;color:white }
-        @keyframes wbDiceFadeIn { from { opacity:0;transform:translate(-50%,-50%) scale(0.9) } to { opacity:1;transform:translate(-50%,-50%) scale(1) } }
-        @keyframes wbDiceFadeOut { from { opacity:1;transform:translate(-50%,-50%) scale(1) } to { opacity:0;transform:translate(-50%,-50%) scale(0.9) } }
+        @keyframes wbDiceFadeIn { from { opacity:0 } to { opacity:1 } }
+        @keyframes wbDiceFadeOut { from { opacity:1 } to { opacity:0 } }
         .wb-combat-float--miss { color: #888; font-size: 16px; }
         @keyframes token-flash { 0% { opacity: 0.8; transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.8); } }
         .wb-combat-float--crit { font-size: 30px; color: #fbbf24; }
@@ -777,10 +777,11 @@
                         <div class="wb-radius-indicator wb-radius-range" id="attackRange"><div class="wb-radius-range__label" id="attackRangeLabel"></div></div>
                         <div class="wb-radius-origin" id="moveOrigin"></div>
                         <div class="wb-radius-distance" id="moveDistance"></div>
-                        <!-- 3D Dice Viewport (floating, appears during rolls) -->
-                        <div id="wbDiceOverlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:350px;pointer-events:none;z-index:500;border-radius:16px;overflow:hidden;display:none;box-shadow:0 8px 40px rgba(0,0,0,0.7);border:1px solid rgba(139,92,246,0.3)">
-                            <div id="wbDiceViewport" style="width:100%;height:100%;background:radial-gradient(ellipse at center, #1a1025 0%, #0a0a12 100%)"></div>
-                            <div id="wbDiceLabel" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,0.4);font-family:Inter,sans-serif;pointer-events:none"></div>
+                        <!-- 3D Dice Fullscreen Overlay -->
+                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:600;display:none;pointer-events:none">
+                            <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)"></div>
+                            <div id="wbDiceViewport" style="position:absolute;top:0;left:0;width:100%;height:100%"></div>
+                            <div id="wbDiceLabel" style="position:absolute;bottom:32px;left:0;right:0;text-align:center;font-size:16px;font-weight:700;color:rgba(255,255,255,0.6);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:1px;text-transform:uppercase"></div>
                         </div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
@@ -9546,16 +9547,17 @@ const WBDice = {
         
         // Temporarily show overlay to get dimensions
         const overlay = document.getElementById('wbDiceOverlay');
+        const prevDisplay = overlay.style.display;
         overlay.style.display = 'block';
-        overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
         
         if (viewport.clientWidth === 0 || viewport.clientHeight === 0) {
             this._initAttempts++;
-            if (this._initAttempts < 15) {
+            overlay.style.display = prevDisplay;
+            overlay.style.visibility = '';
+            if (this._initAttempts < 20) {
                 setTimeout(() => this._tryInitBox(), 500);
             }
-            overlay.style.display = 'none';
-            overlay.style.opacity = '';
             return;
         }
         
@@ -9567,7 +9569,7 @@ const WBDice = {
         }
         
         overlay.style.display = 'none';
-        overlay.style.opacity = '';
+        overlay.style.visibility = '';
     },
     
     _showViewport(label) {
@@ -9576,9 +9578,10 @@ const WBDice = {
         if (overlay) {
             overlay.style.display = 'block';
             overlay.style.pointerEvents = 'auto';
-            overlay.style.animation = 'none';
+            overlay.style.opacity = '0';
             overlay.offsetHeight; // Reflow
-            overlay.style.animation = 'wbDiceFadeIn 0.2s ease-out';
+            overlay.style.transition = 'opacity 0.25s ease-out';
+            overlay.style.opacity = '1';
         }
         if (lbl) lbl.textContent = label || '';
     },
@@ -9587,12 +9590,14 @@ const WBDice = {
         setTimeout(() => {
             const overlay = document.getElementById('wbDiceOverlay');
             if (overlay) {
-                overlay.style.animation = 'wbDiceFadeOut 0.3s ease-in forwards';
+                overlay.style.transition = 'opacity 0.4s ease-in';
+                overlay.style.opacity = '0';
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     overlay.style.pointerEvents = 'none';
-                    overlay.style.animation = '';
-                }, 300);
+                    overlay.style.transition = '';
+                    try { if (this.box) this.box.clear(); } catch(e) {}
+                }, 400);
             }
         }, delay || 0);
     },
