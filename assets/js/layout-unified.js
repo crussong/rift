@@ -2593,8 +2593,21 @@ function initMeganavBanners() {
         const container = document.getElementById('meganavSessionList');
         if (!container) return;
         
-        if (!roomCode || !window.RIFT?.rooms?.subscribeToSessions) {
+        if (!roomCode) {
             container.innerHTML = '<div class="meganav__banner-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Kein Raum aktiv</span></div>';
+            return;
+        }
+        
+        // Check Firestore is actually initialized (not just the function existing)
+        const db = window.RIFT?.firebase?.getFirestore?.();
+        if (!db || !window.RIFT?.rooms?.subscribeToSessions) {
+            if (!populateSessions._retries) populateSessions._retries = 0;
+            if (populateSessions._retries < 15) {
+                populateSessions._retries++;
+                setTimeout(populateSessions, 1500);
+                return;
+            }
+            container.innerHTML = '<div class="meganav__banner-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Keine geplanten Sessions</span></div>';
             return;
         }
         
@@ -2766,8 +2779,26 @@ function initMeganavBanners() {
         }, 300);
     }
     
-    waitFor(function() { return window.RIFT && window.RIFT.rooms && typeof RIFT.rooms.subscribeToSessions === 'function'; }, populateSessions);
-    waitFor(function() { return typeof CharacterStorage !== 'undefined'; }, populateCharacter);
+    waitFor(function() {
+        return window.RIFT && window.RIFT.rooms && typeof RIFT.rooms.subscribeToSessions === 'function'
+            && window.RIFT.firebase && typeof RIFT.firebase.getFirestore === 'function' && RIFT.firebase.getFirestore();
+    }, populateSessions, 40);
+    waitFor(function() { return typeof CharacterStorage !== 'undefined'; }, populateCharacter, 40);
+    
+    // Safety net: retry both after auth completes (covers late Firebase init)
+    window.addEventListener('rift-auth-ready', function() {
+        setTimeout(populateSessions, 500);
+        setTimeout(populateCharacter, 500);
+    });
+    // Also retry when Firestore becomes available via event
+    if (window.firebase && firebase.auth) {
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (user) {
+                setTimeout(populateSessions, 800);
+                setTimeout(populateCharacter, 800);
+            }
+        });
+    }
     
     // Re-populate character on ANY relevant change
     window.addEventListener('storage', function(e) {
