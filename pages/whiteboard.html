@@ -247,6 +247,14 @@
         .wb-token__hp-fill.low { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
         .wb-token__hp-fill.critical { background: linear-gradient(90deg, #ef4444, #f87171); }
         .wb-token__initiative { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; background: #1e1e1e; border: 2px solid #8b5cf6; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        .wb-token__numbadge { position: absolute; bottom: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; background: rgba(0,0,0,0.85); border: 2px solid rgba(255,255,255,0.5); border-radius: 9px; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none; color: white; font-family: 'Inter', sans-serif; }
+        
+        /* Combat Log - floating damage/heal numbers */
+        .wb-combat-float { position: absolute; pointer-events: none; z-index: 250; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 22px; text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6); white-space: nowrap; animation: combat-float 1.8s ease-out forwards; }
+        .wb-combat-float--damage { color: #ff4444; }
+        .wb-combat-float--heal { color: #22c55e; }
+        .wb-combat-float--crit { font-size: 30px; color: #fbbf24; }
+        @keyframes combat-float { 0% { opacity: 1; transform: translateY(0) scale(0.5); } 15% { opacity: 1; transform: translateY(-8px) scale(1.2); } 30% { transform: translateY(-16px) scale(1); } 80% { opacity: 0.8; transform: translateY(-50px); } 100% { opacity: 0; transform: translateY(-70px); } }
         .wb-token__status { position: absolute; top: -6px; left: -6px; display: flex; gap: 2px; pointer-events: none; }
         .wb-token__status-icon { width: 18px; height: 18px; background: rgba(0,0,0,0.8); border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); }
         .wb-token__status-icon svg { width: 12px; height: 12px; }
@@ -446,6 +454,9 @@
         .wb-initiative-panel__btn:hover { background: rgba(255,255,255,0.15); }
         .wb-initiative-panel__btn.active { background: var(--accent); }
         .wb-initiative-panel__btn.active-green { background: rgba(34,197,94,0.2); color: #22c55e; }
+        .wb-timer-preset { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: rgba(255,255,255,0.5); font-size: 10px; font-weight: 600; padding: 2px 6px; cursor: pointer; font-family: 'Inter', sans-serif; }
+        .wb-timer-preset:hover { background: rgba(255,255,255,0.1); color: white; }
+        .wb-timer-preset.active { background: rgba(139,92,246,0.25); border-color: rgba(139,92,246,0.5); color: #a78bfa; }
         .wb-initiative-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin-bottom: 4px; }
         .wb-initiative-item:hover { background: rgba(255,255,255,0.08); }
         .wb-initiative-item.active { background: rgba(34,197,94,0.2); border: 1px solid rgba(34,197,94,0.4); }
@@ -914,7 +925,15 @@
                     </div>
                     <div id="initiativeList" style="overflow-y:auto;flex:1;padding:8px 12px"></div>
                     <div id="initTimerBar" style="display:none;padding:4px 12px 8px;flex-shrink:0">
-                        <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:3px"><span>Zug-Timer</span><span id="initTimerText">60s</span></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:3px">
+                            <div style="display:flex;gap:3px" id="initTimerPresets">
+                                <button class="wb-timer-preset" data-dur="30">30s</button>
+                                <button class="wb-timer-preset active" data-dur="60">60s</button>
+                                <button class="wb-timer-preset" data-dur="90">90s</button>
+                                <button class="wb-timer-preset" data-dur="120">2m</button>
+                            </div>
+                            <span id="initTimerText" style="font-size:14px;font-weight:700;color:white;font-variant-numeric:tabular-nums">60s</span>
+                        </div>
                         <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;width:100%"><div id="initTimerFill" style="height:100%;background:#8b5cf6;border-radius:2px;width:100%;transition:width 0.2s linear,background 0.3s"></div></div>
                     </div>
                     <div class="wb-panel-resize" data-resize="initiativePanel"></div>
@@ -2577,6 +2596,7 @@ const WB = {
                     const amount = prompt('Schaden:', '1');
                     if (amount && !isNaN(parseInt(amount))) {
                         token.hp = Math.max(0, token.hp - parseInt(amount));
+                        this.showCombatFloat(token, parseInt(amount), 'damage');
                         this.syncToken(token);
                         this.renderTokens();
                         this.renderInitiative();
@@ -2587,6 +2607,7 @@ const WB = {
                     const amount = prompt('Heilung:', '1');
                     if (amount && !isNaN(parseInt(amount))) {
                         token.hp = Math.min(token.maxHp || 999, token.hp + parseInt(amount));
+                        this.showCombatFloat(token, parseInt(amount), 'heal');
                         this.syncToken(token);
                         this.renderTokens();
                         this.renderInitiative();
@@ -2649,7 +2670,17 @@ const WB = {
                         copy.id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
                         copy.x = tk.x + this.gridSize;
                         copy.y = tk.y + this.gridSize;
-                        copy.name = tk.name + ' (K)';
+                        // Auto-number: find next available number for this base name
+                        const baseName = (tk.name || '').replace(/\s+\d+$/, '');
+                        let maxNum = 0;
+                        this.tokens.forEach(t2 => {
+                            const t2Base = (t2.name || '').replace(/\s+\d+$/, '');
+                            if (t2Base === baseName) {
+                                const m2 = (t2.name || '').match(/\s+(\d+)$/);
+                                maxNum = Math.max(maxNum, m2 ? parseInt(m2[1]) : 1);
+                            }
+                        });
+                        copy.name = baseName + ' ' + (maxNum + 1);
                         this.tokens.push(copy);
                         this.syncToken(copy);
                     });
@@ -3413,6 +3444,12 @@ const WB = {
                 html += `<div class="wb-token__initiative">${t.initiative}</div>`;
             }
             
+            // Number badge for duplicates (e.g. "Goblin 3" → shows "3")
+            const numMatch = (t.name || '').match(/\s+(\d+)$/);
+            if (numMatch) {
+                html += `<div class="wb-token__numbadge">${numMatch[1]}</div>`;
+            }
+            
             // Status effects
             if (t.status && t.status.length > 0) {
                 const statusSvgs = {
@@ -3714,6 +3751,23 @@ const WB = {
         setTimeout(() => ping.remove(), 2500);
     },
     
+    // ==================== COMBAT LOG FLOATS ====================
+    showCombatFloat(token, amount, type) {
+        // type: 'damage' | 'heal'
+        const sx = token.x * this.zoom + this.panX;
+        const sy = token.y * this.zoom + this.panY - (token.size * this.zoom) / 2;
+        const el = document.createElement('div');
+        el.className = 'wb-combat-float wb-combat-float--' + type;
+        const prefix = type === 'damage' ? '-' : '+';
+        el.textContent = prefix + amount + ' HP';
+        // Slight random horizontal offset so multiple hits don't overlap
+        const offsetX = (Math.random() - 0.5) * 40;
+        el.style.left = (sx + offsetX) + 'px';
+        el.style.top = sy + 'px';
+        document.getElementById('canvasWrapper').appendChild(el);
+        setTimeout(() => el.remove(), 1800);
+    },
+    
     showRuler(start, end) {
         const dx = end.rawX - start.rawX, dy = end.rawY - start.rawY;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -3899,6 +3953,32 @@ const WB = {
             tx = Math.floor((tx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
             ty = Math.floor((ty - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
         }
+        
+        // Auto-number duplicate names
+        let finalName = name || this.userName;
+        const baseName = finalName.replace(/\s+\d+$/, ''); // strip trailing number
+        const sameNameTokens = this.tokens.filter(t => {
+            const tBase = (t.name || '').replace(/\s+\d+$/, '');
+            return tBase === baseName;
+        });
+        if (sameNameTokens.length > 0) {
+            // Find highest existing number
+            let maxNum = 1;
+            sameNameTokens.forEach(t => {
+                const match = (t.name || '').match(/\s+(\d+)$/);
+                if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+                else maxNum = Math.max(maxNum, 1);
+            });
+            // Rename first token to "Name 1" if it has no number yet
+            const firstToken = sameNameTokens.find(t => !(t.name || '').match(/\s+\d+$/));
+            if (firstToken) {
+                firstToken.name = baseName + ' 1';
+                firstToken._numBadge = 1;
+                this.syncToken(firstToken);
+            }
+            finalName = baseName + ' ' + (maxNum + 1);
+        }
+        
         const t = {
             id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
             x: tx,
@@ -3906,8 +3986,8 @@ const WB = {
             size: opts.size || this.gridSize || 70,
             color: color || this.userColor,
             borderColor: borderColor || '#8b5cf6',
-            name: name || this.userName, 
-            label: (name || this.userName).charAt(0).toUpperCase(),
+            name: finalName,
+            label: (finalName).charAt(0).toUpperCase(),
             userId: this.userId,
             hp: opts.hp || 0,
             maxHp: opts.maxHp || 0,
@@ -4153,6 +4233,15 @@ const WB = {
             if (!this._turnTimerEnabled) this.stopTurnTimer();
             else if (this.initiativeActive) this.startTurnTimer();
         };
+        // Timer duration presets
+        document.querySelectorAll('.wb-timer-preset').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.wb-timer-preset').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._turnTimerDuration = parseInt(btn.dataset.dur);
+                if (this._turnTimerEnabled && this.initiativeActive) this.startTurnTimer();
+            };
+        });
         document.getElementById('initCollapseBtn').onclick = () => {
             const panel = document.getElementById('initiativePanel');
             panel.classList.toggle('collapsed');
@@ -4291,21 +4380,42 @@ const WB = {
         bar.style.transition = 'none';
         bar.style.width = '100%';
         bar.style.background = '#8b5cf6';
+        bar.style.animation = '';
         text.textContent = duration + 's';
+        text.style.color = 'white';
         
         const tick = () => {
             const elapsed = (Date.now() - startTime) / 1000;
             const remaining = Math.max(0, duration - elapsed);
             const pct = (remaining / duration) * 100;
             bar.style.width = pct + '%';
-            text.textContent = Math.ceil(remaining) + 's';
             
-            if (remaining <= 10) bar.style.background = '#ef4444';
-            else if (remaining <= 20) bar.style.background = '#f59e0b';
-            else bar.style.background = '#8b5cf6';
+            if (remaining <= 10) {
+                bar.style.background = '#ef4444';
+                text.style.color = '#ef4444';
+                text.textContent = Math.ceil(remaining) + 's';
+                // Blink effect in last 5 seconds
+                if (remaining <= 5) {
+                    bar.style.opacity = Math.ceil(remaining * 4) % 2 === 0 ? '0.5' : '1';
+                }
+            } else if (remaining <= 20) {
+                bar.style.background = '#f59e0b';
+                text.style.color = '#f59e0b';
+                text.textContent = Math.ceil(remaining) + 's';
+                bar.style.opacity = '1';
+            } else {
+                bar.style.background = '#8b5cf6';
+                text.style.color = 'white';
+                text.textContent = Math.ceil(remaining) + 's';
+                bar.style.opacity = '1';
+            }
             
             if (remaining <= 0) {
                 this.stopTurnTimer();
+                text.textContent = '0s';
+                text.style.color = '#ef4444';
+                bar.style.width = '0%';
+                bar.style.opacity = '1';
                 this.toast('Zeit abgelaufen!');
                 return;
             }
@@ -5718,6 +5828,7 @@ const WB = {
                     token.hp = Math.min(token.maxHp || 999, token.hp + val);
                 }
                 
+                this.showCombatFloat(token, val, action);
                 this.syncToken(token);
                 this.renderTokens();
                 this.renderInitiative();
@@ -6332,13 +6443,29 @@ const WB = {
         const newId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         
         if (type === 'token') {
+            // Auto-number duplicate
+            const baseName = (item.name || '').replace(/\s+\d+$/, '');
+            let maxNum = 0;
+            this.tokens.forEach(t2 => {
+                const t2Base = (t2.name || '').replace(/\s+\d+$/, '');
+                if (t2Base === baseName) {
+                    const m2 = (t2.name || '').match(/\s+(\d+)$/);
+                    maxNum = Math.max(maxNum, m2 ? parseInt(m2[1]) : 1);
+                }
+            });
+            // Rename original to "Name 1" if not numbered yet
+            if (!(item.name || '').match(/\s+\d+$/)) {
+                item.name = baseName + ' 1';
+                this.syncToken(item);
+            }
             const copy = { 
                 ...item, 
                 id: newId, 
+                name: baseName + ' ' + (maxNum + 1),
                 x: item.x + 50, 
                 y: item.y + 50,
-                status: item.status ? [...item.status] : [], // Deep copy status array
-                initiative: null // Reset initiative for duplicate
+                status: item.status ? [...item.status] : [],
+                initiative: null
             };
             this.tokens.push(copy);
             this.syncToken(copy);
