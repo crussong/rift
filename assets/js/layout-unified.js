@@ -548,6 +548,15 @@ function createUnifiedTopnav() {
             <div class="topnav__spacer"></div>
             
             <div class="topnav__right">
+                <!-- Session Pill (populated by RiftContext) — before Party -->
+                <div class="topnav__session-pill-wrap" id="sessionPillWrap" style="display:none;">
+                    <a href="/sessions" class="topnav__session-pill" id="sessionPill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <span id="sessionPillText"></span>
+                    </a>
+                    <div class="topnav__session-pill-tooltip" id="sessionPillTooltip"></div>
+                </div>
+                
                 <!-- Party Dropdown -->
                 <div class="topnav__dropdown-trigger" id="partyTrigger">
                     <div class="topnav__party">
@@ -577,12 +586,6 @@ function createUnifiedTopnav() {
                         </div>
                     </div>
                 </div>
-                
-                <!-- Session Pill (populated by RiftContext) -->
-                <a href="/sessions" class="topnav__session-pill" id="sessionPill" style="display:none;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <span id="sessionPillText"></span>
-                </a>
                 
                 <!-- Room Code Dropdown -->
                 <div class="topnav__dropdown-trigger" id="roomTrigger">
@@ -1219,29 +1222,72 @@ function initUnifiedLayout() {
             }
             
             // Update session pill
+            var RULESET_COLORS = {
+                'worldsapart': { bg: 'rgba(139, 92, 246, 0.15)', border: 'rgba(139, 92, 246, 0.4)', text: '#a78bfa' },
+                'dnd5e':       { bg: 'rgba(255, 70, 85, 0.15)',  border: 'rgba(255, 70, 85, 0.4)',  text: '#ff4655' },
+                'htbah':       { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', text: '#34d399' },
+                'cyberpunkred':{ bg: 'rgba(251, 191, 36, 0.15)', border: 'rgba(251, 191, 36, 0.4)', text: '#fbbf24' }
+            };
+            var WD_FULL = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+            var MN_FULL = ['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+            
+            var pillWrap = document.getElementById('sessionPillWrap');
             var pill = document.getElementById('sessionPill');
             var pillText = document.getElementById('sessionPillText');
-            if (pill && pillText) {
+            var pillTooltip = document.getElementById('sessionPillTooltip');
+            
+            if (pillWrap && pill && pillText) {
                 if (state.nextSession) {
                     var ns = state.nextSession;
                     var isLive = ns.status === 'live' || ns.status === 'paused';
+                    var rs = state.ruleset || 'worldsapart';
+                    var rc = RULESET_COLORS[rs] || RULESET_COLORS['worldsapart'];
+                    var ri = RiftContext.getRulesetInfo(rs);
+                    
                     if (isLive) {
-                        pillText.textContent = 'LIVE';
+                        pillText.textContent = 'LIVE: ' + (ns.name || 'Session');
+                        pill.style.background = 'rgba(16, 185, 129, 0.15)';
+                        pill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                        pill.style.color = '#34d399';
                         pill.classList.add('topnav__session-pill--live');
                     } else if (ns.date) {
                         var d = new Date(ns.date);
                         var day = String(d.getDate()).padStart(2, '0');
                         var month = String(d.getMonth() + 1).padStart(2, '0');
-                        pillText.textContent = day + '.' + month;
+                        pillText.textContent = 'N\u00e4chste Session: ' + day + '.' + month + '.';
+                        pill.style.background = rc.bg;
+                        pill.style.borderColor = rc.border;
+                        pill.style.color = rc.text;
                         pill.classList.remove('topnav__session-pill--live');
                     } else {
-                        pillText.textContent = ns.name || 'Session';
+                        pillText.textContent = 'N\u00e4chste Session';
+                        pill.style.background = rc.bg;
+                        pill.style.borderColor = rc.border;
+                        pill.style.color = rc.text;
                         pill.classList.remove('topnav__session-pill--live');
                     }
+                    
                     pill.href = '/session?id=' + ns.id;
-                    pill.style.display = '';
+                    pillWrap.style.display = '';
+                    
+                    // Build hover tooltip
+                    if (pillTooltip) {
+                        var ttParts = [];
+                        ttParts.push('<div class="sp-tooltip__name">' + (ns.name || 'Session') + '</div>');
+                        if (ns.subtitle) ttParts.push('<div class="sp-tooltip__subtitle">' + ns.subtitle + '</div>');
+                        ttParts.push('<div class="sp-tooltip__ruleset"><img src="/assets/img/rulesets/' + ri.icon + '" alt="" style="width:13px;height:13px;border-radius:2px;vertical-align:-2px;"> ' + ri.name + '</div>');
+                        if (ns.date) {
+                            var dd = new Date(ns.date);
+                            var dateStr = WD_FULL[dd.getDay()] + ', ' + dd.getDate() + '. ' + MN_FULL[dd.getMonth()];
+                            if (ns.time) dateStr += ' \u00b7 ' + ns.time + ' Uhr';
+                            if (ns.duration) dateStr += ' \u00b7 ' + ns.duration;
+                            ttParts.push('<div class="sp-tooltip__date">' + dateStr + '</div>');
+                        }
+                        if (isLive) ttParts.push('<div class="sp-tooltip__live">Session l\u00e4uft gerade!</div>');
+                        pillTooltip.innerHTML = ttParts.join('');
+                    }
                 } else {
-                    pill.style.display = 'none';
+                    pillWrap.style.display = 'none';
                 }
             }
         });
