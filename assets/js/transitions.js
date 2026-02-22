@@ -12,7 +12,7 @@ const PageTransitions = {
         animationDuration: 350,
         easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
         // Pages that need full reload due to complex script initialization
-        fullReloadPages: ['/dice', '/sessions', '/sheet', '/gm', '/session', '/hub', '/roadmap', '/broadcast', '/chat', '/whiteboard', '/worldsapart', '/dnd5e', '/htbah', '/cyberpunkred', '/pathfinder', '/shadowrun', '/cthulhu', '/sheet/worldsapart', '/sheet/5e', '/sheet/htbah', '/sheet/cyberpunk', '/notes', '/map', '/settings', '/riftpro', '/guide', '/guide/create-character', '/guide/create-session', '/guide/dice-roller', '/guide/gm-tools', '/guide/chat-and-tools', '/guide/rift-pro']
+        fullReloadPages: ['/dice', '/sessions', '/sheet', '/gm', '/session', '/hub', '/roadmap', '/broadcast', '/chat', '/whiteboard', '/worldsapart', '/dnd5e', '/htbah', '/cyberpunkred', '/pathfinder', '/shadowrun', '/cthulhu', '/sheet/worldsapart', '/sheet/5e', '/sheet/5e-de', '/sheet/5e-en', '/sheet/htbah', '/sheet/cyberpunk', '/notes', '/map', '/settings', '/riftpro', '/guide', '/guide/create-character', '/guide/create-session', '/guide/dice-roller', '/guide/gm-tools', '/guide/chat-and-tools', '/guide/rift-pro']
     },
     
     // State
