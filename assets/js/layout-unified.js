@@ -1280,9 +1280,9 @@ function initUnifiedLayout() {
                     var ns = state.nextSession;
                     var isLive = ns.status === 'live' || ns.status === 'paused';
                     var rs = state.ruleset || 'worldsapart';
-                    var rc = RULESET_COLORS[rs] || RULESET_COLORS['worldsapart'];
                     var ri = RiftContext.getRulesetInfo(rs);
                     
+                    // Neutral pill colors (not ruleset-colored)
                     if (isLive) {
                         pillText.textContent = 'LIVE: ' + (ns.name || 'Session');
                         pill.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -1294,36 +1294,72 @@ function initUnifiedLayout() {
                         var day = String(d.getDate()).padStart(2, '0');
                         var month = String(d.getMonth() + 1).padStart(2, '0');
                         pillText.textContent = 'N\u00e4chste Session: ' + day + '.' + month + '.';
-                        pill.style.background = rc.bg;
-                        pill.style.borderColor = rc.border;
-                        pill.style.color = rc.text;
+                        pill.style.background = 'rgba(255, 255, 255, 0.06)';
+                        pill.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                        pill.style.color = 'rgba(255, 255, 255, 0.7)';
                         pill.classList.remove('topnav__session-pill--live');
                     } else {
                         pillText.textContent = 'N\u00e4chste Session';
-                        pill.style.background = rc.bg;
-                        pill.style.borderColor = rc.border;
-                        pill.style.color = rc.text;
+                        pill.style.background = 'rgba(255, 255, 255, 0.06)';
+                        pill.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                        pill.style.color = 'rgba(255, 255, 255, 0.7)';
                         pill.classList.remove('topnav__session-pill--live');
                     }
                     
                     pill.href = '/session?id=' + ns.id;
                     pillWrap.style.display = '';
                     
-                    // Build hover tooltip
+                    // Build rich hover tooltip (like dock session tooltip)
                     if (pillTooltip) {
-                        var ttParts = [];
-                        ttParts.push('<div class="sp-tooltip__name">' + (ns.name || 'Session') + '</div>');
-                        if (ns.subtitle) ttParts.push('<div class="sp-tooltip__subtitle">' + ns.subtitle + '</div>');
-                        ttParts.push('<div class="sp-tooltip__ruleset"><img src="/assets/img/rulesets/' + ri.icon + '" alt="" style="width:13px;height:13px;border-radius:2px;vertical-align:-2px;"> ' + ri.name + '</div>');
+                        var statusLabels = { planned:'Geplant', scheduled:'Geplant', upcoming:'Bevorstehend', draft:'Entwurf', live:'Live', paused:'Pausiert', ended:'Beendet' };
+                        var statusColors = { planned:'#f59e0b', scheduled:'#f59e0b', upcoming:'#3b82f6', draft:'#6b7280', live:'#22c55e', paused:'#f59e0b', ended:'#6b7280' };
+                        var stLabel = statusLabels[ns.status] || ns.status;
+                        var stColor = statusColors[ns.status] || '#6b7280';
+                        
+                        var sessionNum = ns.currentSession || ns.sessionNumber || '1';
+                        var sessionCount = ns.sessionCount || ns.totalSessions || '';
+                        var sessionNumText = sessionCount ? 'Session ' + sessionNum + '/' + sessionCount : 'Session ' + sessionNum;
+                        
+                        var tt = '';
+                        // Header with status badge
+                        tt += '<div class="sp-tooltip__header-row">';
+                        tt += '<div class="sp-tooltip__name">' + (ns.name || 'Session') + '</div>';
+                        tt += '<span class="sp-tooltip__status" style="background:' + stColor + '20;color:' + stColor + ';border:1px solid ' + stColor + '40;">' + stLabel + '</span>';
+                        tt += '</div>';
+                        
+                        if (ns.subtitle) tt += '<div class="sp-tooltip__subtitle">' + ns.subtitle + '</div>';
+                        
+                        // Ruleset + Session number
+                        tt += '<div class="sp-tooltip__meta-row">';
+                        tt += '<span class="sp-tooltip__ruleset-badge"><img src="/assets/img/rulesets/' + ri.icon + '" alt="" style="width:13px;height:13px;border-radius:2px;vertical-align:-2px;"> ' + ri.name + '</span>';
+                        tt += '<span class="sp-tooltip__session-num">' + sessionNumText + '</span>';
+                        tt += '</div>';
+                        
+                        // Date + Time
                         if (ns.date) {
                             var dd = new Date(ns.date);
                             var dateStr = WD_FULL[dd.getDay()] + ', ' + dd.getDate() + '. ' + MN_FULL[dd.getMonth()];
                             if (ns.time) dateStr += ' \u00b7 ' + ns.time + ' Uhr';
-                            if (ns.duration) dateStr += ' \u00b7 ' + ns.duration;
-                            ttParts.push('<div class="sp-tooltip__date">' + dateStr + '</div>');
+                            tt += '<div class="sp-tooltip__date">' + dateStr + '</div>';
                         }
-                        if (isLive) ttParts.push('<div class="sp-tooltip__live">Session l\u00e4uft gerade!</div>');
-                        pillTooltip.innerHTML = ttParts.join('');
+                        if (ns.duration) tt += '<div class="sp-tooltip__duration">~ ' + ns.duration + '</div>';
+                        
+                        // Max Players
+                        if (ns.maxPlayers) tt += '<div class="sp-tooltip__players">Max. ' + ns.maxPlayers + ' Spieler</div>';
+                        
+                        // Tags
+                        var tags = ns.tags || [];
+                        if (tags.length > 0) {
+                            tt += '<div class="sp-tooltip__tags">';
+                            for (var t = 0; t < tags.length; t++) {
+                                tt += '<span class="sp-tooltip__tag">' + tags[t] + '</span>';
+                            }
+                            tt += '</div>';
+                        }
+                        
+                        if (isLive) tt += '<div class="sp-tooltip__live">Session l\u00e4uft gerade!</div>';
+                        
+                        pillTooltip.innerHTML = tt;
                     }
                 } else {
                     pillWrap.style.display = 'none';
