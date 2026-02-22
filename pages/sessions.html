@@ -1315,12 +1315,16 @@
             }
             
             // Reset cover (always - cover upload is separate)
-            document.getElementById('coverPreview').style.display = 'none';
-            document.getElementById('coverPlaceholder').style.display = 'flex';
+            const oldCoverPreview = document.getElementById('coverPreview');
+            const oldCoverPlaceholder = document.getElementById('coverPlaceholder');
+            if (oldCoverPreview) oldCoverPreview.style.display = 'none';
+            if (oldCoverPlaceholder) oldCoverPlaceholder.style.display = 'flex';
             
             // Reset thumbnail
-            document.getElementById('thumbnailPreview').style.display = 'none';
-            document.getElementById('thumbnailPlaceholder').style.display = 'flex';
+            const thumbPreview = document.getElementById('thumbnailPreview');
+            const thumbPlaceholder = document.getElementById('thumbnailPlaceholder');
+            if (thumbPreview) thumbPreview.style.display = 'none';
+            if (thumbPlaceholder) thumbPlaceholder.style.display = 'flex';
         }
         
         // Alias for backwards compatibility
@@ -1355,8 +1359,9 @@
         // Edit session function (called from onclick)
         function editSession(sessionId) {
             if (!isRoomGM) return;
-            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-            const sessionData = sessions.find(s => s.id === sessionId);
+            // Read from Firestore data (primary) with localStorage fallback
+            const sessionData = firebaseSessions.find(s => s.id === sessionId)
+                || JSON.parse(localStorage.getItem('rift_sessions') || '[]').find(s => s.id === sessionId);
             
             if (sessionData) {
                 openSessionModal(sessionData);
@@ -1602,14 +1607,14 @@
                 createCoverPreview.innerHTML = `<img src="${croppedData}" alt="Cover">`;
                 createCoverRemove.style.display = 'flex';
             } else if (currentCropTarget === 'cover') {
-                coverPreviewImg.src = croppedData;
-                coverPreview.style.display = 'block';
-                coverPlaceholder.style.display = 'none';
+                if (coverPreviewImg) coverPreviewImg.src = croppedData;
+                if (coverPreview) { coverPreview.style.display = 'block'; }
+                if (coverPlaceholder) { coverPlaceholder.style.display = 'none'; }
                 coverRemoved = false;
             } else if (currentCropTarget === 'thumbnail') {
-                thumbnailPreviewImg.src = croppedData;
-                thumbnailPreview.style.display = 'block';
-                thumbnailPlaceholder.style.display = 'none';
+                if (thumbnailPreviewImg) thumbnailPreviewImg.src = croppedData;
+                if (thumbnailPreview) { thumbnailPreview.style.display = 'block'; }
+                if (thumbnailPlaceholder) { thumbnailPlaceholder.style.display = 'none'; }
                 thumbnailRemoved = false;
             }
             
@@ -1651,7 +1656,7 @@
         removeCoverBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             coverInput.value = '';
-            coverPreviewImg.src = '';
+            if (coverPreviewImg) coverPreviewImg.src = '';
             coverPreview.style.display = 'none';
             coverPlaceholder.style.display = 'flex';
             coverRemoved = true; // Mark as explicitly removed
@@ -1691,7 +1696,7 @@
         removeThumbnailBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             thumbnailInput.value = '';
-            thumbnailPreviewImg.src = '';
+            if (thumbnailPreviewImg) thumbnailPreviewImg.src = '';
             thumbnailPreview.style.display = 'none';
             thumbnailPlaceholder.style.display = 'flex';
             thumbnailRemoved = true;
@@ -1858,7 +1863,7 @@
                     }
                     
                     // Save cover image to IndexedDB (if new cover uploaded)
-                    if (coverPreviewImg.src && coverPreviewImg.src.startsWith('data:')) {
+                    if (coverPreviewImg && coverPreviewImg.src && coverPreviewImg.src.startsWith('data:')) {
                         CoverDB.save(editingSessionId, coverPreviewImg.src).catch(err => {
                             console.warn('Failed to save cover:', err);
                         });
@@ -1872,7 +1877,7 @@
                     }
                     
                     // Save thumbnail to IndexedDB (if new thumbnail uploaded)
-                    if (thumbnailPreviewImg.src && thumbnailPreviewImg.src.startsWith('data:')) {
+                    if (thumbnailPreviewImg && thumbnailPreviewImg.src && thumbnailPreviewImg.src.startsWith('data:')) {
                         CoverDB.save('thumb_' + editingSessionId, thumbnailPreviewImg.src).catch(err => {
                             console.warn('Failed to save thumbnail:', err);
                         });
