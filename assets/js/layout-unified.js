@@ -2790,15 +2790,11 @@ function initMeganavBanners() {
         setTimeout(populateSessions, 500);
         setTimeout(populateCharacter, 500);
     });
-    // Also retry when Firestore becomes available via event
-    if (window.firebase && firebase.auth) {
-        firebase.auth().onAuthStateChanged(function(user) {
-            if (user) {
-                setTimeout(populateSessions, 800);
-                setTimeout(populateCharacter, 800);
-            }
-        });
-    }
+    // Also retry when app.js finishes membership loading
+    window.addEventListener('rift-app-ready', function() {
+        setTimeout(populateSessions, 500);
+        setTimeout(populateCharacter, 500);
+    });
     
     // Re-populate character on ANY relevant change
     window.addEventListener('storage', function(e) {
@@ -2807,6 +2803,10 @@ function initMeganavBanners() {
         }
     });
     window.addEventListener('rift-character-saved', function() { setTimeout(populateCharacter, 200); });
+    // Listen for CharacterStorage Firebase sync completion
+    if (window.RIFT && window.RIFT.state && typeof RIFT.state.on === 'function') {
+        RIFT.state.on('characters:changed', function() { setTimeout(populateCharacter, 200); });
+    }
     if (window.RIFT && window.RIFT.focus && typeof RIFT.focus.subscribe === 'function') {
         RIFT.focus.subscribe(function() { setTimeout(populateCharacter, 200); });
     }
