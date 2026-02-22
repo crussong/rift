@@ -63,6 +63,7 @@
             console.log('[RiftContext] Init, room:', this.roomCode);
             
             if (!this.roomCode) {
+                this._loadCharacter();
                 this.ready = true;
                 this._emit();
                 return;
@@ -1254,6 +1255,9 @@ function initUnifiedLayout() {
             // Update Dock session card from RiftContext
             if (state.nextSession && typeof updateDockSessionCard === 'function') {
                 updateDockSessionCard(state.nextSession);
+            } else if (!state.nextSession && typeof showEmptySessionCard === 'function') {
+                var sCard = document.getElementById('dockSessionCard');
+                if (sCard) showEmptySessionCard(sCard);
             }
             
             // Update session pill
@@ -1467,9 +1471,9 @@ function initPartyDisplay() {
         }
     });
     
-    // Initialize Dock Character Card
-    initDockCharacterCard();
-    initDockSessionCard();
+    // Dock cards are now populated ONLY by RiftContext subscriber bridge above.
+    // Do NOT call initDockCharacterCard() or initDockSessionCard() independently —
+    // that causes flash of wrong character before RiftContext determines priority.
     
     // Initialize tooltips after cards are loaded
     setTimeout(initDockCardTooltips, 1500);
