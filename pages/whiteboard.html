@@ -775,8 +775,8 @@
                         <div class="wb-radius-indicator wb-radius-range" id="attackRange"><div class="wb-radius-range__label" id="attackRangeLabel"></div></div>
                         <div class="wb-radius-origin" id="moveOrigin"></div>
                         <div class="wb-radius-distance" id="moveDistance"></div>
-                        <!-- 3D Dice Overlay -->
-                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500"></div>
+                        <!-- 3D Dice Overlay (200% size + scale 0.5 = dice appear 50% smaller) -->
+                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:200%;height:200%;transform:scale(0.5);transform-origin:0 0;pointer-events:none;z-index:500"></div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
                         <div id="notesContainer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:49"></div>
@@ -1059,6 +1059,14 @@
                         <div style="margin-bottom:16px">
                             <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;text-transform:uppercase">Rahmenfarbe</div>
                             <div style="display:flex;gap:6px;flex-wrap:wrap" id="editTokenBorderPicker"></div>
+                        </div>
+                        
+                        <!-- Owner Assignment (GM only) -->
+                        <div style="margin-bottom:16px" id="editTokenOwnerSection">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;text-transform:uppercase">Besitzer (Spieler)</div>
+                            <select class="wb-token-edit__input" id="editTokenOwner" style="width:100%;cursor:pointer">
+                                <option value="">-- Kein Besitzer (GM) --</option>
+                            </select>
                         </div>
                         
                         <div class="wb-token-edit">
@@ -2134,6 +2142,17 @@ const WB = {
         });
     },
     
+    // Token ownership: GM can control all, players can control tokens they own
+    canControl(token) {
+        if (this.isGM) return true;
+        if (!token) return false;
+        // Player owns this token explicitly
+        if (token.ownerId && token.ownerId === this.userId) return true;
+        // Token was created by this player and is a player type
+        if (token.userId === this.userId && token.type === 'player') return true;
+        return false;
+    },
+    
     getPoint(e) {
         const r = this.uiCanvas.getBoundingClientRect();
         const rawX = (e.clientX - r.left - this.panX) / this.zoom;
@@ -2215,15 +2234,21 @@ const WB = {
             if (hit) {
                 this.select(hit);
                 if (hit.type === 'token') {
-                    if (!this.isGM) {
-                        // Players can only select tokens, not drag them
+                    if (!this.canControl(hit.item)) {
+                        // Player doesn't own this token
                         return;
                     }
-                    // In combat: only active turn token can be moved
-                    if (this.initiativeActive && hit.item.id !== this.initiativeActive) {
-                        const activeT = this.tokens.find(t => t.id === this.initiativeActive);
-                        this.toast(`Nur ${activeT?.name || 'aktiver Token'} kann bewegt werden!`);
-                        return;
+                    // In combat: only active turn token can be moved, and only by its owner
+                    if (this.initiativeActive) {
+                        if (hit.item.id !== this.initiativeActive) {
+                            const activeT = this.tokens.find(t => t.id === this.initiativeActive);
+                            this.toast(`Nur ${activeT?.name || 'aktiver Token'} kann bewegt werden!`);
+                            return;
+                        }
+                        if (!this.canControl(hit.item)) {
+                            this.toast(`${hit.item.name} gehört dir nicht!`);
+                            return;
+                        }
                     }
                     // Token drag mode: draw line, teleport on release
                     this._tokenDrag = { token: hit.item, startX: hit.item.x, startY: hit.item.y, startScreen: { rx: p.rx, ry: p.ry } };
@@ -2570,21 +2595,24 @@ const WB = {
         const m = document.getElementById('contextMenu');
         let html = '';
         
-        // No hit on empty space: GM gets creation menu
+        // No hit on empty space
         if (!hit) {
-            if (!this.isGM) return;
             this._contextWorldPoint = { x: p.rawX, y: p.rawY };
-            html += `<button class="wb-context-item" data-action="ctx-load-token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Token-Manager</button>`;
-            html += `<button class="wb-context-item" data-action="ctx-create-token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>Token erstellen</button>`;
-            html += `<div class="wb-context-divider"></div>`;
-            html += `<button class="wb-context-item" data-action="ctx-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Bild/Prop einfügen</button>`;
-            html += `<div class="wb-context-divider"></div>`;
-            html += `<button class="wb-context-item" data-action="ctx-ping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/></svg>Ping</button>`;
-            html += `<button class="wb-context-item" data-action="ctx-focus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Fokus</button>`;
-            html += `<button class="wb-context-item" data-action="ctx-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Kartennotiz</button>`;
-            if (this._auras && this._auras.length > 0) {
+            if (this.isGM) {
+                html += `<button class="wb-context-item" data-action="ctx-load-token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Token-Manager</button>`;
+                html += `<button class="wb-context-item" data-action="ctx-create-token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>Token erstellen</button>`;
                 html += `<div class="wb-context-divider"></div>`;
-                html += `<button class="wb-context-item" data-action="ctx-clear-auras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="4 2"/><line x1="4" y1="4" x2="20" y2="20"/></svg>Alle Bereiche entfernen</button>`;
+                html += `<button class="wb-context-item" data-action="ctx-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Bild/Prop einfügen</button>`;
+                html += `<div class="wb-context-divider"></div>`;
+            }
+            html += `<button class="wb-context-item" data-action="ctx-ping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/></svg>Ping</button>`;
+            if (this.isGM) {
+                html += `<button class="wb-context-item" data-action="ctx-focus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Fokus</button>`;
+                html += `<button class="wb-context-item" data-action="ctx-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Kartennotiz</button>`;
+                if (this._auras && this._auras.length > 0) {
+                    html += `<div class="wb-context-divider"></div>`;
+                    html += `<button class="wb-context-item" data-action="ctx-clear-auras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="4 2"/><line x1="4" y1="4" x2="20" y2="20"/></svg>Alle Bereiche entfernen</button>`;
+                }
             }
             
             m.innerHTML = html;
@@ -2647,10 +2675,17 @@ const WB = {
             html += `<button class="wb-context-item" data-action="multi-duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren (alle)</button>`;
             html += `<button class="wb-context-item wb-context-item--danger" data-action="multi-delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen (alle)</button>`;
         } else if (isToken) {
+            const canCtrl = this.canControl(token);
+            
             // Token name header
             html += `<div style="padding:6px 14px 4px;font-size:13px;font-weight:700;color:white;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:2px">${token.name || 'Token'}</div>`;
-            // Token-specific menu
-            html += `<button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button>`;
+            
+            // Edit (owner or GM)
+            if (canCtrl) {
+                html += `<button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button>`;
+            }
+            
+            // HP bar (visible to all)
             if (token.maxHp > 0) {
                 html += `<div class="wb-context-divider"></div>`;
                 html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 14px 4px 14px">
@@ -2659,11 +2694,18 @@ const WB = {
                         <div style="height:100%;width:${Math.max(0, Math.min(100, (token.hp / token.maxHp) * 100))}%;background:${(token.hp / token.maxHp) <= 0.25 ? '#ef4444' : (token.hp / token.maxHp) <= 0.5 ? '#f59e0b' : '#22c55e'};border-radius:2px"></div>
                     </div>
                 </div>`;
-                html += `<button class="wb-context-item" data-action="damage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>Schaden</button>`;
-                html += `<button class="wb-context-item" data-action="heal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>Heilen</button>`;
+                // Damage/Heal (GM or own token)
+                if (canCtrl) {
+                    html += `<button class="wb-context-item" data-action="damage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>Schaden</button>`;
+                    html += `<button class="wb-context-item" data-action="heal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>Heilen</button>`;
+                }
             }
-            // Attack button: show when another token could attack this one
-            const attacker = this.initiativeActive ? this.tokens.find(t => t.id === this.initiativeActive) : null;
+            
+            // Attack button — player's own token attacks this target, or GM attacks with active token
+            const myToken = this.tokens.find(t => this.canControl(t) && t.id === this.initiativeActive);
+            const attacker = this.isGM 
+                ? (this.initiativeActive ? this.tokens.find(t => t.id === this.initiativeActive) : null)
+                : myToken;
             if (attacker && attacker.id !== token.id && token.maxHp > 0) {
                 const targetName = token.name.length > 14 ? token.name.substring(0, 12) + '..' : token.name;
                 const maxAtks = attacker.attacks || 1;
@@ -2689,17 +2731,24 @@ const WB = {
                     html += `<div style="padding:6px 14px;font-size:11px;color:#ef4444;opacity:0.7">Ausser Reichweite (${distFields} Felder, max ${atkRange})</div>`;
                 }
             }
-            html += `<div class="wb-context-divider"></div>`;
-            const isLinked = token._linkedTo && this.tokens.find(t => t.id === token._linkedTo);
-            if (isLinked) {
-                html += `<button class="wb-context-item" data-action="unlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13a5 5 0 0 0-5-5h-2a5 5 0 0 0 0 10h2"/><line x1="8" y1="12" x2="16" y2="12" stroke-dasharray="2 2"/><line x1="2" y1="2" x2="22" y2="22"/></svg>Verknüpfung lösen</button>`;
-            } else {
-                html += `<button class="wb-context-item" data-action="link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Verknüpfen mit...</button>`;
+            
+            // GM-only: Link, Duplicate, Delete
+            if (this.isGM) {
+                html += `<div class="wb-context-divider"></div>`;
+                const isLinked = token._linkedTo && this.tokens.find(t => t.id === token._linkedTo);
+                if (isLinked) {
+                    html += `<button class="wb-context-item" data-action="unlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13a5 5 0 0 0-5-5h-2a5 5 0 0 0 0 10h2"/><line x1="8" y1="12" x2="16" y2="12" stroke-dasharray="2 2"/><line x1="2" y1="2" x2="22" y2="22"/></svg>Verknüpfung lösen</button>`;
+                } else {
+                    html += `<button class="wb-context-item" data-action="link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Verknüpfen mit...</button>`;
+                }
+                html += `<button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button>`;
+                html += `<div class="wb-context-divider"></div>`;
+                html += `<button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button>`;
             }
-            html += `<button class="wb-context-item" data-action="duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren</button>`;
+            
+            // Dice (all players)
             html += `<div class="wb-context-divider"></div>`;
             html += `<button class="wb-context-item" data-action="quick-dice" style="color:#fbbf24"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="3"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/></svg>Würfeln</button>`;
-            html += `<button class="wb-context-item wb-context-item--danger" data-action="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen</button>`;
         } else if (hit.type === 'aura') {
             const aura = hit.item;
             const shName = ({circle:'Kreis',cone:'Kegel',square:'Quadrat',line:'Linie',sphere:'Kreis'})[aura.shape||'circle']||'Bereich';
@@ -2785,7 +2834,10 @@ const WB = {
                 }
                 else if (action === 'attack-target' && token) {
                     ev.stopPropagation();
-                    const attacker = this.tokens.find(t => t.id === this.initiativeActive);
+                    // Find the attacker: for players it's their owned active token, for GM it's the active token
+                    const attacker = this.isGM 
+                        ? this.tokens.find(t => t.id === this.initiativeActive)
+                        : this.tokens.find(t => t.id === this.initiativeActive && this.canControl(t));
                     if (attacker) {
                         setTimeout(() => this.showAttackPanel(m, attacker, token), 0);
                         return;
@@ -3683,13 +3735,16 @@ const WB = {
                 e.stopPropagation();
                 this.hideTokenTooltip();
                 
-                // Players cannot move tokens
-                if (!this.isGM) return;
+                // Check token ownership
+                if (!this.canControl(t)) return;
                 
-                // In combat: only active turn token can be moved
-                if (this.initiativeActive && t.id !== this.initiativeActive) {
-                    this.toast(`Nur ${this.tokens.find(tk => tk.id === this.initiativeActive)?.name || 'aktiver Token'} kann bewegt werden!`);
-                    return;
+                // In combat: only active turn token can be moved by its owner
+                if (this.initiativeActive) {
+                    if (t.id !== this.initiativeActive) {
+                        this.toast(`Nur ${this.tokens.find(tk => tk.id === this.initiativeActive)?.name || 'aktiver Token'} kann bewegt werden!`);
+                        return;
+                    }
+                    if (!this.canControl(t)) return;
                 }
                 
                 // If this token is part of a multi-selection, drag all
@@ -3712,12 +3767,11 @@ const WB = {
             el.ondblclick = e => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (this.isGM) this.showTokenEditModal(t);
+                if (this.canControl(t)) this.showTokenEditModal(t);
             };
             el.oncontextmenu = e => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!this.isGM) return;
                 this._contextHit = { type: 'token', item: t, index: i };
                 this.onContext(e);
             };
@@ -4218,61 +4272,69 @@ const WB = {
         this.syncToken(attacker);
         this.renderInitiative();
         
-        // Roll attack
-        const atkRoll = Math.floor(Math.random() * 20) + 1;
-        const atkTotal = atkRoll + atkBonus;
-        const isNat20 = atkRoll === 20;
-        const isNat1 = atkRoll === 1;
-        const hit = isNat20 || (!isNat1 && atkTotal >= targetAC);
-        
-        // Phase 1: Show attack roll on attacker (immediate)
-        this.showDiceResult(attacker, atkTotal, {
-            die: 20, count: 1, mod: atkBonus, rolls: [atkRoll],
-            label: `${weaponName} vs AC ${targetAC}`,
-            nat20: isNat20, nat1: isNat1
-        });
-        
-        // Phase 2: Animated attack line flies to target (300ms delay)
-        setTimeout(() => this.showAttackLine(attacker, target, hit, isNat20), 300);
-        
-        // Phase 3: Impact effects (line travel time ~400ms + 300ms delay = 700ms)
-        if (hit) {
-            const d = this.parseDice(dmgDice);
-            let dmgRolls = [];
-            let dmgTotal = 0;
-            const rollCount = isNat20 ? d.count * 2 : d.count;
-            for (let i = 0; i < rollCount; i++) {
-                const r = Math.floor(Math.random() * d.die) + 1;
-                dmgRolls.push(r);
-                dmgTotal += r;
-            }
-            dmgTotal += d.mod;
-            dmgTotal = Math.max(1, dmgTotal);
+        // Phase 1: 3D Attack Roll (d20)
+        WBDice.throwCombat('1d20', (results) => {
+            const atkRoll = results[0] || (Math.floor(Math.random() * 20) + 1);
+            const atkTotal = atkRoll + atkBonus;
+            const isNat20 = atkRoll === 20;
+            const isNat1 = atkRoll === 1;
+            const hit = isNat20 || (!isNat1 && atkTotal >= targetAC);
             
-            setTimeout(() => {
-                // Impact!
-                this.screenShake(isNat20 ? 'heavy' : 'light');
-                this.tokenFlash(target, isNat20 ? '#fbbf24' : '#ef4444');
-                this.impactParticles(target, isNat20 ? 12 : 6, isNat20 ? '#fbbf24' : '#f97316');
+            // Show result bubble
+            this.showDiceResult(attacker, atkTotal, {
+                die: 20, count: 1, mod: atkBonus, rolls: [atkRoll],
+                label: `${weaponName} vs AC ${targetAC}`,
+                nat20: isNat20, nat1: isNat1
+            });
+            
+            // Attack line animation
+            setTimeout(() => this.showAttackLine(attacker, target, hit, isNat20), 300);
+            
+            if (hit) {
+                // Phase 2: 3D Damage Roll
+                const d = this.parseDice(dmgDice);
+                const rollCount = isNat20 ? d.count * 2 : d.count;
+                const dmgNotation = `${rollCount}d${d.die}`;
                 
-                target.hp = Math.max(0, target.hp - dmgTotal);
-                this.showCombatFloat(target, dmgTotal, 'damage');
-                this.syncToken(target);
-                this.renderTokens();
-                this.renderInitiative();
-                this.renderTokenSidebar();
-                
-                const critStr = isNat20 ? ' KRITISCH!' : '';
-                const rollsStr = dmgRolls.length > 1 ? ` (${dmgRolls.join('+')}${d.mod ? (d.mod > 0 ? '+' + d.mod : d.mod) : ''})` : '';
-                this.toast(`${attacker.name} trifft ${target.name}!${critStr} ${dmgTotal} Schaden${rollsStr} (${target.hp}/${target.maxHp} HP)`);
-            }, 750);
-        } else {
-            setTimeout(() => {
-                this.showCombatFloat(target, 0, 'miss');
-                const failStr = isNat1 ? 'NAT 1! Kritischer Fehlschlag!' : `Verfehlt! (${atkTotal} vs AC ${targetAC})`;
-                this.toast(`${attacker.name} ${failStr}`);
-            }, 750);
-        }
+                setTimeout(() => {
+                    WBDice.throwCombat(dmgNotation, (dmgResults) => {
+                        let dmgTotal = 0;
+                        const dmgRolls = [];
+                        for (let i = 0; i < dmgResults.length; i++) {
+                            const r = dmgResults[i] || (Math.floor(Math.random() * d.die) + 1);
+                            dmgRolls.push(r);
+                            dmgTotal += r;
+                        }
+                        dmgTotal += d.mod;
+                        dmgTotal = Math.max(1, dmgTotal);
+                        
+                        // Impact!
+                        setTimeout(() => {
+                            this.screenShake(isNat20 ? 'heavy' : 'light');
+                            this.tokenFlash(target, isNat20 ? '#fbbf24' : '#ef4444');
+                            this.impactParticles(target, isNat20 ? 12 : 6, isNat20 ? '#fbbf24' : '#f97316');
+                            
+                            target.hp = Math.max(0, target.hp - dmgTotal);
+                            this.showCombatFloat(target, dmgTotal, 'damage');
+                            this.syncToken(target);
+                            this.renderTokens();
+                            this.renderInitiative();
+                            this.renderTokenSidebar();
+                            
+                            const critStr = isNat20 ? ' KRITISCH!' : '';
+                            const rollsStr = dmgRolls.length > 1 ? ` (${dmgRolls.join('+')}${d.mod ? (d.mod > 0 ? '+' + d.mod : d.mod) : ''})` : '';
+                            this.toast(`${attacker.name} trifft ${target.name}!${critStr} ${dmgTotal} Schaden${rollsStr} (${target.hp}/${target.maxHp} HP)`);
+                        }, 500);
+                    });
+                }, 1200);
+            } else {
+                setTimeout(() => {
+                    this.showCombatFloat(target, 0, 'miss');
+                    const failStr = isNat1 ? 'NAT 1! Kritischer Fehlschlag!' : `Verfehlt! (${atkTotal} vs AC ${targetAC})`;
+                    this.toast(`${attacker.name} ${failStr}`);
+                }, 750);
+            }
+        });
     },
     
     showAttackLine(attacker, target, hit, isCrit) {
@@ -4981,6 +5043,7 @@ const WB = {
         };
         if (img) t.img = img;
         if (opts.sheetData) t.sheetData = opts.sheetData;
+        if (opts.ownerId) t.ownerId = opts.ownerId;
         this.tokens.push(t);
         this.syncToken(t);
         this.renderTokens();
@@ -5075,6 +5138,27 @@ const WB = {
         });
         
         document.getElementById('tokenEditOverlay').classList.add('visible');
+        
+        // Owner dropdown (GM only)
+        const ownerSection = document.getElementById('editTokenOwnerSection');
+        if (ownerSection) ownerSection.style.display = this.isGM ? 'block' : 'none';
+        const ownerSelect = document.getElementById('editTokenOwner');
+        if (ownerSelect && this.isGM) {
+            ownerSelect.innerHTML = '<option value="">-- Kein Besitzer (GM) --</option>';
+            const fs = window.firebase?.firestore?.();
+            if (fs && this.roomCode) {
+                fs.collection('rooms').doc(this.roomCode).collection('members').get().then(snap => {
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        const opt = document.createElement('option');
+                        opt.value = doc.id;
+                        opt.textContent = d.name || d.displayName || doc.id;
+                        if (doc.id === token.ownerId) opt.selected = true;
+                        ownerSelect.appendChild(opt);
+                    });
+                }).catch(e => console.warn('[WB] Could not load members:', e));
+            }
+        }
     },
     
     saveTokenEdit() {
@@ -5113,6 +5197,12 @@ const WB = {
         // Get type
         const activeType = document.querySelector('#editTokenTypeGrid .wb-token-type-btn.active');
         if (activeType) t.type = activeType.dataset.type;
+        
+        // Owner
+        const ownerSelect = document.getElementById('editTokenOwner');
+        if (ownerSelect && this.isGM) {
+            t.ownerId = ownerSelect.value || null;
+        }
         
         // Get selected size
         const activeSize = document.querySelector('#tokenSizePresets .wb-size-preset.active');
@@ -9621,10 +9711,11 @@ const WBDice = {
             
             // Cleanup
             setTimeout(() => {
+                if (this.box) this.box.clear();
                 overlay.style.pointerEvents = 'none';
                 rollBtn.textContent = 'Würfeln';
                 this.isRolling = false;
-            }, 2500);
+            }, 3000);
         };
         
         // 3D throw
@@ -9688,11 +9779,11 @@ const WBDice = {
                 this.box.setDice(roll.diceConfig.notation);
                 if (roll.diceConfig.beforeRollValues) {
                     this.box.start_throw(roll.diceConfig.beforeRollValues, () => {
-                        setTimeout(() => { overlay.style.pointerEvents = 'none'; }, 2500);
+                        setTimeout(() => { if (this.box) this.box.clear(); overlay.style.pointerEvents = 'none'; }, 3000);
                     });
                 } else {
                     this.box.start_throw(null, () => {
-                        setTimeout(() => { overlay.style.pointerEvents = 'none'; }, 2500);
+                        setTimeout(() => { if (this.box) this.box.clear(); overlay.style.pointerEvents = 'none'; }, 3000);
                     });
                 }
             }
@@ -9712,6 +9803,54 @@ const WBDice = {
                 if (count > 20) snap.forEach(c => c.ref.remove());
             });
         }
+    },
+    
+    // Throw dice for combat (attack/damage) with 3D animation, returns results via callback
+    throwCombat(notation, callback) {
+        const overlay = document.getElementById('wbDiceOverlay');
+        if (!overlay) { callback(this.fallbackResults(notation, 0)); return; }
+        overlay.style.pointerEvents = 'auto';
+        
+        if (this.box) {
+            // Clear previous dice
+            this.box.clear();
+            this.box.setDice(notation);
+            let done = false;
+            const afterRoll = (n) => {
+                if (done) return;
+                done = true;
+                setTimeout(() => {
+                    if (this.box) this.box.clear();
+                    overlay.style.pointerEvents = 'none';
+                }, 2000);
+                callback(n.result);
+            };
+            this.box.start_throw(null, afterRoll);
+            // Fallback timeout
+            setTimeout(() => {
+                if (!done) {
+                    done = true;
+                    overlay.style.pointerEvents = 'none';
+                    callback(this.fallbackResults(notation, 0));
+                }
+            }, 6000);
+        } else {
+            setTimeout(() => {
+                overlay.style.pointerEvents = 'none';
+                callback(this.fallbackResults(notation, 0));
+            }, 500);
+        }
+        
+        // Sync to other players
+        const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+        this.syncRoll({
+            player: userData.name || 'Spieler',
+            playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || '',
+            color: userData.color || '#8b5cf6',
+            notation: notation.replace(/d/g, 'W'),
+            timestamp: Date.now(),
+            diceConfig: { notation, d100Count: 0 }
+        });
     }
 };
 
