@@ -2322,6 +2322,13 @@ const WB = {
                 targetY = Math.floor((targetY - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
             }
             
+            // Clamp movement to remaining speed (only during initiative/combat)
+            if (this.initiativeActive && t.speed) {
+                const clamped = this.clampMovement(t, fromX, fromY, targetX, targetY);
+                targetX = clamped.x;
+                targetY = clamped.y;
+            }
+            
             // Multi-drag: move all selected tokens by the same offset
             if (this._multiDrag && this._multiDrag.tokens.length > 1) {
                 const dx = targetX - this._tokenDrag.startX;
@@ -3369,6 +3376,7 @@ const WB = {
         this.renderTokens();
         this.renderFog();
         this.updateGrid();
+        this.updateRadiusPositions();
         if (this.selected) this.updateSelectBox();
         if (this._remoteCursors) this.renderRemoteCursors(this._remoteCursors);
         if (this._remoteRulers) this.renderRemoteRulers();
@@ -6038,46 +6046,66 @@ const WB = {
     showMoveRadius(token) {
         if (!token.speed || !this.gridSize) return;
         
-        // Calculate remaining movement this turn
-        const totalSpeed = token.speed;
-        const used = token._turnMovementUsed || 0;
-        const remaining = Math.max(0, totalSpeed - used);
-        const range = token.range || 1;
+        // Store world-space data for live updates during pan/zoom
+        this._radiusData = {
+            token: token,
+            worldX: token.x,
+            worldY: token.y,
+            speed: token.speed,
+            range: token.range || 1,
+            used: token._turnMovementUsed || 0
+        };
         
-        const moveRadiusWorld = remaining * this.gridSize;
-        const attackRadiusWorld = (remaining + range) * this.gridSize;
-        const moveRadiusPx = moveRadiusWorld * this.zoom * 2;
-        const attackRadiusPx = attackRadiusWorld * this.zoom * 2;
-        
+        this.updateRadiusPositions();
+    },
+    
+    updateRadiusPositions() {
+        const rd = this._radiusData;
         const el = document.getElementById('moveRadius');
         const atkEl = document.getElementById('attackRange');
         const originEl = document.getElementById('moveOrigin');
-        const originX = token.x * this.zoom + this.panX;
-        const originY = token.y * this.zoom + this.panY;
+        
+        if (!rd || !el) return;
+        // Don't update during drag — updateMoveRadius handles that
+        if (this._tokenDrag) return;
+        
+        // Use live token position (tracks during animation)
+        const token = rd.token;
+        const wx = token.x;
+        const wy = token.y;
+        const used = token._turnMovementUsed || 0;
+        const remaining = Math.max(0, rd.speed - used);
+        const range = rd.range;
+        
+        const moveRadiusPx = remaining * this.gridSize * this.zoom * 2;
+        const attackRadiusPx = (remaining + range) * this.gridSize * this.zoom * 2;
+        
+        const sx = wx * this.zoom + this.panX;
+        const sy = wy * this.zoom + this.panY;
         
         // Move radius (green)
         el.style.width = moveRadiusPx + 'px';
         el.style.height = moveRadiusPx + 'px';
-        el.style.left = originX + 'px';
-        el.style.top = originY + 'px';
+        el.style.left = sx + 'px';
+        el.style.top = sy + 'px';
         el.classList.add('visible');
         
-        const label = used > 0 ? `${remaining} / ${totalSpeed} Felder` : `${totalSpeed} Felder`;
+        const label = used > 0 ? `${remaining} / ${rd.speed} Felder` : `${rd.speed} Felder`;
         document.getElementById('moveRadiusLabel').textContent = label;
         
-        // Attack range (red dotted) — only show if range > 0
+        // Attack range (red dotted)
         if (range > 0) {
             atkEl.style.width = attackRadiusPx + 'px';
             atkEl.style.height = attackRadiusPx + 'px';
-            atkEl.style.left = originX + 'px';
-            atkEl.style.top = originY + 'px';
+            atkEl.style.left = sx + 'px';
+            atkEl.style.top = sy + 'px';
             atkEl.classList.add('visible');
-            document.getElementById('attackRangeLabel').textContent = `Reichweite ${range}`;
+            document.getElementById('attackRangeLabel').textContent = `Angriffsreichweite (+${range})`;
         }
         
         // Origin marker
-        originEl.style.left = originX + 'px';
-        originEl.style.top = originY + 'px';
+        originEl.style.left = sx + 'px';
+        originEl.style.top = sy + 'px';
         originEl.classList.add('visible');
         
         document.getElementById('moveDistance').classList.remove('visible');
@@ -6130,6 +6158,7 @@ const WB = {
     },
     
     hideMoveRadius() {
+        this._radiusData = null;
         document.getElementById('moveRadius').classList.remove('visible');
         document.getElementById('attackRange').classList.remove('visible');
         document.getElementById('moveOrigin').classList.remove('visible');
@@ -6146,6 +6175,34 @@ const WB = {
         if (fields > 0) {
             token._turnMovementUsed = (token._turnMovementUsed || 0) + fields;
         }
+    },
+    
+    // Clamp token movement to remaining speed
+    clampMovement(token, fromX, fromY, targetX, targetY) {
+        if (!this.gridSize || !token.speed) return { x: targetX, y: targetY };
+        
+        const used = token._turnMovementUsed || 0;
+        const remaining = Math.max(0, token.speed - used);
+        const maxDist = remaining * this.gridSize;
+        
+        const dx = targetX - fromX;
+        const dy = targetY - fromY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist <= maxDist + 0.5) return { x: targetX, y: targetY }; // Within range (small tolerance)
+        
+        // Clamp to max distance along the movement vector
+        const ratio = maxDist / dist;
+        let clampedX = fromX + dx * ratio;
+        let clampedY = fromY + dy * ratio;
+        
+        // Re-snap to grid center
+        if (this.snap && this.gridSize) {
+            clampedX = Math.floor((clampedX - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+            clampedY = Math.floor((clampedY - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+        }
+        
+        return { x: clampedX, y: clampedY };
     },
     
     // Reset movement when turn changes
