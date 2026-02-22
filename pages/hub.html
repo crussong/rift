@@ -1672,8 +1672,8 @@
                     console.log('[Hub] Using RiftContext character:', selectedChar.name, 'ruleset:', RiftContext.ruleset);
                 }
                 
-                // 1. Try Main Character from CharacterStorage (for session ruleset or any)
-                if (typeof CharacterStorage !== 'undefined') {
+                // 1. Try Main Character from CharacterStorage (only if RiftContext didn't provide one)
+                if (!selectedChar && typeof CharacterStorage !== 'undefined') {
                     if (heroSession) {
                         selectedChar = CharacterStorage.getMainCharacter(heroSession.ruleset);
                     }
@@ -1995,7 +1995,12 @@
                         
                         // Get character data — use selectedChar.data (works for all rulesets)
                         let charData = null;
-                        const charRuleset = selectedChar.ruleset || RiftContext?.ruleset || 'worldsapart';
+                        let charRuleset = selectedChar.ruleset || RiftContext?.ruleset || 'worldsapart';
+                        // Normalize ruleset variants
+                        if (charRuleset === '5e2024' || charRuleset === 'dnd5e2024' || charRuleset === '5e') charRuleset = 'dnd5e';
+                        if (charRuleset === 'cyberpunk') charRuleset = 'cyberpunkred';
+                        
+                        console.log('[Hub] CharPanel: selectedChar:', selectedChar.name, 'ruleset:', charRuleset, 'has .data:', !!selectedChar.data);
                         
                         // Source 1: selectedChar.data (from CharacterStorage/RiftContext, has full inner data)
                         if (selectedChar.data) {
@@ -2013,9 +2018,17 @@
                                 }
                             } catch (e) {}
                         }
-                        if (!charData && selectedChar.data) {
-                            charData = selectedChar.data;
-                            console.log('[Hub] CharPanel: Using selectedChar.data');
+                        
+                        // Source 3: Direct rift_characters localStorage (has .data with full sheet)
+                        if (!charData && selectedChar.id) {
+                            try {
+                                const allChars = JSON.parse(localStorage.getItem('rift_characters') || '{}');
+                                const stored = allChars[selectedChar.id];
+                                if (stored && stored.data) {
+                                    charData = stored.data;
+                                    console.log('[Hub] CharPanel: Loaded from rift_characters localStorage, keys:', Object.keys(charData));
+                                }
+                            } catch (e) {}
                         }
                         
                         // Source 3: Room Character if in a room
@@ -2045,6 +2058,7 @@
                         
                         if (charRuleset === 'dnd5e') {
                             // ──── D&D 5e — Full Info Panel ────
+                            console.log('[Hub] D&D 5e branch entered, charData keys:', charData ? Object.keys(charData) : 'null');
                             const hdr = charData.header || {};
                             const abilities = charData.abilities || {};
                             const combat = charData.combat || {};
@@ -2257,7 +2271,7 @@
                             
                         } else {
                             // ──── Worlds Apart ────
-                            // Meta badges: Gender, Age, Role, Fokus
+                            console.log('[Hub] WA branch entered, charRuleset:', charRuleset);
                             const genderEl = document.getElementById('charPanelGender');
                             const ageEl = document.getElementById('charPanelAge');
                             const roleEl = document.getElementById('charPanelRole');
