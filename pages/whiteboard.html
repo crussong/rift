@@ -2596,11 +2596,24 @@ const WB = {
                 const maxAtks = attacker.attacks || 1;
                 const usedAtks = attacker._turnAttacksUsed || 0;
                 const remainAtks = Math.max(0, maxAtks - usedAtks);
+                
+                // Range check
+                const atkRange = attacker.range || 1;
+                let distFields = 0;
+                if (this.gridSize) {
+                    const dx = token.x - attacker.x;
+                    const dy = token.y - attacker.y;
+                    distFields = Math.round(Math.sqrt(dx * dx + dy * dy) / this.gridSize);
+                }
+                const inRange = distFields <= atkRange;
+                
                 html += `<div class="wb-context-divider"></div>`;
-                if (remainAtks > 0) {
+                if (remainAtks > 0 && inRange) {
                     html += `<button class="wb-context-item" data-action="attack-target" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>Angreifen (${atkName}) [${remainAtks}/${maxAtks}]</button>`;
-                } else {
+                } else if (remainAtks <= 0) {
                     html += `<div style="padding:6px 14px;font-size:11px;color:#ef4444;opacity:0.7">Keine Angriffe mehr (${maxAtks}/${maxAtks} verbraucht)</div>`;
+                } else {
+                    html += `<div style="padding:6px 14px;font-size:11px;color:#ef4444;opacity:0.7">Ausser Reichweite (${distFields} Felder, max ${atkRange})</div>`;
                 }
             }
             html += `<div class="wb-context-divider"></div>`;
@@ -4111,6 +4124,19 @@ const WB = {
     
     executeAttack(attacker, target, atkBonus, dmgDice, weaponName) {
         const targetAC = target.ac || 10;
+        
+        // Range check
+        if (this.gridSize) {
+            const dx = target.x - attacker.x;
+            const dy = target.y - attacker.y;
+            const distFields = Math.round(Math.sqrt(dx * dx + dy * dy) / this.gridSize);
+            const atkRange = attacker.range || 1;
+            if (distFields > atkRange) {
+                this.toast(`${target.name} ist zu weit weg! (${distFields} Felder, Reichweite: ${atkRange})`);
+                return;
+            }
+        }
+        
         const maxAtks = attacker.attacks || 1;
         const usedAtks = attacker._turnAttacksUsed || 0;
         
