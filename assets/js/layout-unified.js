@@ -2592,6 +2592,7 @@ function initMeganavBanners() {
         const roomCode = localStorage.getItem('rift_current_room');
         const container = document.getElementById('meganavSessionList');
         if (!container) return;
+        console.log('[MegaNav] populateSessions, room:', roomCode, 'retries:', populateSessions._retries || 0);
         
         if (!roomCode) {
             container.innerHTML = '<div class="meganav__banner-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Kein Raum aktiv</span></div>';
@@ -2621,6 +2622,7 @@ function initMeganavBanners() {
                 .filter(s => s.status !== 'ended' && s.status !== 'live' && s.status !== 'paused' && new Date(s.date) >= now)
                 .sort((a, b) => new Date(a.date) - new Date(b.date));
             const show = [...live, ...upcoming].slice(0, 3);
+            console.log('[MegaNav] Sessions:', sessions.length, 'total, live:', live.length, 'upcoming:', upcoming.length, 'showing:', show.length);
             
             const ct = document.getElementById('meganavSessionList');
             if (show.length === 0) {
@@ -2667,6 +2669,9 @@ function initMeganavBanners() {
         var container = document.getElementById('meganavCharContainer');
         if (!container) return;
         
+        var retryCount = populateCharacter._retries || 0;
+        console.log('[MegaNav] populateCharacter attempt', retryCount);
+        
         var charData = null;
         var charId = null;
         var ruleset = 'worldsapart';
@@ -2695,6 +2700,10 @@ function initMeganavBanners() {
             } catch (e) {}
         }
         
+        // Normalize ruleset to match CharacterStorage keys
+        var rulesetNorm = { '5e2024': 'dnd5e', 'cyberpunk': 'cyberpunkred' };
+        if (rulesetNorm[ruleset]) ruleset = rulesetNorm[ruleset];
+        
         // Source 1: worldsapart_character_v5 (only for WA ruleset)
         if (ruleset === 'worldsapart') {
             try {
@@ -2709,9 +2718,12 @@ function initMeganavBanners() {
         // Source 2: CharacterStorage
         if (!charData && typeof CharacterStorage !== 'undefined') {
             var main = CharacterStorage.getMainCharacter(ruleset);
+            console.log('[MegaNav] CharacterStorage.getMainCharacter(' + ruleset + '):', main ? main.name : 'null');
             if (isValid(main)) { charData = main; charId = main.id; }
             if (!charData) {
                 var all = CharacterStorage.getAll();
+                var allKeys = Object.keys(all);
+                console.log('[MegaNav] CharacterStorage.getAll():', allKeys.length, 'chars, keys:', allKeys.join(','));
                 var matches = Object.values(all).filter(function(c) { return isValid(c) && (c.ruleset || 'worldsapart') === ruleset; });
                 if (matches.length > 0) { charData = matches[0]; charId = charData.id; }
             }
@@ -2723,9 +2735,23 @@ function initMeganavBanners() {
         }
         
         if (!charData) {
+            // CharacterStorage may exist but be empty because Firebase sync hasn't completed yet
+            if (!populateCharacter._retries) populateCharacter._retries = 0;
+            if (populateCharacter._retries < 20) {
+                populateCharacter._retries++;
+                var delay = populateCharacter._retries <= 5 ? 500 : 1500;
+                console.log('[MegaNav] No character found, retry', populateCharacter._retries, 'in', delay, 'ms. Ruleset:', ruleset);
+                setTimeout(populateCharacter, delay);
+            } else {
+                console.log('[MegaNav] No character found after 20 retries');
+            }
             container.innerHTML = '<div class="meganav__banner-empty">' + personIcon + '<span>Kein Charakter geladen</span></div>';
             return;
         }
+        
+        // Found a character — reset retries so future updates work
+        populateCharacter._retries = 0;
+        console.log('[MegaNav] Character found:', charData.name, 'ruleset:', ruleset);
         
         // Build banner
         var rs = RS[ruleset] || RS[charData.ruleset] || RS['worldsapart'];
@@ -2804,8 +2830,19 @@ function initMeganavBanners() {
     });
     window.addEventListener('rift-character-saved', function() { setTimeout(populateCharacter, 200); });
     // Listen for CharacterStorage Firebase sync completion
-    if (window.RIFT && window.RIFT.state && typeof RIFT.state.on === 'function') {
-        RIFT.state.on('characters:changed', function() { setTimeout(populateCharacter, 200); });
+    function attachCharChangedListener() {
+        if (window.RIFT && window.RIFT.state && typeof RIFT.state.on === 'function') {
+            RIFT.state.on('characters:changed', function() { setTimeout(populateCharacter, 200); });
+            return true;
+        }
+        return false;
+    }
+    if (!attachCharChangedListener()) {
+        // RIFT.state not ready yet, retry
+        var stateIv = setInterval(function() {
+            if (attachCharChangedListener()) clearInterval(stateIv);
+        }, 1000);
+        setTimeout(function() { clearInterval(stateIv); }, 30000);
     }
     if (window.RIFT && window.RIFT.focus && typeof RIFT.focus.subscribe === 'function') {
         RIFT.focus.subscribe(function() { setTimeout(populateCharacter, 200); });
