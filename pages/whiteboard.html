@@ -934,6 +934,10 @@
                             <button class="wb-tmgr-tab" data-tab="monster">Gegner</button>
                             <button class="wb-tmgr-tab" data-tab="hidden">Versteckt</button>
                             <button class="wb-tmgr-tab" data-tab="library" style="margin-left:auto"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library</button>
+                            <button class="wb-tmgr-tab" data-tab="bestiary" style="color:#ef4444"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Bestiary (SRD)</button>
+                        </div>
+                        <div id="tmgrSearchWrap" style="padding:0 0 8px;display:none">
+                            <input type="text" id="tmgrSearchInput" placeholder="Token suchen..." style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:white;font-size:13px;outline:none;box-sizing:border-box">
                         </div>
                         <div class="wb-tmgr-list" id="tokenLibGrid" style="max-height:500px"></div>
                         <div class="wb-modal__actions" style="margin-top:12px">
@@ -5898,6 +5902,8 @@ const WB = {
             document.querySelectorAll('#tmgrTabs .wb-tmgr-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             this._tmgrFilter = tab.dataset.tab;
+            const si = document.getElementById('tmgrSearchInput');
+            if (si) si.value = '';
             this.renderTokenManager();
         };
     },
@@ -5946,8 +5952,22 @@ const WB = {
         document.querySelectorAll('#tmgrTabs .wb-tmgr-tab').forEach(t => {
             t.classList.toggle('active', t.dataset.tab === this._tmgrFilter);
         });
+        
+        // Search field
+        const searchWrap = document.getElementById('tmgrSearchWrap');
+        const searchInput = document.getElementById('tmgrSearchInput');
+        searchWrap.style.display = 'block';
+        searchInput.value = '';
+        
+        // Wire search (debounced) — re-wire each open to avoid stale closures
+        searchInput.oninput = () => {
+            clearTimeout(this._tmgrSearchDebounce);
+            this._tmgrSearchDebounce = setTimeout(() => this.renderTokenManager(), 200);
+        };
+        
         this.renderTokenManager();
         document.getElementById('tokenLibOverlay').classList.add('visible');
+        searchInput.focus();
     },
     
     renderTokenManager() {
@@ -5956,6 +5976,15 @@ const WB = {
         const limit = isPro ? 50 : 20;
         const grid = document.getElementById('tokenLibGrid');
         const filter = this._tmgrFilter || 'all';
+        const searchQuery = (document.getElementById('tmgrSearchInput')?.value || '').trim().toLowerCase();
+        
+        // Bestiary tab: SRD monsters
+        if (filter === 'bestiary') {
+            document.getElementById('tokenLibCount').textContent = 'SRD 5e Bestiary';
+            document.getElementById('tmgrNewTokenBtn').style.display = 'none';
+            this.renderBestiaryTab(grid, searchQuery);
+            return;
+        }
         
         // Library tab: fetch from Firebase
         if (filter === 'library') {
@@ -5977,7 +6006,12 @@ const WB = {
             badge.textContent = c !== undefined ? c : '0';
         });
         
-        const filtered = filter === 'all' ? lib : lib.filter(t => (t.type || 'player') === filter);
+        let filtered = filter === 'all' ? lib : lib.filter(t => (t.type || 'player') === filter);
+        
+        // Apply search filter
+        if (searchQuery) {
+            filtered = filtered.filter(t => (t.name || '').toLowerCase().includes(searchQuery));
+        }
         
         if (filtered.length === 0) {
             grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Keine Tokens in dieser Kategorie</p>';
@@ -6127,6 +6161,93 @@ const WB = {
     },
     
     // ==================== RIFT TOKEN LIBRARY ====================
+    // SRD Bestiary cache
+    _srdMonsters: null,
+    _srdMonstersFetching: false,
+    
+    async renderBestiaryTab(grid, searchQuery) {
+        // Fetch monster index once, cache in memory
+        if (!this._srdMonsters && !this._srdMonstersFetching) {
+            this._srdMonstersFetching = true;
+            grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Lade SRD Bestiary (334 Monster)...</p>';
+            try {
+                const res = await fetch('https://www.dnd5eapi.co/api/2014/monsters');
+                const data = await res.json();
+                this._srdMonsters = data.results || [];
+                this._srdMonstersFetching = false;
+            } catch(err) {
+                grid.innerHTML = `<p style="color:#ef4444;text-align:center;padding:24px;font-size:12px">API-Fehler: ${err.message}</p>`;
+                this._srdMonstersFetching = false;
+                return;
+            }
+        }
+        
+        if (!this._srdMonsters) return;
+        
+        let monsters = this._srdMonsters;
+        if (searchQuery) {
+            monsters = monsters.filter(m => m.name.toLowerCase().includes(searchQuery) || m.index.includes(searchQuery));
+        }
+        
+        document.getElementById('tokenLibCount').textContent = `${monsters.length} / ${this._srdMonsters.length} Monster`;
+        
+        if (monsters.length === 0) {
+            grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Keine Monster gefunden</p>';
+            return;
+        }
+        
+        // Show max 60 at a time for performance
+        const shown = monsters.slice(0, 60);
+        
+        grid.innerHTML = shown.map(m => {
+            const imgUrl = `https://www.dnd5eapi.co/api/images/monsters/${m.index}.png`;
+            return `<div class="wb-tmgr-row wb-bestiary-item" data-index="${m.index}" data-url="${m.url}" style="cursor:pointer">
+                <div class="wb-tmgr-portrait" style="border:2px solid #ef4444;background:#1a1a1a;overflow:hidden">
+                    <img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='<span>${m.name.charAt(0)}</span>';this.parentElement.style.background='#ef4444'">
+                </div>
+                <div class="wb-tmgr-info">
+                    <div class="wb-tmgr-name">${m.name}</div>
+                    <div class="wb-tmgr-stats"><span class="wb-tmgr-stat" style="opacity:0.4">${m.index}</span></div>
+                </div>
+                <div class="wb-tmgr-actions">
+                    <button data-srd="${m.index}" data-srd-url="${m.url}" title="Token erstellen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                </div>
+            </div>`;
+        }).join('');
+        
+        if (monsters.length > 60) {
+            grid.innerHTML += `<p style="color:rgba(255,255,255,0.4);text-align:center;padding:12px;font-size:11px">Zeige 60 von ${monsters.length} — Suchfeld nutzen um einzugrenzen</p>`;
+        }
+        
+        // Wire click handlers
+        const loadMonster = async (url, index) => {
+            try {
+                const btn = grid.querySelector(`[data-srd="${index}"]`);
+                if (btn) btn.innerHTML = '<span style="font-size:10px">...</span>';
+                const res = await fetch('https://www.dnd5eapi.co' + url);
+                const m = await res.json();
+                this.bestiaryToToken(m);
+                document.getElementById('tokenLibOverlay').classList.remove('visible');
+            } catch(err) {
+                this.toast('Fehler beim Laden: ' + err.message);
+            }
+        };
+        
+        grid.querySelectorAll('[data-srd]').forEach(btn => {
+            btn.onclick = e => {
+                e.stopPropagation();
+                loadMonster(btn.dataset.srdUrl, btn.dataset.srd);
+            };
+        });
+        
+        grid.querySelectorAll('.wb-bestiary-item').forEach(row => {
+            row.onclick = e => {
+                if (e.target.closest('.wb-tmgr-actions')) return;
+                loadMonster(row.dataset.url, row.dataset.index);
+            };
+        });
+    },
+    
     renderTokenLibrary(grid) {
         grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);text-align:center;padding:24px;font-size:12px">Lade RIFT Library...</p>';
         
