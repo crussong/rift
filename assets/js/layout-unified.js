@@ -1952,7 +1952,53 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         
         // Proficiency bonus (level-based)
         var lvl = parseInt(charData.level) || 1;
-        card.dataset.charProfBonus = '+' + (Math.ceil(lvl / 4) + 1);
+        var profBonus = Math.ceil(lvl / 4) + 1;
+        card.dataset.charProfBonus = '+' + profBonus;
+        
+        // Ability modifiers (for computed values)
+        var modOf = function(score) { return Math.floor((parseInt(score || 10) - 10) / 2); };
+        var abMods = { str: modOf(abilities.str), dex: modOf(abilities.dex), con: modOf(abilities.con), int: modOf(abilities.int), wis: modOf(abilities.wis), cha: modOf(abilities.cha) };
+        
+        // Saving Throw proficiencies + modifiers
+        var savesProf = innerData.savesProf || {};
+        var saveEntries = ['str','dex','con','int','wis','cha'].map(function(ab) {
+            var mod = abMods[ab];
+            var prof = savesProf[ab] ? profBonus : 0;
+            var total = mod + prof;
+            return { ab: ab.toUpperCase(), total: total, proficient: !!savesProf[ab] };
+        });
+        card.dataset.charSaves = JSON.stringify(saveEntries);
+        
+        // Skill proficiencies (only proficient/expert ones)
+        var skillsProf = innerData.skillsProf || {};
+        var skillsExp = innerData.skillsExp || {};
+        var SKILL_AB = { athletics:'str', acrobatics:'dex', sleight:'dex', stealth:'dex', arcana:'int', history:'int', investigation:'int', nature:'int', religion:'int', animal:'wis', insight:'wis', medicine:'wis', perception:'wis', survival:'wis', deception:'cha', intimidation:'cha', performance:'cha', persuasion:'cha' };
+        var SKILL_DE = { athletics:'Athletik', acrobatics:'Akrobatik', sleight:'Fingerfertigkeit', stealth:'Heimlichkeit', arcana:'Arkane Kunde', history:'Geschichte', investigation:'Nachforschung', nature:'Naturkunde', religion:'Religion', animal:'Tierumgang', insight:'Motiv erkennen', medicine:'Heilkunde', perception:'Wahrnehmung', survival:'\u00dcberleben', deception:'T\u00e4uschung', intimidation:'Einsch\u00fcchtern', performance:'Auftreten', persuasion:'\u00dcberzeugen' };
+        var profSkills = [];
+        Object.keys(SKILL_AB).forEach(function(sk) {
+            if (skillsProf[sk] || skillsExp[sk]) {
+                var ab = SKILL_AB[sk];
+                var mod = abMods[ab];
+                var bonus = skillsExp[sk] ? profBonus * 2 : profBonus;
+                profSkills.push({ name: SKILL_DE[sk] || sk, total: mod + bonus, expert: !!skillsExp[sk] });
+            }
+        });
+        card.dataset.charSkills = JSON.stringify(profSkills);
+        
+        // Passive Perception
+        var percepMod = abMods.wis + (skillsProf.perception ? profBonus : 0) + (skillsExp.perception ? profBonus : 0);
+        card.dataset.charPassivePerception = (10 + percepMod).toString();
+        
+        // Spell Save DC + Spell Attack (if caster)
+        if (spellcasting.ability) {
+            var spellMod = abMods[spellcasting.ability] || 0;
+            card.dataset.charSpellDC = (8 + profBonus + spellMod).toString();
+            card.dataset.charSpellAtk = '+' + (profBonus + spellMod);
+        }
+        
+        // Senses
+        var senses = innerData.senses || '';
+        card.dataset.charSenses = senses;
         
         // Update bars for D&D 5e
         var hpVal = parseInt(combat.hpCurrent) || 0;
@@ -2313,6 +2359,61 @@ function initDockCardTooltips() {
                 // Heroic Inspiration
                 const heroicInsp = d.charHeroicInsp === 'true';
                 
+                // Saving Throws
+                let savesHtml = '';
+                try {
+                    const saves = JSON.parse(d.charSaves || '[]');
+                    if (saves.length > 0) {
+                        const saveChips = saves.map(s => {
+                            const val = s.total >= 0 ? '+' + s.total : '' + s.total;
+                            return `<span class="dock-tooltip__save-chip ${s.proficient ? 'dock-tooltip__save-chip--prof' : ''}">${s.ab} ${val}</span>`;
+                        }).join('');
+                        savesHtml = `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg">Rettungsw\u00fcrfe</div><div class="dock-tooltip__saves-row">${saveChips}</div></div>`;
+                    }
+                } catch(e) {}
+                
+                // Passive Perception
+                let passiveHtml = '';
+                const passivePerc = d.charPassivePerception;
+                if (passivePerc) {
+                    passiveHtml = `<div class="dock-tooltip__passive-row">Passive Wahrnehmung: <strong>${passivePerc}</strong></div>`;
+                }
+                
+                // Proficient Skills
+                let skillsHtml = '';
+                try {
+                    const skills = JSON.parse(d.charSkills || '[]');
+                    if (skills.length > 0) {
+                        const skillChips = skills.map(s => {
+                            const val = s.total >= 0 ? '+' + s.total : '' + s.total;
+                            return `<span class="dock-tooltip__skill-chip${s.expert ? ' dock-tooltip__skill-chip--expert' : ''}">${s.name} ${val}</span>`;
+                        }).join('');
+                        skillsHtml = `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg">Fertigkeiten (ge\u00fcbt)</div><div class="dock-tooltip__skills-wrap">${skillChips}</div></div>`;
+                    }
+                } catch(e) {}
+                
+                // Spell Save DC + Attack
+                let spellStatsHtml = '';
+                if (d.charSpellDC) {
+                    const abilityLabel = (d.charSpellAbility || '').toUpperCase();
+                    spellStatsHtml = `<div class="dock-tooltip__spell-stats">DC ${d.charSpellDC} · Atk ${d.charSpellAtk || '+0'}${abilityLabel ? ' (' + abilityLabel + ')' : ''}</div>`;
+                }
+                
+                // Senses
+                let sensesHtml = '';
+                if (d.charSenses) {
+                    sensesHtml = `<div class="dock-tooltip__senses">${d.charSenses}</div>`;
+                }
+                
+                // Resistances / Immunities
+                let defHtml = '';
+                const resParts = [];
+                if (d.charResistances) resParts.push('<span class="dock-tooltip__def-label">Res:</span> ' + d.charResistances);
+                if (d.charImmunities) resParts.push('<span class="dock-tooltip__def-label">Imm:</span> ' + d.charImmunities);
+                if (resParts.length > 0) {
+                    defHtml = `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg">Verteidigung</div><div class="dock-tooltip__def-row">${resParts.join('<br>')}</div></div>`;
+                }
+                
                 tooltip.innerHTML = `
                     <div class="dock-tooltip__header-row">
                         <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
@@ -2348,13 +2449,19 @@ function initDockCardTooltips() {
                         <div class="dock-tooltip__prof-row">
                             <span class="dock-tooltip__prof-item">Proficiency ${d.charProfBonus || '+2'}</span>
                             <span class="dock-tooltip__prof-item">Hit Dice ${d.charHdCurrent || 0}/${d.charHdMax || 0}</span>
+                            ${passiveHtml}
                         </div>
                     </div>
                     
+                    ${savesHtml}
+                    ${skillsHtml}
                     ${conditionsHtml}
                     ${exhaustHtml}
+                    ${defHtml}
                     ${weaponHtml}
                     ${spellHtml}
+                    ${spellStatsHtml ? `<div class="dock-tooltip__section">${spellStatsHtml}</div>` : ''}
+                    ${sensesHtml ? `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg">Sinne</div>${sensesHtml}</div>` : ''}
                     ${coinsHtml}
                 `;
                 tooltip.classList.add('dock-tooltip--5e');
