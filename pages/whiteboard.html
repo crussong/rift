@@ -985,6 +985,10 @@
                         </div>
                         <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;width:100%"><div id="initTimerFill" style="height:100%;background:#8b5cf6;border-radius:2px;width:100%;transition:width 0.2s linear,background 0.3s"></div></div>
                     </div>
+                    <div id="initCombatActions" style="padding:6px 12px 10px;flex-shrink:0">
+                        <button id="initStartCombatBtn" class="wb-upload-btn" style="width:100%;font-size:12px;padding:8px 0;display:none">Kampf Starten</button>
+                        <button id="initEndCombatBtn" class="wb-upload-btn wb-upload-btn--secondary" style="width:100%;font-size:12px;padding:8px 0;display:none;color:#ef4444;border-color:rgba(239,68,68,0.3)">Kampf Beenden</button>
+                    </div>
                     <div class="wb-panel-resize" data-resize="initiativePanel"></div>
                 </div>
                 
@@ -5096,6 +5100,10 @@ const WB = {
         document.getElementById('initPrevBtn').onclick = () => this.prevTurn();
         document.getElementById('initSortBtn').onclick = () => this.sortInitiative();
         
+        // Combat Start / End
+        document.getElementById('initStartCombatBtn').onclick = () => this.startCombat();
+        document.getElementById('initEndCombatBtn').onclick = () => this.endCombat();
+        
         // Roll All Initiative
         document.getElementById('initRollAllBtn').onclick = () => this.rollAllInitiative();
         
@@ -5185,6 +5193,16 @@ const WB = {
         // If no tokens with initiative, show hint
         if (tokensWithInit.length === 0) {
             list.innerHTML = '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);font-size:12px">Doppelklicke auf Token um Initiative zu setzen</div>';
+        }
+        
+        // Combat Start/End button visibility
+        const startBtn = document.getElementById('initStartCombatBtn');
+        const endBtn = document.getElementById('initEndCombatBtn');
+        if (startBtn && endBtn) {
+            const hasTokens = tokensWithInit.length > 0;
+            const inCombat = !!this.initiativeActive;
+            startBtn.style.display = hasTokens && !inCombat ? 'block' : 'none';
+            endBtn.style.display = inCombat ? 'block' : 'none';
         }
     },
     
@@ -5356,6 +5374,73 @@ const WB = {
             cancelAnimationFrame(this._turnTimerRAF);
             this._turnTimerRAF = null;
         }
+    },
+    
+    startCombat() {
+        const tokensWithInit = this.tokens
+            .filter(t => t.initiative !== null && t.initiative !== undefined)
+            .sort((a, b) => (b.initiative || 0) - (a.initiative || 0));
+        
+        if (tokensWithInit.length === 0) {
+            this.toast('Keine Tokens mit Initiative! Erst Initiative würfeln oder setzen.');
+            return;
+        }
+        
+        // Sort initiative
+        this.sortInitiative();
+        
+        // Activate first living token
+        let firstToken = tokensWithInit[0];
+        for (const t of tokensWithInit) {
+            if (t.hp === undefined || t.hp > 0) {
+                firstToken = t;
+                break;
+            }
+        }
+        
+        this.initiativeActive = firstToken.id;
+        firstToken._turnMovementUsed = 0;
+        firstToken._turnAttacksUsed = 0;
+        
+        // Enable timer
+        this._turnTimerEnabled = true;
+        document.getElementById('initTimerBtn').classList.add('active-green');
+        document.getElementById('initTimerBar').style.display = 'block';
+        
+        this.renderTokens();
+        this.renderInitiative();
+        
+        // Pan to first token
+        this.targetPanX = this.mainCanvas.width / 2 - firstToken.x * this.zoom;
+        this.targetPanY = this.mainCanvas.height / 2 - firstToken.y * this.zoom;
+        this.startAnimation();
+        this.startTurnTimer();
+        setTimeout(() => this.showActiveTurnRange(), 400);
+        
+        this.toast(`Kampf beginnt! ${firstToken.name} ist zuerst dran!`);
+    },
+    
+    endCombat() {
+        const activeT = this.tokens.find(t => t.id === this.initiativeActive);
+        
+        // Stop timer
+        this.stopTurnTimer();
+        this._turnTimerEnabled = false;
+        document.getElementById('initTimerBtn').classList.remove('active-green');
+        document.getElementById('initTimerBar').style.display = 'none';
+        
+        // Clear active turn but keep initiative values
+        this.initiativeActive = null;
+        this.tokens.forEach(t => {
+            t._turnMovementUsed = 0;
+            t._turnAttacksUsed = 0;
+        });
+        
+        this.hideMoveRadius();
+        this.renderTokens();
+        this.renderInitiative();
+        
+        this.toast('Kampf beendet!');
     },
     
     resetInitiative() {
