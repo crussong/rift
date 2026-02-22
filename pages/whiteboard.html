@@ -262,6 +262,8 @@
         .wb-dice-btn.active .wb-dice-badge { background:#8b5cf6;border-color:#8b5cf6;color:white }
         @keyframes wbDiceFadeIn { from { opacity:0 } to { opacity:1 } }
         @keyframes wbDiceFadeOut { from { opacity:1 } to { opacity:0 } }
+        #wbDiceViewport canvas { pointer-events: none; }
+        #wbDiceOverlay[style*="pointer-events: auto"] #wbDiceViewport canvas { pointer-events: auto; }
         .wb-combat-float--miss { color: #888; font-size: 16px; }
         @keyframes token-flash { 0% { opacity: 0.8; transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.8); } }
         .wb-combat-float--crit { font-size: 30px; color: #fbbf24; }
@@ -777,11 +779,11 @@
                         <div class="wb-radius-indicator wb-radius-range" id="attackRange"><div class="wb-radius-range__label" id="attackRangeLabel"></div></div>
                         <div class="wb-radius-origin" id="moveOrigin"></div>
                         <div class="wb-radius-distance" id="moveDistance"></div>
-                        <!-- 3D Dice Fullscreen Overlay -->
-                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:600;display:none;pointer-events:none">
-                            <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)"></div>
+                        <!-- 3D Dice Fullscreen Overlay (always present, backdrop toggles) -->
+                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:600;pointer-events:none">
+                            <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;transition:opacity 0.25s ease-out;pointer-events:none"></div>
                             <div id="wbDiceViewport" style="position:absolute;top:0;left:0;width:100%;height:100%"></div>
-                            <div id="wbDiceLabel" style="position:absolute;bottom:32px;left:0;right:0;text-align:center;font-size:16px;font-weight:700;color:rgba(255,255,255,0.6);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:1px;text-transform:uppercase"></div>
+                            <div id="wbDiceLabel" style="position:absolute;bottom:32px;left:0;right:0;text-align:center;font-size:16px;font-weight:700;color:rgba(255,255,255,0.6);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:1px;text-transform:uppercase;opacity:0;transition:opacity 0.25s ease-out"></div>
                         </div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
@@ -9543,62 +9545,82 @@ const WBDice = {
     
     _tryInitBox() {
         const viewport = document.getElementById('wbDiceViewport');
-        if (!viewport || typeof DICE === 'undefined') return;
-        
-        // Temporarily show overlay to get dimensions
-        const overlay = document.getElementById('wbDiceOverlay');
-        const prevDisplay = overlay.style.display;
-        overlay.style.display = 'block';
-        overlay.style.visibility = 'hidden';
-        
-        if (viewport.clientWidth === 0 || viewport.clientHeight === 0) {
+        if (!viewport || typeof DICE === 'undefined') {
             this._initAttempts++;
-            overlay.style.display = prevDisplay;
-            overlay.style.visibility = '';
-            if (this._initAttempts < 20) {
-                setTimeout(() => this._tryInitBox(), 500);
-            }
+            if (this._initAttempts < 30) setTimeout(() => this._tryInitBox(), 500);
+            return;
+        }
+        
+        const w = viewport.clientWidth;
+        const h = viewport.clientHeight;
+        console.log('[WBDice] Init attempt, viewport:', w, 'x', h);
+        
+        if (w === 0 || h === 0) {
+            this._initAttempts++;
+            if (this._initAttempts < 30) setTimeout(() => this._tryInitBox(), 500);
             return;
         }
         
         try {
             this.box = new DICE.dice_box(viewport);
-            console.log('[WBDice] 3D dice initialized', viewport.clientWidth, 'x', viewport.clientHeight);
+            console.log('[WBDice] 3D dice box created!', w, 'x', h);
+        } catch(e) {
+            console.error('[WBDice] dice_box creation failed:', e);
+        }
+    },
+    
+    _ensureBox() {
+        if (this.box) return true;
+        const viewport = document.getElementById('wbDiceViewport');
+        if (!viewport || typeof DICE === 'undefined') return false;
+        if (viewport.clientWidth === 0 || viewport.clientHeight === 0) return false;
+        try {
+            this.box = new DICE.dice_box(viewport);
+            console.log('[WBDice] 3D dice initialized (ensureBox)', viewport.clientWidth, 'x', viewport.clientHeight);
+            return true;
         } catch(e) {
             console.error('[WBDice] Init failed:', e);
+            return false;
         }
-        
-        overlay.style.display = 'none';
-        overlay.style.visibility = '';
     },
     
     _showViewport(label) {
         const overlay = document.getElementById('wbDiceOverlay');
+        const backdrop = document.getElementById('wbDiceBackdrop');
         const lbl = document.getElementById('wbDiceLabel');
-        if (overlay) {
-            overlay.style.display = 'block';
-            overlay.style.pointerEvents = 'auto';
-            overlay.style.opacity = '0';
-            overlay.offsetHeight; // Reflow
-            overlay.style.transition = 'opacity 0.25s ease-out';
-            overlay.style.opacity = '1';
+        if (overlay) overlay.style.pointerEvents = 'auto';
+        if (backdrop) {
+            backdrop.style.pointerEvents = 'auto';
+            backdrop.style.transition = 'opacity 0.25s ease-out';
+            backdrop.style.opacity = '1';
         }
-        if (lbl) lbl.textContent = label || '';
+        if (lbl) {
+            lbl.textContent = label || '';
+            lbl.style.transition = 'opacity 0.25s ease-out';
+            lbl.style.opacity = '1';
+        }
+        
+        if (!this.box) this._ensureBox();
     },
     
     _hideViewport(delay) {
         setTimeout(() => {
             const overlay = document.getElementById('wbDiceOverlay');
-            if (overlay) {
-                overlay.style.transition = 'opacity 0.4s ease-in';
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    overlay.style.display = 'none';
-                    overlay.style.pointerEvents = 'none';
-                    overlay.style.transition = '';
-                    try { if (this.box) this.box.clear(); } catch(e) {}
-                }, 400);
+            const backdrop = document.getElementById('wbDiceBackdrop');
+            const lbl = document.getElementById('wbDiceLabel');
+            if (backdrop) {
+                backdrop.style.transition = 'opacity 0.4s ease-in';
+                backdrop.style.opacity = '0';
             }
+            if (lbl) {
+                lbl.style.transition = 'opacity 0.4s ease-in';
+                lbl.style.opacity = '0';
+            }
+            setTimeout(() => {
+                if (overlay) overlay.style.pointerEvents = 'none';
+                if (backdrop) backdrop.style.pointerEvents = 'none';
+                try { if (this.box) this.box.clear(); } catch(e) {}
+            }, 400);
         }, delay || 0);
     },
     
@@ -9773,25 +9795,30 @@ const WBDice = {
             }, 3000);
         };
         
-        // 3D throw
-        if (this.box) {
-            try { this.box.clear(); } catch(e) {}
-            this.box.setDice(libNotation);
-            let done = false;
-            const afterRoll = (n) => {
-                if (done) return;
-                done = true;
-                handleResults(n.result);
-            };
-            this.box.start_throw(null, afterRoll);
-            // Fallback timeout
-            setTimeout(() => {
-                if (!done) { done = true; handleResults(this.fallbackResults(libNotation, d100Count)); }
-            }, 8000);
-        } else {
-            // No 3D — fallback
-            setTimeout(() => handleResults(this.fallbackResults(libNotation, d100Count)), 800);
-        }
+        // 3D throw (delay to let viewport init box if needed)
+        const doFreeThrow = () => {
+            if (!this.box) this._ensureBox();
+            if (this.box) {
+                try { this.box.clear(); } catch(e) {}
+                this.box.setDice(libNotation);
+                let done = false;
+                const afterRoll = (n) => {
+                    if (done) return;
+                    done = true;
+                    handleResults(n.result);
+                };
+                this.box.start_throw(null, afterRoll);
+                // Fallback timeout
+                setTimeout(() => {
+                    if (!done) { done = true; handleResults(this.fallbackResults(libNotation, d100Count)); }
+                }, 8000);
+            } else {
+                // No 3D — fallback
+                console.warn('[WBDice] No box for free roll, fallback');
+                setTimeout(() => handleResults(this.fallbackResults(libNotation, d100Count)), 800);
+            }
+        };
+        setTimeout(doFreeThrow, 100);
     },
     
     fallbackResults(notation, d100Count) {
@@ -9828,19 +9855,26 @@ const WBDice = {
             if (roll.playerId === myId) return; // Own roll, already displayed
             
             // Show remote roll as 3D dice
-            if (this.box && roll.diceConfig?.notation) {
+            if (roll.diceConfig?.notation) {
                 this._showViewport(roll.player + ': ' + (roll.notation || ''));
                 
-                try { this.box.clear(); } catch(e) {}
-                this.box.setDice(roll.diceConfig.notation);
-                const afterRemote = () => {
-                    this._hideViewport(2000);
-                };
-                if (roll.diceConfig.beforeRollValues) {
-                    this.box.start_throw(roll.diceConfig.beforeRollValues, afterRemote);
-                } else {
-                    this.box.start_throw(null, afterRemote);
-                }
+                setTimeout(() => {
+                    if (!this.box) this._ensureBox();
+                    if (this.box) {
+                        try { this.box.clear(); } catch(e) {}
+                        this.box.setDice(roll.diceConfig.notation);
+                        const afterRemote = () => {
+                            this._hideViewport(2000);
+                        };
+                        if (roll.diceConfig.beforeRollValues) {
+                            this.box.start_throw(roll.diceConfig.beforeRollValues, afterRemote);
+                        } else {
+                            this.box.start_throw(null, afterRemote);
+                        }
+                    } else {
+                        this._hideViewport(1500);
+                    }
+                }, 100);
             }
             
             // Show toast
@@ -9862,39 +9896,47 @@ const WBDice = {
     
     // Throw dice for combat (attack/damage) with 3D animation, returns results via callback
     throwCombat(notation, callback, label) {
-        if (!this.box) {
-            console.warn('[WBDice] No dice box, using fallback');
-            setTimeout(() => callback(this.fallbackResults(notation, 0)), 300);
-            return;
-        }
-        
-        // Show viewport
+        // Show viewport first (this also ensures box via _ensureBox)
         this._showViewport(label || notation.replace(/d/g, 'W'));
         
-        // Clear previous and throw
-        try { this.box.clear(); } catch(e) {}
-        
-        this.box.setDice(notation);
-        let done = false;
-        const afterRoll = (n) => {
-            if (done) return;
-            done = true;
-            // Hide viewport after showing result
-            this._hideViewport(2000);
-            callback(n.result);
+        // Small delay to let viewport render if box needs lazy init
+        const doThrow = () => {
+            if (!this.box) {
+                this._ensureBox();
+            }
+            if (!this.box) {
+                console.warn('[WBDice] No dice box after ensureBox, using fallback');
+                this._hideViewport(1500);
+                setTimeout(() => callback(this.fallbackResults(notation, 0)), 300);
+                return;
+            }
+            
+            try { this.box.clear(); } catch(e) {}
+            
+            this.box.setDice(notation);
+            let done = false;
+            const afterRoll = (n) => {
+                if (done) return;
+                done = true;
+                this._hideViewport(2000);
+                callback(n.result);
+            };
+            
+            this.box.start_throw(null, afterRoll);
+            
+            // Fallback timeout
+            setTimeout(() => {
+                if (!done) {
+                    done = true;
+                    console.warn('[WBDice] Throw timeout, using fallback');
+                    this._hideViewport(0);
+                    callback(this.fallbackResults(notation, 0));
+                }
+            }, 6000);
         };
         
-        this.box.start_throw(null, afterRoll);
-        
-        // Fallback timeout
-        setTimeout(() => {
-            if (!done) {
-                done = true;
-                console.warn('[WBDice] Throw timeout, using fallback');
-                this._hideViewport(0);
-                callback(this.fallbackResults(notation, 0));
-            }
-        }, 6000);
+        // Give viewport 100ms to become visible so ensureBox can get dimensions
+        setTimeout(doThrow, 100);
         
         // Sync to other players
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
