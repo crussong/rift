@@ -328,8 +328,29 @@ function createUnifiedMeganav() {
                 Abenteuer
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 
-                <div class="meganav__dropdown">
-                    <div class="meganav__dropdown-grid">
+                <div class="meganav__dropdown meganav__dropdown--wide">
+                    <!-- Session Banner (populated dynamically) -->
+                    <a href="/sessions" class="meganav__banner meganav__banner--session" id="meganavSessionBanner" style="display:none;">
+                        <div class="meganav__banner-cover" id="meganavSessionCover">
+                            <svg viewBox="0 0 100 100" fill="currentColor" opacity="0.3"><path d="M20 20h25v60h-25zM55 20h25v25h-25zM55 55h25l-25 25z"/></svg>
+                        </div>
+                        <div class="meganav__banner-info">
+                            <div class="meganav__banner-meta" id="meganavSessionMeta"></div>
+                            <div class="meganav__banner-title" id="meganavSessionTitle"></div>
+                            <div class="meganav__banner-subtitle" id="meganavSessionSubtitle"></div>
+                        </div>
+                        <div class="meganav__banner-date" id="meganavSessionDate">
+                            <span class="meganav__banner-date-day"></span>
+                            <span class="meganav__banner-date-num"></span>
+                            <span class="meganav__banner-date-month"></span>
+                        </div>
+                    </a>
+                    <div class="meganav__banner-empty" id="meganavSessionEmpty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <span>Keine geplanten Sessions</span>
+                    </div>
+                    
+                    <div class="meganav__dropdown-grid meganav__dropdown-grid--2col" style="margin-top:12px;">
                         <a href="/sessions" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2a5 5 0 0 1 5 5v14a1 1 0 0 1 -1.555 .832l-5.445 -3.63l-5.444 3.63a1 1 0 0 1 -1.55 -.72l-.006 -.112v-14a5 5 0 0 1 5 -5h4z"/></svg>
@@ -339,21 +360,20 @@ function createUnifiedMeganav() {
                                 <div class="meganav__dropdown-card-desc">Alle deine Abenteuer</div>
                             </div>
                         </a>
-                        <a href="/session" class="meganav__dropdown-card">
-                            <div class="meganav__dropdown-card-icon">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-5 6.66a1 1 0 0 0 -1 1v4l.007 .117a1 1 0 0 0 1.993 -.117v-4l-.007 -.117a1 1 0 0 0 -.993 -.883zm0 -3a1.25 1.25 0 1 0 0 2.5a1.25 1.25 0 0 0 0 -2.5"/></svg>
+                        <a href="/session" class="meganav__dropdown-card" id="meganavActiveSessionCard" style="display:none;">
+                            <div class="meganav__dropdown-card-icon" style="background:rgba(16,185,129,0.1);">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                             </div>
                             <div class="meganav__dropdown-card-content">
+                                <div class="meganav__dropdown-card-badge" style="background:rgba(16,185,129,0.15);color:#10b981;">Live</div>
                                 <div class="meganav__dropdown-card-title">Aktive Session</div>
-                                <div class="meganav__dropdown-card-desc">Zur aktuellen Session</div>
                             </div>
                         </a>
-                        <a href="/sessions?new=true" class="meganav__dropdown-card">
+                        <a href="/sessions?new=true" class="meganav__dropdown-card" id="meganavNewSessionCard">
                             <div class="meganav__dropdown-card-icon meganav__dropdown-card-icon--accent">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.324 .001l.318 .004l.616 .017l.299 .013l.579 .034l.553 .046c4.785 .464 6.732 2.411 7.196 7.196l.046 .553l.034 .579c.005 .098 .01 .198 .013 .299l.017 .616l.005 .642l-.005 .642l-.017 .616l-.013 .299l-.034 .579l-.046 .553c-.464 4.785 -2.411 6.732 -7.196 7.196l-.553 .046l-.579 .034c-.098 .005 -.198 .01 -.299 .013l-.616 .017l-.642 .005l-.642 -.005l-.616 -.017l-.299 -.013l-.579 -.034l-.553 -.046c-4.785 -.464 -6.732 -2.411 -7.196 -7.196l-.046 -.553l-.034 -.579a28.058 28.058 0 0 1 -.013 -.299l-.017 -.616l-.004 -.318l-.001 -.324l.001 -.324l.004 -.318l.017 -.616l.013 -.299l.034 -.579l.046 -.553c.464 -4.785 2.411 -6.732 7.196 -7.196l.553 -.046l.579 -.034c.098 -.005 .198 -.01 .299 -.013l.616 -.017l.318 -.004l.324 -.001zm0 6a1 1 0 0 0 -1 1v2h-2l-.117 .007a1 1 0 0 0 .117 1.993h2v2l.007 .117a1 1 0 0 0 1.993 -.117v-2h2l.117 -.007a1 1 0 0 0 -.117 -1.993h-2v-2l-.007 -.117a1 1 0 0 0 -.993 -.883"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </div>
                             <div class="meganav__dropdown-card-content">
-                                <span class="meganav__dropdown-card-badge">Neu</span>
                                 <div class="meganav__dropdown-card-title">Session erstellen</div>
                             </div>
                         </a>
@@ -366,8 +386,24 @@ function createUnifiedMeganav() {
                 Charaktere
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 
-                <div class="meganav__dropdown">
-                    <div class="meganav__dropdown-grid">
+                <div class="meganav__dropdown meganav__dropdown--wide">
+                    <!-- Character Banner (populated dynamically) -->
+                    <a href="/sheet" class="meganav__banner meganav__banner--char" id="meganavCharBanner" style="display:none;">
+                        <div class="meganav__banner-portrait" id="meganavCharPortrait">
+                            <svg viewBox="0 0 24 24" fill="currentColor" opacity="0.4"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783m2 12h-4a5 5 0 0 0 -5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-1a5 5 0 0 0 -5 -5"/></svg>
+                        </div>
+                        <div class="meganav__banner-info">
+                            <div class="meganav__banner-meta" id="meganavCharRuleset"></div>
+                            <div class="meganav__banner-title" id="meganavCharName"></div>
+                            <div class="meganav__banner-subtitle" id="meganavCharClass"></div>
+                        </div>
+                    </a>
+                    <div class="meganav__banner-empty" id="meganavCharEmpty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783"/><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z"/></svg>
+                        <span>Kein Charakter geladen</span>
+                    </div>
+                    
+                    <div class="meganav__dropdown-grid meganav__dropdown-grid--2col" style="margin-top:12px;">
                         <a href="/sheet" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon">
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005zm3 14h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m0 -4h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2"/><path d="M19 7h-4l-.001 -4.001z"/></svg>
@@ -379,20 +415,11 @@ function createUnifiedMeganav() {
                         </a>
                         <a href="/sheet?new=true" class="meganav__dropdown-card">
                             <div class="meganav__dropdown-card-icon meganav__dropdown-card-icon--accent">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z"/><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z"/><path d="M17 3a1 1 0 0 1 1 1v1h1a1 1 0 0 1 0 2h-1v1a1 1 0 0 1 -2 0v-1h-1a1 1 0 0 1 0 -2h1v-1a1 1 0 0 1 1 -1"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z"/><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z"/><path d="M17 3a1 1 0 0 1 1 1v1h1a1 1 0 0 1 0 2h-1v1a1 1 0 0 1 -2 0v-1h-1a1 1 0 0 1 0 -2h1v-1a1 1 0 0 1 1 -1"/></svg>
                             </div>
                             <div class="meganav__dropdown-card-content">
                                 <div class="meganav__dropdown-card-title">Charakter erstellen</div>
                                 <div class="meganav__dropdown-card-desc">Neuen Helden erschaffen</div>
-                            </div>
-                        </a>
-                        <a href="/dice" class="meganav__dropdown-card">
-                            <div class="meganav__dropdown-card-icon">
-                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.425 1.414l-6.775 3.996a3.21 3.21 0 0 0 -1.65 2.807v7.285a3.226 3.226 0 0 0 1.678 2.826l6.695 4.237c1.034 .57 2.22 .57 3.2 .032l6.804 -4.302c.98 -.537 1.623 -1.618 1.623 -2.793v-7.284l-.005 -.204a3.223 3.223 0 0 0 -1.284 -2.39l-.107 -.075l-.007 -.007a1.074 1.074 0 0 0 -.181 -.133l-6.776 -3.995a3.33 3.33 0 0 0 -3.216 0z"/></svg>
-                            </div>
-                            <div class="meganav__dropdown-card-content">
-                                <div class="meganav__dropdown-card-title">Würfel</div>
-                                <div class="meganav__dropdown-card-desc">3D Dice Roller</div>
                             </div>
                         </a>
                     </div>
@@ -828,6 +855,9 @@ function initUnifiedLayout() {
     
     // Initialize Pro badge in TopNav
     initProBadge();
+    
+    // Initialize meganav banners (after Firebase data loads)
+    initMeganavBanners();
     
     console.log('[RIFT] Unified layout initialized');
 }
@@ -2570,6 +2600,170 @@ function initProBadge() {
         // Stop checking after 10s
         setTimeout(() => clearInterval(checkInterval), 10000);
     }
+}
+
+// ========================================
+// MEGANAV BANNER POPULATION
+// ========================================
+function initMeganavBanners() {
+    const WEEKDAYS = ['SO','MO','DI','MI','DO','FR','SA'];
+    const MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    const RULESET_MAP = {
+        'worldsapart': { name: 'Worlds Apart', icon: 'ruleset_worldsapart.svg', cls: 'worldsapart' },
+        'dnd5e': { name: 'D&D 5e', icon: 'ruleset_5e_2024.svg', cls: '5e' },
+        '5e2024': { name: 'D&D 5e', icon: 'ruleset_5e_2024.svg', cls: '5e' },
+        'htbah': { name: 'How To Be A Hero', icon: 'ruleset_htbah.svg', cls: 'htbah' },
+        'cyberpunkred': { name: 'Cyberpunk RED', icon: 'ruleset_cyberpunkred.svg', cls: 'cyberpunk' },
+        'cyberpunk': { name: 'Cyberpunk RED', icon: 'ruleset_cyberpunkred.svg', cls: 'cyberpunk' }
+    };
+    
+    function populateSessionBanner() {
+        const roomCode = localStorage.getItem('rift_current_room');
+        if (!roomCode) return;
+        
+        // Subscribe to sessions for banner
+        if (window.RIFT?.rooms?.subscribeToSessions) {
+            RIFT.rooms.subscribeToSessions(roomCode, (sessions) => {
+                const banner = document.getElementById('meganavSessionBanner');
+                const empty = document.getElementById('meganavSessionEmpty');
+                const activeCard = document.getElementById('meganavActiveSessionCard');
+                if (!banner) return;
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Find live session
+                const liveSession = sessions.find(s => s.status === 'live' || s.status === 'paused');
+                if (activeCard) {
+                    if (liveSession) {
+                        activeCard.style.display = '';
+                        activeCard.href = '/session?id=' + liveSession.id;
+                    } else {
+                        activeCard.style.display = 'none';
+                    }
+                }
+                
+                // Find next upcoming session
+                const upcoming = sessions
+                    .filter(s => s.status !== 'ended' && new Date(s.date) >= today)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                const session = upcoming[0] || liveSession;
+                
+                if (session) {
+                    banner.style.display = '';
+                    if (empty) empty.style.display = 'none';
+                    banner.href = '/session?id=' + session.id;
+                    
+                    // Cover
+                    const coverEl = document.getElementById('meganavSessionCover');
+                    if (coverEl && session.coverUrl) {
+                        coverEl.innerHTML = '<img src="' + session.coverUrl + '" alt="">';
+                    }
+                    
+                    // Ruleset badge as meta
+                    const rs = RULESET_MAP[session.ruleset] || RULESET_MAP['worldsapart'];
+                    const metaEl = document.getElementById('meganavSessionMeta');
+                    if (metaEl) {
+                        metaEl.innerHTML = '<img src="/assets/img/rulesets/' + rs.icon + '" alt="" style="width:14px;height:14px;border-radius:3px;"> ' + rs.name;
+                    }
+                    
+                    // Title & subtitle
+                    const titleEl = document.getElementById('meganavSessionTitle');
+                    if (titleEl) titleEl.textContent = session.name || 'Session';
+                    const subEl = document.getElementById('meganavSessionSubtitle');
+                    if (subEl) subEl.textContent = session.subtitle || (session.description ? session.description.substring(0, 60) + '...' : '');
+                    
+                    // Date
+                    const dateEl = document.getElementById('meganavSessionDate');
+                    if (dateEl && session.date) {
+                        const d = new Date(session.date);
+                        dateEl.querySelector('.meganav__banner-date-day').textContent = WEEKDAYS[d.getDay()];
+                        dateEl.querySelector('.meganav__banner-date-num').textContent = String(d.getDate()).padStart(2, '0');
+                        dateEl.querySelector('.meganav__banner-date-month').textContent = MONTHS[d.getMonth()];
+                    }
+                } else {
+                    banner.style.display = 'none';
+                    if (empty) empty.style.display = '';
+                }
+            });
+        }
+    }
+    
+    function populateCharBanner() {
+        // Wait for dock character data
+        function tryPopulate() {
+            const banner = document.getElementById('meganavCharBanner');
+            const empty = document.getElementById('meganavCharEmpty');
+            if (!banner) return;
+            
+            // Get character data from dock (already loaded)
+            const nameEl = document.getElementById('dockCharName');
+            const charName = nameEl?.textContent;
+            
+            if (!charName || charName === 'Charakter erstellen' || charName === 'Kein Charakter') {
+                banner.style.display = 'none';
+                if (empty) empty.style.display = '';
+                return;
+            }
+            
+            banner.style.display = '';
+            if (empty) empty.style.display = 'none';
+            
+            // Copy portrait from dock
+            const dockPortrait = document.getElementById('dockCharPortrait');
+            const bannerPortrait = document.getElementById('meganavCharPortrait');
+            if (dockPortrait && bannerPortrait) {
+                const img = dockPortrait.querySelector('img');
+                if (img) {
+                    bannerPortrait.innerHTML = '<img src="' + img.src + '" alt="">';
+                }
+            }
+            
+            // Name
+            const bannerName = document.getElementById('meganavCharName');
+            if (bannerName) bannerName.textContent = charName;
+            
+            // Class from dock
+            const classEl = document.getElementById('dockCharClass');
+            const bannerClass = document.getElementById('meganavCharClass');
+            if (bannerClass) bannerClass.textContent = classEl?.textContent || '';
+            
+            // Ruleset
+            const card = document.querySelector('.dock__char-card');
+            const charHref = card?.href || '';
+            const rulesetEl = document.getElementById('meganavCharRuleset');
+            if (rulesetEl) {
+                let rsKey = 'worldsapart';
+                if (charHref.includes('5e')) rsKey = 'dnd5e';
+                else if (charHref.includes('htbah')) rsKey = 'htbah';
+                else if (charHref.includes('cyberpunk')) rsKey = 'cyberpunkred';
+                const rs = RULESET_MAP[rsKey] || RULESET_MAP['worldsapart'];
+                rulesetEl.innerHTML = '<img src="/assets/img/rulesets/' + rs.icon + '" alt="" style="width:14px;height:14px;border-radius:3px;"> ' + rs.name;
+            }
+            
+            // Link banner to same sheet as dock
+            if (charHref) banner.href = charHref;
+        }
+        
+        // Retry until dock card is populated
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            const nameEl = document.getElementById('dockCharName');
+            if ((nameEl && nameEl.textContent && nameEl.textContent !== 'Charakter erstellen') || attempts > 20) {
+                clearInterval(interval);
+                tryPopulate();
+            }
+        }, 500);
+        
+        // Also re-populate when dock card updates
+        window.addEventListener('rift-character-saved', () => setTimeout(tryPopulate, 300));
+    }
+    
+    // Kick off after short delay for Firebase
+    setTimeout(populateSessionBanner, 1000);
+    setTimeout(populateCharBanner, 1500);
 }
 
 // Make functions globally available
