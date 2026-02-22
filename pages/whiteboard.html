@@ -254,6 +254,7 @@
         .wb-combat-float { position: absolute; pointer-events: none; z-index: 250; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 22px; text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6); white-space: nowrap; animation: combat-float 1.8s ease-out forwards; }
         .wb-combat-float--damage { color: #ff4444; }
         .wb-combat-float--heal { color: #22c55e; }
+        .wb-combat-float--miss { color: #888; font-size: 16px; }
         .wb-combat-float--crit { font-size: 30px; color: #fbbf24; }
         @keyframes combat-float { 0% { opacity: 1; transform: translateY(0) scale(0.5); } 15% { opacity: 1; transform: translateY(-8px) scale(1.2); } 30% { transform: translateY(-16px) scale(1); } 80% { opacity: 0.8; transform: translateY(-50px); } 100% { opacity: 0; transform: translateY(-70px); } }
         
@@ -2579,6 +2580,13 @@ const WB = {
                 html += `<button class="wb-context-item" data-action="damage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>Schaden</button>`;
                 html += `<button class="wb-context-item" data-action="heal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>Heilen</button>`;
             }
+            // Attack button: show when another token could attack this one
+            const attacker = this.initiativeActive ? this.tokens.find(t => t.id === this.initiativeActive) : null;
+            if (attacker && attacker.id !== token.id && token.maxHp > 0) {
+                const atkName = attacker.name.length > 14 ? attacker.name.substring(0, 12) + '..' : attacker.name;
+                html += `<div class="wb-context-divider"></div>`;
+                html += `<button class="wb-context-item" data-action="attack-target" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>Angreifen (${atkName})</button>`;
+            }
             html += `<div class="wb-context-divider"></div>`;
             // Entity interactions
             if (token.type === 'monster' || token.type === 'npc' || token.type === 'container') {
@@ -2682,6 +2690,14 @@ const WB = {
                     // Replace context menu with dice picker
                     setTimeout(() => this.showQuickDicePanel(m, token), 0);
                     return; // Don't close menu
+                }
+                else if (action === 'attack-target' && token) {
+                    ev.stopPropagation();
+                    const attacker = this.tokens.find(t => t.id === this.initiativeActive);
+                    if (attacker) {
+                        setTimeout(() => this.showAttackPanel(m, attacker, token), 0);
+                        return;
+                    }
                 }
                 else if (action === 'link' && token) {
                     this._linkingFrom = token;
@@ -3976,6 +3992,220 @@ const WB = {
         return html;
     },
     
+    // ==================== ATTACK SYSTEM ====================
+    showAttackPanel(menuEl, attacker, target) {
+        const sd = attacker.sheetData;
+        const targetAC = target.ac || 10;
+        let html = `<div class="wb-qdice">`;
+        html += `<div class="wb-qdice__header" style="color:#f97316">${attacker.name} greift ${target.name} an</div>`;
+        html += `<div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin:-4px 0 8px">Ziel-AC: ${targetAC}</div>`;
+        
+        // Weapons from sheet
+        if (sd?.weapons) {
+            const weapons = sd.weapons.filter(w => w.name);
+            if (weapons.length > 0) {
+                weapons.forEach((w, i) => {
+                    const bonus = parseInt(w.bonus) || 0;
+                    const sign = bonus >= 0 ? '+' : '';
+                    html += `<button class="wb-qdice__action wb-attack-btn" data-widx="${i}" style="border-left:2px solid #f97316">`;
+                    html += `<span class="wb-qdice__action-name">${w.name}</span>`;
+                    html += `<span class="wb-qdice__action-detail">${sign}${bonus} / ${w.damage || '?'}</span>`;
+                    html += `</button>`;
+                });
+            }
+        }
+        
+        // Spell attack if available
+        if (sd?.spellcasting?.spellAttack) {
+            const sa = parseInt(sd.spellcasting.spellAttack) || 0;
+            html += `<button class="wb-qdice__action wb-attack-btn" data-widx="spell" style="border-left:2px solid #3b82f6;color:#3b82f6">`;
+            html += `<span class="wb-qdice__action-name">Zauberangriff</span>`;
+            html += `<span class="wb-qdice__action-detail">+${sa}</span>`;
+            html += `</button>`;
+        }
+        
+        // Generic attack (for tokens without sheet data)
+        html += `<div class="wb-context-divider" style="margin:6px 0"></div>`;
+        html += `<div class="wb-qdice__row">`;
+        html += `<label class="wb-qdice__label">Bonus</label><input type="number" class="wb-qdice__input" id="atkBonus" value="${attacker.initiative || 0}">`;
+        html += `<label class="wb-qdice__label">Schaden</label><input type="text" class="wb-qdice__input" id="atkDmg" value="1d6" style="width:64px">`;
+        html += `</div>`;
+        html += `<button class="wb-qdice__action wb-attack-btn" data-widx="custom" style="border-left:2px solid #a78bfa;justify-content:center;color:#a78bfa;font-size:11px">Manueller Angriff</button>`;
+        
+        html += `</div>`;
+        menuEl.innerHTML = html;
+        
+        // Wire attack buttons
+        menuEl.querySelectorAll('.wb-attack-btn').forEach(btn => {
+            btn.onclick = (ev) => {
+                ev.stopPropagation();
+                const widx = btn.dataset.widx;
+                let atkBonus = 0, dmgDice = '1d6', weaponName = 'Angriff';
+                
+                if (widx === 'spell') {
+                    atkBonus = parseInt(sd?.spellcasting?.spellAttack) || 0;
+                    dmgDice = '1d10'; // Generic cantrip damage
+                    weaponName = 'Zauberangriff';
+                } else if (widx === 'custom') {
+                    atkBonus = parseInt(menuEl.querySelector('#atkBonus')?.value) || 0;
+                    dmgDice = menuEl.querySelector('#atkDmg')?.value || '1d6';
+                    weaponName = 'Angriff';
+                } else {
+                    const w = sd?.weapons?.[parseInt(widx)];
+                    if (w) {
+                        atkBonus = parseInt(w.bonus) || 0;
+                        dmgDice = w.damage || '1d6';
+                        weaponName = w.name || 'Waffe';
+                    }
+                }
+                
+                this.executeAttack(attacker, target, atkBonus, dmgDice, weaponName);
+                menuEl.classList.remove('visible');
+            };
+        });
+    },
+    
+    // Parse dice string like "1d8+3", "2d6+5", "1d12"
+    parseDice(str) {
+        str = (str || '1d6').trim().toLowerCase();
+        const match = str.match(/^(\d+)?d(\d+)(?:\s*([+-])\s*(\d+))?/);
+        if (!match) return { count: 1, die: 6, mod: 0 };
+        return {
+            count: parseInt(match[1]) || 1,
+            die: parseInt(match[2]) || 6,
+            mod: match[3] === '-' ? -(parseInt(match[4]) || 0) : (parseInt(match[4]) || 0)
+        };
+    },
+    
+    rollDice(str) {
+        const d = this.parseDice(str);
+        let rolls = [];
+        let total = 0;
+        for (let i = 0; i < d.count; i++) {
+            const r = Math.floor(Math.random() * d.die) + 1;
+            rolls.push(r);
+            total += r;
+        }
+        total += d.mod;
+        return { rolls, total, dice: d, str };
+    },
+    
+    executeAttack(attacker, target, atkBonus, dmgDice, weaponName) {
+        const targetAC = target.ac || 10;
+        
+        // Roll attack
+        const atkRoll = Math.floor(Math.random() * 20) + 1;
+        const atkTotal = atkRoll + atkBonus;
+        const isNat20 = atkRoll === 20;
+        const isNat1 = atkRoll === 1;
+        const hit = isNat20 || (!isNat1 && atkTotal >= targetAC);
+        
+        // Show attack roll on attacker
+        this.showDiceResult(attacker, atkTotal, {
+            die: 20, count: 1, mod: atkBonus, rolls: [atkRoll],
+            label: `${weaponName} vs AC ${targetAC}`,
+            nat20: isNat20, nat1: isNat1
+        });
+        
+        // Draw attack line from attacker to target
+        this.showAttackLine(attacker, target, hit);
+        
+        if (hit) {
+            // Roll damage
+            const d = this.parseDice(dmgDice);
+            let dmgRolls = [];
+            let dmgTotal = 0;
+            const rollCount = isNat20 ? d.count * 2 : d.count; // Crit = double dice
+            for (let i = 0; i < rollCount; i++) {
+                const r = Math.floor(Math.random() * d.die) + 1;
+                dmgRolls.push(r);
+                dmgTotal += r;
+            }
+            dmgTotal += d.mod;
+            dmgTotal = Math.max(1, dmgTotal);
+            
+            // Apply damage after short delay (let attack roll show first)
+            setTimeout(() => {
+                target.hp = Math.max(0, target.hp - dmgTotal);
+                this.showCombatFloat(target, dmgTotal, 'damage');
+                this.syncToken(target);
+                this.renderTokens();
+                this.renderInitiative();
+                this.renderTokenSidebar();
+                
+                const critStr = isNat20 ? ' KRITISCH!' : '';
+                const rollsStr = dmgRolls.length > 1 ? ` (${dmgRolls.join('+')}${d.mod ? (d.mod > 0 ? '+' + d.mod : d.mod) : ''})` : '';
+                this.toast(`${attacker.name} trifft ${target.name}!${critStr} ${dmgTotal} Schaden${rollsStr} (${target.hp}/${target.maxHp} HP)`);
+            }, 800);
+        } else {
+            setTimeout(() => {
+                this.showCombatFloat(target, 0, 'miss');
+                const failStr = isNat1 ? 'NAT 1! Kritischer Fehlschlag!' : `Verfehlt! (${atkTotal} vs AC ${targetAC})`;
+                this.toast(`${attacker.name} ${failStr}`);
+            }, 800);
+        }
+    },
+    
+    showAttackLine(attacker, target, hit) {
+        const sx = attacker.x * this.zoom + this.panX;
+        const sy = attacker.y * this.zoom + this.panY;
+        const tx = target.x * this.zoom + this.panX;
+        const ty = target.y * this.zoom + this.panY;
+        
+        const el = document.createElement('div');
+        el.className = 'wb-attack-line';
+        el.style.cssText = `position:absolute;pointer-events:none;z-index:255;left:0;top:0;width:100%;height:100%`;
+        
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.style.cssText = 'position:absolute;left:0;top:0;overflow:visible';
+        
+        // Arrow line
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', sx); line.setAttribute('y1', sy);
+        line.setAttribute('x2', tx); line.setAttribute('y2', ty);
+        line.setAttribute('stroke', hit ? '#f97316' : '#ef4444');
+        line.setAttribute('stroke-width', '3');
+        line.setAttribute('stroke-dasharray', hit ? 'none' : '8 4');
+        line.setAttribute('opacity', '0.8');
+        svg.appendChild(line);
+        
+        // Impact circle on target
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', tx); circle.setAttribute('cy', ty);
+        circle.setAttribute('r', hit ? '16' : '12');
+        circle.setAttribute('fill', 'none');
+        circle.setAttribute('stroke', hit ? '#f97316' : '#ef4444');
+        circle.setAttribute('stroke-width', '2');
+        circle.setAttribute('opacity', '0.8');
+        svg.appendChild(circle);
+        
+        if (hit) {
+            // X mark on hit
+            const size = 8;
+            const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            l1.setAttribute('x1', tx - size); l1.setAttribute('y1', ty - size);
+            l1.setAttribute('x2', tx + size); l1.setAttribute('y2', ty + size);
+            l1.setAttribute('stroke', '#f97316'); l1.setAttribute('stroke-width', '3');
+            svg.appendChild(l1);
+            const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            l2.setAttribute('x1', tx + size); l2.setAttribute('y1', ty - size);
+            l2.setAttribute('x2', tx - size); l2.setAttribute('y2', ty + size);
+            l2.setAttribute('stroke', '#f97316'); l2.setAttribute('stroke-width', '3');
+            svg.appendChild(l2);
+        }
+        
+        el.appendChild(svg);
+        document.getElementById('canvasWrapper').appendChild(el);
+        
+        // Fade out and remove
+        el.style.opacity = '1';
+        el.style.transition = 'opacity 0.8s ease-out';
+        setTimeout(() => { el.style.opacity = '0'; }, 1800);
+        setTimeout(() => el.remove(), 2800);
+    },
+    
     rollQuickDice(token, die, count, mod, label) {
         let rolls = [];
         let total = 0;
@@ -4031,13 +4261,17 @@ const WB = {
     
     // ==================== COMBAT LOG FLOATS ====================
     showCombatFloat(token, amount, type) {
-        // type: 'damage' | 'heal'
+        // type: 'damage' | 'heal' | 'miss'
         const sx = token.x * this.zoom + this.panX;
         const sy = token.y * this.zoom + this.panY - (token.size * this.zoom) / 2;
         const el = document.createElement('div');
         el.className = 'wb-combat-float wb-combat-float--' + type;
-        const prefix = type === 'damage' ? '-' : '+';
-        el.textContent = prefix + amount + ' HP';
+        if (type === 'miss') {
+            el.textContent = 'Verfehlt!';
+        } else {
+            const prefix = type === 'damage' ? '-' : '+';
+            el.textContent = prefix + amount + ' HP';
+        }
         // Slight random horizontal offset so multiple hits don't overlap
         const offsetX = (Math.random() - 0.5) * 40;
         el.style.left = (sx + offsetX) + 'px';
