@@ -260,6 +260,8 @@
         .wb-dice-btn.active { background:rgba(139,92,246,0.2);border-color:#8b5cf6;color:#a78bfa }
         .wb-dice-badge { position:absolute;bottom:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;background:#1a1a1a;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;pointer-events:none }
         .wb-dice-btn.active .wb-dice-badge { background:#8b5cf6;border-color:#8b5cf6;color:white }
+        @keyframes wbDiceFadeIn { from { opacity:0;transform:translate(-50%,-50%) scale(0.9) } to { opacity:1;transform:translate(-50%,-50%) scale(1) } }
+        @keyframes wbDiceFadeOut { from { opacity:1;transform:translate(-50%,-50%) scale(1) } to { opacity:0;transform:translate(-50%,-50%) scale(0.9) } }
         .wb-combat-float--miss { color: #888; font-size: 16px; }
         @keyframes token-flash { 0% { opacity: 0.8; transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.8); } }
         .wb-combat-float--crit { font-size: 30px; color: #fbbf24; }
@@ -775,8 +777,11 @@
                         <div class="wb-radius-indicator wb-radius-range" id="attackRange"><div class="wb-radius-range__label" id="attackRangeLabel"></div></div>
                         <div class="wb-radius-origin" id="moveOrigin"></div>
                         <div class="wb-radius-distance" id="moveDistance"></div>
-                        <!-- 3D Dice Overlay (200% size + scale 0.5 = dice appear 50% smaller) -->
-                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:200%;height:200%;transform:scale(0.5);transform-origin:0 0;pointer-events:none;z-index:500"></div>
+                        <!-- 3D Dice Viewport (floating, appears during rolls) -->
+                        <div id="wbDiceOverlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:350px;pointer-events:none;z-index:500;border-radius:16px;overflow:hidden;display:none;box-shadow:0 8px 40px rgba(0,0,0,0.7);border:1px solid rgba(139,92,246,0.3)">
+                            <div id="wbDiceViewport" style="width:100%;height:100%;background:radial-gradient(ellipse at center, #1a1025 0%, #0a0a12 100%)"></div>
+                            <div id="wbDiceLabel" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,0.4);font-family:Inter,sans-serif;pointer-events:none"></div>
+                        </div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
                         <div id="notesContainer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:49"></div>
@@ -9507,20 +9512,9 @@ const WBDice = {
         // Inject dock dice button
         this.injectDockButton();
         
-        // Init 3D dice box
-        const overlay = document.getElementById('wbDiceOverlay');
-        if (overlay && typeof DICE !== 'undefined') {
-            try {
-                setTimeout(() => {
-                    if (overlay.clientWidth > 0) {
-                        this.box = new DICE.dice_box(overlay);
-                        console.log('[WBDice] 3D dice initialized');
-                    }
-                }, 1000);
-            } catch(e) {
-                console.error('[WBDice] Init failed:', e);
-            }
-        }
+        // Init 3D dice box with retry
+        this._initAttempts = 0;
+        this._tryInitBox();
         
         // Wire dice buttons
         document.querySelectorAll('.wb-dice-btn').forEach(btn => {
@@ -9544,6 +9538,63 @@ const WBDice = {
         
         // Listen for remote dice rolls (delay for Firebase connection)
         setTimeout(() => this.initMultiplayer(), 3000);
+    },
+    
+    _tryInitBox() {
+        const viewport = document.getElementById('wbDiceViewport');
+        if (!viewport || typeof DICE === 'undefined') return;
+        
+        // Temporarily show overlay to get dimensions
+        const overlay = document.getElementById('wbDiceOverlay');
+        overlay.style.display = 'block';
+        overlay.style.opacity = '0';
+        
+        if (viewport.clientWidth === 0 || viewport.clientHeight === 0) {
+            this._initAttempts++;
+            if (this._initAttempts < 15) {
+                setTimeout(() => this._tryInitBox(), 500);
+            }
+            overlay.style.display = 'none';
+            overlay.style.opacity = '';
+            return;
+        }
+        
+        try {
+            this.box = new DICE.dice_box(viewport);
+            console.log('[WBDice] 3D dice initialized', viewport.clientWidth, 'x', viewport.clientHeight);
+        } catch(e) {
+            console.error('[WBDice] Init failed:', e);
+        }
+        
+        overlay.style.display = 'none';
+        overlay.style.opacity = '';
+    },
+    
+    _showViewport(label) {
+        const overlay = document.getElementById('wbDiceOverlay');
+        const lbl = document.getElementById('wbDiceLabel');
+        if (overlay) {
+            overlay.style.display = 'block';
+            overlay.style.pointerEvents = 'auto';
+            overlay.style.animation = 'none';
+            overlay.offsetHeight; // Reflow
+            overlay.style.animation = 'wbDiceFadeIn 0.2s ease-out';
+        }
+        if (lbl) lbl.textContent = label || '';
+    },
+    
+    _hideViewport(delay) {
+        setTimeout(() => {
+            const overlay = document.getElementById('wbDiceOverlay');
+            if (overlay) {
+                overlay.style.animation = 'wbDiceFadeOut 0.3s ease-in forwards';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    overlay.style.pointerEvents = 'none';
+                    overlay.style.animation = '';
+                }, 300);
+            }
+        }, delay || 0);
     },
     
     injectDockButton() {
@@ -9640,9 +9691,8 @@ const WBDice = {
         const rollBtn = document.getElementById('wbDiceRollBtn');
         rollBtn.textContent = '...';
         
-        // Enable pointer events on overlay temporarily
-        const overlay = document.getElementById('wbDiceOverlay');
-        overlay.style.pointerEvents = 'auto';
+        // Enable viewport
+        this._showViewport(notation.replace(/d/g, 'W') + (mod ? (mod>0?'+':'')+mod : ''));
         
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
         const playerName = userData.name || 'Spieler';
@@ -9711,8 +9761,8 @@ const WBDice = {
             
             // Cleanup
             setTimeout(() => {
-                if (this.box) this.box.clear();
-                overlay.style.pointerEvents = 'none';
+                if (this.box) try { this.box.clear(); } catch(e) {}
+                this._hideViewport(0);
                 rollBtn.textContent = 'Würfeln';
                 this.isRolling = false;
             }, 3000);
@@ -9720,6 +9770,7 @@ const WBDice = {
         
         // 3D throw
         if (this.box) {
+            try { this.box.clear(); } catch(e) {}
             this.box.setDice(libNotation);
             let done = false;
             const afterRoll = (n) => {
@@ -9773,18 +9824,17 @@ const WBDice = {
             
             // Show remote roll as 3D dice
             if (this.box && roll.diceConfig?.notation) {
-                const overlay = document.getElementById('wbDiceOverlay');
-                overlay.style.pointerEvents = 'auto';
+                this._showViewport(roll.player + ': ' + (roll.notation || ''));
                 
+                try { this.box.clear(); } catch(e) {}
                 this.box.setDice(roll.diceConfig.notation);
+                const afterRemote = () => {
+                    this._hideViewport(2000);
+                };
                 if (roll.diceConfig.beforeRollValues) {
-                    this.box.start_throw(roll.diceConfig.beforeRollValues, () => {
-                        setTimeout(() => { if (this.box) this.box.clear(); overlay.style.pointerEvents = 'none'; }, 3000);
-                    });
+                    this.box.start_throw(roll.diceConfig.beforeRollValues, afterRemote);
                 } else {
-                    this.box.start_throw(null, () => {
-                        setTimeout(() => { if (this.box) this.box.clear(); overlay.style.pointerEvents = 'none'; }, 3000);
-                    });
+                    this.box.start_throw(null, afterRemote);
                 }
             }
             
@@ -9806,40 +9856,40 @@ const WBDice = {
     },
     
     // Throw dice for combat (attack/damage) with 3D animation, returns results via callback
-    throwCombat(notation, callback) {
-        const overlay = document.getElementById('wbDiceOverlay');
-        if (!overlay) { callback(this.fallbackResults(notation, 0)); return; }
-        overlay.style.pointerEvents = 'auto';
-        
-        if (this.box) {
-            // Clear previous dice
-            this.box.clear();
-            this.box.setDice(notation);
-            let done = false;
-            const afterRoll = (n) => {
-                if (done) return;
-                done = true;
-                setTimeout(() => {
-                    if (this.box) this.box.clear();
-                    overlay.style.pointerEvents = 'none';
-                }, 2000);
-                callback(n.result);
-            };
-            this.box.start_throw(null, afterRoll);
-            // Fallback timeout
-            setTimeout(() => {
-                if (!done) {
-                    done = true;
-                    overlay.style.pointerEvents = 'none';
-                    callback(this.fallbackResults(notation, 0));
-                }
-            }, 6000);
-        } else {
-            setTimeout(() => {
-                overlay.style.pointerEvents = 'none';
-                callback(this.fallbackResults(notation, 0));
-            }, 500);
+    throwCombat(notation, callback, label) {
+        if (!this.box) {
+            console.warn('[WBDice] No dice box, using fallback');
+            setTimeout(() => callback(this.fallbackResults(notation, 0)), 300);
+            return;
         }
+        
+        // Show viewport
+        this._showViewport(label || notation.replace(/d/g, 'W'));
+        
+        // Clear previous and throw
+        try { this.box.clear(); } catch(e) {}
+        
+        this.box.setDice(notation);
+        let done = false;
+        const afterRoll = (n) => {
+            if (done) return;
+            done = true;
+            // Hide viewport after showing result
+            this._hideViewport(2000);
+            callback(n.result);
+        };
+        
+        this.box.start_throw(null, afterRoll);
+        
+        // Fallback timeout
+        setTimeout(() => {
+            if (!done) {
+                done = true;
+                console.warn('[WBDice] Throw timeout, using fallback');
+                this._hideViewport(0);
+                callback(this.fallbackResults(notation, 0));
+            }
+        }, 6000);
         
         // Sync to other players
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
