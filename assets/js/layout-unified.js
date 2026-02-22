@@ -2338,9 +2338,11 @@ function initDockCardTooltips() {
                 const sp = parseInt(d.charSp) || 0;
                 const cp = parseInt(d.charCp) || 0;
                 const pp = parseInt(d.charPp) || 0;
+                const ep = parseInt(d.charEp) || 0;
                 const coinParts = [];
                 if (pp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--pp">${pp} PP</span>`);
                 if (gp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--gp">${gp} GP</span>`);
+                if (ep > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--ep">${ep} EP</span>`);
                 if (sp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--sp">${sp} SP</span>`);
                 if (cp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--cp">${cp} CP</span>`);
                 if (coinParts.length > 0) {
