@@ -867,6 +867,10 @@
                                 <input type="number" class="wb-token-edit__input" id="createTokenRange" placeholder="1" min="0">
                             </div>
                             <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">Angriffe / Runde</label>
+                                <input type="number" class="wb-token-edit__input" id="createTokenAttacks" placeholder="1" min="1" max="10">
+                            </div>
+                            <div class="wb-token-edit__field">
                                 <label class="wb-token-edit__label">Initiative</label>
                                 <input type="number" class="wb-token-edit__input" id="createTokenInit" placeholder="--" min="0">
                             </div>
@@ -1065,6 +1069,10 @@
                             <div class="wb-token-edit__field">
                                 <label class="wb-token-edit__label">Reichweite (Felder)</label>
                                 <input type="number" class="wb-token-edit__input" id="editTokenRange" placeholder="1">
+                            </div>
+                            <div class="wb-token-edit__field">
+                                <label class="wb-token-edit__label">Angriffe / Runde</label>
+                                <input type="number" class="wb-token-edit__input" id="editTokenAttacks" placeholder="1" min="1" max="10">
                             </div>
                         </div>
                         
@@ -2585,8 +2593,15 @@ const WB = {
             const attacker = this.initiativeActive ? this.tokens.find(t => t.id === this.initiativeActive) : null;
             if (attacker && attacker.id !== token.id && token.maxHp > 0) {
                 const atkName = attacker.name.length > 14 ? attacker.name.substring(0, 12) + '..' : attacker.name;
+                const maxAtks = attacker.attacks || 1;
+                const usedAtks = attacker._turnAttacksUsed || 0;
+                const remainAtks = Math.max(0, maxAtks - usedAtks);
                 html += `<div class="wb-context-divider"></div>`;
-                html += `<button class="wb-context-item" data-action="attack-target" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>Angreifen (${atkName})</button>`;
+                if (remainAtks > 0) {
+                    html += `<button class="wb-context-item" data-action="attack-target" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>Angreifen (${atkName}) [${remainAtks}/${maxAtks}]</button>`;
+                } else {
+                    html += `<div style="padding:6px 14px;font-size:11px;color:#ef4444;opacity:0.7">Keine Angriffe mehr (${maxAtks}/${maxAtks} verbraucht)</div>`;
+                }
             }
             html += `<div class="wb-context-divider"></div>`;
             // Entity interactions
@@ -3997,9 +4012,12 @@ const WB = {
     showAttackPanel(menuEl, attacker, target) {
         const sd = attacker.sheetData;
         const targetAC = target.ac || 10;
+        const maxAtks = attacker.attacks || 1;
+        const usedAtks = attacker._turnAttacksUsed || 0;
+        const remainAtks = Math.max(0, maxAtks - usedAtks);
         let html = `<div class="wb-qdice">`;
         html += `<div class="wb-qdice__header" style="color:#f97316">${attacker.name} greift ${target.name} an</div>`;
-        html += `<div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin:-4px 0 8px">Ziel-AC: ${targetAC}</div>`;
+        html += `<div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin:-4px 0 8px">Ziel-AC: ${targetAC} | Angriffe: <span style="color:${remainAtks > 0 ? '#f97316' : '#ef4444'}">${remainAtks}/${maxAtks}</span></div>`;
         
         // Weapons from sheet
         if (sd?.weapons) {
@@ -4093,6 +4111,18 @@ const WB = {
     
     executeAttack(attacker, target, atkBonus, dmgDice, weaponName) {
         const targetAC = target.ac || 10;
+        const maxAtks = attacker.attacks || 1;
+        const usedAtks = attacker._turnAttacksUsed || 0;
+        
+        if (usedAtks >= maxAtks) {
+            this.toast(`${attacker.name} hat keine Angriffe mehr! (${usedAtks}/${maxAtks})`);
+            return;
+        }
+        
+        // Track attack usage
+        attacker._turnAttacksUsed = usedAtks + 1;
+        const remaining = maxAtks - attacker._turnAttacksUsed;
+        this.renderInitiative();
         
         // Roll attack
         const atkRoll = Math.floor(Math.random() * 20) + 1;
@@ -4720,6 +4750,7 @@ const WB = {
         document.getElementById('createTokenAc').value = '';
         document.getElementById('createTokenSpeed').value = '';
         document.getElementById('createTokenRange').value = '';
+        document.getElementById('createTokenAttacks').value = '';
         document.getElementById('createTokenInit').value = '';
         document.getElementById('createTokenNotes').value = '';
         document.getElementById('createTokenAffiliation').value = '';
@@ -4807,6 +4838,7 @@ const WB = {
             ac: opts.ac || 10,
             speed: opts.speed || 6,
             range: opts.range || 1,
+            attacks: opts.attacks || 1,
             type: opts.type || 'player',
             notes: opts.notes || '',
             affiliation: opts.affiliation || '',
@@ -4835,6 +4867,7 @@ const WB = {
         document.getElementById('editTokenAc').value = token.ac || 10;
         document.getElementById('editTokenSpeed').value = token.speed ?? 6;
         document.getElementById('editTokenRange').value = token.range ?? 1;
+        document.getElementById('editTokenAttacks').value = token.attacks ?? 1;
         document.getElementById('editTokenNotes').value = token.notes || '';
         document.getElementById('editTokenAffiliation').value = token.affiliation || '';
         document.getElementById('editTokenItems').value = token.items || '';
@@ -4925,6 +4958,7 @@ const WB = {
         t.ac = parseInt(document.getElementById('editTokenAc').value) || 10;
         t.speed = parseInt(document.getElementById('editTokenSpeed').value) || 6;
         t.range = parseInt(document.getElementById('editTokenRange').value) || 1;
+        t.attacks = parseInt(document.getElementById('editTokenAttacks').value) || 1;
         t.notes = document.getElementById('editTokenNotes').value || '';
         t.affiliation = document.getElementById('editTokenAffiliation').value || '';
         t.items = document.getElementById('editTokenItems').value || '';
@@ -5093,7 +5127,7 @@ const WB = {
                 </div>
                 <div class="wb-initiative-item__info">
                     <div class="wb-initiative-item__name">${t.name || 'Token'}</div>
-                    <div class="wb-initiative-item__hp">${t.maxHp ? `HP: ${t.hp}/${t.maxHp}` : ''} ${t.ac ? `AC: ${t.ac}` : ''}${isActive && t.speed ? ` <span style="color:${(t._turnMovementUsed||0) >= t.speed ? '#ef4444' : '#22c55e'}">${t.speed - (t._turnMovementUsed||0)}/${t.speed} Mv</span>` : ''}</div>
+                    <div class="wb-initiative-item__hp">${t.maxHp ? `HP: ${t.hp}/${t.maxHp}` : ''} ${t.ac ? `AC: ${t.ac}` : ''}${isActive && t.speed ? ` <span style="color:${(t._turnMovementUsed||0) >= t.speed ? '#ef4444' : '#22c55e'}">${t.speed - (t._turnMovementUsed||0)}/${t.speed} Mv</span>` : ''}${isActive ? ` <span style="color:${(t._turnAttacksUsed||0) >= (t.attacks||1) ? '#ef4444' : '#f97316'}">${(t.attacks||1) - (t._turnAttacksUsed||0)}/${t.attacks||1} Atk</span>` : ''}</div>
                 </div>
                 <div class="wb-initiative-item__init" style="display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:white;min-width:32px">
                     ${t.initiative ?? ''}
@@ -5103,7 +5137,7 @@ const WB = {
             // Click to make active turn
             item.onclick = e => {
                 this.initiativeActive = t.id;
-                t._turnMovementUsed = 0;
+                t._turnMovementUsed = 0; t._turnAttacksUsed = 0;
                 this.renderTokens();
                 this.renderInitiative();
                 // Pan to token
@@ -5151,7 +5185,7 @@ const WB = {
         
         // Pan to active token
         const t = tokensWithInit[nextIdx];
-        t._turnMovementUsed = 0; // Reset movement for new turn
+        t._turnMovementUsed = 0; t._turnAttacksUsed = 0; // Reset movement for new turn
         this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
         this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
         this.startAnimation();
@@ -5176,7 +5210,7 @@ const WB = {
         this.renderInitiative();
         
         const t = tokensWithInit[prevIdx];
-        t._turnMovementUsed = 0;
+        t._turnMovementUsed = 0; t._turnAttacksUsed = 0;
         this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
         this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
         this.startAnimation();
@@ -5295,7 +5329,7 @@ const WB = {
         this.initiativeActive = null;
         this.tokens.forEach(t => {
             t.initiative = null;
-            t._turnMovementUsed = 0;
+            t._turnMovementUsed = 0; t._turnAttacksUsed = 0;
         });
         this.hideMoveRadius();
         this.renderTokens();
@@ -5713,6 +5747,7 @@ const WB = {
                 ac: parseInt(document.getElementById('createTokenAc').value) || 10,
                 speed: parseInt(document.getElementById('createTokenSpeed').value) || 6,
                 range: parseInt(document.getElementById('createTokenRange').value) || 1,
+                attacks: parseInt(document.getElementById('createTokenAttacks').value) || 1,
                 initiative: document.getElementById('createTokenInit').value !== '' ? parseInt(document.getElementById('createTokenInit').value) : null,
                 type: activeType?.dataset.type || 'player',
                 notes: document.getElementById('createTokenNotes').value || '',
@@ -5933,6 +5968,7 @@ const WB = {
         document.getElementById('createTokenAc').value = template.ac || '';
         document.getElementById('createTokenSpeed').value = template.speed || '';
         document.getElementById('createTokenRange').value = template.range || '';
+        document.getElementById('createTokenAttacks').value = template.attacks || '';
         document.getElementById('createTokenInit').value = template.initiative ?? '';
         document.getElementById('createTokenNotes').value = template.notes || '';
         document.getElementById('createTokenAffiliation').value = template.affiliation || '';
@@ -6230,6 +6266,17 @@ const WB = {
         const speedVal = m.speed?.walk ? parseInt(m.speed.walk.replace(/[^\d]/g,'')) : 30;
         const speedFields = Math.max(1, Math.round((speedVal || 30) / 5));
         
+        // Detect number of attacks from Multiattack action
+        let attackCount = 1;
+        const multiattack = (m.actions || []).find(a => a.name === 'Multiattack');
+        if (multiattack?.desc) {
+            const numWords = { two: 2, three: 3, four: 4, five: 5, six: 6 };
+            const match = multiattack.desc.match(/makes?\s+(two|three|four|five|six|\d+)\s+(?:\w+\s+)?attacks?/i);
+            if (match) {
+                attackCount = numWords[match[1].toLowerCase()] || parseInt(match[1]) || 1;
+            }
+        }
+        
         const template = {
             name: m.name || 'Monster',
             type: 'monster',
@@ -6238,6 +6285,7 @@ const WB = {
             ac: m.armor_class?.[0]?.value || m.armor_class || 10,
             speed: speedFields,
             range: 1,
+            attacks: attackCount,
             initiative: m.dexterity ? Math.floor((m.dexterity - 10) / 2) : 0,
             size: sizeMap[m.size] || 70,
             color: '#ef4444',
@@ -6248,7 +6296,7 @@ const WB = {
         };
         
         this.loadTokenFromLibrary(template);
-        this.toast('Bestiary: ' + m.name + ' geladen (CR ' + (m.challenge_rating || '?') + ')');
+        this.toast('Bestiary: ' + m.name + ' geladen (CR ' + (m.challenge_rating || '?') + ', ' + attackCount + ' Angriff' + (attackCount > 1 ? 'e' : '') + ')');
     },
     
     // ==================== TOKEN LINKS ====================
@@ -6608,7 +6656,7 @@ const WB = {
     
     // Reset movement when turn changes
     resetTurnMovement() {
-        this.tokens.forEach(t => { t._turnMovementUsed = 0; });
+        this.tokens.forEach(t => { t._turnMovementUsed = 0; t._turnAttacksUsed = 0; });
     },
     
     // Show range for active turn token
@@ -6962,6 +7010,7 @@ const WB = {
                 ac: parseInt(document.getElementById('createTokenAc').value) || 10,
                 speed: parseInt(document.getElementById('createTokenSpeed').value) || 6,
                 range: parseInt(document.getElementById('createTokenRange').value) || 1,
+                attacks: parseInt(document.getElementById('createTokenAttacks').value) || 1,
                 initiative: document.getElementById('createTokenInit').value !== '' ? parseInt(document.getElementById('createTokenInit').value) : null,
                 type: activeType?.dataset.type || 'player',
                 notes: document.getElementById('createTokenNotes').value || '',
