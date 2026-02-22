@@ -1038,6 +1038,7 @@
                 firebaseSessions = sessions;
                 renderSessions();
                 loadSessionCovers();
+                checkActiveSession();
             });
         }
         
@@ -2208,233 +2209,230 @@
         // loadSessionCovers();
         
         // ========================================
-        // ACTIVE SESSION
+        // ACTIVE SESSION (Firestore-based)
         // ========================================
         
-        const activeSessionData = JSON.parse(localStorage.getItem('rift_active_session') || 'null');
         let activeTimerInterval = null;
+        let _activeSessionId = null;
         
-        if (activeSessionData) {
-            document.getElementById('activeSessionSection').style.display = 'block';
-            document.getElementById('activeSessionDivider').style.display = 'block';
+        // Ruleset config
+        const RULESET_CONFIG = {
+            'worldsapart': { name: 'Worlds Apart', icon: 'ruleset_worldsapart.svg', cls: 'worldsapart', gradient: 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)' },
+            'dnd5e':       { name: 'D&D 5e',       icon: 'ruleset_5e_2024.svg',     cls: '5e',          gradient: 'linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%)' },
+            '5e2024':      { name: 'D&D 5e',       icon: 'ruleset_5e_2024.svg',     cls: '5e',          gradient: 'linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%)' },
+            'htbah':       { name: 'How To Be A Hero', icon: 'ruleset_htbah.svg',   cls: 'htbah',       gradient: 'linear-gradient(135deg, #059669 0%, #064e3b 100%)' },
+            'cyberpunkred':{ name: 'Cyberpunk RED', icon: 'ruleset_cyberpunkred.svg',cls: 'cyberpunk',   gradient: 'linear-gradient(135deg, #eab308 0%, #854d0e 100%)' },
+            'cyberpunk':   { name: 'Cyberpunk RED', icon: 'ruleset_cyberpunkred.svg',cls: 'cyberpunk',   gradient: 'linear-gradient(135deg, #eab308 0%, #854d0e 100%)' }
+        };
+        
+        /**
+         * Check firebaseSessions for any live/paused session and render the banner.
+         * Called after every Firebase subscription update.
+         */
+        function checkActiveSession() {
+            // Find live or paused session from Firestore data
+            const liveSession = firebaseSessions.find(s => s.status === 'live' || s.status === 'paused');
             
-            // Load full session data
-            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-            const fullSession = sessions.find(s => s.id === activeSessionData.id);
+            const section = document.getElementById('activeSessionSection');
+            const divider = document.getElementById('activeSessionDivider');
             
-            // Hide GM actions for non-GM players
-            const currentUserId = firebase?.auth()?.currentUser?.uid || localStorage.getItem('rift_user_uid') || null;
-            const isSessionGM = fullSession && currentUserId && fullSession.ownerId === currentUserId;
-            if (!isSessionGM) {
-                const gmActions = document.getElementById('activeSessionGmActions');
-                if (gmActions) gmActions.style.display = 'none';
+            if (!liveSession) {
+                // No active session — hide banner
+                section.style.display = 'none';
+                divider.style.display = 'none';
+                if (activeTimerInterval) { clearInterval(activeTimerInterval); activeTimerInterval = null; }
+                _activeSessionId = null;
+                // Sync localStorage (for legacy consumers)
+                localStorage.removeItem('rift_active_session');
+                return;
             }
             
-            // Set link to session page
-            const goToActiveBtn = document.getElementById('goToActiveSessionBtn');
+            _activeSessionId = liveSession.id;
+            section.style.display = 'block';
+            divider.style.display = 'block';
+            
+            // Sync to localStorage for cross-page awareness
+            localStorage.setItem('rift_active_session', JSON.stringify({
+                id: liveSession.id,
+                name: liveSession.name,
+                startTime: liveSession.startTime,
+                status: liveSession.status,
+                pausedTime: liveSession.pausedTime || null,
+                totalPausedMs: liveSession.totalPausedMs || 0
+            }));
+            
+            const isPaused = liveSession.status === 'paused';
+            
+            // --- Session name ---
+            document.getElementById('activeSessionName').textContent = liveSession.name || 'Session';
+            
+            // --- Link ---
+            const sessionUrl = `/session?id=${liveSession.id}`;
+            const goBtn = document.getElementById('goToActiveSessionBtn');
             const nameLink = document.getElementById('activeSessionNameLink');
-            if (activeSessionData.id) {
-                const sessionUrl = `/session?id=${activeSessionData.id}`;
-                if (goToActiveBtn) goToActiveBtn.href = sessionUrl;
-                if (nameLink) nameLink.href = sessionUrl;
-            }
+            if (goBtn) goBtn.href = sessionUrl;
+            if (nameLink) nameLink.href = sessionUrl;
             
-            // Update session name
-            document.getElementById('activeSessionName').textContent = activeSessionData.name || 'Session';
+            // --- Meta ---
+            const sessionNum = liveSession.currentSession || 1;
+            const totalSessions = liveSession.sessionCount || 1;
+            const maxPlayers = liveSession.maxPlayers || 4;
+            const metaText = `Session ${sessionNum}${totalSessions > 1 ? '/' + totalSessions : ''} · ${maxPlayers} Teilnehmer`;
+            document.getElementById('activeSessionMeta').textContent = metaText;
             
-            // Load cover image
-            if (fullSession?.hasCover) {
-                CoverDB.get(activeSessionData.id).then(coverData => {
-                    if (coverData) {
-                        const coverImg = document.getElementById('activeSessionCoverImg');
-                        if (coverImg) {
-                            coverImg.src = coverData;
-                            coverImg.classList.add('loaded');
-                        }
-                    }
-                });
-            }
+            // --- Ruleset badge ---
+            const rs = RULESET_CONFIG[liveSession.ruleset] || RULESET_CONFIG['worldsapart'];
+            const rulesetBadge = document.getElementById('activeSessionRuleset');
+            const rulesetIcon = document.getElementById('activeSessionRulesetIcon');
+            const rulesetName = document.getElementById('activeSessionRulesetName');
+            if (rulesetBadge) rulesetBadge.className = `ruleset-badge ruleset-badge--${rs.cls}`;
+            if (rulesetIcon) rulesetIcon.src = `/assets/img/rulesets/${rs.icon}`;
+            if (rulesetName) rulesetName.textContent = rs.name;
             
-            // Update cover gradient based on ruleset
+            // --- Cover ---
             const coverEl = document.getElementById('activeSessionCover');
-            if (coverEl && fullSession?.ruleset) {
-                const gradients = {
-                    '5e2024': 'linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%)',
-                    'worldsapart': 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)',
-                    'htbah': 'linear-gradient(135deg, #059669 0%, #064e3b 100%)',
-                    'cyberpunk': 'linear-gradient(135deg, #eab308 0%, #854d0e 100%)'
-                };
-                // Only set if not paused (paused has its own gradient)
-                if (fullSession.status !== 'paused') {
-                    coverEl.style.background = gradients[fullSession.ruleset] || gradients['worldsapart'];
-                }
+            const coverImg = document.getElementById('activeSessionCoverImg');
+            if (liveSession.coverUrl) {
+                coverImg.src = liveSession.coverUrl;
+                coverImg.classList.add('loaded');
+            } else if (coverEl) {
+                coverEl.style.background = isPaused ? 'linear-gradient(135deg, #374151 0%, #1f2937 100%)' : rs.gradient;
             }
             
-            // Update ruleset if available
-            if (fullSession?.ruleset) {
-                const rulesetBadge = document.getElementById('activeSessionRuleset');
-                const rulesetIcon = document.getElementById('activeSessionRulesetIcon');
-                const rulesetName = document.getElementById('activeSessionRulesetName');
-                
-                const rulesetMap = {
-                    '5e2024': { name: 'D&D 5e', icon: 'ruleset_5e_2024.svg', class: '5e' },
-                    'worldsapart': { name: 'Worlds Apart', icon: 'ruleset_worldsapart.svg', class: 'worldsapart' },
-                    'htbah': { name: 'How To Be A Hero', icon: 'ruleset_htbah.svg', class: 'htbah' },
-                    'cyberpunk': { name: 'Cyberpunk Red', icon: 'ruleset_cyberpunkred.svg', class: 'cyberpunk' }
-                };
-                const rs = rulesetMap[fullSession.ruleset] || rulesetMap['worldsapart'];
-                
-                rulesetBadge.className = `ruleset-badge ruleset-badge--${rs.class}`;
-                rulesetIcon.src = `assets/img/rulesets/${rs.icon}`;
-                rulesetName.textContent = rs.name;
-            }
-            
-            // Update meta
-            if (fullSession) {
-                const meta = `Session ${fullSession.currentSession || 1}${fullSession.sessionCount > 1 ? ' von ' + fullSession.sessionCount : ''} · ${fullSession.maxPlayers || 4} Teilnehmer`;
-                document.getElementById('activeSessionMeta').textContent = meta;
-            }
-            
-            // Handle paused state - check both activeSessionData and fullSession
-            const isPaused = activeSessionData.paused === true || fullSession?.status === 'paused';
-            updateActiveSessionUI(isPaused, fullSession);
-            
-            // Update timer
-            if (!isPaused) {
-                startActiveTimer(fullSession);
-            } else {
-                // Show paused time
-                updateActiveTimerDisplay(fullSession);
-            }
-        }
-        
-        function updateActiveSessionUI(isPaused, fullSession) {
+            // --- Status & GM actions ---
             const statusEl = document.getElementById('activeSessionStatus');
             const titleEl = document.getElementById('activeSessionTitle');
             const pauseBtn = document.getElementById('pauseActiveSessionBtn');
             const resumeBtn = document.getElementById('resumeActiveSessionBtn');
-            const sectionEl = document.getElementById('activeSessionSection');
             
             if (isPaused) {
-                statusEl.textContent = '● Pausiert';
-                statusEl.classList.add('active-session__live--paused');
+                statusEl.textContent = '⏸ Pausiert';
+                statusEl.className = 'active-session__live active-session__live--paused';
                 titleEl.textContent = 'Session pausiert';
-                sectionEl.classList.add('active-session--paused');
-                pauseBtn.style.display = 'none';
-                resumeBtn.style.display = 'flex';
+                section.classList.add('active-session--paused');
+                if (pauseBtn) pauseBtn.style.display = 'none';
+                if (resumeBtn) resumeBtn.style.display = 'flex';
             } else {
                 statusEl.textContent = '● Live';
-                statusEl.classList.remove('active-session__live--paused');
+                statusEl.className = 'active-session__live';
                 titleEl.textContent = 'Session läuft gerade';
-                sectionEl.classList.remove('active-session--paused');
-                pauseBtn.style.display = 'flex';
-                resumeBtn.style.display = 'none';
+                section.classList.remove('active-session--paused');
+                if (pauseBtn) pauseBtn.style.display = 'flex';
+                if (resumeBtn) resumeBtn.style.display = 'none';
+            }
+            
+            // --- GM check ---
+            const currentUserId = firebase?.auth()?.currentUser?.uid || localStorage.getItem('rift_user_uid') || null;
+            const isSessionGM = currentUserId && liveSession.ownerId === currentUserId;
+            const gmActions = document.getElementById('activeSessionGmActions');
+            if (gmActions) gmActions.style.display = isSessionGM ? '' : 'none';
+            
+            // --- Timer ---
+            if (activeTimerInterval) { clearInterval(activeTimerInterval); activeTimerInterval = null; }
+            
+            if (liveSession.startTime) {
+                const startMs = typeof liveSession.startTime === 'number' ? liveSession.startTime : new Date(liveSession.startTime).getTime();
+                const totalPausedMs = liveSession.totalPausedMs || 0;
+                
+                if (isPaused) {
+                    // Show frozen time
+                    const pausedAt = liveSession.pausedTime || Date.now();
+                    const pausedMs = typeof pausedAt === 'number' ? pausedAt : new Date(pausedAt).getTime();
+                    const elapsed = Math.max(0, pausedMs - startMs - totalPausedMs);
+                    document.getElementById('activeSessionTime').textContent = formatElapsed(elapsed);
+                } else {
+                    // Live timer
+                    function tick() {
+                        const elapsed = Math.max(0, Date.now() - startMs - totalPausedMs);
+                        const el = document.getElementById('activeSessionTime');
+                        if (el) el.textContent = formatElapsed(elapsed);
+                    }
+                    tick();
+                    activeTimerInterval = setInterval(tick, 1000);
+                }
+            } else {
+                document.getElementById('activeSessionTime').textContent = '0:00:00';
             }
         }
         
-        function startActiveTimer(fullSession) {
-            const startTime = new Date(activeSessionData.startTime);
-            const totalPausedMs = fullSession?.totalPausedMs || 0;
-            
-            activeTimerInterval = setInterval(() => {
-                let elapsed = Date.now() - startTime.getTime() - totalPausedMs;
-                if (elapsed < 0) elapsed = 0;
-                
-                const hours = Math.floor(elapsed / (1000 * 60 * 60));
-                const mins = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-                const secs = Math.floor((elapsed % (1000 * 60)) / 1000);
-                const timeEl = document.getElementById('activeSessionTime');
-                if (timeEl) {
-                    timeEl.textContent = `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                }
-            }, 1000);
+        function formatElapsed(ms) {
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
         }
         
-        function updateActiveTimerDisplay(fullSession) {
-            if (!fullSession) return;
-            
-            const startTime = new Date(activeSessionData.startTime);
-            const pausedTime = fullSession.pausedTime ? new Date(fullSession.pausedTime) : new Date();
-            const totalPausedMs = fullSession.totalPausedMs || 0;
-            
-            let elapsed = pausedTime.getTime() - startTime.getTime() - totalPausedMs;
-            if (elapsed < 0) elapsed = 0;
-            
-            const hours = Math.floor(elapsed / (1000 * 60 * 60));
-            const mins = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-            const secs = Math.floor((elapsed % (1000 * 60)) / 1000);
-            const timeEl = document.getElementById('activeSessionTime');
-            if (timeEl) {
-                timeEl.textContent = `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-            }
-        }
-        
-        // Pause session button
-        document.getElementById('pauseActiveSessionBtn')?.addEventListener('click', () => {
-            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-            const index = sessions.findIndex(s => s.id === activeSessionData.id);
-            
-            if (index >= 0) {
-                sessions[index].status = 'paused';
-                sessions[index].pausedTime = Date.now();
-                localStorage.setItem('rift_sessions', JSON.stringify(sessions));
-                
-                activeSessionData.paused = true;
-                localStorage.setItem('rift_active_session', JSON.stringify(activeSessionData));
-                
-                if (activeTimerInterval) clearInterval(activeTimerInterval);
-                updateActiveSessionUI(true, sessions[index]);
-                updateActiveTimerDisplay(sessions[index]);
-                
-                if (window.RIFT?.ui?.Toast) {
-                    RIFT.ui.Toast.info('Session pausiert');
-                }
+        // --- Pause button ---
+        document.getElementById('pauseActiveSessionBtn')?.addEventListener('click', async () => {
+            if (!_activeSessionId || !currentRoomCode) return;
+            try {
+                await RIFT.rooms.updateSession(currentRoomCode, _activeSessionId, {
+                    status: 'paused',
+                    pausedTime: Date.now()
+                });
+                if (window.RIFT?.focus?.updateStatus) RIFT.focus.updateStatus('paused');
+                if (window.RIFT?.ui?.Toast) RIFT.ui.Toast.info('Session pausiert');
+            } catch (e) {
+                console.error('[Sessions] Pause failed:', e);
+                if (window.RIFT?.ui?.Toast) RIFT.ui.Toast.error('Pausieren fehlgeschlagen');
             }
         });
         
-        // Resume session button
-        document.getElementById('resumeActiveSessionBtn')?.addEventListener('click', () => {
-            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-            const index = sessions.findIndex(s => s.id === activeSessionData.id);
+        // --- Resume button ---
+        document.getElementById('resumeActiveSessionBtn')?.addEventListener('click', async () => {
+            if (!_activeSessionId || !currentRoomCode) return;
+            const session = firebaseSessions.find(s => s.id === _activeSessionId);
+            if (!session) return;
             
-            if (index >= 0) {
-                // Calculate paused duration and add to total
-                if (sessions[index].pausedTime) {
-                    const pausedDuration = Date.now() - sessions[index].pausedTime;
-                    sessions[index].totalPausedMs = (sessions[index].totalPausedMs || 0) + pausedDuration;
-                }
-                
-                sessions[index].status = 'live';
-                sessions[index].pausedTime = null;
-                localStorage.setItem('rift_sessions', JSON.stringify(sessions));
-                
-                activeSessionData.paused = false;
-                localStorage.setItem('rift_active_session', JSON.stringify(activeSessionData));
-                
-                updateActiveSessionUI(false, sessions[index]);
-                startActiveTimer(sessions[index]);
-                
-                if (window.RIFT?.ui?.Toast) {
-                    RIFT.ui.Toast.success('Session fortgesetzt!');
-                }
+            // Calculate paused duration
+            let newTotalPaused = session.totalPausedMs || 0;
+            if (session.pausedTime) {
+                const pausedMs = typeof session.pausedTime === 'number' ? session.pausedTime : new Date(session.pausedTime).getTime();
+                newTotalPaused += Date.now() - pausedMs;
+            }
+            
+            try {
+                await RIFT.rooms.updateSession(currentRoomCode, _activeSessionId, {
+                    status: 'live',
+                    pausedTime: null,
+                    totalPausedMs: newTotalPaused
+                });
+                if (window.RIFT?.focus?.updateStatus) RIFT.focus.updateStatus('live');
+                if (window.RIFT?.ui?.Toast) RIFT.ui.Toast.success('Session fortgesetzt!');
+            } catch (e) {
+                console.error('[Sessions] Resume failed:', e);
+                if (window.RIFT?.ui?.Toast) RIFT.ui.Toast.error('Fortsetzen fehlgeschlagen');
             }
         });
         
-        // End session button
-        document.getElementById('endSessionBtn')?.addEventListener('click', () => {
+        // --- End session button ---
+        document.getElementById('endSessionBtn')?.addEventListener('click', async () => {
+            if (!_activeSessionId || !currentRoomCode) return;
             if (!confirm('Session wirklich beenden?')) return;
             
-            const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
-            const index = sessions.findIndex(s => s.id === activeSessionData.id);
-            
-            if (index >= 0) {
-                sessions[index].status = 'ended';
-                sessions[index].endTime = Date.now();
-                localStorage.setItem('rift_sessions', JSON.stringify(sessions));
+            const session = firebaseSessions.find(s => s.id === _activeSessionId);
+            const startMs = session?.startTime ? (typeof session.startTime === 'number' ? session.startTime : new Date(session.startTime).getTime()) : Date.now();
+            let totalDuration = Date.now() - startMs;
+            if (session?.pausedTime) {
+                const pausedMs = typeof session.pausedTime === 'number' ? session.pausedTime : new Date(session.pausedTime).getTime();
+                totalDuration -= (Date.now() - pausedMs);
             }
+            totalDuration -= (session?.totalPausedMs || 0);
             
-            localStorage.removeItem('rift_active_session');
-            location.reload();
+            try {
+                await RIFT.rooms.updateSession(currentRoomCode, _activeSessionId, {
+                    status: 'ended',
+                    endTime: Date.now(),
+                    duration: Math.round(totalDuration / 60000)
+                });
+                if (window.RIFT?.focus?.clear) RIFT.focus.clear();
+                localStorage.removeItem('rift_active_session');
+                if (window.RIFT?.ui?.Toast) RIFT.ui.Toast.success('Session beendet!');
+                // subscribeToSessions will auto-update the UI
+            } catch (e) {
+                console.error('[Sessions] End failed:', e);
+                if (window.RIFT?.ui?.Toast) RIFT.ui.Toast.error('Beenden fehlgeschlagen');
+            }
         });
         
         // ========================================
