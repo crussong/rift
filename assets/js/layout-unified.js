@@ -1719,77 +1719,180 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         resonanzBar.style.background = 'linear-gradient(90deg, #7c3aed 0%, #a855f7 100%)';
     }
     
-    // Store character data for tooltip
-    const attrs = charData.attributes || {};
-    console.log('[DockChar] Character data:', {
-        name: charData.name,
-        attributes: charData.attributes,
-        fokus: charData.fokus,
-        schwaeche: charData.schwaeche,
-        secondChance: charData.secondChance,
-        race: charData.race,
-        age: charData.age,
-        gender: charData.gender,
-        role: charData.role,
-        currency: charData.currency,
-        level: charData.level
-    });
-    
+    // Store character data for tooltip (ruleset-aware)
+    const detectedRuleset = charData.ruleset || ruleset || 'worldsapart';
+    card.dataset.charRuleset = detectedRuleset;
     card.dataset.charName = charData.name || 'Unbenannt';
     card.dataset.charLevel = charData.level ?? 1;
-    card.dataset.charPower = attrs.power ?? 0;
-    card.dataset.charAgility = attrs.agility ?? 0;
-    card.dataset.charEndurance = attrs.endurance ?? 0;
-    card.dataset.charMind = attrs.mind ?? 0;
-    card.dataset.charPresence = attrs.presence ?? 0;
     
-    // Fokus - with German name
-    const fokus = charData.fokus || {};
-    const fokusType = fokus.type || '';
-    card.dataset.charFokusElement = fokusType;
-    card.dataset.charFokusName = FOKUS_NAMES[fokusType] || fokusType;
-    const fokusAbilities = fokus.abilities || [];
-    card.dataset.charFokus1 = fokusAbilities[0] || '';
-    card.dataset.charFokus2 = fokusAbilities[1] || '';
+    // D&D 5e specific data extraction
+    const innerData = charData.data || {};
     
-    // Schwäche - with full name
-    const schwaeche = charData.schwaeche || '';
-    card.dataset.charSchwaecheId = schwaeche;
-    card.dataset.charSchwaeche = SCHWAECHE_NAMES[schwaeche] || schwaeche;
-    
-    // Zweite Chance
-    const zc = charData.secondChance || [false, false, false];
-    const zcAvailable = Array.isArray(zc) ? zc.filter(v => v === false).length : 3;
-    card.dataset.charZweiteChance = zcAvailable.toString();
-    
-    // Additional info
-    card.dataset.charRace = charData.race || '';
-    card.dataset.charAge = charData.age || '';
-    card.dataset.charGender = charData.gender || '';
-    card.dataset.charRole = charData.role || '';
-    card.dataset.charCrew = charData.crew || '';
-    card.dataset.charWeapon = charData.weapon || '';
-    card.dataset.charCurrency = charData.currency || '';
-    card.dataset.charCurrencyType = charData.currencyType || 'dollar';
-    
-    // Stats for tooltip
-    const hp = charData.health?.current ?? 100;
-    const maxHp = charData.health?.max ?? 100;
-    const moral = charData.moral?.current ?? 100;
-    const maxMoral = charData.moral?.max ?? 100;
-    const power = attrs.power || 0;
-    const presence = attrs.presence || 0;
-    const resonanz = 10 + (power * presence);
-    
-    card.dataset.charHp = hp;
-    card.dataset.charMaxHp = maxHp;
-    card.dataset.charMoral = moral;
-    card.dataset.charMaxMoral = maxMoral;
-    card.dataset.charResonanz = resonanz;
+    if (detectedRuleset === 'dnd5e') {
+        // ---- D&D 5e ----
+        const hdr = innerData.header || charData.header || {};
+        const combat = innerData.combat || {};
+        const abilities = innerData.abilities || {};
+        const stats = innerData.stats || {};
+        const narrative = innerData.narrative || {};
+        const coins = innerData.coins || {};
+        const weapons = innerData.weapons || [];
+        const conditions = innerData.conditions || [];
+        const deathSaves = innerData.deathSaves || { success: [false,false,false], fail: [false,false,false] };
+        const spellSlots = innerData.spellSlots || {};
+        const spellcasting = innerData.spellcasting || {};
+        
+        card.dataset.charClass = hdr.charClass || charData.class || '';
+        card.dataset.charSubclass = hdr.subclass || '';
+        card.dataset.charSpecies = hdr.species || charData.race || '';
+        card.dataset.charBackground = hdr.background || '';
+        card.dataset.charXp = hdr.xp || '';
+        
+        // Ability Scores
+        card.dataset.charStr = abilities.str || 10;
+        card.dataset.charDex = abilities.dex || 10;
+        card.dataset.charCon = abilities.con || 10;
+        card.dataset.charInt = abilities.int || 10;
+        card.dataset.charWis = abilities.wis || 10;
+        card.dataset.charCha = abilities.cha || 10;
+        
+        // Combat
+        card.dataset.charAc = combat.ac || 10;
+        card.dataset.charHp = combat.hpCurrent || 0;
+        card.dataset.charMaxHp = combat.hpMax || 0;
+        card.dataset.charHpTemp = combat.hpTemp || 0;
+        card.dataset.charSpeed = stats.speed || '30';
+        card.dataset.charHdCurrent = combat.hdCurrent || 0;
+        card.dataset.charHdMax = combat.hdMax || 0;
+        card.dataset.charExhaustion = combat.exhaustion || 0;
+        card.dataset.charHeroicInsp = stats.heroicInsp ? 'true' : 'false';
+        
+        // Death Saves
+        card.dataset.charDeathSuccess = deathSaves.success ? deathSaves.success.filter(Boolean).length.toString() : '0';
+        card.dataset.charDeathFail = deathSaves.fail ? deathSaves.fail.filter(Boolean).length.toString() : '0';
+        
+        // Active Conditions
+        card.dataset.charConditions = conditions.join(',');
+        
+        // Resistances/Immunities
+        card.dataset.charResistances = combat.resistances || '';
+        card.dataset.charImmunities = combat.immunities || '';
+        
+        // Primary weapon
+        var priWeapon = weapons.find(function(w) { return w && w.name; });
+        card.dataset.charWeapon = priWeapon ? priWeapon.name : '';
+        card.dataset.charWeaponBonus = priWeapon ? (priWeapon.bonus || '') : '';
+        card.dataset.charWeaponDmg = priWeapon ? (priWeapon.damage || '') : '';
+        
+        // Spellcasting
+        card.dataset.charSpellAbility = spellcasting.ability || '';
+        var totalSlots = 0; var usedSlots = 0;
+        for (var sl = 1; sl <= 9; sl++) {
+            if (spellSlots[sl]) {
+                totalSlots += parseInt(spellSlots[sl].total) || 0;
+                usedSlots += parseInt(spellSlots[sl].expended) || 0;
+            }
+        }
+        card.dataset.charSpellSlotsTotal = totalSlots.toString();
+        card.dataset.charSpellSlotsUsed = usedSlots.toString();
+        
+        // Coins
+        card.dataset.charGp = coins.gp || 0;
+        card.dataset.charSp = coins.sp || 0;
+        card.dataset.charCp = coins.cp || 0;
+        card.dataset.charPp = coins.pp || 0;
+        card.dataset.charEp = coins.ep || 0;
+        
+        // Narrative
+        card.dataset.charAlignment = narrative.alignment || '';
+        card.dataset.charAge = narrative.physAge || '';
+        
+        // Proficiency bonus (level-based)
+        var lvl = parseInt(charData.level) || 1;
+        card.dataset.charProfBonus = '+' + (Math.ceil(lvl / 4) + 1);
+        
+        // Update bars for D&D 5e
+        var hpVal = parseInt(combat.hpCurrent) || 0;
+        var hpMaxVal = parseInt(combat.hpMax) || 1;
+        if (hpBar) {
+            var hpPct = Math.min(100, Math.max(0, (hpVal / hpMaxVal) * 100));
+            hpBar.style.width = hpPct + '%';
+            hpBar.style.background = hpPct > 50 ? 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)'
+                : hpPct > 25 ? 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'
+                : 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)';
+        }
+        // Second bar: AC indicator (visual only, always "full")
+        if (moralBar) {
+            moralBar.style.width = '100%';
+            moralBar.style.background = 'linear-gradient(90deg, #6366f1 0%, #818cf8 100%)';
+            moralBar.parentElement.title = 'AC ' + (combat.ac || 10);
+        }
+        // Third bar: hide for D&D 5e
+        if (resonanzBar) {
+            resonanzBar.parentElement.style.display = 'none';
+        }
+    } else {
+        // ---- Worlds Apart / Other ----
+        const attrs = charData.attributes || {};
+        
+        card.dataset.charPower = attrs.power ?? 0;
+        card.dataset.charAgility = attrs.agility ?? 0;
+        card.dataset.charEndurance = attrs.endurance ?? 0;
+        card.dataset.charMind = attrs.mind ?? 0;
+        card.dataset.charPresence = attrs.presence ?? 0;
+        
+        // Fokus - with German name
+        const fokus = charData.fokus || {};
+        const fokusType = fokus.type || '';
+        card.dataset.charFokusElement = fokusType;
+        card.dataset.charFokusName = FOKUS_NAMES[fokusType] || fokusType;
+        const fokusAbilities = fokus.abilities || [];
+        card.dataset.charFokus1 = fokusAbilities[0] || '';
+        card.dataset.charFokus2 = fokusAbilities[1] || '';
+        
+        // Schwäche - with full name
+        const schwaeche = charData.schwaeche || '';
+        card.dataset.charSchwaecheId = schwaeche;
+        card.dataset.charSchwaeche = SCHWAECHE_NAMES[schwaeche] || schwaeche;
+        
+        // Zweite Chance
+        const zc = charData.secondChance || [false, false, false];
+        const zcAvailable = Array.isArray(zc) ? zc.filter(v => v === false).length : 3;
+        card.dataset.charZweiteChance = zcAvailable.toString();
+        
+        // Additional info
+        card.dataset.charRace = charData.race || '';
+        card.dataset.charAge = charData.age || '';
+        card.dataset.charGender = charData.gender || '';
+        card.dataset.charRole = charData.role || '';
+        card.dataset.charCrew = charData.crew || '';
+        card.dataset.charWeapon = charData.weapon || '';
+        card.dataset.charCurrency = charData.currency || '';
+        card.dataset.charCurrencyType = charData.currencyType || 'dollar';
+        
+        // Stats for tooltip
+        const hp = charData.health?.current ?? 100;
+        const maxHp = charData.health?.max ?? 100;
+        const moral = charData.moral?.current ?? 100;
+        const maxMoral = charData.moral?.max ?? 100;
+        const power = attrs.power || 0;
+        const presence = attrs.presence || 0;
+        const resonanz = 10 + (power * presence);
+        
+        card.dataset.charHp = hp;
+        card.dataset.charMaxHp = maxHp;
+        card.dataset.charMoral = moral;
+        card.dataset.charMaxMoral = maxMoral;
+        card.dataset.charResonanz = resonanz;
+        
+        // Show resonanz bar for WA
+        if (resonanzBar) {
+            resonanzBar.parentElement.style.display = '';
+        }
+    }
     
     // Show card
     card.classList.remove('hidden');
-    console.log('[DockChar] Card updated:', charData.name, '- Attrs:', attrs);
 }
 
 // ============================================================
@@ -1956,29 +2059,187 @@ function initDockCardTooltips() {
                 return;
             }
             
+            // SVG Icons
+            const heartIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.979 3.074a6 6 0 0 1 4.988 1.425l.037 .033l.034 -.03a6 6 0 0 1 4.733 -1.44l.246 .036a6 6 0 0 1 3.364 10.008l-.18 .185l-.048 .041l-7.45 7.379a1 1 0 0 1 -1.313 .082l-.094 -.082l-7.493 -7.422a6 6 0 0 1 3.176 -10.215z"/></svg>`;
+            const shieldIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.998 2l.118 .007l.059 .008l.061 .013l.111 .034a.993 .993 0 0 1 .217 .112l.07 .054l.06 .055l4.16 4.162l.098 .014a6 6 0 0 1 4.298 3.78l.06 .18a6 6 0 0 1 -7.69 7.288l-.173 -.07l-1.449 1.449a1 1 0 0 1 -1.414 0l-1.448 -1.449a6 6 0 0 1 -7.691 -7.288l.06 -.18a6 6 0 0 1 4.297 -3.78l.098 -.014l4.162 -4.162a1 1 0 0 1 .324 -.217l.065 -.024z"/></svg>`;
+            const speedIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-5 2.66a1 1 0 0 0 -.993 .883l-.007 .117v5.584l-2.293 2.292a1 1 0 0 0 -.083 1.32l.083 .094a1 1 0 0 0 1.32 .083l.094 -.083l2.5 -2.5a1 1 0 0 0 .284 -.576l.01 -.131v-6a1 1 0 0 0 -1 -1z"/></svg>`;
+            const boltIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13.378 3.077a1 1 0 0 1 1.126 .607l.042 .125l1.931 7.191h2.523a1 1 0 0 1 .932 .638l.032 .104a1 1 0 0 1 -.371 1.067l-.095 .066l-8.5 5a1 1 0 0 1 -1.502 -.703l-.018 -.12l.012 -5.052h-2.49a1 1 0 0 1 -.933 -.639l-.032 -.103a1 1 0 0 1 .372 -1.068l.094 -.066l7.498 -6.17a1 1 0 0 1 .38 -.177z"/></svg>`;
+            const flameIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-4.97 0-9-3.582-9-8c0-2.92 1.247-5.214 3-6.931c-.007.155-.007.31 0 .465c.08 1.794 1.147 3.354 2.832 4.065a.5.5 0 0 0 .676-.476v-.517a4.6 4.6 0 0 1 .953-2.809l.078-.103l2.022-2.494a.5.5 0 0 1 .878.32v2.48c0 .296.131.578.357.769l.065.049l.063.039l.138.077l.053.027a.6.6 0 0 0 .163.053l.06.01h.087l.058-.007l.056-.012l.054-.015l.053-.02l.05-.023l.048-.028l.045-.031l.042-.035l.039-.038l.036-.042l.033-.046l.029-.05l.024-.053l.02-.057l.015-.061l.01-.064l.004-.068v-.034l-.003-.066a3.2 3.2 0 0 0-.322-1.194l-.116-.22a.4.4 0 0 1 .47-.564c3.008.938 5.043 3.618 5.043 6.792c0 4.418-4.03 8-9 8z"/></svg>`;
+            const swordIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.413 2.001l.1 -.001a1 1 0 0 1 .707 .293l3.987 3.987l1.907 -.59a1 1 0 0 1 1.092 .295l.068 .088l2.4 3.6a1 1 0 0 1 -.108 1.229l-.082 .08l-1.591 1.292l.458 .458a1 1 0 0 1 .083 1.32l-.083 .094l-1.5 1.5a1 1 0 0 1 -1.32 .083l-.094 -.083l-.458 -.458l-1.292 1.591a1 1 0 0 1 -1.129 .196l-.079 -.04l-.095 -.058l-3.6 -2.4a1 1 0 0 1 -.383 -1.16l.59 -1.907l-3.987 -3.987a1 1 0 0 1 -.286 -.577l-.007 -.13v-2.12a1 1 0 0 1 .883 -.993l.117 -.007h2.12zm-6.706 13.292a1 1 0 0 1 1.414 0l.707 .707a1 1 0 0 1 0 1.414l-2.828 2.829a1 1 0 0 1 -1.414 0l-.707 -.707a1 1 0 0 1 0 -1.414l2.828 -2.829z"/></svg>`;
+            
+            // ============ D&D 5e TOOLTIP ============
+            if (d.charRuleset === 'dnd5e') {
+                // Mod calc helper
+                const mod = (score) => { const m = Math.floor((parseInt(score) - 10) / 2); return m >= 0 ? '+' + m : '' + m; };
+                
+                // Class line
+                const classParts = [];
+                if (d.charClass) classParts.push(d.charClass);
+                if (d.charSubclass) classParts.push(d.charSubclass);
+                const classLine = classParts.join(' — ');
+                
+                // Info line
+                const infoParts5e = [];
+                if (d.charSpecies) infoParts5e.push(d.charSpecies);
+                if (d.charBackground) infoParts5e.push(d.charBackground);
+                if (d.charAlignment) infoParts5e.push(d.charAlignment);
+                const infoLine5e = infoParts5e.join(' · ');
+                
+                // HP color
+                const hpCur = parseInt(d.charHp) || 0;
+                const hpMax = parseInt(d.charMaxHp) || 1;
+                const hpPct = hpMax > 0 ? (hpCur / hpMax) * 100 : 100;
+                const hpColor = hpPct > 50 ? '#22c55e' : hpPct > 25 ? '#f59e0b' : '#ef4444';
+                
+                // Temp HP
+                const hpTemp = parseInt(d.charHpTemp) || 0;
+                const tempHtml = hpTemp > 0 ? `<span class="dock-tooltip__stat dock-tooltip__stat--temp">+${hpTemp} temp</span>` : '';
+                
+                // Death saves
+                const deathSuccess = parseInt(d.charDeathSuccess) || 0;
+                const deathFail = parseInt(d.charDeathFail) || 0;
+                let deathHtml = '';
+                if (deathFail > 0 || deathSuccess > 0) {
+                    let deathDots = '<div class="dock-tooltip__death-saves">';
+                    deathDots += '<span class="dock-tooltip__death-label">Todesw\u00fcrfe</span>';
+                    for (let i = 0; i < 3; i++) deathDots += `<span class="dock-tooltip__death-dot ${i < deathSuccess ? 'dock-tooltip__death-dot--success' : ''}"></span>`;
+                    deathDots += '<span style="margin:0 3px;">/</span>';
+                    for (let i = 0; i < 3; i++) deathDots += `<span class="dock-tooltip__death-dot ${i < deathFail ? 'dock-tooltip__death-dot--fail' : ''}"></span>`;
+                    deathDots += '</div>';
+                    deathHtml = deathDots;
+                }
+                
+                // Conditions
+                const CONDITIONS_ICONS = {
+                    blinded:'&#x1F441;', charmed:'&#x1F495;', deafened:'&#x1F507;', frightened:'&#x1F631;',
+                    grappled:'&#x1F93C;', incapacitated:'&#x1F4AB;', invisible:'&#x1F47B;', paralyzed:'&#x26A1;',
+                    petrified:'&#x1FAA8;', poisoned:'&#x2620;', prone:'&#x1F6CC;', restrained:'&#x26D3;',
+                    stunned:'&#x1F4A5;', unconscious:'&#x1F635;'
+                };
+                let conditionsHtml = '';
+                if (d.charConditions) {
+                    const conds = d.charConditions.split(',').filter(Boolean);
+                    if (conds.length > 0) {
+                        conditionsHtml = '<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg dock-tooltip__label-bg--warn">Conditions</div><div class="dock-tooltip__conditions">' +
+                            conds.map(c => `<span class="dock-tooltip__condition-chip">${CONDITIONS_ICONS[c] || ''} ${c}</span>`).join('') +
+                        '</div></div>';
+                    }
+                }
+                
+                // Weapon
+                let weaponHtml = '';
+                if (d.charWeapon) {
+                    const bonus = d.charWeaponBonus ? ` (${d.charWeaponBonus})` : '';
+                    const dmg = d.charWeaponDmg ? ` · ${d.charWeaponDmg}` : '';
+                    weaponHtml = `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg">Waffe</div><div class="dock-tooltip__weapon">${swordIcon} ${d.charWeapon}${bonus}${dmg}</div></div>`;
+                }
+                
+                // Spell Slots
+                let spellHtml = '';
+                const totalSlots = parseInt(d.charSpellSlotsTotal) || 0;
+                const usedSlots = parseInt(d.charSpellSlotsUsed) || 0;
+                if (totalSlots > 0) {
+                    const remainSlots = totalSlots - usedSlots;
+                    spellHtml = `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg">Zauberpl\u00e4tze</div><div class="dock-tooltip__spell-slots">${boltIcon} ${remainSlots}/${totalSlots} verf\u00fcgbar</div></div>`;
+                }
+                
+                // Coins
+                let coinsHtml = '';
+                const gp = parseInt(d.charGp) || 0;
+                const sp = parseInt(d.charSp) || 0;
+                const cp = parseInt(d.charCp) || 0;
+                const pp = parseInt(d.charPp) || 0;
+                const coinParts = [];
+                if (pp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--pp">${pp} PP</span>`);
+                if (gp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--gp">${gp} GP</span>`);
+                if (sp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--sp">${sp} SP</span>`);
+                if (cp > 0) coinParts.push(`<span class="dock-tooltip__coin dock-tooltip__coin--cp">${cp} CP</span>`);
+                if (coinParts.length > 0) {
+                    coinsHtml = `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg">Gold</div><div class="dock-tooltip__coins-row">${coinParts.join(' ')}</div></div>`;
+                }
+                
+                // Exhaustion
+                let exhaustHtml = '';
+                const exhaust = parseInt(d.charExhaustion) || 0;
+                if (exhaust > 0) {
+                    let dots = '';
+                    for (let i = 0; i < 6; i++) dots += `<span class="dock-tooltip__exhaust-dot ${i < exhaust ? 'active' : ''}"></span>`;
+                    exhaustHtml = `<div class="dock-tooltip__section"><div class="dock-tooltip__label-bg dock-tooltip__label-bg--warn">Ersch\u00f6pfung</div><div class="dock-tooltip__exhaust-row">${dots} <span class="dock-tooltip__exhaust-num">${exhaust}/6</span></div></div>`;
+                }
+                
+                // Heroic Inspiration
+                const heroicInsp = d.charHeroicInsp === 'true';
+                
+                tooltip.innerHTML = `
+                    <div class="dock-tooltip__header-row">
+                        <div class="dock-tooltip__header">${d.charName || 'Charakter'}</div>
+                        <div class="dock-tooltip__level dock-tooltip__level--5e">Lv. ${d.charLevel || 1}</div>
+                    </div>
+                    ${classLine ? `<div class="dock-tooltip__class-line">${classLine}</div>` : ''}
+                    ${infoLine5e ? `<div class="dock-tooltip__info-line">${infoLine5e}</div>` : ''}
+                    
+                    <div class="dock-tooltip__divider"></div>
+                    
+                    <div class="dock-tooltip__combat-row">
+                        <span class="dock-tooltip__stat dock-tooltip__stat--hp" style="color:${hpColor}">${heartIcon} ${hpCur}/${hpMax}</span>
+                        ${tempHtml}
+                        <span class="dock-tooltip__stat dock-tooltip__stat--ac">${shieldIcon} AC ${d.charAc || 10}</span>
+                        <span class="dock-tooltip__stat dock-tooltip__stat--speed">${speedIcon} ${d.charSpeed || 30} ft</span>
+                    </div>
+                    ${heroicInsp ? '<div class="dock-tooltip__heroic-insp">&#x2728; Heroic Inspiration</div>' : ''}
+                    ${deathHtml}
+                    
+                    <div class="dock-tooltip__section">
+                        <div class="dock-tooltip__label-bg">Attribute</div>
+                        <div class="dock-tooltip__attrs dock-tooltip__attrs--6col">
+                            <span class="dock-tooltip__attr-box dock-tooltip__attr-box--5e"><span class="dock-tooltip__attr-val">${d.charStr || 10}</span><span class="dock-tooltip__attr-mod">${mod(d.charStr)}</span><span class="dock-tooltip__attr-label">STR</span></span>
+                            <span class="dock-tooltip__attr-box dock-tooltip__attr-box--5e"><span class="dock-tooltip__attr-val">${d.charDex || 10}</span><span class="dock-tooltip__attr-mod">${mod(d.charDex)}</span><span class="dock-tooltip__attr-label">DEX</span></span>
+                            <span class="dock-tooltip__attr-box dock-tooltip__attr-box--5e"><span class="dock-tooltip__attr-val">${d.charCon || 10}</span><span class="dock-tooltip__attr-mod">${mod(d.charCon)}</span><span class="dock-tooltip__attr-label">CON</span></span>
+                            <span class="dock-tooltip__attr-box dock-tooltip__attr-box--5e"><span class="dock-tooltip__attr-val">${d.charInt || 10}</span><span class="dock-tooltip__attr-mod">${mod(d.charInt)}</span><span class="dock-tooltip__attr-label">INT</span></span>
+                            <span class="dock-tooltip__attr-box dock-tooltip__attr-box--5e"><span class="dock-tooltip__attr-val">${d.charWis || 10}</span><span class="dock-tooltip__attr-mod">${mod(d.charWis)}</span><span class="dock-tooltip__attr-label">WIS</span></span>
+                            <span class="dock-tooltip__attr-box dock-tooltip__attr-box--5e"><span class="dock-tooltip__attr-val">${d.charCha || 10}</span><span class="dock-tooltip__attr-mod">${mod(d.charCha)}</span><span class="dock-tooltip__attr-label">CHA</span></span>
+                        </div>
+                    </div>
+                    
+                    <div class="dock-tooltip__section">
+                        <div class="dock-tooltip__prof-row">
+                            <span class="dock-tooltip__prof-item">Proficiency ${d.charProfBonus || '+2'}</span>
+                            <span class="dock-tooltip__prof-item">Hit Dice ${d.charHdCurrent || 0}/${d.charHdMax || 0}</span>
+                        </div>
+                    </div>
+                    
+                    ${conditionsHtml}
+                    ${exhaustHtml}
+                    ${weaponHtml}
+                    ${spellHtml}
+                    ${coinsHtml}
+                `;
+                tooltip.classList.add('dock-tooltip--5e');
+                tooltip.classList.remove('dock-tooltip--wa');
+                showDockTooltip(tooltip, charCard);
+                return;
+            }
+            
+            // ============ WORLDS APART TOOLTIP ============
+            tooltip.classList.add('dock-tooltip--wa');
+            tooltip.classList.remove('dock-tooltip--5e');
+            
             const fokusEl = d.charFokusElement || '';
             const fokusName = d.charFokusName || fokusEl;
             const fokusColor = FOKUS_COLORS[fokusEl] || '#8b5cf6';
             const zcCount = parseInt(d.charZweiteChance) || 0;
             
-            // Generate d20 icons for Zweite Chance (gray)
             let zcIcons = '';
             for (let i = 0; i < 3; i++) {
                 const isAvailable = i < zcCount;
                 zcIcons += `<img src="/assets/icons/dice/d20.svg" class="dock-tooltip__d20 ${isAvailable ? '' : 'used'}" alt="D20">`;
             }
             
-            // Build info line (Race, Age, Gender)
             const infoParts = [];
             if (d.charRace) infoParts.push(d.charRace);
             if (d.charAge) infoParts.push(d.charAge + ' Jahre');
             if (d.charGender) infoParts.push(d.charGender);
             const infoLine = infoParts.join(' · ');
-            
-            // SVG Icons (Tabler Icons Filled)
-            const heartIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.979 3.074a6 6 0 0 1 4.988 1.425l.037 .033l.034 -.03a6 6 0 0 1 4.733 -1.44l.246 .036a6 6 0 0 1 3.364 10.008l-.18 .185l-.048 .041l-7.45 7.379a1 1 0 0 1 -1.313 .082l-.094 -.082l-7.493 -7.422a6 6 0 0 1 3.176 -10.215z"/></svg>`;
-            const boltIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13.378 3.077a1 1 0 0 1 1.126 .607l.042 .125l1.931 7.191h2.523a1 1 0 0 1 .932 .638l.032 .104a1 1 0 0 1 -.371 1.067l-.095 .066l-8.5 5a1 1 0 0 1 -1.502 -.703l-.018 -.12l.012 -5.052h-2.49a1 1 0 0 1 -.933 -.639l-.032 -.103a1 1 0 0 1 .372 -1.068l.094 -.066l7.498 -6.17a1 1 0 0 1 .38 -.177z"/></svg>`;
-            const flameIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-4.97 0-9-3.582-9-8c0-2.92 1.247-5.214 3-6.931c-.007.155-.007.31 0 .465c.08 1.794 1.147 3.354 2.832 4.065a.5.5 0 0 0 .676-.476v-.517a4.6 4.6 0 0 1 .953-2.809l.078-.103l2.022-2.494a.5.5 0 0 1 .878.32v2.48c0 .296.131.578.357.769l.065.049l.063.039l.138.077l.053.027a.6.6 0 0 0 .163.053l.06.01h.087l.058-.007l.056-.012l.054-.015l.053-.02l.05-.023l.048-.028l.045-.031l.042-.035l.039-.038l.036-.042l.033-.046l.029-.05l.024-.053l.02-.057l.015-.061l.01-.064l.004-.068v-.034l-.003-.066a3.2 3.2 0 0 0-.322-1.194l-.116-.22a.4.4 0 0 1 .47-.564c3.008.938 5.043 3.618 5.043 6.792c0 4.418-4.03 8-9 8z"/></svg>`;
             
             tooltip.innerHTML = `
                 <div class="dock-tooltip__header-row">
@@ -3050,13 +3311,26 @@ function initMeganavBanners() {
         var url = window.RiftContext ? RiftContext.getCharacterUrl() : (ri.sheet || '/sheet');
         var name = character.name || 'Unbenannt';
         
-        // Class/species info
+        // Class/species info — handle different data structures
         var classInfo = '';
-        if (character.header) {
+        var innerData = character.data || {};
+        var hdr = innerData.header || character.header || {};
+        
+        if (ruleset === 'dnd5e') {
+            // D&D 5e: Class · Subclass · Species
+            var parts5e = [];
+            var cls = hdr.charClass || character.class || '';
+            var sub = hdr.subclass || '';
+            var spc = hdr.species || character.race || '';
+            if (cls) parts5e.push(cls);
+            if (sub) parts5e.push(sub);
+            if (spc) parts5e.push(spc);
+            classInfo = parts5e.join(' \u00b7 ');
+        } else if (hdr.charClass || hdr.species) {
             var parts = [];
-            if (character.header.charClass) parts.push(character.header.charClass);
-            if (character.header.level) parts.push('Lvl ' + character.header.level);
-            if (character.header.species) parts.push(character.header.species);
+            if (hdr.charClass) parts.push(hdr.charClass);
+            if (hdr.level) parts.push('Lvl ' + hdr.level);
+            if (hdr.species) parts.push(hdr.species);
             classInfo = parts.join(' \u00b7 ');
         } else if (character.spezies || character.klasse || character.archetyp) {
             var parts2 = [];
