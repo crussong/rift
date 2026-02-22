@@ -319,6 +319,41 @@
                 }
             }
             
+            // Source 3: Direct localStorage fallback (for pages without character-storage.js)
+            if (!charData) {
+                try {
+                    var allChars = JSON.parse(localStorage.getItem('rift_characters') || '{}');
+                    var mainChars = JSON.parse(localStorage.getItem('rift_main_characters') || '{}');
+                    var charValues = Object.values(allChars).filter(isValid);
+                    
+                    if (charValues.length > 0) {
+                        // Try main character for this ruleset
+                        var mainId = mainChars[ruleset];
+                        if (mainId && allChars[mainId] && isValid(allChars[mainId])) {
+                            charData = allChars[mainId];
+                            charId = mainId;
+                        }
+                        
+                        // Fallback: first character matching ruleset
+                        if (!charData) {
+                            var byRuleset = charValues.filter(function(c) { return (c.ruleset || 'worldsapart') === ruleset; });
+                            if (byRuleset.length > 0) {
+                                charData = byRuleset[0];
+                                charId = charData.id;
+                            }
+                        }
+                        
+                        // Last resort: any character
+                        if (!charData) {
+                            charData = charValues[0];
+                            charId = charData.id;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[RiftContext] localStorage fallback failed:', e);
+                }
+            }
+            
             this.character = charData;
             this.characterId = charId;
             
@@ -1532,8 +1567,30 @@ async function initDockCharacterCard() {
         }
     }
     
+    // Source 3: Direct localStorage (pages without character-storage.js)
     if (!charData) {
-        console.log('[DockChar] No valid character found, showing empty state');
+        try {
+            const allChars = JSON.parse(localStorage.getItem('rift_characters') || '{}');
+            const mainChars = JSON.parse(localStorage.getItem('rift_main_characters') || '{}');
+            const charValues = Object.values(allChars).filter(isValidCharacter);
+            if (charValues.length > 0) {
+                // Use RiftContext ruleset if available
+                let rs = window.RiftContext?.ruleset || 'worldsapart';
+                const mainId = mainChars[rs];
+                if (mainId && allChars[mainId] && isValidCharacter(allChars[mainId])) {
+                    charData = allChars[mainId];
+                    charId = mainId;
+                } else {
+                    const byRs = charValues.filter(c => (c.ruleset || 'worldsapart') === rs);
+                    if (byRs.length > 0) { charData = byRs[0]; charId = byRs[0].id; }
+                    else { charData = charValues[0]; charId = charValues[0].id; }
+                }
+                console.log('[DockChar] Loaded from localStorage fallback:', charData.name);
+            }
+        } catch (e) {}
+    }
+    
+    if (!charData) {
         showEmptyCharacterCard(card);
     } else {
         console.log('[DockChar] Displaying character:', charData.name);
