@@ -2583,6 +2583,8 @@ const WB = {
             html += `<button class="wb-context-item" data-action="multi-duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplizieren (alle)</button>`;
             html += `<button class="wb-context-item wb-context-item--danger" data-action="multi-delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Löschen (alle)</button>`;
         } else if (isToken) {
+            // Token name header
+            html += `<div style="padding:6px 14px 4px;font-size:13px;font-weight:700;color:white;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:2px">${token.name || 'Token'}</div>`;
             // Token-specific menu
             html += `<button class="wb-context-item" data-action="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Bearbeiten</button>`;
             if (token.maxHp > 0) {
@@ -2599,7 +2601,7 @@ const WB = {
             // Attack button: show when another token could attack this one
             const attacker = this.initiativeActive ? this.tokens.find(t => t.id === this.initiativeActive) : null;
             if (attacker && attacker.id !== token.id && token.maxHp > 0) {
-                const atkName = attacker.name.length > 14 ? attacker.name.substring(0, 12) + '..' : attacker.name;
+                const targetName = token.name.length > 14 ? token.name.substring(0, 12) + '..' : token.name;
                 const maxAtks = attacker.attacks || 1;
                 const usedAtks = attacker._turnAttacksUsed || 0;
                 const remainAtks = Math.max(0, maxAtks - usedAtks);
@@ -2616,7 +2618,7 @@ const WB = {
                 
                 html += `<div class="wb-context-divider"></div>`;
                 if (remainAtks > 0 && inRange) {
-                    html += `<button class="wb-context-item" data-action="attack-target" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>Angreifen (${atkName}) [${remainAtks}/${maxAtks}]</button>`;
+                    html += `<button class="wb-context-item" data-action="attack-target" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>Angreifen: ${targetName} [${remainAtks}/${maxAtks}]</button>`;
                 } else if (remainAtks <= 0) {
                     html += `<div style="padding:6px 14px;font-size:11px;color:#ef4444;opacity:0.7">Keine Angriffe mehr (${maxAtks}/${maxAtks} verbraucht)</div>`;
                 } else {
@@ -2624,16 +2626,6 @@ const WB = {
                 }
             }
             html += `<div class="wb-context-divider"></div>`;
-            // Entity interactions
-            if (token.type === 'monster' || token.type === 'npc' || token.type === 'container') {
-                html += `<button class="wb-context-item" data-action="entity-loot" style="color:#fbbf24"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/><circle cx="12" cy="14" r="2"/></svg>${token.type === 'container' ? 'Öffnen' : 'Plündern'}</button>`;
-            }
-            if (token.type === 'npc') {
-                html += `<button class="wb-context-item" data-action="entity-trade" style="color:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16l-4-4 4-4M17 8l4 4-4 4M3 12h18"/></svg>Handeln</button>`;
-            }
-            if (this.isGM) {
-                html += `<button class="wb-context-item" data-action="entity-edit" style="color:#a78bfa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/><path d="M12 11v4M10 13h4"/></svg>Inventar verwalten</button>`;
-            }
             const isLinked = token._linkedTo && this.tokens.find(t => t.id === token._linkedTo);
             if (isLinked) {
                 html += `<button class="wb-context-item" data-action="unlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13a5 5 0 0 0-5-5h-2a5 5 0 0 0 0 10h2"/><line x1="8" y1="12" x2="16" y2="12" stroke-dasharray="2 2"/><line x1="2" y1="2" x2="22" y2="22"/></svg>Verknüpfung lösen</button>`;
@@ -4397,6 +4389,44 @@ const WB = {
         setTimeout(() => flash.remove(), 600);
     },
     
+    turnPing(token) {
+        const sx = token.x * this.zoom + this.panX;
+        const sy = token.y * this.zoom + this.panY;
+        const wrapper = document.getElementById('canvasWrapper');
+        const color = token.color || '#8b5cf6';
+        
+        // Two expanding rings
+        for (let i = 0; i < 2; i++) {
+            const ring = document.createElement('div');
+            const size = (token.size || 70) * this.zoom;
+            ring.style.cssText = `position:absolute;pointer-events:none;z-index:260;
+                width:${size}px;height:${size}px;border-radius:50%;
+                left:${sx}px;top:${sy}px;transform:translate(-50%,-50%) scale(1);
+                border:3px solid ${color};opacity:0.8;
+                box-shadow:0 0 20px ${color}44;`;
+            wrapper.appendChild(ring);
+            
+            const delay = i * 200;
+            setTimeout(() => {
+                ring.style.transition = 'all 0.8s cubic-bezier(0.22,1,0.36,1)';
+                ring.style.transform = 'translate(-50%,-50%) scale(2.5)';
+                ring.style.opacity = '0';
+            }, delay);
+            setTimeout(() => ring.remove(), delay + 900);
+        }
+        
+        // Brief glow on token
+        const glow = document.createElement('div');
+        const glowSize = (token.size || 70) * this.zoom + 20;
+        glow.style.cssText = `position:absolute;pointer-events:none;z-index:259;
+            width:${glowSize}px;height:${glowSize}px;border-radius:50%;
+            left:${sx}px;top:${sy}px;transform:translate(-50%,-50%);
+            background:radial-gradient(circle,${color}55 0%,transparent 70%);
+            animation:token-flash 1s ease-out forwards`;
+        wrapper.appendChild(glow);
+        setTimeout(() => glow.remove(), 1100);
+    },
+    
     impactParticles(token, count, color) {
         const sx = token.x * this.zoom + this.panX;
         const sy = token.y * this.zoom + this.panY;
@@ -5175,7 +5205,7 @@ const WB = {
                 this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
                 this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
                 this.startAnimation();
-                setTimeout(() => this.showActiveTurnRange(), 400);
+                setTimeout(() => { this.showActiveTurnRange(); this.turnPing(t); }, 400);
             };
             
             // Double-click to edit initiative via token edit modal
@@ -5231,8 +5261,11 @@ const WB = {
         this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
         this.startAnimation();
         this.startTurnTimer();
-        // Show movement range after pan animation settles
-        setTimeout(() => this.showActiveTurnRange(), 400);
+        // Show movement range + turn ping after pan animation settles
+        setTimeout(() => {
+            this.showActiveTurnRange();
+            this.turnPing(t);
+        }, 400);
         this.toast(`${t.name} ist dran!`);
     },
     
@@ -5256,7 +5289,7 @@ const WB = {
         this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
         this.startAnimation();
         this.startTurnTimer();
-        setTimeout(() => this.showActiveTurnRange(), 400);
+        setTimeout(() => { this.showActiveTurnRange(); this.turnPing(t); }, 400);
     },
     
     rollAllInitiative() {
@@ -5412,7 +5445,7 @@ const WB = {
         this.targetPanY = this.mainCanvas.height / 2 - firstToken.y * this.zoom;
         this.startAnimation();
         this.startTurnTimer();
-        setTimeout(() => this.showActiveTurnRange(), 400);
+        setTimeout(() => { this.showActiveTurnRange(); this.turnPing(firstToken); }, 400);
         
         this.toast(`Kampf beginnt! ${firstToken.name} ist zuerst dran!`);
     },
