@@ -204,6 +204,12 @@ function createUnifiedTopnav() {
                     </div>
                 </div>
                 
+                <!-- Session Pill (populated by RiftContext) -->
+                <a href="/sessions" class="topnav__session-pill" id="sessionPill" style="display:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span id="sessionPillText"></span>
+                </a>
+                
                 <!-- Room Code Dropdown -->
                 <div class="topnav__dropdown-trigger" id="roomTrigger">
                     <div class="topnav__room topnav__room-code">
@@ -818,6 +824,54 @@ function initUnifiedLayout() {
     
     // Initialize meganav banners (after Firebase data loads)
     initMeganavBanners();
+    
+    // Initialize RiftContext — single source of truth
+    if (window.RiftContext) {
+        RiftContext.init();
+        
+        // Bridge: RiftContext → Dock (update Dock when RiftContext data arrives)
+        RiftContext.subscribe(function(state) {
+            // Update Dock character card from RiftContext
+            if (state.character && typeof updateDockCharacterCard === 'function') {
+                updateDockCharacterCard(state.character, state.characterId, state.roomCode);
+            } else if (!state.character && typeof showEmptyCharacterCard === 'function') {
+                var card = document.getElementById('dockCharacterCard');
+                if (card) showEmptyCharacterCard(card);
+            }
+            
+            // Update Dock session card from RiftContext
+            if (state.nextSession && typeof updateDockSessionCard === 'function') {
+                updateDockSessionCard(state.nextSession);
+            }
+            
+            // Update session pill
+            var pill = document.getElementById('sessionPill');
+            var pillText = document.getElementById('sessionPillText');
+            if (pill && pillText) {
+                if (state.nextSession) {
+                    var ns = state.nextSession;
+                    var isLive = ns.status === 'live' || ns.status === 'paused';
+                    if (isLive) {
+                        pillText.textContent = 'LIVE';
+                        pill.classList.add('topnav__session-pill--live');
+                    } else if (ns.date) {
+                        var d = new Date(ns.date);
+                        var day = String(d.getDate()).padStart(2, '0');
+                        var month = String(d.getMonth() + 1).padStart(2, '0');
+                        pillText.textContent = day + '.' + month;
+                        pill.classList.remove('topnav__session-pill--live');
+                    } else {
+                        pillText.textContent = ns.name || 'Session';
+                        pill.classList.remove('topnav__session-pill--live');
+                    }
+                    pill.href = '/session?id=' + ns.id;
+                    pill.style.display = '';
+                } else {
+                    pill.style.display = 'none';
+                }
+            }
+        });
+    }
     
     console.log('[RIFT] Unified layout initialized');
 }
@@ -2566,286 +2620,102 @@ function initProBadge() {
 // MEGANAV BANNER POPULATION
 // ========================================
 function initMeganavBanners() {
-    const WD = ['SO','MO','DI','MI','DO','FR','SA'];
-    const MN = ['Jan','Feb','M\u00e4r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-    const RS = {
-        'worldsapart': { name: 'Worlds Apart', icon: 'ruleset_worldsapart.svg' },
-        'dnd5e': { name: 'D&D 5e', icon: 'ruleset_5e_2024.svg' },
-        '5e2024': { name: 'D&D 5e', icon: 'ruleset_5e_2024.svg' },
-        'htbah': { name: 'How To Be A Hero', icon: 'ruleset_htbah.svg' },
-        'cyberpunkred': { name: 'Cyberpunk RED', icon: 'ruleset_cyberpunkred.svg' },
-        'cyberpunk': { name: 'Cyberpunk RED', icon: 'ruleset_cyberpunkred.svg' }
-    };
-    const SHEET = {
-        'worldsapart': '/sheet/worldsapart',
-        'dnd5e': '/sheet/5e-de',
-        'htbah': '/sheet/htbah',
-        'cyberpunkred': '/sheet/cyberpunk'
-    };
-    const riftLogo = '<svg viewBox="0 0 100 100" fill="currentColor" opacity="0.3" width="28" height="28"><path d="M20 20h25v60h-25zM55 20h25v25h-25zM55 55h25l-25 25z"/></svg>';
-    const personIcon = '<svg viewBox="0 0 24 24" fill="currentColor" opacity="0.4" width="24" height="24"><path d="M12 2a5 5 0 1 1-5 5 5 5 0 0 1 5-5m2 12h-4a5 5 0 0 0-5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a5 5 0 0 0-5-5"/></svg>';
+    var WD = ['SO','MO','DI','MI','DO','FR','SA'];
+    var MN = ['Jan','Feb','M\u00e4r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    var riftLogo = '<svg viewBox="0 0 100 100" fill="currentColor" opacity="0.3" width="28" height="28"><path d="M20 20h25v60h-25zM55 20h25v25h-25zM55 55h25l-25 25z"/></svg>';
+    var personIcon = '<svg viewBox="0 0 24 24" fill="currentColor" opacity="0.4" width="24" height="24"><path d="M12 2a5 5 0 1 1-5 5 5 5 0 0 1 5-5m2 12h-4a5 5 0 0 0-5 5v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a5 5 0 0 0-5-5"/></svg>';
     
-    // ========================
-    // SESSIONS — direct from Firestore, up to 3
-    // ========================
-    function populateSessions() {
-        const roomCode = localStorage.getItem('rift_current_room');
-        const container = document.getElementById('meganavSessionList');
+    function renderSessions(sessions) {
+        var container = document.getElementById('meganavSessionList');
         if (!container) return;
-        console.log('[MegaNav] populateSessions, room:', roomCode, 'retries:', populateSessions._retries || 0);
         
-        if (!roomCode) {
-            container.innerHTML = '<div class="meganav__banner-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Kein Raum aktiv</span></div>';
-            return;
-        }
-        
-        // Check Firestore is actually initialized (not just the function existing)
-        const db = window.RIFT?.firebase?.getFirestore?.();
-        if (!db || !window.RIFT?.rooms?.subscribeToSessions) {
-            if (!populateSessions._retries) populateSessions._retries = 0;
-            if (populateSessions._retries < 15) {
-                populateSessions._retries++;
-                setTimeout(populateSessions, 1500);
-                return;
-            }
+        if (!sessions || sessions.length === 0) {
             container.innerHTML = '<div class="meganav__banner-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Keine geplanten Sessions</span></div>';
             return;
         }
         
-        RIFT.rooms.subscribeToSessions(roomCode, (sessions) => {
-            if (!document.getElementById('meganavSessionList')) return;
-            const now = new Date(); now.setHours(0, 0, 0, 0);
-            
-            // Live/paused first, then upcoming by date, max 3
-            const live = sessions.filter(s => s.status === 'live' || s.status === 'paused');
-            const upcoming = sessions
-                .filter(s => s.status !== 'ended' && s.status !== 'live' && s.status !== 'paused' && new Date(s.date) >= now)
-                .sort((a, b) => new Date(a.date) - new Date(b.date));
-            const show = [...live, ...upcoming].slice(0, 3);
-            console.log('[MegaNav] Sessions:', sessions.length, 'total, live:', live.length, 'upcoming:', upcoming.length, 'showing:', show.length);
-            
-            const ct = document.getElementById('meganavSessionList');
-            if (show.length === 0) {
-                ct.innerHTML = '<div class="meganav__banner-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Keine geplanten Sessions</span></div>';
-                return;
+        var show = sessions.slice(0, 3);
+        container.innerHTML = show.map(function(s) {
+            var ri = window.RiftContext ? RiftContext.getRulesetInfo(s.ruleset) : { name: 'RPG', icon: 'ruleset_worldsapart.svg' };
+            var d = s.date ? new Date(s.date) : null;
+            var isLive = s.status === 'live' || s.status === 'paused';
+            var coverHtml = s.coverUrl ? '<img src="' + s.coverUrl + '" alt="">' : riftLogo;
+            var subtitle = s.subtitle || (s.description ? s.description.substring(0, 60) + (s.description.length > 60 ? '...' : '') : '');
+            var dateHtml = '';
+            if (isLive) {
+                dateHtml = '<div class="meganav__banner-date meganav__banner-date--live"><span class="meganav__banner-date-day">LIVE</span></div>';
+            } else if (d) {
+                dateHtml = '<div class="meganav__banner-date">' +
+                    '<span class="meganav__banner-date-day">' + WD[d.getDay()] + '</span>' +
+                    '<span class="meganav__banner-date-num">' + String(d.getDate()).padStart(2, '0') + '</span>' +
+                    '<span class="meganav__banner-date-month">' + MN[d.getMonth()] + '</span>' +
+                '</div>';
             }
-            
-            ct.innerHTML = show.map(function(s) {
-                var rs = RS[s.ruleset] || RS['worldsapart'];
-                var d = s.date ? new Date(s.date) : null;
-                var isLive = s.status === 'live' || s.status === 'paused';
-                var coverHtml = s.coverUrl
-                    ? '<img src="' + s.coverUrl + '" alt="">'
-                    : riftLogo;
-                var subtitle = s.subtitle || (s.description ? s.description.substring(0, 60) + (s.description.length > 60 ? '...' : '') : '');
-                var dateHtml = '';
-                if (isLive) {
-                    dateHtml = '<div class="meganav__banner-date meganav__banner-date--live"><span class="meganav__banner-date-day">LIVE</span></div>';
-                } else if (d) {
-                    dateHtml = '<div class="meganav__banner-date">' +
-                        '<span class="meganav__banner-date-day">' + WD[d.getDay()] + '</span>' +
-                        '<span class="meganav__banner-date-num">' + String(d.getDate()).padStart(2, '0') + '</span>' +
-                        '<span class="meganav__banner-date-month">' + MN[d.getMonth()] + '</span>' +
-                    '</div>';
-                }
-                
-                return '<a href="/session?id=' + s.id + '" class="meganav__banner meganav__banner--session">' +
-                    '<div class="meganav__banner-cover">' + coverHtml + '</div>' +
-                    '<div class="meganav__banner-info">' +
-                        '<div class="meganav__banner-meta"><img src="/assets/img/rulesets/' + rs.icon + '" alt="" style="width:14px;height:14px;border-radius:3px;"> ' + rs.name + '</div>' +
-                        '<div class="meganav__banner-title">' + (s.name || 'Session') + '</div>' +
-                        (subtitle ? '<div class="meganav__banner-subtitle">' + subtitle + '</div>' : '') +
-                    '</div>' +
-                    dateHtml +
-                '</a>';
-            }).join('');
-        });
+            return '<a href="/session?id=' + s.id + '" class="meganav__banner meganav__banner--session">' +
+                '<div class="meganav__banner-cover">' + coverHtml + '</div>' +
+                '<div class="meganav__banner-info">' +
+                    '<div class="meganav__banner-meta"><img src="/assets/img/rulesets/' + ri.icon + '" alt="" style="width:14px;height:14px;border-radius:3px;"> ' + ri.name + '</div>' +
+                    '<div class="meganav__banner-title">' + (s.name || 'Session') + '</div>' +
+                    (subtitle ? '<div class="meganav__banner-subtitle">' + subtitle + '</div>' : '') +
+                '</div>' +
+                dateHtml +
+            '</a>';
+        }).join('');
     }
     
-    // ========================
-    // CHARACTER — direct from CharacterStorage (same logic as Dock)
-    // ========================
-    function populateCharacter() {
+    function renderCharacter(character, characterId, ruleset) {
         var container = document.getElementById('meganavCharContainer');
         if (!container) return;
         
-        var retryCount = populateCharacter._retries || 0;
-        console.log('[MegaNav] populateCharacter attempt', retryCount);
-        
-        var charData = null;
-        var charId = null;
-        var ruleset = 'worldsapart';
-        
-        var isValid = function(d) { return d && d.name && d.name.trim() !== ''; };
-        
-        // Determine focused ruleset (same logic as initDockCharacterCard)
-        if (window.RIFT && window.RIFT.focus && typeof RIFT.focus.getRuleset === 'function') {
-            var fr = RIFT.focus.getRuleset();
-            if (fr) ruleset = fr;
-        }
-        if (ruleset === 'worldsapart') {
-            try {
-                var fd = JSON.parse(localStorage.getItem('rift_room_focus') || 'null');
-                if (fd && fd.ruleset) ruleset = fd.ruleset;
-            } catch (e) {}
-            try {
-                var asd = localStorage.getItem('rift_active_session');
-                var ssd = localStorage.getItem('rift_sessions');
-                if (asd && ssd) {
-                    var as = JSON.parse(asd);
-                    var ss = JSON.parse(ssd);
-                    var fs = ss.find(function(s) { return s.id === as.id; });
-                    if (fs && fs.ruleset) ruleset = fs.ruleset;
-                }
-            } catch (e) {}
-        }
-        
-        // Normalize ruleset to match CharacterStorage keys
-        var rulesetNorm = { '5e2024': 'dnd5e', 'cyberpunk': 'cyberpunkred' };
-        if (rulesetNorm[ruleset]) ruleset = rulesetNorm[ruleset];
-        
-        // Source 1: worldsapart_character_v5 (only for WA ruleset)
-        if (ruleset === 'worldsapart') {
-            try {
-                var raw = localStorage.getItem('worldsapart_character_v5');
-                if (raw) {
-                    var p = JSON.parse(raw);
-                    if (isValid(p)) { charData = p; charId = p.id || 'local'; }
-                }
-            } catch (e) {}
-        }
-        
-        // Source 2: CharacterStorage
-        if (!charData && typeof CharacterStorage !== 'undefined') {
-            var main = CharacterStorage.getMainCharacter(ruleset);
-            console.log('[MegaNav] CharacterStorage.getMainCharacter(' + ruleset + '):', main ? main.name : 'null');
-            if (isValid(main)) { charData = main; charId = main.id; }
-            if (!charData) {
-                var all = CharacterStorage.getAll();
-                var allKeys = Object.keys(all);
-                console.log('[MegaNav] CharacterStorage.getAll():', allKeys.length, 'chars, keys:', allKeys.join(','));
-                var matches = Object.values(all).filter(function(c) { return isValid(c) && (c.ruleset || 'worldsapart') === ruleset; });
-                if (matches.length > 0) { charData = matches[0]; charId = charData.id; }
-            }
-            if (!charData) {
-                var all2 = CharacterStorage.getAll();
-                var any = Object.values(all2).filter(isValid);
-                if (any.length > 0) { charData = any[0]; charId = charData.id; ruleset = charData.ruleset || 'worldsapart'; }
-            }
-        }
-        
-        if (!charData) {
-            // CharacterStorage may exist but be empty because Firebase sync hasn't completed yet
-            if (!populateCharacter._retries) populateCharacter._retries = 0;
-            if (populateCharacter._retries < 20) {
-                populateCharacter._retries++;
-                var delay = populateCharacter._retries <= 5 ? 500 : 1500;
-                console.log('[MegaNav] No character found, retry', populateCharacter._retries, 'in', delay, 'ms. Ruleset:', ruleset);
-                setTimeout(populateCharacter, delay);
-            } else {
-                console.log('[MegaNav] No character found after 20 retries');
-            }
+        if (!character) {
             container.innerHTML = '<div class="meganav__banner-empty">' + personIcon + '<span>Kein Charakter geladen</span></div>';
             return;
         }
         
-        // Found a character — reset retries so future updates work
-        populateCharacter._retries = 0;
-        console.log('[MegaNav] Character found:', charData.name, 'ruleset:', ruleset);
+        var ri = window.RiftContext ? RiftContext.getRulesetInfo(ruleset) : { name: 'RPG', icon: 'ruleset_worldsapart.svg', sheet: '/sheet/worldsapart' };
+        var url = window.RiftContext ? RiftContext.getCharacterUrl() : (ri.sheet || '/sheet');
+        var name = character.name || 'Unbenannt';
         
-        // Build banner
-        var rs = RS[ruleset] || RS[charData.ruleset] || RS['worldsapart'];
-        var sheetUrl = SHEET[ruleset] || SHEET[charData.ruleset] || '/sheet/worldsapart';
-        var url = sheetUrl;
-        if (charId && charId !== 'local') {
-            url += '?id=' + charId;
-            var room = localStorage.getItem('rift_current_room');
-            if (room) url += '&room=' + room;
-        }
-        
-        var name = charData.name || 'Unbenannt';
+        // Class/species info
         var classInfo = '';
-        if (charData.header) {
+        if (character.header) {
             var parts = [];
-            if (charData.header.charClass) parts.push(charData.header.charClass);
-            if (charData.header.level) parts.push('Lvl ' + charData.header.level);
-            if (charData.header.species) parts.push(charData.header.species);
+            if (character.header.charClass) parts.push(character.header.charClass);
+            if (character.header.level) parts.push('Lvl ' + character.header.level);
+            if (character.header.species) parts.push(character.header.species);
             classInfo = parts.join(' \u00b7 ');
-        } else if (charData.spezies || charData.klasse || charData.archetyp) {
+        } else if (character.spezies || character.klasse || character.archetyp) {
             var parts2 = [];
-            if (charData.klasse) parts2.push(charData.klasse);
-            if (charData.archetyp) parts2.push(charData.archetyp);
-            if (charData.spezies) parts2.push(charData.spezies);
+            if (character.klasse) parts2.push(character.klasse);
+            if (character.archetyp) parts2.push(character.archetyp);
+            if (character.spezies) parts2.push(character.spezies);
             classInfo = parts2.join(' \u00b7 ');
         }
         
-        var portrait = charData.portraitUrl || charData.portrait || charData.imageUrl || (charData.data ? charData.data.portrait : null);
+        var portrait = character.portraitUrl || character.portrait || character.imageUrl || (character.data ? character.data.portrait : null);
         var hasPortrait = portrait && (portrait.startsWith('http') || portrait.startsWith('data:'));
         var portraitHtml = hasPortrait ? '<img src="' + portrait + '" alt="">' : personIcon;
         
         container.innerHTML = '<a href="' + url + '" class="meganav__banner meganav__banner--char">' +
             '<div class="meganav__banner-portrait">' + portraitHtml + '</div>' +
             '<div class="meganav__banner-info">' +
-                '<div class="meganav__banner-meta"><img src="/assets/img/rulesets/' + rs.icon + '" alt="" style="width:14px;height:14px;border-radius:3px;"> ' + rs.name + '</div>' +
+                '<div class="meganav__banner-meta"><img src="/assets/img/rulesets/' + ri.icon + '" alt="" style="width:14px;height:14px;border-radius:3px;"> ' + ri.name + '</div>' +
                 '<div class="meganav__banner-title">' + name + '</div>' +
                 (classInfo ? '<div class="meganav__banner-subtitle">' + classInfo + '</div>' : '') +
             '</div>' +
         '</a>';
     }
     
-    // ========================
-    // INIT — wait for dependencies, then populate
-    // ========================
-    function waitFor(check, fn, maxTries) {
-        if (check()) { fn(); return; }
-        var tries = 0;
-        var iv = setInterval(function() {
-            tries++;
-            if (check() || tries > (maxTries || 30)) { clearInterval(iv); fn(); }
-        }, 300);
-    }
-    
-    waitFor(function() {
-        return window.RIFT && window.RIFT.rooms && typeof RIFT.rooms.subscribeToSessions === 'function'
-            && window.RIFT.firebase && typeof RIFT.firebase.getFirestore === 'function' && RIFT.firebase.getFirestore();
-    }, populateSessions, 40);
-    waitFor(function() { return typeof CharacterStorage !== 'undefined'; }, populateCharacter, 40);
-    
-    // Safety net: retry both after auth completes (covers late Firebase init)
-    window.addEventListener('rift-auth-ready', function() {
-        setTimeout(populateSessions, 500);
-        setTimeout(populateCharacter, 500);
-    });
-    // Also retry when app.js finishes membership loading
-    window.addEventListener('rift-app-ready', function() {
-        setTimeout(populateSessions, 500);
-        setTimeout(populateCharacter, 500);
-    });
-    
-    // Re-populate character on ANY relevant change
-    window.addEventListener('storage', function(e) {
-        if (e.key === 'rift_characters' || e.key === 'worldsapart_character_v5' || e.key === 'rift_room_focus') {
-            setTimeout(populateCharacter, 200);
-        }
-    });
-    window.addEventListener('rift-character-saved', function() { setTimeout(populateCharacter, 200); });
-    // Listen for CharacterStorage Firebase sync completion
-    function attachCharChangedListener() {
-        if (window.RIFT && window.RIFT.state && typeof RIFT.state.on === 'function') {
-            RIFT.state.on('characters:changed', function() { setTimeout(populateCharacter, 200); });
-            return true;
-        }
-        return false;
-    }
-    if (!attachCharChangedListener()) {
-        // RIFT.state not ready yet, retry
-        var stateIv = setInterval(function() {
-            if (attachCharChangedListener()) clearInterval(stateIv);
-        }, 1000);
-        setTimeout(function() { clearInterval(stateIv); }, 30000);
-    }
-    if (window.RIFT && window.RIFT.focus && typeof RIFT.focus.subscribe === 'function') {
-        RIFT.focus.subscribe(function() { setTimeout(populateCharacter, 200); });
+    // Subscribe to RiftContext — single source of truth
+    if (window.RiftContext) {
+        RiftContext.subscribe(function(state) {
+            renderSessions(state.sessions);
+            renderCharacter(state.character, state.characterId, state.ruleset);
+        });
+    } else {
+        // RiftContext not loaded — show empty state
+        renderSessions([]);
+        renderCharacter(null, null, 'worldsapart');
     }
 }
 
