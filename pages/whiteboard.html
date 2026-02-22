@@ -255,6 +255,7 @@
         .wb-combat-float--damage { color: #ff4444; }
         .wb-combat-float--heal { color: #22c55e; }
         .wb-combat-float--miss { color: #888; font-size: 16px; }
+        @keyframes token-flash { 0% { opacity: 0.8; transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.8); } }
         .wb-combat-float--crit { font-size: 30px; color: #fbbf24; }
         @keyframes combat-float { 0% { opacity: 1; transform: translateY(0) scale(0.5); } 15% { opacity: 1; transform: translateY(-8px) scale(1.2); } 30% { transform: translateY(-16px) scale(1); } 80% { opacity: 0.8; transform: translateY(-50px); } 100% { opacity: 0; transform: translateY(-70px); } }
         
@@ -4100,22 +4101,22 @@ const WB = {
         const isNat1 = atkRoll === 1;
         const hit = isNat20 || (!isNat1 && atkTotal >= targetAC);
         
-        // Show attack roll on attacker
+        // Phase 1: Show attack roll on attacker (immediate)
         this.showDiceResult(attacker, atkTotal, {
             die: 20, count: 1, mod: atkBonus, rolls: [atkRoll],
             label: `${weaponName} vs AC ${targetAC}`,
             nat20: isNat20, nat1: isNat1
         });
         
-        // Draw attack line from attacker to target
-        this.showAttackLine(attacker, target, hit);
+        // Phase 2: Animated attack line flies to target (300ms delay)
+        setTimeout(() => this.showAttackLine(attacker, target, hit, isNat20), 300);
         
+        // Phase 3: Impact effects (line travel time ~400ms + 300ms delay = 700ms)
         if (hit) {
-            // Roll damage
             const d = this.parseDice(dmgDice);
             let dmgRolls = [];
             let dmgTotal = 0;
-            const rollCount = isNat20 ? d.count * 2 : d.count; // Crit = double dice
+            const rollCount = isNat20 ? d.count * 2 : d.count;
             for (let i = 0; i < rollCount; i++) {
                 const r = Math.floor(Math.random() * d.die) + 1;
                 dmgRolls.push(r);
@@ -4124,8 +4125,12 @@ const WB = {
             dmgTotal += d.mod;
             dmgTotal = Math.max(1, dmgTotal);
             
-            // Apply damage after short delay (let attack roll show first)
             setTimeout(() => {
+                // Impact!
+                this.screenShake(isNat20 ? 'heavy' : 'light');
+                this.tokenFlash(target, isNat20 ? '#fbbf24' : '#ef4444');
+                this.impactParticles(target, isNat20 ? 12 : 6, isNat20 ? '#fbbf24' : '#f97316');
+                
                 target.hp = Math.max(0, target.hp - dmgTotal);
                 this.showCombatFloat(target, dmgTotal, 'damage');
                 this.syncToken(target);
@@ -4136,74 +4141,235 @@ const WB = {
                 const critStr = isNat20 ? ' KRITISCH!' : '';
                 const rollsStr = dmgRolls.length > 1 ? ` (${dmgRolls.join('+')}${d.mod ? (d.mod > 0 ? '+' + d.mod : d.mod) : ''})` : '';
                 this.toast(`${attacker.name} trifft ${target.name}!${critStr} ${dmgTotal} Schaden${rollsStr} (${target.hp}/${target.maxHp} HP)`);
-            }, 800);
+            }, 750);
         } else {
             setTimeout(() => {
                 this.showCombatFloat(target, 0, 'miss');
                 const failStr = isNat1 ? 'NAT 1! Kritischer Fehlschlag!' : `Verfehlt! (${atkTotal} vs AC ${targetAC})`;
                 this.toast(`${attacker.name} ${failStr}`);
-            }, 800);
+            }, 750);
         }
     },
     
-    showAttackLine(attacker, target, hit) {
+    showAttackLine(attacker, target, hit, isCrit) {
+        const wrapper = document.getElementById('canvasWrapper');
         const sx = attacker.x * this.zoom + this.panX;
         const sy = attacker.y * this.zoom + this.panY;
         const tx = target.x * this.zoom + this.panX;
         const ty = target.y * this.zoom + this.panY;
         
+        const dx = tx - sx, dy = ty - sy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        
         const el = document.createElement('div');
-        el.className = 'wb-attack-line';
-        el.style.cssText = `position:absolute;pointer-events:none;z-index:255;left:0;top:0;width:100%;height:100%`;
+        el.style.cssText = 'position:absolute;pointer-events:none;z-index:255;left:0;top:0;width:100%;height:100%';
         
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
-        svg.style.cssText = 'position:absolute;left:0;top:0;overflow:visible';
+        svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible';
         
-        // Arrow line
+        const color = isCrit ? '#fbbf24' : (hit ? '#f97316' : '#ef4444');
+        const glowColor = isCrit ? 'rgba(251,191,36,0.4)' : (hit ? 'rgba(249,115,22,0.3)' : 'rgba(239,68,68,0.2)');
+        
+        // Glow line (wide, semi-transparent)
+        const glow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        glow.setAttribute('x1', sx); glow.setAttribute('y1', sy);
+        glow.setAttribute('x2', sx); glow.setAttribute('y2', sy); // Starts at origin
+        glow.setAttribute('stroke', glowColor);
+        glow.setAttribute('stroke-width', isCrit ? '12' : '8');
+        glow.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(glow);
+        
+        // Main line
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         line.setAttribute('x1', sx); line.setAttribute('y1', sy);
-        line.setAttribute('x2', tx); line.setAttribute('y2', ty);
-        line.setAttribute('stroke', hit ? '#f97316' : '#ef4444');
-        line.setAttribute('stroke-width', '3');
-        line.setAttribute('stroke-dasharray', hit ? 'none' : '8 4');
-        line.setAttribute('opacity', '0.8');
+        line.setAttribute('x2', sx); line.setAttribute('y2', sy); // Starts at origin
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', isCrit ? '4' : '3');
+        line.setAttribute('stroke-linecap', 'round');
+        if (!hit) {
+            line.setAttribute('stroke-dasharray', '8 4');
+            glow.setAttribute('stroke-dasharray', '8 4');
+        }
         svg.appendChild(line);
         
-        // Impact circle on target
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', tx); circle.setAttribute('cy', ty);
-        circle.setAttribute('r', hit ? '16' : '12');
-        circle.setAttribute('fill', 'none');
-        circle.setAttribute('stroke', hit ? '#f97316' : '#ef4444');
-        circle.setAttribute('stroke-width', '2');
-        circle.setAttribute('opacity', '0.8');
-        svg.appendChild(circle);
-        
-        if (hit) {
-            // X mark on hit
-            const size = 8;
-            const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            l1.setAttribute('x1', tx - size); l1.setAttribute('y1', ty - size);
-            l1.setAttribute('x2', tx + size); l1.setAttribute('y2', ty + size);
-            l1.setAttribute('stroke', '#f97316'); l1.setAttribute('stroke-width', '3');
-            svg.appendChild(l1);
-            const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            l2.setAttribute('x1', tx + size); l2.setAttribute('y1', ty - size);
-            l2.setAttribute('x2', tx - size); l2.setAttribute('y2', ty + size);
-            l2.setAttribute('stroke', '#f97316'); l2.setAttribute('stroke-width', '3');
-            svg.appendChild(l2);
-        }
+        // Arrowhead
+        const arrowSize = 10;
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        arrow.setAttribute('fill', color);
+        arrow.setAttribute('opacity', '0');
+        svg.appendChild(arrow);
         
         el.appendChild(svg);
-        document.getElementById('canvasWrapper').appendChild(el);
+        wrapper.appendChild(el);
         
-        // Fade out and remove
-        el.style.opacity = '1';
-        el.style.transition = 'opacity 0.8s ease-out';
-        setTimeout(() => { el.style.opacity = '0'; }, 1800);
-        setTimeout(() => el.remove(), 2800);
+        // Animate line "flying" to target
+        const duration = Math.min(400, Math.max(200, dist * 0.4));
+        const start = performance.now();
+        
+        const animateLine = (now) => {
+            const t = Math.min(1, (now - start) / duration);
+            const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            
+            // For miss, offset the end point slightly
+            let endX = sx + dx * ease;
+            let endY = sy + dy * ease;
+            if (!hit && t > 0.7) {
+                // Deflect past target
+                const missOffset = 20 * (t - 0.7) / 0.3;
+                endX += Math.cos(angle + 0.3) * missOffset;
+                endY += Math.sin(angle + 0.3) * missOffset;
+            }
+            
+            line.setAttribute('x2', endX);
+            line.setAttribute('y2', endY);
+            glow.setAttribute('x2', endX);
+            glow.setAttribute('y2', endY);
+            
+            // Show arrowhead at leading edge
+            if (t > 0.3) {
+                const ax = endX, ay = endY;
+                const p1x = ax - arrowSize * Math.cos(angle - 0.4);
+                const p1y = ay - arrowSize * Math.sin(angle - 0.4);
+                const p2x = ax - arrowSize * Math.cos(angle + 0.4);
+                const p2y = ay - arrowSize * Math.sin(angle + 0.4);
+                arrow.setAttribute('points', `${ax},${ay} ${p1x},${p1y} ${p2x},${p2y}`);
+                arrow.setAttribute('opacity', Math.min(1, (t - 0.3) * 3));
+            }
+            
+            if (t < 1) {
+                requestAnimationFrame(animateLine);
+            } else {
+                // Impact ring (expanding circle at target)
+                if (hit) {
+                    const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    ring.setAttribute('cx', tx); ring.setAttribute('cy', ty);
+                    ring.setAttribute('r', '5');
+                    ring.setAttribute('fill', 'none');
+                    ring.setAttribute('stroke', color);
+                    ring.setAttribute('stroke-width', isCrit ? '4' : '2');
+                    svg.appendChild(ring);
+                    
+                    const ringStart = performance.now();
+                    const animateRing = (now) => {
+                        const rt = Math.min(1, (now - ringStart) / 400);
+                        const r = 5 + 35 * rt;
+                        ring.setAttribute('r', r);
+                        ring.setAttribute('opacity', 1 - rt);
+                        if (rt < 1) requestAnimationFrame(animateRing);
+                    };
+                    requestAnimationFrame(animateRing);
+                    
+                    // Second ring for crits
+                    if (isCrit) {
+                        setTimeout(() => {
+                            const ring2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                            ring2.setAttribute('cx', tx); ring2.setAttribute('cy', ty);
+                            ring2.setAttribute('r', '5');
+                            ring2.setAttribute('fill', 'none');
+                            ring2.setAttribute('stroke', '#fff');
+                            ring2.setAttribute('stroke-width', '2');
+                            svg.appendChild(ring2);
+                            const r2Start = performance.now();
+                            const animateR2 = (now) => {
+                                const rt = Math.min(1, (now - r2Start) / 500);
+                                ring2.setAttribute('r', 5 + 50 * rt);
+                                ring2.setAttribute('opacity', 0.8 * (1 - rt));
+                                if (rt < 1) requestAnimationFrame(animateR2);
+                            };
+                            requestAnimationFrame(animateR2);
+                        }, 100);
+                    }
+                }
+                
+                // Fade out entire element
+                setTimeout(() => {
+                    el.style.transition = 'opacity 0.6s ease-out';
+                    el.style.opacity = '0';
+                }, 1200);
+                setTimeout(() => el.remove(), 2000);
+            }
+        };
+        requestAnimationFrame(animateLine);
+    },
+    
+    screenShake(intensity) {
+        const wrapper = document.getElementById('canvasWrapper');
+        const px = intensity === 'heavy' ? 6 : 3;
+        const dur = intensity === 'heavy' ? 300 : 180;
+        const steps = intensity === 'heavy' ? 6 : 4;
+        let step = 0;
+        
+        const shake = () => {
+            if (step >= steps) {
+                wrapper.style.transform = '';
+                return;
+            }
+            const x = (Math.random() - 0.5) * px * 2 * (1 - step / steps);
+            const y = (Math.random() - 0.5) * px * 2 * (1 - step / steps);
+            wrapper.style.transform = `translate(${x}px, ${y}px)`;
+            step++;
+            setTimeout(shake, dur / steps);
+        };
+        shake();
+    },
+    
+    tokenFlash(token, color) {
+        // Find token DOM element and flash it
+        const els = document.querySelectorAll('.wb-token');
+        els.forEach(el => {
+            if (el.dataset?.id === token.id || el.querySelector?.('[data-id="' + token.id + '"]')) {
+                el.style.transition = 'box-shadow 0.1s ease-in';
+                el.style.boxShadow = `0 0 0 6px ${color}, 0 0 30px ${color}`;
+                setTimeout(() => {
+                    el.style.transition = 'box-shadow 0.4s ease-out';
+                    el.style.boxShadow = '';
+                }, 200);
+            }
+        });
+        // Also flash by searching by position
+        const sx = token.x * this.zoom + this.panX;
+        const sy = token.y * this.zoom + this.panY;
+        const flash = document.createElement('div');
+        flash.style.cssText = `position:absolute;pointer-events:none;z-index:260;border-radius:50%;
+            width:${token.size * this.zoom + 16}px;height:${token.size * this.zoom + 16}px;
+            left:${sx}px;top:${sy}px;transform:translate(-50%,-50%);
+            background:radial-gradient(circle,${color}44 0%,transparent 70%);
+            animation:token-flash 0.5s ease-out forwards`;
+        document.getElementById('canvasWrapper').appendChild(flash);
+        setTimeout(() => flash.remove(), 600);
+    },
+    
+    impactParticles(token, count, color) {
+        const sx = token.x * this.zoom + this.panX;
+        const sy = token.y * this.zoom + this.panY;
+        const wrapper = document.getElementById('canvasWrapper');
+        
+        for (let i = 0; i < count; i++) {
+            const p = document.createElement('div');
+            const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.8;
+            const dist = 30 + Math.random() * 50;
+            const size = 3 + Math.random() * 4;
+            const duration = 400 + Math.random() * 300;
+            
+            p.style.cssText = `position:absolute;pointer-events:none;z-index:261;
+                width:${size}px;height:${size}px;border-radius:50%;background:${color};
+                left:${sx}px;top:${sy}px;transform:translate(-50%,-50%);
+                box-shadow:0 0 ${size * 2}px ${color};opacity:1;
+                transition:all ${duration}ms cubic-bezier(0.22,1,0.36,1)`;
+            
+            wrapper.appendChild(p);
+            
+            // Trigger animation next frame
+            requestAnimationFrame(() => {
+                p.style.left = (sx + Math.cos(angle) * dist) + 'px';
+                p.style.top = (sy + Math.sin(angle) * dist) + 'px';
+                p.style.opacity = '0';
+                p.style.transform = 'translate(-50%,-50%) scale(0.2)';
+            });
+            
+            setTimeout(() => p.remove(), duration + 100);
+        }
     },
     
     rollQuickDice(token, die, count, mod, label) {
