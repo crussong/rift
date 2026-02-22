@@ -4342,7 +4342,17 @@
         document.getElementById('confirmDeleteBtn')?.addEventListener('click', async () => {
             if (!sessionData) return;
             
-            // Delete from localStorage
+            // Delete from Firestore (primary source)
+            if (currentRoomCode && RIFT?.rooms?.deleteSession) {
+                try {
+                    await RIFT.rooms.deleteSession(currentRoomCode, sessionData.id);
+                    console.log('[Session] Deleted from Firestore:', sessionData.id);
+                } catch (e) {
+                    console.warn('[Session] Firestore delete failed:', e);
+                }
+            }
+            
+            // Delete from localStorage (fallback/cache)
             const sessions = JSON.parse(localStorage.getItem('rift_sessions') || '[]');
             const filtered = sessions.filter(s => s.id !== sessionData.id);
             localStorage.setItem('rift_sessions', JSON.stringify(filtered));
@@ -4357,6 +4367,14 @@
             const activeSession = JSON.parse(localStorage.getItem('rift_active_session') || 'null');
             if (activeSession && activeSession.id === sessionData.id) {
                 localStorage.removeItem('rift_active_session');
+            }
+            
+            // Clear focus if this session was focused
+            if (window.RIFT?.focus?.get) {
+                const focus = RIFT.focus.get();
+                if (focus && focus.sessionId === sessionData.id) {
+                    RIFT.focus.clear();
+                }
             }
             
             document.getElementById('deleteModal').classList.remove('delete-modal--open');

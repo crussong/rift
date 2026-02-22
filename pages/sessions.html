@@ -2105,10 +2105,16 @@
         
         function renderSessions() {
             // Use Firebase sessions (already filtered by room via subscription)
-            const sessions = firebaseSessions;
+            // Deduplicate by session ID (safety net against double-creation)
+            const seen = new Set();
+            const sessions = firebaseSessions.filter(s => {
+                if (seen.has(s.id)) return false;
+                seen.add(s.id);
+                return true;
+            });
             const currentUserId = window.currentUser?.uid || null;
             
-            console.log('[Sessions] Rendering', sessions.length, 'sessions');
+            console.log('[Sessions] Rendering', sessions.length, 'sessions (deduped from', firebaseSessions.length, ')');
             
             // Separate upcoming and past sessions
             const today = new Date();
