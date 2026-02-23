@@ -260,10 +260,34 @@
         .wb-dice-btn.active { background:rgba(139,92,246,0.2);border-color:#8b5cf6;color:#a78bfa }
         .wb-dice-badge { position:absolute;bottom:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;background:#1a1a1a;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;pointer-events:none }
         .wb-dice-btn.active .wb-dice-badge { background:#8b5cf6;border-color:#8b5cf6;color:white }
+        @keyframes wbDiceSpin { 
+            0% { transform: rotateX(0) rotateY(0) rotateZ(0) scale(0.3); opacity:0 } 
+            20% { opacity:1; transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg) scale(1.1) }
+            50% { transform: rotateX(360deg) rotateY(270deg) rotateZ(180deg) scale(1) }
+            70% { transform: rotateX(500deg) rotateY(400deg) rotateZ(270deg) scale(0.95) }
+            100% { transform: rotateX(720deg) rotateY(540deg) rotateZ(360deg) scale(1); opacity:1 }
+        }
+        @keyframes wbDiceLand { 
+            0% { transform: scale(1) translateY(0) } 
+            30% { transform: scale(1.15) translateY(-8px) }
+            60% { transform: scale(0.95) translateY(2px) }
+            100% { transform: scale(1) translateY(0) }
+        }
         @keyframes wbDiceFadeIn { from { opacity:0 } to { opacity:1 } }
         @keyframes wbDiceFadeOut { from { opacity:1 } to { opacity:0 } }
-        #wbDiceViewport canvas { pointer-events: none; }
-        #wbDiceOverlay[style*="pointer-events: auto"] #wbDiceViewport canvas { pointer-events: auto; }
+        @keyframes wbDiceGlow { 0%,100% { box-shadow: 0 0 20px rgba(139,92,246,0.4), inset 0 0 15px rgba(139,92,246,0.1) } 50% { box-shadow: 0 0 40px rgba(139,92,246,0.7), inset 0 0 25px rgba(139,92,246,0.2) } }
+        .wb-anim-die {
+            width: 100px; height: 100px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-family: 'Inter', sans-serif; font-size: 36px; font-weight: 900; color: white;
+            background: linear-gradient(135deg, #2d1f5e 0%, #1a1035 50%, #0f0a20 100%);
+            border: 2px solid rgba(139,92,246,0.5); position: relative; user-select: none;
+            box-shadow: 0 0 20px rgba(139,92,246,0.3), 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            animation: wbDiceSpin 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .wb-anim-die.landed { animation: wbDiceLand 0.3s ease-out, wbDiceGlow 2s ease-in-out infinite; }
+        .wb-anim-die .die-type { position:absolute;top:4px;right:8px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:0.5px }
+        .wb-anim-die.nat20 { background: linear-gradient(135deg, #5a3e0a 0%, #3d2a06 50%, #1a1200 100%); border-color: rgba(251,191,36,0.7); box-shadow: 0 0 30px rgba(251,191,36,0.5), 0 8px 24px rgba(0,0,0,0.5); color: #fbbf24 }
+        .wb-anim-die.nat1 { background: linear-gradient(135deg, #5e1f1f 0%, #351010 50%, #200a0a 100%); border-color: rgba(239,68,68,0.7); box-shadow: 0 0 30px rgba(239,68,68,0.5), 0 8px 24px rgba(0,0,0,0.5); color: #ef4444 }
         .wb-combat-float--miss { color: #888; font-size: 16px; }
         @keyframes token-flash { 0% { opacity: 0.8; transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.8); } }
         .wb-combat-float--crit { font-size: 30px; color: #fbbf24; }
@@ -780,10 +804,11 @@
                         <div class="wb-radius-origin" id="moveOrigin"></div>
                         <div class="wb-radius-distance" id="moveDistance"></div>
                         <!-- 3D Dice Fullscreen Overlay (always present, backdrop toggles) -->
-                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:600;pointer-events:none">
-                            <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;transition:opacity 0.25s ease-out;pointer-events:none"></div>
-                            <div id="wbDiceViewport" style="position:absolute;top:0;left:0;width:100%;height:100%"></div>
-                            <div id="wbDiceLabel" style="position:absolute;bottom:32px;left:0;right:0;text-align:center;font-size:16px;font-weight:700;color:rgba(255,255,255,0.6);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:1px;text-transform:uppercase;opacity:0;transition:opacity 0.25s ease-out"></div>
+                        <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:600;pointer-events:none;display:none">
+                            <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)"></div>
+                            <div id="wbDiceStage" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;padding:40px"></div>
+                            <div id="wbDiceResult" style="position:absolute;bottom:80px;left:0;right:0;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s"></div>
+                            <div id="wbDiceLabel" style="position:absolute;bottom:36px;left:0;right:0;text-align:center;font-size:15px;font-weight:600;color:rgba(255,255,255,0.5);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:1px;text-transform:uppercase"></div>
                         </div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
@@ -1374,10 +1399,7 @@
     <script src="/assets/js/layout.js"></script>
     <script src="/assets/js/layout-unified.js"></script>
     <!-- 3D Dice Libraries -->
-    <script src="/assets/libs/dice/teal.js"></script>
-    <script src="/assets/libs/dice/three.min.js"></script>
-    <script src="/assets/libs/dice/cannon.min.js"></script>
-    <script src="/assets/libs/dice/dice-new.js?v=17"></script>
+    <!-- Dice libraries removed - using CSS animated dice on whiteboard -->
     <script src="/assets/js/settings.js"></script>
     <script src="/assets/js/admin.js"></script>
     <script src="/assets/js/transitions.js"></script>
@@ -9506,25 +9528,17 @@ const WB = {
 // WHITEBOARD 3D DICE TRAY
 // ========================================
 const WBDice = {
-    box: null,
     currentDice: {},
     isRolling: false,
     trayOpen: false,
-    
+    diceRef: null,
+
     init() {
-        // Inject dock dice button
         this.injectDockButton();
-        
-        // Init 3D dice box with retry
-        this._initAttempts = 0;
-        this._tryInitBox();
-        
-        // Wire dice buttons
         document.querySelectorAll('.wb-dice-btn').forEach(btn => {
             btn.onclick = () => this.addDie(btn.dataset.die);
             btn.oncontextmenu = e => { e.preventDefault(); this.removeDie(btn.dataset.die); };
         });
-        
         document.getElementById('wbDiceRollBtn').onclick = () => this.roll();
         document.getElementById('wbDiceClear').onclick = () => this.clearDice();
         document.getElementById('wbDiceModMinus').onclick = () => {
@@ -9538,423 +9552,302 @@ const WBDice = {
             this.updateNotation();
         };
         document.getElementById('wbDiceModifier').oninput = () => this.updateNotation();
-        
-        // Listen for remote dice rolls (delay for Firebase connection)
         setTimeout(() => this.initMultiplayer(), 3000);
     },
-    
-    _tryInitBox() {
-        const viewport = document.getElementById('wbDiceViewport');
-        if (!viewport || typeof DICE === 'undefined') {
-            this._initAttempts++;
-            if (this._initAttempts < 30) setTimeout(() => this._tryInitBox(), 500);
-            return;
-        }
-        
-        const w = viewport.clientWidth;
-        const h = viewport.clientHeight;
-        console.log('[WBDice] Init attempt, viewport:', w, 'x', h);
-        
-        if (w === 0 || h === 0) {
-            this._initAttempts++;
-            if (this._initAttempts < 30) setTimeout(() => this._tryInitBox(), 500);
-            return;
-        }
-        
-        try {
-            this.box = new DICE.dice_box(viewport);
-            console.log('[WBDice] 3D dice box created!', w, 'x', h);
-            // CRITICAL: Set dice appearance - without this, textures are null and dice are invisible
-            if (typeof DICE.setDiceColor === 'function') {
-                DICE.setDiceColor('#8b5cf6', null, null, null, null, null);
-            }
-        } catch(e) {
-            console.error('[WBDice] dice_box creation failed:', e);
-        }
-    },
-    
-    _ensureBox() {
-        if (this.box) return true;
-        const viewport = document.getElementById('wbDiceViewport');
-        if (!viewport || typeof DICE === 'undefined') return false;
-        if (viewport.clientWidth === 0 || viewport.clientHeight === 0) return false;
-        try {
-            this.box = new DICE.dice_box(viewport);
-            if (typeof DICE.setDiceColor === 'function') {
-                DICE.setDiceColor('#8b5cf6', null, null, null, null, null);
-            }
-            console.log('[WBDice] 3D dice initialized (ensureBox)', viewport.clientWidth, 'x', viewport.clientHeight);
-            return true;
-        } catch(e) {
-            console.error('[WBDice] Init failed:', e);
-            return false;
-        }
-    },
-    
-    _showViewport(label) {
-        const overlay = document.getElementById('wbDiceOverlay');
-        const backdrop = document.getElementById('wbDiceBackdrop');
-        const lbl = document.getElementById('wbDiceLabel');
-        if (overlay) overlay.style.pointerEvents = 'auto';
-        if (backdrop) {
-            backdrop.style.pointerEvents = 'auto';
-            backdrop.style.transition = 'opacity 0.25s ease-out';
-            backdrop.style.opacity = '1';
-        }
-        if (lbl) {
-            lbl.textContent = label || '';
-            lbl.style.transition = 'opacity 0.25s ease-out';
-            lbl.style.opacity = '1';
-        }
-        
-        if (!this.box) this._ensureBox();
-    },
-    
-    _hideViewport(delay) {
-        setTimeout(() => {
-            const overlay = document.getElementById('wbDiceOverlay');
-            const backdrop = document.getElementById('wbDiceBackdrop');
-            const lbl = document.getElementById('wbDiceLabel');
-            if (backdrop) {
-                backdrop.style.transition = 'opacity 0.4s ease-in';
-                backdrop.style.opacity = '0';
-            }
-            if (lbl) {
-                lbl.style.transition = 'opacity 0.4s ease-in';
-                lbl.style.opacity = '0';
-            }
-            setTimeout(() => {
-                if (overlay) overlay.style.pointerEvents = 'none';
-                if (backdrop) backdrop.style.pointerEvents = 'none';
-                try { if (this.box) this.box.clear(); } catch(e) {}
-            }, 400);
-        }, delay || 0);
-    },
-    
+
     injectDockButton() {
-        // Add floating dice button above dock
-        const btn = document.createElement('button');
+        if (document.getElementById('wbDiceToggle')) return;
+        const btn = document.createElement('div');
         btn.id = 'wbDiceToggle';
-        btn.title = 'Würfelleiste ein/ausblenden';
-        btn.style.cssText = 'position:fixed;bottom:calc(var(--dock-height,72px) + 8px);right:16px;z-index:9001;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:2px solid rgba(139,92,246,0.5);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(139,92,246,0.3);transition:all 0.2s';
-        btn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="3"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/></svg>';
+        btn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="3"/><circle cx="8" cy="8" r="1.5" fill="white"/><circle cx="16" cy="8" r="1.5" fill="white"/><circle cx="12" cy="12" r="1.5" fill="white"/><circle cx="8" cy="16" r="1.5" fill="white"/><circle cx="16" cy="16" r="1.5" fill="white"/></svg>';
+        btn.style.cssText = 'position:fixed;bottom:70px;right:20px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:800;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:transform 0.2s';
         btn.onclick = () => this.toggleTray();
+        btn.onmouseenter = () => btn.style.transform = 'scale(1.1)';
+        btn.onmouseleave = () => btn.style.transform = '';
         document.body.appendChild(btn);
     },
-    
+
     toggleTray() {
         this.trayOpen = !this.trayOpen;
         const tray = document.getElementById('wbDiceTray');
-        const btn = document.getElementById('wbDiceToggle');
-        tray.style.display = this.trayOpen ? 'block' : 'none';
-        if (btn) btn.style.background = this.trayOpen ? 'linear-gradient(135deg,#6d28d9,#4c1d95)' : 'linear-gradient(135deg,#8b5cf6,#6d28d9)';
+        if (tray) tray.style.display = this.trayOpen ? 'flex' : 'none';
     },
-    
+
     addDie(type) {
         this.currentDice[type] = (this.currentDice[type] || 0) + 1;
-        this.updateUI();
+        this.updateNotation();
+        this.updateBadges();
     },
-    
+
     removeDie(type) {
-        if (this.currentDice[type] > 0) {
-            this.currentDice[type]--;
-            if (this.currentDice[type] === 0) delete this.currentDice[type];
-        }
-        this.updateUI();
+        if (this.currentDice[type] > 0) this.currentDice[type]--;
+        if (this.currentDice[type] === 0) delete this.currentDice[type];
+        this.updateNotation();
+        this.updateBadges();
     },
-    
+
     clearDice() {
         this.currentDice = {};
-        document.getElementById('wbDiceModifier').value = 0;
-        this.updateUI();
-    },
-    
-    updateUI() {
-        const types = ['d4','d6','d8','d10','d12','d20','d100'];
-        let total = 0;
-        types.forEach(t => {
-            const c = this.currentDice[t] || 0;
-            total += c;
-            const badge = document.getElementById('wb-dc-' + t);
-            const btn = badge?.closest('.wb-dice-btn');
-            if (badge) badge.textContent = c;
-            if (btn) btn.classList.toggle('active', c > 0);
-        });
-        
-        const rollBtn = document.getElementById('wbDiceRollBtn');
-        rollBtn.disabled = total === 0;
-        rollBtn.style.opacity = total > 0 ? '1' : '0.4';
-        
+        document.getElementById('wbDiceModifier').value = '0';
         this.updateNotation();
+        this.updateBadges();
     },
-    
+
     updateNotation() {
         const parts = [];
         for (const [type, count] of Object.entries(this.currentDice)) {
-            if (count > 0) parts.push(`${count}${type.replace('d','W').toUpperCase()}`);
+            if (count > 0) parts.push(`${count}${type.replace('d', 'W')}`);
         }
-        const mod = parseInt(document.getElementById('wbDiceModifier')?.value) || 0;
-        let str = parts.join(' + ');
-        if (mod !== 0) str += (mod > 0 ? ' + ' : ' - ') + Math.abs(mod);
-        document.getElementById('wbDiceNotation').textContent = str || '';
+        const mod = parseInt(document.getElementById('wbDiceModifier').value) || 0;
+        if (mod > 0) parts.push(`+ ${mod}`);
+        else if (mod < 0) parts.push(`- ${Math.abs(mod)}`);
+        document.getElementById('wbDiceNotation').textContent = parts.join(' ') || '';
+        document.getElementById('wbDiceRollBtn').disabled = parts.length === 0 || (parts.length === 1 && mod !== 0);
     },
+
+    updateBadges() {
+        document.querySelectorAll('.wb-dice-btn').forEach(btn => {
+            const type = btn.dataset.die;
+            const count = this.currentDice[type] || 0;
+            let badge = btn.querySelector('.wb-dice-badge');
+            if (count > 0) {
+                if (!badge) { badge = document.createElement('span'); badge.className = 'wb-dice-badge'; btn.appendChild(badge); }
+                badge.textContent = count;
+                btn.classList.add('active');
+            } else {
+                if (badge) badge.remove();
+                btn.classList.remove('active');
+            }
+        });
+    },
+
+    // === ANIMATED DICE DISPLAY ===
     
+    _show(label) {
+        const overlay = document.getElementById('wbDiceOverlay');
+        const lbl = document.getElementById('wbDiceLabel');
+        const stage = document.getElementById('wbDiceStage');
+        const result = document.getElementById('wbDiceResult');
+        if (stage) stage.innerHTML = '';
+        if (result) { result.innerHTML = ''; result.style.opacity = '0'; }
+        if (lbl) lbl.textContent = label || '';
+        if (overlay) {
+            overlay.style.display = 'block';
+            overlay.style.pointerEvents = 'auto';
+            overlay.style.animation = 'wbDiceFadeIn 0.2s ease-out forwards';
+        }
+    },
+
+    _hide(delay) {
+        setTimeout(() => {
+            const overlay = document.getElementById('wbDiceOverlay');
+            if (overlay) {
+                overlay.style.animation = 'wbDiceFadeOut 0.4s ease-in forwards';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    overlay.style.pointerEvents = 'none';
+                }, 400);
+            }
+        }, delay || 0);
+    },
+
+    _animateDice(diceList, callback) {
+        // diceList: [{sides: 20, result: 14}, {sides: 6, result: 3}, ...]
+        const stage = document.getElementById('wbDiceStage');
+        stage.innerHTML = '';
+
+        const dieEls = [];
+        diceList.forEach((d, i) => {
+            const el = document.createElement('div');
+            el.className = 'wb-anim-die';
+            el.style.animationDelay = (i * 0.12) + 's';
+            el.innerHTML = `<span class="die-value">?</span><span class="die-type">W${d.sides}</span>`;
+            stage.appendChild(el);
+            dieEls.push({ el, data: d });
+        });
+
+        // Rapid number cycling during spin
+        let frame = 0;
+        const spinInterval = setInterval(() => {
+            frame++;
+            dieEls.forEach(({ el, data }) => {
+                const val = el.querySelector('.die-value');
+                if (val && !el.classList.contains('landed')) {
+                    val.textContent = Math.floor(Math.random() * data.sides) + 1;
+                }
+            });
+        }, 50);
+
+        // Land each die with stagger
+        dieEls.forEach(({ el, data }, i) => {
+            setTimeout(() => {
+                el.classList.add('landed');
+                const val = el.querySelector('.die-value');
+                val.textContent = data.result;
+                // NAT 20 / NAT 1 styling
+                if (data.sides === 20 && data.result === 20) el.classList.add('nat20');
+                if (data.sides === 20 && data.result === 1) el.classList.add('nat1');
+            }, 800 + i * 150);
+        });
+
+        // Callback after all dice landed
+        const totalTime = 800 + dieEls.length * 150 + 200;
+        setTimeout(() => {
+            clearInterval(spinInterval);
+            callback();
+        }, totalTime);
+    },
+
+    _showResult(text, isNat20, isNat1) {
+        const result = document.getElementById('wbDiceResult');
+        if (!result) return;
+        const color = isNat20 ? '#fbbf24' : isNat1 ? '#ef4444' : '#a78bfa';
+        const size = isNat20 ? '48px' : isNat1 ? '42px' : '36px';
+        result.innerHTML = `<div style="font-family:Inter,sans-serif;font-size:${size};font-weight:900;color:${color};text-shadow:0 0 30px ${color}80">${text}</div>`;
+        result.style.opacity = '1';
+    },
+
+    // === ROLL METHODS ===
+
     roll() {
         if (this.isRolling) return;
-        
-        const parts = [];
-        for (const [type, count] of Object.entries(this.currentDice)) {
-            if (count > 0) parts.push(`${count}${type}`);
-        }
-        if (parts.length === 0) return;
-        
-        const mod = parseInt(document.getElementById('wbDiceModifier')?.value) || 0;
-        let notation = parts.join('+');
-        
-        // Handle d100 for library
-        const d100Count = this.currentDice.d100 || 0;
-        let libNotation = notation;
-        if (d100Count > 0) {
-            libNotation = notation.replace(/(\d*)d100/gi, (m, c) => {
-                const n = parseInt(c) || 1;
-                return `${n}d100+${n}d10`;
-            });
-        }
-        
+        const hasDice = Object.values(this.currentDice).some(c => c > 0);
+        if (!hasDice) return;
         this.isRolling = true;
+
+        const mod = parseInt(document.getElementById('wbDiceModifier').value) || 0;
         const rollBtn = document.getElementById('wbDiceRollBtn');
         rollBtn.textContent = '...';
-        
-        // Enable viewport
-        this._showViewport(notation.replace(/d/g, 'W') + (mod ? (mod>0?'+':'')+mod : ''));
-        
+
+        // Build dice list and roll
+        const diceList = [];
+        let notation = '';
+        for (const [type, count] of Object.entries(this.currentDice)) {
+            if (count <= 0) continue;
+            const sides = type === 'd100' ? 100 : parseInt(type.substring(1));
+            for (let i = 0; i < count; i++) {
+                const result = Math.floor(Math.random() * sides) + 1;
+                diceList.push({ sides, result });
+            }
+            notation += (notation ? '+' : '') + count + type;
+        }
+
+        let total = diceList.reduce((s, d) => s + d.result, 0) + mod;
+        const isD20 = diceList.length === 1 && diceList[0].sides === 20;
+        const isNat20 = isD20 && diceList[0].result === 20;
+        const isNat1 = isD20 && diceList[0].result === 1;
+
+        const notationStr = notation.replace(/d/g, 'W') + (mod ? (mod > 0 ? '+' + mod : '' + mod) : '');
+        this._show(notationStr);
+
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
         const playerName = userData.name || 'Spieler';
-        
-        const handleResults = (results) => {
-            let displayRolls = [];
-            let total = 0;
-            
-            if (d100Count > 0) {
-                let idx = 0;
-                for (let i = 0; i < d100Count; i++) {
-                    let d100Result = results[idx] + results[idx + 1];
-                    if (d100Result === 0) d100Result = 100;
-                    displayRolls.push(d100Result);
-                    total += d100Result;
-                    idx += 2;
-                }
-                while (idx < results.length) {
-                    displayRolls.push(results[idx]);
-                    total += results[idx];
-                    idx++;
-                }
-            } else {
-                for (const val of results) {
-                    const diceTypes = Object.keys(this.currentDice).filter(t => this.currentDice[t] > 0);
-                    if (diceTypes.length === 1 && diceTypes[0] === 'd10') {
-                        const calcVal = val === 0 ? 10 : val;
-                        displayRolls.push(calcVal);
-                        total += calcVal;
-                    } else {
-                        displayRolls.push(val);
-                        total += val;
-                    }
-                }
-            }
-            
-            const finalTotal = total + mod;
-            
-            // Check crits
-            const diceTypes = Object.entries(this.currentDice).filter(([t, c]) => c > 0);
-            const isD20 = diceTypes.length === 1 && diceTypes[0][0] === 'd20' && diceTypes[0][1] === 1;
-            let isCrit = false, isFumble = false;
-            if (isD20) {
-                if (displayRolls.includes(20)) isCrit = true;
-                if (displayRolls.includes(1)) isFumble = true;
-            }
-            
-            // Show result toast on whiteboard
-            const critClass = isCrit ? ' color:#fbbf24;font-weight:900' : isFumble ? ' color:#ef4444' : '';
-            const rollStr = displayRolls.join(', ');
-            WB.toast(`${playerName} würfelt ${notation.replace(/d/g,'W')}${mod ? (mod>0?'+':'')+mod : ''}: [${rollStr}] = ${finalTotal}${isCrit ? ' NAT 20!' : isFumble ? ' NAT 1!' : ''}`, isCrit ? 5000 : 3000);
-            
-            // Sync to Firebase
+
+        this._animateDice(diceList, () => {
+            const rollStr = diceList.map(d => d.result).join(', ');
+            const critStr = isNat20 ? ' NAT 20!' : isNat1 ? ' NAT 1!' : '';
+            this._showResult(`= ${total}${critStr}`, isNat20, isNat1);
+            WB.toast(`${playerName} würfelt ${notationStr}: [${rollStr}] = ${total}${critStr}`);
+
             this.syncRoll({
                 player: playerName,
                 playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || playerName,
                 color: userData.color || '#8b5cf6',
-                total: finalTotal,
-                notation: notation.replace(/d/g, 'W'),
-                results: displayRolls,
-                modifier: mod,
-                critical: isCrit ? 'success' : isFumble ? 'failure' : false,
-                timestamp: Date.now(),
-                diceConfig: { notation: libNotation, d100Count, beforeRollValues: results }
+                total, notation: notationStr, results: diceList.map(d => d.result), modifier: mod,
+                critical: isNat20 ? 'success' : isNat1 ? 'failure' : false,
+                timestamp: Date.now(), diceConfig: { diceList }
             });
-            
-            // Cleanup
+
+            this._hide(2000);
             setTimeout(() => {
-                if (this.box) try { this.box.clear(); } catch(e) {}
-                this._hideViewport(0);
                 rollBtn.textContent = 'Würfeln';
                 this.isRolling = false;
-            }, 3000);
-        };
-        
-        // 3D throw (delay to let viewport init box if needed)
-        const doFreeThrow = () => {
-            if (!this.box) this._ensureBox();
-            if (this.box) {
-                try { this.box.clear(); } catch(e) {}
-                this.box.setDice(libNotation);
-                let done = false;
-                const afterRoll = (n) => {
-                    if (done) return;
-                    done = true;
-                    handleResults(n.result);
-                };
-                this.box.start_throw(() => {}, afterRoll);
-                // Fallback timeout
-                setTimeout(() => {
-                    if (!done) { done = true; handleResults(this.fallbackResults(libNotation, d100Count)); }
-                }, 8000);
-            } else {
-                // No 3D — fallback
-                console.warn('[WBDice] No box for free roll, fallback');
-                setTimeout(() => handleResults(this.fallbackResults(libNotation, d100Count)), 800);
-            }
-        };
-        setTimeout(doFreeThrow, 100);
-    },
-    
-    fallbackResults(notation, d100Count) {
-        const results = [];
-        if (d100Count > 0) {
-            for (let i = 0; i < d100Count; i++) {
-                results.push(Math.floor(Math.random() * 10) * 10);
-                results.push(Math.floor(Math.random() * 10));
-            }
-        }
-        const remaining = notation.replace(/\d*d100\+\d*d10/gi, '');
-        const re = /(\d*)d(\d+)/gi;
-        let m;
-        while ((m = re.exec(remaining)) !== null) {
-            const count = parseInt(m[1]) || 1;
-            const sides = parseInt(m[2]);
-            for (let j = 0; j < count; j++) {
-                results.push(sides === 10 ? Math.floor(Math.random() * 10) : Math.floor(Math.random() * sides) + 1);
-            }
-        }
-        return results;
-    },
-    
-    // Firebase multiplayer sync
-    initMultiplayer() {
-        if (!WB.roomCode) return;
-        const db = firebase.database();
-        this.diceRef = db.ref('rooms/' + WB.roomCode + '/wb_dice_rolls');
-        
-        this.diceRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', snap => {
-            const roll = snap.val();
-            if (!roll) return;
-            const myId = JSON.parse(localStorage.getItem('rift_user') || '{}').odaiId || localStorage.getItem('rift_player_id');
-            if (roll.playerId === myId) return; // Own roll, already displayed
-            
-            // Show remote roll as 3D dice
-            if (roll.diceConfig?.notation) {
-                this._showViewport(roll.player + ': ' + (roll.notation || ''));
-                
-                setTimeout(() => {
-                    if (!this.box) this._ensureBox();
-                    if (this.box) {
-                        try { this.box.clear(); } catch(e) {}
-                        this.box.setDice(roll.diceConfig.notation);
-                        const afterRemote = () => {
-                            this._hideViewport(2000);
-                        };
-                        if (roll.diceConfig.beforeRollValues) {
-                            this.box.start_throw(() => roll.diceConfig.beforeRollValues, afterRemote);
-                        } else {
-                            this.box.start_throw(() => {}, afterRemote);
-                        }
-                    } else {
-                        this._hideViewport(1500);
-                    }
-                }, 100);
-            }
-            
-            // Show toast
-            const critStr = roll.critical === 'success' ? ' NAT 20!' : roll.critical === 'failure' ? ' NAT 1!' : '';
-            WB.toast(`${roll.player} würfelt ${roll.notation}${roll.modifier ? (roll.modifier>0?'+':'')+roll.modifier : ''}: [${roll.results?.join(', ')}] = ${roll.total}${critStr}`);
+            }, 2500);
         });
     },
-    
-    syncRoll(data) {
-        if (this.diceRef) {
-            this.diceRef.push(data);
-            // Cleanup old rolls (keep last 20)
-            this.diceRef.orderByChild('timestamp').limitToFirst(1).once('value', snap => {
-                const count = snap.numChildren();
-                if (count > 20) snap.forEach(c => c.ref.remove());
-            });
-        }
-    },
-    
-    // Throw dice for combat (attack/damage) with 3D animation, returns results via callback
+
+    // Combat dice: notation string like "1d20", returns results via callback
     throwCombat(notation, callback, label) {
-        // Show viewport first (this also ensures box via _ensureBox)
-        this._showViewport(label || notation.replace(/d/g, 'W'));
-        
-        // Small delay to let viewport render if box needs lazy init
-        const doThrow = () => {
-            if (!this.box) {
-                this._ensureBox();
+        const diceList = [];
+        const re = /(\d*)d(\d+)/gi;
+        let m;
+        while ((m = re.exec(notation)) !== null) {
+            const count = parseInt(m[1]) || 1;
+            const sides = parseInt(m[2]);
+            for (let i = 0; i < count; i++) {
+                diceList.push({ sides, result: Math.floor(Math.random() * sides) + 1 });
             }
-            if (!this.box) {
-                console.warn('[WBDice] No dice box after ensureBox, using fallback');
-                this._hideViewport(1500);
-                setTimeout(() => callback(this.fallbackResults(notation, 0)), 300);
-                return;
-            }
-            
-            try { this.box.clear(); } catch(e) {}
-            
-            this.box.setDice(notation);
-            let done = false;
-            const afterRoll = (n) => {
-                if (done) return;
-                done = true;
-                this._hideViewport(2000);
-                callback(n.result);
-            };
-            
-            this.box.start_throw(() => {}, afterRoll);
-            
-            // Fallback timeout
-            setTimeout(() => {
-                if (!done) {
-                    done = true;
-                    console.warn('[WBDice] Throw timeout, using fallback');
-                    this._hideViewport(0);
-                    callback(this.fallbackResults(notation, 0));
-                }
-            }, 6000);
-        };
-        
-        // Give viewport 100ms to become visible so ensureBox can get dimensions
-        setTimeout(doThrow, 100);
-        
-        // Sync to other players
+        }
+
+        this._show(label || notation.replace(/d/g, 'W'));
+        this._animateDice(diceList, () => {
+            const total = diceList.reduce((s, d) => s + d.result, 0);
+            const isD20 = diceList.length === 1 && diceList[0].sides === 20;
+            const isNat20 = isD20 && diceList[0].result === 20;
+            const isNat1 = isD20 && diceList[0].result === 1;
+            this._showResult(`= ${total}`, isNat20, isNat1);
+            this._hide(1800);
+            callback(diceList.map(d => d.result));
+        });
+
+        // Sync
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
         this.syncRoll({
             player: userData.name || 'Spieler',
             playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || '',
             color: userData.color || '#8b5cf6',
             notation: notation.replace(/d/g, 'W'),
-            timestamp: Date.now(),
-            diceConfig: { notation, d100Count: 0 }
+            timestamp: Date.now(), diceConfig: { diceList }
         });
+    },
+
+    // === MULTIPLAYER ===
+
+    initMultiplayer() {
+        if (!WB.db || !WB.roomCode) return;
+        this.diceRef = WB.db.ref('rooms/' + WB.roomCode + '/wb_dice_rolls');
+        const startTime = Date.now();
+        this.diceRef.orderByChild('timestamp').startAt(startTime).on('child_added', snap => {
+            const roll = snap.val();
+            if (!roll) return;
+            const myId = localStorage.getItem('rift_player_id') || JSON.parse(localStorage.getItem('rift_user') || '{}').odaiId;
+            if (roll.playerId === myId) return;
+
+            // Show remote roll
+            if (roll.diceConfig?.diceList) {
+                this._show(roll.player + ': ' + (roll.notation || ''));
+                this._animateDice(roll.diceConfig.diceList, () => {
+                    const total = roll.total || roll.diceConfig.diceList.reduce((s, d) => s + d.result, 0);
+                    this._showResult(`= ${total}`, roll.critical === 'success', roll.critical === 'failure');
+                    this._hide(2000);
+                });
+            }
+
+            const critStr = roll.critical === 'success' ? ' NAT 20!' : roll.critical === 'failure' ? ' NAT 1!' : '';
+            WB.toast(`${roll.player} würfelt ${roll.notation}${roll.modifier ? (roll.modifier>0?'+':'')+roll.modifier : ''}: [${roll.results?.join(', ')}] = ${roll.total}${critStr}`);
+        });
+    },
+
+    syncRoll(data) {
+        if (this.diceRef) {
+            this.diceRef.push(data);
+            this.diceRef.orderByChild('timestamp').limitToFirst(1).once('value', snap => {
+                const count = snap.numChildren();
+                if (count > 20) snap.forEach(c => c.ref.remove());
+            });
+        }
+    },
+
+    fallbackResults(notation, d100Count) {
+        const results = [];
+        const re = /(\d*)d(\d+)/gi;
+        let m;
+        while ((m = re.exec(notation)) !== null) {
+            const count = parseInt(m[1]) || 1;
+            const sides = parseInt(m[2]);
+            for (let i = 0; i < count; i++) results.push(Math.floor(Math.random() * sides) + 1);
+        }
+        return results;
     }
 };
 
