@@ -2183,8 +2183,8 @@ const WB = {
             this.panY = this.targetPanY;
         }
         
-        // Render (light mode - only update positions, don't rebuild DOM)
-        this.render(true);
+        // Render
+        this.render();
         
         // Continue animation if not settled
         const needsMore = zoomDiff > 0.001 || panXDiff > 0.5 || panYDiff > 0.5;
@@ -2192,8 +2192,6 @@ const WB = {
             this.animationFrame = requestAnimationFrame(t => this.animateLoop(t));
         } else {
             this.animationFrame = null;
-            // Full render once settled to update all token details (uiScale etc.)
-            this.render();
         }
     },
     
@@ -2213,7 +2211,7 @@ const WB = {
             this.renderScheduled = true;
             requestAnimationFrame(() => {
                 this.renderScheduled = false;
-                this.render(true);
+                this.render();
             });
         }
     },
@@ -3939,16 +3937,11 @@ const WB = {
     },
     
     // ==================== RENDER ====================
-    render(light) {
+    render() {
         this.renderBg();
         this.renderMain();
-        if (light) {
-            this.updateImageTransforms();
-            this.updateTokenTransforms();
-        } else {
-            this.renderImages();
-            this.renderTokens();
-        }
+        this.renderImages();
+        this.renderTokens();
         this.renderFog();
         this.updateGrid();
         this.updateRadiusPositions();
@@ -3958,43 +3951,6 @@ const WB = {
         if (this._auras) this.renderAuras();
         if (this._notes) this.renderNotes();
         this.renderTokenLinks();
-    },
-    
-    // Lightweight position-only update for tokens (no DOM rebuild)
-    updateTokenTransforms() {
-        const c = document.getElementById('tokensContainer');
-        const els = c.children;
-        for (let i = 0; i < this.tokens.length && i < els.length; i++) {
-            const t = this.tokens[i];
-            const el = els[i];
-            const displaySize = t.size * this.zoom;
-            const x = t.x * this.zoom + this.panX - displaySize / 2;
-            const y = t.y * this.zoom + this.panY - displaySize / 2;
-            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-            el.style.width = displaySize + 'px';
-            el.style.height = displaySize + 'px';
-            el.style.fontSize = (displaySize * 0.4) + 'px';
-        }
-        // If token count changed, need full rebuild
-        if (els.length !== this.tokens.length) this.renderTokens();
-    },
-    
-    // Lightweight position-only update for images (no DOM rebuild)
-    updateImageTransforms() {
-        const c = document.getElementById('imagesContainer');
-        const els = c.children;
-        for (let i = 0; i < this.images.length && i < els.length; i++) {
-            const img = this.images[i];
-            const el = els[i];
-            const x = img.x * this.zoom + this.panX;
-            const y = img.y * this.zoom + this.panY;
-            const w = img.w * this.zoom;
-            const h = img.h * this.zoom;
-            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-            el.style.width = w + 'px';
-            el.style.height = h + 'px';
-        }
-        if (els.length !== this.images.length) this.renderImages();
     },
     
     renderBg() {
@@ -4079,7 +4035,7 @@ const WB = {
         }
         
         const c = document.getElementById('tokensContainer');
-        const frag = document.createDocumentFragment();
+        c.innerHTML = '';
         this.tokens.forEach((t, i) => {
             const el = document.createElement('div');
             el.dataset.id = t.id;
@@ -4127,25 +4083,11 @@ const WB = {
             // Name label (moved down if HP bar exists)
             const labelBottom = (t.maxHp && t.maxHp > 0) ? '-28px' : '-20px';
             if (uiScale > 0.55) {
-                let labelHtml = t.name || '';
-                // In combat: add Init + AC as second line
-                if (this.initiativeActive) {
-                    let stats = '';
-                    if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '') {
-                        stats += `<span style="color:#a78bfa">Init ${t.initiative}</span>`;
-                    }
-                    if (t.ac) {
-                        stats += `<span style="color:#60a5fa">AC ${t.ac}</span>`;
-                    }
-                    if (stats) {
-                        labelHtml = `<div style="text-align:center;line-height:1.2">${t.name || ''}<div style="display:flex;justify-content:center;gap:6px;font-size:8px;margin-top:1px;opacity:0.85">${stats}</div></div>`;
-                    }
-                }
-                html += `<span class="wb-token__label" style="bottom:${labelBottom};transform:translateX(-50%) scale(${uiScale});transform-origin:center top">${labelHtml}</span>`;
+                html += `<span class="wb-token__label" style="bottom:${labelBottom};transform:translateX(-50%) scale(${uiScale});transform-origin:center top">${t.name || ''}</span>`;
             }
             
-            // Initiative badge (only outside combat)
-            if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '' && !this.initiativeActive) {
+            // Initiative badge
+            if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '') {
                 html += `<div class="wb-token__initiative" style="transform:scale(${uiScale});transform-origin:top right">${t.initiative}</div>`;
             }
             
@@ -4281,11 +4223,8 @@ const WB = {
             el.onmouseleave = () => {
                 this.hideTokenTooltip();
             };
-            frag.appendChild(el);
+            c.appendChild(el);
         });
-        // Atomic DOM swap — prevents visible flash during zoom
-        c.textContent = '';
-        c.appendChild(frag);
         
         // Refresh sidebar if open
         if (document.getElementById('tokenSidebar')?.classList.contains('visible')) {
