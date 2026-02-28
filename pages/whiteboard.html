@@ -2183,8 +2183,8 @@ const WB = {
             this.panY = this.targetPanY;
         }
         
-        // Render
-        this.render();
+        // Render (light mode - only update positions, don't rebuild DOM)
+        this.render(true);
         
         // Continue animation if not settled
         const needsMore = zoomDiff > 0.001 || panXDiff > 0.5 || panYDiff > 0.5;
@@ -2192,6 +2192,8 @@ const WB = {
             this.animationFrame = requestAnimationFrame(t => this.animateLoop(t));
         } else {
             this.animationFrame = null;
+            // Full render once settled to update all token details (uiScale etc.)
+            this.render();
         }
     },
     
@@ -2211,7 +2213,7 @@ const WB = {
             this.renderScheduled = true;
             requestAnimationFrame(() => {
                 this.renderScheduled = false;
-                this.render();
+                this.render(true);
             });
         }
     },
@@ -3937,11 +3939,16 @@ const WB = {
     },
     
     // ==================== RENDER ====================
-    render() {
+    render(light) {
         this.renderBg();
         this.renderMain();
-        this.renderImages();
-        this.renderTokens();
+        if (light) {
+            this.updateImageTransforms();
+            this.updateTokenTransforms();
+        } else {
+            this.renderImages();
+            this.renderTokens();
+        }
         this.renderFog();
         this.updateGrid();
         this.updateRadiusPositions();
@@ -3951,6 +3958,43 @@ const WB = {
         if (this._auras) this.renderAuras();
         if (this._notes) this.renderNotes();
         this.renderTokenLinks();
+    },
+    
+    // Lightweight position-only update for tokens (no DOM rebuild)
+    updateTokenTransforms() {
+        const c = document.getElementById('tokensContainer');
+        const els = c.children;
+        for (let i = 0; i < this.tokens.length && i < els.length; i++) {
+            const t = this.tokens[i];
+            const el = els[i];
+            const displaySize = t.size * this.zoom;
+            const x = t.x * this.zoom + this.panX - displaySize / 2;
+            const y = t.y * this.zoom + this.panY - displaySize / 2;
+            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+            el.style.width = displaySize + 'px';
+            el.style.height = displaySize + 'px';
+            el.style.fontSize = (displaySize * 0.4) + 'px';
+        }
+        // If token count changed, need full rebuild
+        if (els.length !== this.tokens.length) this.renderTokens();
+    },
+    
+    // Lightweight position-only update for images (no DOM rebuild)
+    updateImageTransforms() {
+        const c = document.getElementById('imagesContainer');
+        const els = c.children;
+        for (let i = 0; i < this.images.length && i < els.length; i++) {
+            const img = this.images[i];
+            const el = els[i];
+            const x = img.x * this.zoom + this.panX;
+            const y = img.y * this.zoom + this.panY;
+            const w = img.w * this.zoom;
+            const h = img.h * this.zoom;
+            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+            el.style.width = w + 'px';
+            el.style.height = h + 'px';
+        }
+        if (els.length !== this.images.length) this.renderImages();
     },
     
     renderBg() {
