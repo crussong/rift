@@ -4348,6 +4348,35 @@ const WB = {
         
         const c = document.getElementById('tokensContainer');
         c.innerHTML = '';
+        
+        // Detect stacked tokens (same grid cell) for visual offset
+        const gs = this.gridSize || 70;
+        const _stackMap = {};
+        this.tokens.forEach(t => {
+            const gx = Math.round(t.x / gs);
+            const gy = Math.round(t.y / gs);
+            const key = gx + ',' + gy;
+            if (!_stackMap[key]) _stackMap[key] = [];
+            _stackMap[key].push(t.id);
+        });
+        // Build per-token offset: fan pattern
+        const _stackOffsets = {};
+        const _stackCounts = {};
+        for (const [key, ids] of Object.entries(_stackMap)) {
+            if (ids.length < 2) continue;
+            const n = ids.length;
+            const spreadPx = Math.min(gs * 0.3, 18);
+            ids.forEach((id, idx) => {
+                const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
+                _stackOffsets[id] = {
+                    dx: Math.cos(angle) * spreadPx,
+                    dy: Math.sin(angle) * spreadPx
+                };
+                // First token gets the badge count
+                if (idx === 0) _stackCounts[id] = n;
+            });
+        }
+        
         this.tokens.forEach((t, i) => {
             const el = document.createElement('div');
             el.dataset.id = t.id;
@@ -4355,8 +4384,11 @@ const WB = {
             const isActiveTurn = this.initiativeActive === t.id;
             const isDead = t.status?.includes('dead') || (t.hp !== undefined && t.hp <= 0);
             const displaySize = t.size * this.zoom;
-            const x = t.x * this.zoom + this.panX - displaySize / 2;
-            const y = t.y * this.zoom + this.panY - displaySize / 2;
+            const stackOff = _stackOffsets[t.id];
+            const ox = stackOff ? stackOff.dx * this.zoom : 0;
+            const oy = stackOff ? stackOff.dy * this.zoom : 0;
+            const x = t.x * this.zoom + this.panX - displaySize / 2 + ox;
+            const y = t.y * this.zoom + this.panY - displaySize / 2 + oy;
             
             const isMultiSel = this.multiSelected.includes(t);
             el.className = 'wb-token' + (t.tokenStyle === 'topdown' ? ' wb-token--topdown' : '') + (isSelected ? ' selected' : '') + (isActiveTurn ? ' active-turn' : '') + (isDead ? ' dead' : '');
@@ -4450,6 +4482,12 @@ const WB = {
                     }
                 });
                 html += '</div>';
+            }
+            
+            // Stack count badge
+            const stackCount = _stackCounts[t.id];
+            if (stackCount && uiScale > 0.45) {
+                html += `<div style="position:absolute;bottom:-6px;right:-6px;min-width:16px;height:16px;background:rgba(22,22,22,0.9);border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.8);display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;transform:scale(${uiScale});transform-origin:bottom right">&times;${stackCount}</div>`;
             }
             
             el.innerHTML = html;
