@@ -1396,6 +1396,16 @@
                         
                         <input type="text" class="wb-modal__input" id="editTokenName" placeholder="Name...">
                         
+                        <!-- Bestiary Quick Import -->
+                        <div style="margin-bottom:16px;position:relative" id="editTokenBestiarySection">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px;text-transform:uppercase">SRD Bestiary — Werte importieren</div>
+                            <div style="display:flex;gap:6px">
+                                <input type="text" class="wb-token-edit__input" id="editTokenBestiarySearch" placeholder="Monster suchen... z.B. Goblin, Dragon" style="flex:1" autocomplete="off">
+                                <button class="wb-upload-btn wb-upload-btn--secondary" id="editTokenBestiaryBtn" style="font-size:11px;padding:6px 10px;white-space:nowrap">Suchen</button>
+                            </div>
+                            <div id="editTokenBestiaryResults" style="position:absolute;top:100%;left:0;right:0;z-index:100;background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:8px;max-height:200px;overflow-y:auto;display:none;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"></div>
+                        </div>
+                        
                         <!-- Portrait Edit -->
                         <div style="display:flex;gap:16px;margin-bottom:16px">
                             <div id="editTokenPortraitPreview" style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;border:3px solid #8b5cf6" title="Portrait ändern">
@@ -6336,6 +6346,14 @@ const WB = {
         document.getElementById('editTokenAffiliation').value = token.affiliation || '';
         document.getElementById('editTokenItems').value = token.items || '';
         
+        // Bestiary search: reset & GM-only
+        const bestiarySection = document.getElementById('editTokenBestiarySection');
+        if (bestiarySection) {
+            bestiarySection.style.display = this.isGM ? 'block' : 'none';
+            document.getElementById('editTokenBestiarySearch').value = '';
+            document.getElementById('editTokenBestiaryResults').style.display = 'none';
+        }
+        
         // Visibility toggles
         document.getElementById('editAffVis').classList.toggle('visible-to-players', token.affVisible !== false);
         document.getElementById('editItemsVis').classList.toggle('visible-to-players', token.itemsVisible !== false);
@@ -6589,6 +6607,170 @@ const WB = {
         
         // Save button
         document.getElementById('tokenEditSaveBtn').onclick = () => this.saveTokenEdit();
+        
+        // Bestiary search in edit modal
+        const bInput = document.getElementById('editTokenBestiarySearch');
+        const bResults = document.getElementById('editTokenBestiaryResults');
+        const bBtn = document.getElementById('editTokenBestiaryBtn');
+        let bDebounce = null;
+        
+        const doSearch = () => {
+            const q = bInput.value.trim().toLowerCase();
+            if (q.length < 2) { bResults.style.display = 'none'; return; }
+            
+            // Ensure SRD data loaded
+            if (!this._srdMonsters) {
+                bResults.innerHTML = '<div style="padding:12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.4)">Lade Bestiary...</div>';
+                bResults.style.display = 'block';
+                this._loadSrdMonsters().then(() => doSearch());
+                return;
+            }
+            
+            const matches = this._srdMonsters.filter(m => 
+                m.name.toLowerCase().includes(q) || m.index.includes(q)
+            ).slice(0, 12);
+            
+            if (!matches.length) {
+                bResults.innerHTML = '<div style="padding:12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.4)">Keine Ergebnisse</div>';
+                bResults.style.display = 'block';
+                return;
+            }
+            
+            bResults.innerHTML = matches.map(m => {
+                const imgUrl = `https://www.dnd5eapi.co/api/images/monsters/${m.index}.png`;
+                return `<div class="wb-bestiary-result" data-url="${m.url}" data-index="${m.index}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.06);transition:background 0.15s">
+                    <div style="width:32px;height:32px;border-radius:6px;overflow:hidden;flex-shrink:0;background:#1a1a1a;border:1px solid rgba(239,68,68,0.3)">
+                        <img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'" loading="lazy">
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)">${m.name}</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.35)">${m.index}</div>
+                    </div>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="rgba(139,92,246,0.6)" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                </div>`;
+            }).join('');
+            bResults.style.display = 'block';
+            
+            // Hover effect
+            bResults.querySelectorAll('.wb-bestiary-result').forEach(el => {
+                el.onmouseenter = () => el.style.background = 'rgba(255,255,255,0.06)';
+                el.onmouseleave = () => el.style.background = '';
+            });
+            
+            // Click → fetch full data → fill fields
+            bResults.querySelectorAll('.wb-bestiary-result').forEach(el => {
+                el.onclick = async () => {
+                    el.style.opacity = '0.5';
+                    el.innerHTML += '<span style="font-size:10px;color:#a78bfa;margin-left:auto"> Lade...</span>';
+                    try {
+                        const res = await fetch('https://www.dnd5eapi.co' + el.dataset.url);
+                        const m = await res.json();
+                        this._applyBestiaryToEditModal(m);
+                        bResults.style.display = 'none';
+                        bInput.value = '';
+                    } catch(err) {
+                        this.toast('API-Fehler: ' + err.message);
+                        el.style.opacity = '1';
+                    }
+                };
+            });
+        };
+        
+        bInput.addEventListener('input', () => {
+            clearTimeout(bDebounce);
+            bDebounce = setTimeout(doSearch, 250);
+        });
+        bInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+            if (e.key === 'Escape') { bResults.style.display = 'none'; }
+        });
+        bBtn.onclick = () => doSearch();
+        
+        // Close results on outside click
+        document.getElementById('tokenEditOverlay').addEventListener('click', e => {
+            if (!e.target.closest('#editTokenBestiarySection')) bResults.style.display = 'none';
+        });
+    },
+    
+    async _loadSrdMonsters() {
+        if (this._srdMonsters || this._srdMonstersFetching) return;
+        this._srdMonstersFetching = true;
+        try {
+            const res = await fetch('https://www.dnd5eapi.co/api/2014/monsters');
+            const data = await res.json();
+            this._srdMonsters = data.results || [];
+        } catch(e) { console.error('SRD load failed:', e); }
+        this._srdMonstersFetching = false;
+    },
+    
+    _applyBestiaryToEditModal(m) {
+        // Fill stats WITHOUT touching name or portrait
+        const sizeMap = { Tiny: 44, Small: 44, Medium: 70, Large: 140, Huge: 210, Gargantuan: 280 };
+        const speedVal = m.speed?.walk ? parseInt(m.speed.walk.replace(/[^\d]/g, '')) : 30;
+        const speedFields = Math.max(1, Math.round((speedVal || 30) / 5));
+        
+        // Detect attacks from Multiattack
+        let attackCount = 1;
+        const multi = (m.actions || []).find(a => a.name === 'Multiattack');
+        if (multi?.desc) {
+            const numWords = { two: 2, three: 3, four: 4, five: 5, six: 6 };
+            const match = multi.desc.match(/makes?\s+(two|three|four|five|six|\d+)\s+(?:\w+\s+)?attacks?/i);
+            if (match) attackCount = numWords[match[1].toLowerCase()] || parseInt(match[1]) || 1;
+        }
+        
+        // Detect melee/ranged reach
+        let range = 1;
+        const firstAttack = (m.actions || []).find(a => a.damage?.length > 0);
+        if (firstAttack?.desc) {
+            const reachMatch = firstAttack.desc.match(/reach\s+(\d+)\s*ft/i);
+            const rangeMatch = firstAttack.desc.match(/range\s+(\d+)/i);
+            if (reachMatch) range = Math.max(1, Math.round(parseInt(reachMatch[1]) / 5));
+            else if (rangeMatch) range = Math.max(1, Math.round(parseInt(rangeMatch[1]) / 5));
+        }
+        
+        const ac = m.armor_class?.[0]?.value ?? m.armor_class ?? 10;
+        const initMod = m.dexterity ? Math.floor((m.dexterity - 10) / 2) : 0;
+        
+        // Set fields
+        document.getElementById('editTokenHp').value = m.hit_points || 0;
+        document.getElementById('editTokenMaxHp').value = m.hit_points || 0;
+        document.getElementById('editTokenAc').value = ac;
+        document.getElementById('editTokenSpeed').value = speedFields;
+        document.getElementById('editTokenRange').value = range;
+        document.getElementById('editTokenAttacks').value = attackCount;
+        document.getElementById('editTokenInit').value = initMod;
+        
+        // Type → Monster
+        document.querySelectorAll('#editTokenTypeGrid .wb-token-type-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.type === 'monster');
+        });
+        
+        // Size preset
+        const tokenSize = sizeMap[m.size] || 70;
+        document.querySelectorAll('#tokenSizePresets .wb-size-preset').forEach(b => {
+            b.classList.toggle('active', Math.abs(parseInt(b.dataset.size) - tokenSize) < 10);
+        });
+        
+        // Notes: CR + ability scores + armor type
+        const armorType = m.armor_class?.[0]?.type ? ` (${m.armor_class[0].type})` : '';
+        const cr = m.challenge_rating ?? '?';
+        const xp = m.xp ? ` | ${m.xp} XP` : '';
+        document.getElementById('editTokenNotes').value = `CR ${cr}${xp} | AC ${ac}${armorType}\nSTR ${m.strength} DEX ${m.dexterity} CON ${m.constitution} INT ${m.intelligence} WIS ${m.wisdom} CHA ${m.charisma}\n${m.hit_dice || ''}`;
+        
+        // Items: action names
+        const actions = (m.actions || []).map(a => a.name).join(', ');
+        document.getElementById('editTokenItems').value = actions;
+        
+        // Border color → red for monster
+        this._editBorderColor = '#ef4444';
+        const borderPicker = document.getElementById('editTokenBorderPicker');
+        if (borderPicker) {
+            borderPicker.querySelectorAll('button').forEach(b => {
+                b.style.borderColor = b.style.background === 'rgb(239, 68, 68)' ? 'white' : 'transparent';
+            });
+        }
+        
+        this.toast(`${m.name} — CR ${cr}, ${m.hit_points} HP, AC ${ac}`);
     },
     
     // ==================== INITIATIVE TRACKER ====================
