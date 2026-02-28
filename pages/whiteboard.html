@@ -7565,7 +7565,13 @@ const WB = {
     
     // ==================== MOVEMENT RADIUS ====================
     showMoveRadius(token) {
-        if (!token.speed || !this.gridSize) return;
+        if (!this.gridSize) return;
+        // Outside combat: only need drag origin for distance label
+        if (!this.initiativeActive) {
+            this._radiusData = { token: token, worldX: token.x, worldY: token.y, speed: token.speed || 6, range: 0, used: 0 };
+            return;
+        }
+        if (!token.speed) return;
         
         // Store world-space data for live updates during pan/zoom
         this._radiusData = {
@@ -7640,18 +7646,22 @@ const WB = {
         const distEl = document.getElementById('moveDistance');
         const atkEl = document.getElementById('attackRange');
         
-        if (!el.classList.contains('visible')) return;
+        // In combat, update radius positions; in free mode skip radius but still show distance
+        const inCombat = this.initiativeActive && el.classList.contains('visible');
+        if (!inCombat && this.initiativeActive) return;
         
-        // Origin stays at drag start position
-        const originX = this._dragOrigin.x * this.zoom + this.panX;
-        const originY = this._dragOrigin.y * this.zoom + this.panY;
-        el.style.left = originX + 'px';
-        el.style.top = originY + 'px';
-        originEl.style.left = originX + 'px';
-        originEl.style.top = originY + 'px';
-        if (atkEl.classList.contains('visible')) {
-            atkEl.style.left = originX + 'px';
-            atkEl.style.top = originY + 'px';
+        if (inCombat) {
+            // Origin stays at drag start position
+            const originX = this._dragOrigin.x * this.zoom + this.panX;
+            const originY = this._dragOrigin.y * this.zoom + this.panY;
+            el.style.left = originX + 'px';
+            el.style.top = originY + 'px';
+            originEl.style.left = originX + 'px';
+            originEl.style.top = originY + 'px';
+            if (atkEl.classList.contains('visible')) {
+                atkEl.style.left = originX + 'px';
+                atkEl.style.top = originY + 'px';
+            }
         }
         
         // Calculate distance moved in grid squares
@@ -7666,12 +7676,19 @@ const WB = {
             distEl.style.left = tokenScreenX + 'px';
             distEl.style.top = tokenScreenY + 'px';
             
-            const used = token._turnMovementUsed || 0;
-            const maxFields = token.speed || 6;
-            const totalUsed = used + distFields;
-            const over = totalUsed > maxFields;
-            distEl.textContent = `${totalUsed} / ${maxFields} Felder`;
-            distEl.style.color = over ? '#ef4444' : totalUsed === maxFields ? '#f59e0b' : '#22c55e';
+            if (this.initiativeActive) {
+                // Combat: show accumulated movement vs max
+                const used = token._turnMovementUsed || 0;
+                const maxFields = token.speed || 6;
+                const totalUsed = used + distFields;
+                const over = totalUsed > maxFields;
+                distEl.textContent = `${totalUsed} / ${maxFields} Felder`;
+                distEl.style.color = over ? '#ef4444' : totalUsed === maxFields ? '#f59e0b' : '#22c55e';
+            } else {
+                // Free mode: just show distance
+                distEl.textContent = `${distFields} Felder`;
+                distEl.style.color = 'rgba(255,255,255,0.7)';
+            }
             distEl.classList.add('visible');
         } else {
             distEl.classList.remove('visible');
@@ -7688,7 +7705,7 @@ const WB = {
     
     // Track movement after token drop
     trackTurnMovement(token, fromX, fromY, toX, toY) {
-        if (!this.gridSize) return;
+        if (!this.gridSize || !this.initiativeActive) return;
         const dx = toX - fromX;
         const dy = toY - fromY;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -7700,7 +7717,7 @@ const WB = {
     
     // Clamp token movement to remaining speed
     clampMovement(token, fromX, fromY, targetX, targetY) {
-        if (!this.gridSize || !token.speed) return { x: targetX, y: targetY };
+        if (!this.gridSize || !token.speed || !this.initiativeActive) return { x: targetX, y: targetY };
         
         const used = token._turnMovementUsed || 0;
         const remaining = Math.max(0, token.speed - used);
