@@ -7583,8 +7583,11 @@ const WB = {
     // ==================== MOVEMENT RADIUS ====================
     showMoveRadius(token) {
         if (!this.gridSize) return;
-        // Outside combat: only need drag origin for distance label
+        // Outside combat: no radius circles, no attack range, just track origin for distance label
         if (!this.initiativeActive) {
+            document.getElementById('moveRadius').classList.remove('visible');
+            document.getElementById('attackRange').classList.remove('visible');
+            document.getElementById('moveOrigin').classList.remove('visible');
             this._radiusData = { token: token, worldX: token.x, worldY: token.y, speed: token.speed || 6, range: 0, used: 0 };
             return;
         }
@@ -7612,6 +7615,8 @@ const WB = {
         if (!rd || !el) return;
         // Don't update during drag — updateMoveRadius handles that
         if (this._tokenDrag) return;
+        // No radius circles in free mode
+        if (!this.initiativeActive) return;
         
         // Use live token position (tracks during animation)
         const token = rd.token;
@@ -7663,12 +7668,15 @@ const WB = {
         const distEl = document.getElementById('moveDistance');
         const atkEl = document.getElementById('attackRange');
         
-        // In combat, update radius positions; in free mode skip radius but still show distance
-        const inCombat = this.initiativeActive && el.classList.contains('visible');
-        if (!inCombat && this.initiativeActive) return;
+        const inCombat = !!this.initiativeActive;
         
-        if (inCombat) {
-            // Origin stays at drag start position
+        // Free mode: hide radius circles, only show simple distance
+        if (!inCombat) {
+            el.classList.remove('visible');
+            originEl.classList.remove('visible');
+            atkEl.classList.remove('visible');
+        } else if (el.classList.contains('visible')) {
+            // Combat: update radius positions
             const originX = this._dragOrigin.x * this.zoom + this.panX;
             const originY = this._dragOrigin.y * this.zoom + this.panY;
             el.style.left = originX + 'px';
