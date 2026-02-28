@@ -11097,16 +11097,15 @@ const WB = {
         const preset = this._soundPresets.find(p => p.id === id);
         if (!preset) return;
         
-        // If ambient is playing, stop it
+        // If loop is playing, toggle off
         if (preset.loop && this._sounds[id]?.playing) {
             this._stopSoundLocal(id);
             // Sync stop to other players
             if (this.db && this.roomCode) {
                 const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+                const pid = userData.odaiId || localStorage.getItem('rift_player_id') || '';
                 this.db.ref('rooms/' + this.roomCode + '/wb_sounds').push({
-                    soundId: id, action: 'stop',
-                    playerId: userData.odaiId || localStorage.getItem('rift_player_id') || '',
-                    ts: Date.now()
+                    soundId: id, action: 'stop', playerId: pid, ts: Date.now()
                 });
             }
             this.renderSoundboard();
@@ -11117,10 +11116,9 @@ const WB = {
         // Sync to other players
         if (this.db && this.roomCode) {
             const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            const pid = userData.odaiId || localStorage.getItem('rift_player_id') || '';
             this.db.ref('rooms/' + this.roomCode + '/wb_sounds').push({
-                soundId: id, action: 'play',
-                playerId: userData.odaiId || localStorage.getItem('rift_player_id') || '',
-                ts: Date.now()
+                soundId: id, action: 'play', playerId: pid, ts: Date.now()
             });
         }
     },
@@ -11129,38 +11127,87 @@ const WB = {
         const preset = this._soundPresets.find(p => p.id === id);
         if (!preset) return;
         
-        // Room-specific override > default
         const url = this._soundUrls[id] || this._defaultSoundUrls[id];
         if (!url) return;
         
-        // If already has a playing loop, skip
+        // If loop already playing, skip
         if (preset.loop && this._sounds[id]?.playing) return;
+        
+        // Kill any existing audio for this id first
+        if (this._sounds[id]?.audio) {
+            const old = this._sounds[id].audio;
+            old.oncanplaythrough = null;
+            old.onerror = null;
+            old.onended = null;
+            old.pause();
+        }
+        
+        // Unique token to invalidate stale callbacks
+        const token = Date.now() + '_' + Math.random();
         
         const audio = new Audio(url);
         audio.volume = this._soundVolume;
         audio.loop = !!preset.loop;
         audio.crossOrigin = 'anonymous';
         
+        this._sounds[id] = { audio, playing: false, loading: true, loop: preset.loop, token };
+        
         audio.oncanplaythrough = () => {
-            this._sounds[id] = { audio, playing: true, loaded: true, loop: preset.loop };
+            // Only proceed if this is still the current audio for this id
+            if (this._sounds[id]?.token !== token) return;
+            this._sounds[id].playing = true;
+            this._sounds[id].loading = false;
+            this._sounds[id].loaded = true;
             audio.play().catch(() => {});
             this.renderSoundboard();
         };
         
         audio.onerror = () => {
+            if (this._sounds[id]?.token !== token) return;
             this.toast('Sound "' + preset.name + '" konnte nicht geladen werden.', 'warn');
             this._sounds[id] = { loaded: false, playing: false };
             this.renderSoundboard();
         };
         
         audio.onended = () => {
+            if (this._sounds[id]?.token !== token) return;
             if (!preset.loop) {
-                this._sounds[id] = { ...this._sounds[id], playing: false };
+                this._sounds[id].playing = false;
                 this.renderSoundboard();
             }
         };
-        
-        this._sounds[id] = { audio, playing: false, loading: true, loop: preset.loop };
+    },
+    
+    _stopSoundLocal(id, skipRender) {
+        const s = this._sounds[id];
+        if (!s) return;
+        if (s.audio) {
+            s.audio.oncanplaythrough = null;
+            s.audio.onerror = null;
+            s.audio.onended = null;
+            s.audio.pause();
+        }
+        s.playing = false;
+        s.token = null;
+        if (!skipRender) this.renderSoundboard();
+    },
+    
+    stopAllSounds() {
+        // Stop all locally without re-rendering each time
+        Object.keys(this._sounds).forEach(id => this._stopSoundLocal(id, true));
+        this.renderSoundboard();
+        // Sync stop-all to other players
+        if (this.db && this.roomCode) {
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            const pid = userData.odaiId || localStorage.getItem('rift_player_id') || '';
+            this._soundPresets.filter(p => p.loop).forEach(p => {
+                if (this._sounds[p.id]?.loaded) {
+                    this.db.ref('rooms/' + this.roomCode + '/wb_sounds').push({
+                        soundId: p.id, action: 'stop', playerId: pid, ts: Date.now()
+                    });
+                }
+            });
+        }
     },
     
     _soundUploading: null,
@@ -11206,31 +11253,6 @@ const WB = {
             this.renderSoundboard();
         };
         inp.click();
-    },
-    
-    _stopSoundLocal(id) {
-        const s = this._sounds[id];
-        if (s?.audio) {
-            s.audio.pause();
-            s.audio.currentTime = 0;
-        }
-        if (s) s.playing = false;
-        this.renderSoundboard();
-    },
-    
-    stopAllSounds() {
-        Object.keys(this._sounds).forEach(id => this._stopSoundLocal(id));
-        // Sync stop-all
-        if (this.db && this.roomCode) {
-            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-            this._soundPresets.filter(p => p.loop).forEach(p => {
-                this.db.ref('rooms/' + this.roomCode + '/wb_sounds').push({
-                    soundId: p.id, action: 'stop',
-                    playerId: userData.odaiId || localStorage.getItem('rift_player_id') || '',
-                    ts: Date.now()
-                });
-            });
-        }
     },
     
     // ==================== HEALTH ESTIMATE ====================
