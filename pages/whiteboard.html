@@ -802,9 +802,13 @@
         .wb-sound-panel__header:active { cursor:grabbing; }
         .wb-sound-panel__body { overflow-y:auto; flex:1; padding:8px; display:grid; grid-template-columns:1fr 1fr; gap:4px; }
         .wb-sound-btn { padding:10px 8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:8px; color:rgba(255,255,255,0.6); font-size:11px; font-weight:500; cursor:pointer; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; transition:all 0.15s; font-family:inherit; }
-        .wb-sound-btn:hover { background:rgba(255,255,255,0.08); color:white; }
+        .wb-sound-btn:hover:not(:disabled) { background:rgba(255,255,255,0.08); color:white; }
+        .wb-sound-btn.no-src { opacity:0.35; cursor:default; }
         .wb-sound-btn.playing { background:rgba(255,70,85,0.12); border-color:rgba(255,70,85,0.3); color:#FF4655; animation:wb-sound-pulse 1s ease-in-out infinite; }
         .wb-sound-btn svg { width:18px; height:18px; }
+        .wb-sound-upload { transition:all 0.15s; }
+        .wb-sound-upload:hover { background:rgba(255,255,255,0.1) !important; color:white !important; }
+        .wb-sound-upload.uploading { animation:wb-sound-pulse 0.6s ease-in-out infinite; }
         @keyframes wb-sound-pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
 
         /* ==================== HEALTH ESTIMATE ==================== */
@@ -10984,7 +10988,25 @@ const WB = {
     // ==================== SOUNDBOARD ====================
     _sounds: {},
     _soundVolume: 0.7,
-    _soundBaseUrl: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/',
+    _soundUrls: {},
+    _defaultSoundUrls: {
+        sword: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/sword.mp3',
+        thunder: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/thunder.mp3',
+        fire: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/fire.mp3',
+        wind: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/wind.mp3',
+        rain_amb: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/rain_amb.mp3',
+        tavern: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/tavern.mp3',
+        door: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/door.mp3',
+        horror: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/horror.mp3',
+        drums: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/drums.mp3',
+        magic: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/magic.mp3',
+        scream: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/scream.mp3',
+        coins: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/coins.mp3',
+        forest: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/forest.mp3',
+        ocean: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/ocean.mp3',
+        battle: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/battle.mp3',
+        dungeon: 'https://res.cloudinary.com/dza4jgreq/video/upload/rift_sounds/dungeon.mp3'
+    },
     _soundPresets: [
         { id: 'sword', name: 'Schwertklang', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>', loop: false },
         { id: 'thunder', name: 'Donner', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>', loop: false },
@@ -11010,8 +11032,19 @@ const WB = {
             document.getElementById('soundPanel').classList.toggle('visible');
             this.renderSoundboard();
         };
-        // Firebase listener for remote sound triggers
+        // Hidden file input for sound uploads
+        if (!document.getElementById('soundFileInput')) {
+            const inp = document.createElement('input');
+            inp.type = 'file'; inp.id = 'soundFileInput'; inp.accept = 'audio/*'; inp.style.display = 'none';
+            document.body.appendChild(inp);
+        }
+        // Load sound URLs from Firebase
         if (this.db && this.roomCode) {
+            this.db.ref('rooms/' + this.roomCode + '/wb_sound_urls').on('value', snap => {
+                this._soundUrls = snap.val() || {};
+                this.renderSoundboard();
+            });
+            // Firebase listener for remote sound triggers
             const startTime = Date.now();
             this.db.ref('rooms/' + this.roomCode + '/wb_sounds').orderByChild('ts').startAt(startTime).on('child_added', snap => {
                 const data = snap.val();
@@ -11031,26 +11064,32 @@ const WB = {
         let volHtml = '<div style="grid-column:1/-1;display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:4px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
         volHtml += '<input type="range" min="0" max="1" step="0.05" value="' + this._soundVolume + '" id="soundVolSlider" style="flex:1;accent-color:#FF4655">';
         volHtml += '<span style="font-size:10px;color:rgba(255,255,255,0.4);min-width:28px" id="soundVolLabel">' + Math.round(this._soundVolume * 100) + '%</span>';
-        // Stop all button
         volHtml += '<button id="soundStopAll" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.2);border-radius:4px;padding:2px 6px;color:#ef4444;font-size:9px;cursor:pointer;font-family:inherit">Stop</button>';
         volHtml += '</div>';
         
         body.innerHTML = volHtml + this._soundPresets.map(s => {
             const isPlaying = this._sounds[s.id]?.playing;
-            const hasSrc = this._sounds[s.id]?.loaded;
-            return `<button class="wb-sound-btn${isPlaying ? ' playing' : ''}" data-sound="${s.id}" title="${s.loop ? 'Ambient (Loop)' : 'Einmaliger Effekt'}${!hasSrc && !this._sounds[s.id]?.loading ? '' : ''}">${s.icon}<span>${s.name}</span>${s.loop ? '<span style="font-size:8px;opacity:0.4">LOOP</span>' : ''}</button>`;
+            const hasUrl = !!(this._soundUrls[s.id] || this._defaultSoundUrls[s.id]);
+            const isCustom = !!this._soundUrls[s.id];
+            const uploadingId = this._soundUploading === s.id;
+            return `<div class="wb-sound-item" style="display:flex;gap:2px">
+                <button class="wb-sound-btn${isPlaying ? ' playing' : ''}${!hasUrl ? ' no-src' : ''}" data-sound="${s.id}" style="flex:1" ${!hasUrl ? 'disabled' : ''}>${s.icon}<span>${s.name}</span>${s.loop ? '<span style="font-size:8px;opacity:0.4">LOOP</span>' : ''}${isCustom ? '<span style="font-size:7px;opacity:0.35;color:#22c55e">custom</span>' : ''}</button>
+                ${this.isGM ? `<button class="wb-sound-upload${uploadingId ? ' uploading' : ''}" data-upload="${s.id}" title="${isCustom ? 'Custom Sound ersetzen' : 'Eigenen Sound hochladen'}" style="width:28px;min-width:28px;background:${isCustom ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)'};border:1px solid ${isCustom ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.1)'};border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:${isCustom ? '#22c55e' : 'rgba(255,255,255,0.3)'}"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>` : ''}
+            </div>`;
         }).join('');
         
         // Wire events
         document.getElementById('soundVolSlider').oninput = (e) => {
             this._soundVolume = parseFloat(e.target.value);
             document.getElementById('soundVolLabel').textContent = Math.round(this._soundVolume * 100) + '%';
-            // Update all playing sounds
             Object.values(this._sounds).forEach(s => { if (s.audio) s.audio.volume = this._soundVolume; });
         };
         document.getElementById('soundStopAll').onclick = () => this.stopAllSounds();
         body.querySelectorAll('[data-sound]').forEach(btn => {
-            btn.onclick = () => this.playSound(btn.dataset.sound);
+            btn.onclick = () => { if (!btn.disabled) this.playSound(btn.dataset.sound); };
+        });
+        body.querySelectorAll('[data-upload]').forEach(btn => {
+            btn.onclick = () => this._uploadSound(btn.dataset.upload);
         });
     },
     
@@ -11090,10 +11129,11 @@ const WB = {
         const preset = this._soundPresets.find(p => p.id === id);
         if (!preset) return;
         
-        const url = this._soundBaseUrl + id + '.mp3';
+        // Room-specific override > default
+        const url = this._soundUrls[id] || this._defaultSoundUrls[id];
+        if (!url) return;
         
-        // If already has a playing audio for one-shots, let it overlap
-        // For loops, reuse
+        // If already has a playing loop, skip
         if (preset.loop && this._sounds[id]?.playing) return;
         
         const audio = new Audio(url);
@@ -11108,7 +11148,7 @@ const WB = {
         };
         
         audio.onerror = () => {
-            this.toast(`Sound "${preset.name}" nicht gefunden. Lade die MP3-Datei als "${id}.mp3" in deinen Cloudinary rift_sounds/ Ordner hoch.`, 'warn');
+            this.toast('Sound "' + preset.name + '" konnte nicht geladen werden.', 'warn');
             this._sounds[id] = { loaded: false, playing: false };
             this.renderSoundboard();
         };
@@ -11121,6 +11161,51 @@ const WB = {
         };
         
         this._sounds[id] = { audio, playing: false, loading: true, loop: preset.loop };
+    },
+    
+    _soundUploading: null,
+    
+    _uploadSound(id) {
+        const inp = document.getElementById('soundFileInput');
+        if (!inp) return;
+        inp.onchange = async () => {
+            const file = inp.files[0];
+            if (!file) return;
+            inp.value = '';
+            
+            this._soundUploading = id;
+            this.renderSoundboard();
+            this.toast('Lade Sound hoch...', 'info');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', 'RIFTapp');
+                formData.append('public_id', 'rift_sounds/' + id);
+                formData.append('resource_type', 'video');
+                formData.append('overwrite', 'true');
+                
+                const response = await fetch('https://api.cloudinary.com/v1_1/dza4jgreq/video/upload', {
+                    method: 'POST', body: formData
+                });
+                const data = await response.json();
+                
+                if (data.secure_url) {
+                    // Store URL in Firebase for all players
+                    await this.db.ref('rooms/' + this.roomCode + '/wb_sound_urls/' + id).set(data.secure_url);
+                    const preset = this._soundPresets.find(p => p.id === id);
+                    this.toast('"' + (preset?.name || id) + '" hochgeladen!', 'success');
+                } else {
+                    throw new Error(data.error?.message || 'Upload fehlgeschlagen');
+                }
+            } catch (err) {
+                this.toast('Upload fehlgeschlagen: ' + err.message, 'error');
+            }
+            
+            this._soundUploading = null;
+            this.renderSoundboard();
+        };
+        inp.click();
     },
     
     _stopSoundLocal(id) {
