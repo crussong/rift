@@ -723,7 +723,7 @@
         .wb-ab-custom-label { font-size:10px; color:var(--text-dim, #666); text-transform:uppercase; }
 
         /* ==================== COMBAT LOG ==================== */
-        .wb-combat-log { position:absolute; top:70px; right:16px; width:300px; max-height:calc(100vh - 200px); background:rgba(22,22,22,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:12px; z-index:100; display:none; flex-direction:column; overflow:hidden; backdrop-filter:blur(12px); font-family:'Inter',sans-serif; }
+        .wb-combat-log { position:absolute; bottom:16px; right:16px; width:300px; max-height:calc(100vh - 200px); background:rgba(22,22,22,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:12px; z-index:100; display:none; flex-direction:column; overflow:hidden; backdrop-filter:blur(12px); font-family:'Inter',sans-serif; }
         .wb-combat-log.visible { display:flex; }
         .wb-combat-log__header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0; cursor:grab; user-select:none; }
         .wb-combat-log__header:active { cursor:grabbing; }
@@ -969,6 +969,7 @@
                                     <button class="wb-dd-item" id="tokenSidebarBtn" title="Seitenleiste mit allen Token auf der Karte anzeigen. Schneller Zugriff auf HP, Status und Position."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="6" x2="21" y2="6"/><line x1="14" y1="17" x2="21" y2="17"/></svg>Token-Seitenleiste</button>
                                     <button class="wb-dd-item" id="combatLogBtn" title="Kampfprotokoll anzeigen. Alle Würfe, Angriffe und Ereignisse."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Kampfprotokoll<span class="wb-dd-item__key">L</span></button>
                                     <button class="wb-dd-item" id="initiativeBtn" title="Initiative-Reihenfolge verwalten. Legt die Zugreihenfolge im Kampf fest."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Initiative-Tracker</button>
+                                    <button class="wb-dd-item" id="resetPanelBtn" title="Alle Fenster auf Standard-Position und -Grösse zurücksetzen." style="font-size:11px;opacity:0.5;padding:4px 10px"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Fenster zurücksetzen</button>
                                     <div class="wb-dd-sep"></div>
                                     <button class="wb-dd-item" id="cursorToggleBtn" title="Eigenen Mauszeiger für alle Spieler sichtbar oder unsichtbar machen."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-6 2-2 6z"/><path d="M14 14l5 5"/></svg>Cursor anzeigen</button>
                                     <button class="wb-dd-item" id="toolbarLockBtn" title="Zeichenwerkzeuge für Spieler sperren. Spieler können weiterhin Auswählen, Messen und Pingen."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Werkzeuge sperren</button>
@@ -1728,8 +1729,10 @@ const WB = {
             // Default open panels for GM
             document.getElementById('tokenSidebar').classList.add('visible');
             document.getElementById('initiativePanel').classList.add('visible');
+            document.getElementById('combatLog').classList.add('visible');
             document.getElementById('tokenSidebarBtn').classList.add('active-red');
             document.getElementById('initiativeBtn').classList.add('active-red');
+            document.getElementById('combatLogBtn').classList.add('active-red');
             this.renderTokenSidebar();
         }
         else document.getElementById('fogTab').style.display = 'none';
@@ -9989,10 +9992,44 @@ const WB = {
             ['tokenSidebar', 'initiativePanel', 'combatLog', 'atmoPanel', 'soundPanel'].forEach(id => {
                 const p = document.getElementById(id);
                 if (!p) return;
-                layout[id] = { left: p.style.left, top: p.style.top, width: p.style.width, height: p.style.height, maxHeight: p.style.maxHeight };
+                layout[id] = { left: p.style.left, top: p.style.top, bottom: p.style.bottom, width: p.style.width, height: p.style.height, maxHeight: p.style.maxHeight };
             });
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(layout)); } catch(e) {}
         };
+        
+        // Default panel positions (CSS values)
+        const PANEL_DEFAULTS = {
+            tokenSidebar:    { left: '16px', top: '70px', right: 'auto', bottom: 'auto', width: '280px', height: '', maxHeight: '' },
+            initiativePanel: { left: 'auto', top: '70px', right: '16px', bottom: 'auto', width: '', height: '', maxHeight: '' },
+            combatLog:       { left: 'auto', top: 'auto', right: '16px', bottom: '16px', width: '300px', height: '', maxHeight: '' },
+            atmoPanel:       { left: 'auto', top: '70px', right: '320px', bottom: 'auto', width: '280px', height: '', maxHeight: '' },
+            soundPanel:      { left: '300px', top: '70px', right: 'auto', bottom: 'auto', width: '260px', height: '', maxHeight: '' }
+        };
+        
+        const applyPanelDefaults = () => {
+            Object.entries(PANEL_DEFAULTS).forEach(([id, def]) => {
+                const p = document.getElementById(id);
+                if (!p) return;
+                p.style.left = def.left;
+                p.style.top = def.top;
+                p.style.right = def.right;
+                p.style.bottom = def.bottom;
+                p.style.width = def.width;
+                p.style.height = def.height;
+                p.style.maxHeight = def.maxHeight;
+                p.style.transform = '';
+            });
+        };
+        
+        // Reset button
+        const resetBtn = document.getElementById('resetPanelBtn');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+                applyPanelDefaults();
+                this.toast('Fenster zurückgesetzt', 'info');
+            };
+        }
         
         // Restore saved positions/sizes
         ['tokenSidebar', 'initiativePanel', 'combatLog', 'atmoPanel', 'soundPanel'].forEach(id => {
@@ -10000,7 +10037,8 @@ const WB = {
             const s = savedLayout[id];
             if (!p || !s) return;
             if (s.left) { p.style.left = s.left; p.style.right = 'auto'; p.style.transform = 'none'; }
-            if (s.top) p.style.top = s.top;
+            if (s.top) { p.style.top = s.top; p.style.bottom = 'auto'; }
+            if (s.bottom && s.bottom !== 'auto') { p.style.bottom = s.bottom; p.style.top = 'auto'; }
             if (s.width) p.style.width = s.width;
             if (s.height) { p.style.height = s.height; p.style.maxHeight = s.height; }
         });
@@ -11389,11 +11427,15 @@ const WB = {
         // Auto-show log during combat if not visible
         if (this.initiativeActive && !document.getElementById('combatLog').classList.contains('visible')) {
             document.getElementById('combatLog').classList.add('visible');
+            document.getElementById('combatLogBtn')?.classList.add('active-red');
         }
     },
     
     initCombatLog() {
-        document.getElementById('combatLogClose').onclick = () => document.getElementById('combatLog').classList.remove('visible');
+        document.getElementById('combatLogClose').onclick = () => {
+            document.getElementById('combatLog').classList.remove('visible');
+            document.getElementById('combatLogBtn')?.classList.remove('active-red');
+        };
         document.getElementById('combatLogClear').onclick = () => {
             this._combatLogEntries = [];
             document.getElementById('combatLogBody').innerHTML = '<div class="wb-combat-log__empty">Keine Einträge</div>';
@@ -11402,6 +11444,7 @@ const WB = {
     
     toggleCombatLog() {
         document.getElementById('combatLog').classList.toggle('visible');
+        document.getElementById('combatLogBtn')?.classList.toggle('active-red', document.getElementById('combatLog').classList.contains('visible'));
     },
     
     initConditionTooltips() {
