@@ -9292,13 +9292,67 @@ const WB = {
         const name = document.getElementById('saveNameInput').value.trim() || 'Szene ' + new Date().toLocaleDateString();
         const thumb = await this.generateThumbnail();
         
+        // Helper: compress base64 image
+        const compressImg = (src, maxDim, quality) => new Promise(resolve => {
+            if (!src || !src.startsWith('data:')) { resolve(src); return; }
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const c = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        const s = Math.min(maxDim / w, maxDim / h);
+                        w = Math.round(w * s); h = Math.round(h * s);
+                    }
+                    c.width = w; c.height = h;
+                    c.getContext('2d').drawImage(img, 0, 0, w, h);
+                    resolve(c.toDataURL('image/jpeg', quality));
+                } catch(e) { resolve(null); }
+            };
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+        
+        // Optimize tokens: compress base64 portraits to 64px thumbnails
+        const optimizedTokens = await Promise.all(this.tokens.map(async t => {
+            const copy = { ...t };
+            if (copy.img && copy.img.startsWith('data:')) {
+                copy.img = await compressImg(copy.img, 64, 0.5);
+            }
+            delete copy._animTarget; delete copy._animStart; delete copy._animTime; delete copy._animDuration;
+            delete copy._deathSaves;
+            return copy;
+        }));
+        
+        // Optimize images: compress base64 to max 800px
+        const optimizedImages = await Promise.all(this.images.map(async i => {
+            const copy = { ...i };
+            if (copy.src && copy.src.startsWith('data:')) {
+                copy.src = await compressImg(copy.src, 800, 0.6);
+            }
+            return copy;
+        }));
+        
+        // Optimize background: compress to max 2000px
+        let bgData = this.bgDataUrl || null;
+        let bgW = this.bgImage ? this.bgImage.width : null;
+        let bgH = this.bgImage ? this.bgImage.height : null;
+        if (bgData && bgData.startsWith('data:') && this.bgImage) {
+            bgData = await compressImg(bgData, 2000, 0.7);
+            if (bgData) {
+                const tmp = new Image(); 
+                await new Promise(r => { tmp.onload = r; tmp.src = bgData; });
+                bgW = tmp.width; bgH = tmp.height;
+            }
+        }
+        
         const sceneData = {
             name, date: Date.now(), thumb,
-            strokes: this.strokes, tokens: this.tokens, images: this.images,
+            strokes: this.strokes, tokens: optimizedTokens, images: optimizedImages,
             fogAreas: this.fogAreas, auras: this._auras || [], notes: this._notes || [],
-            bgDataUrl: this.bgDataUrl || null,
-            bgOrigWidth: this.bgImage ? this.bgImage.width : null,
-            bgOrigHeight: this.bgImage ? this.bgImage.height : null,
+            bgDataUrl: bgData,
+            bgOrigWidth: bgW,
+            bgOrigHeight: bgH,
             gridSize: this.gridSize, gridOffsetX: this.gridOffsetX, gridOffsetY: this.gridOffsetY,
             gridColor: this.gridColor, gridColorRGB: this.gridColorRGB, gridOpacity: this.gridOpacity, panX: this.panX, panY: this.panY, zoom: this.zoom
         };
@@ -9310,34 +9364,27 @@ const WB = {
                 document.getElementById('saveOverlay').classList.remove('visible');
                 this.toast('Szene gespeichert: ' + name);
             } catch(e) {
-                // Retry with compressed bg if original too large
-                if (this.bgDataUrl) {
+                console.warn('[WB] Scene save failed, trying smaller:', e.message);
+                // Progressive fallback: strip biggest data first
+                try {
+                    // Step 1: Remove background image
+                    sceneData.bgDataUrl = null;
+                    await this.db.ref('whiteboard/' + this.roomCode + '/scenes/' + sceneId).set(sceneData);
+                    document.getElementById('saveOverlay').classList.remove('visible');
+                    this.toast('Szene gespeichert (ohne Hintergrund): ' + name);
+                } catch(e2) {
                     try {
-                        const c2 = document.createElement('canvas');
-                        const img = this.bgImage;
-                        const maxDim = 2000;
-                        let w = img.width, h = img.height;
-                        if (w > maxDim || h > maxDim) {
-                            const s = Math.min(maxDim / w, maxDim / h);
-                            w = Math.round(w * s); h = Math.round(h * s);
-                        }
-                        c2.width = w; c2.height = h;
-                        c2.getContext('2d').drawImage(img, 0, 0, w, h);
-                        sceneData.bgDataUrl = c2.toDataURL('image/jpeg', 0.8);
-                        sceneData.bgOrigWidth = w;
-                        sceneData.bgOrigHeight = h;
+                        // Step 2: Also strip token images and prop images
+                        sceneData.tokens = sceneData.tokens.map(t => ({ ...t, img: (t.img && !t.img.startsWith('data:')) ? t.img : null }));
+                        sceneData.images = sceneData.images.map(i => ({ ...i, src: (i.src && !i.src.startsWith('data:')) ? i.src : null }));
+                        sceneData.thumb = null;
                         await this.db.ref('whiteboard/' + this.roomCode + '/scenes/' + sceneId).set(sceneData);
                         document.getElementById('saveOverlay').classList.remove('visible');
-                        this.toast('Szene gespeichert (Bild komprimiert): ' + name);
-                    } catch(e2) {
-                        sceneData.bgDataUrl = null;
-                        await this.db.ref('whiteboard/' + this.roomCode + '/scenes/' + sceneId).set(sceneData);
-                        document.getElementById('saveOverlay').classList.remove('visible');
-                        this.toast('Szene gespeichert (ohne Hintergrund): ' + name);
+                        this.toast('Szene gespeichert (ohne Bilder): ' + name);
+                    } catch(e3) {
+                        console.error('[WB] Scene save failed completely:', e3);
+                        this.toast('Fehler beim Speichern: ' + (e3.message || 'Payload zu groß'));
                     }
-                } else {
-                    console.error('Scene save error:', e);
-                    this.toast('Fehler beim Speichern: ' + (e.message || 'Unbekannt'));
                 }
             }
         } else {
@@ -9350,8 +9397,9 @@ const WB = {
                 document.getElementById('saveOverlay').classList.remove('visible');
                 this.toast('Szene gespeichert: ' + name);
             } catch(e) {
-                // Strip images on quota error
-                sceneData.images = sceneData.images.map(i => ({ ...i, src: null }));
+                // Strip all images on quota error
+                sceneData.images = sceneData.images.map(i => ({ ...i, src: (i.src && !i.src.startsWith('data:')) ? i.src : null }));
+                sceneData.tokens = sceneData.tokens.map(t => ({ ...t, img: (t.img && !t.img.startsWith('data:')) ? t.img : null }));
                 sceneData.bgDataUrl = null;
                 sceneData.thumb = null;
                 try {
@@ -9360,9 +9408,16 @@ const WB = {
                     if (saves.length > 5) saves.pop();
                     localStorage.setItem('rift_wb_saves', JSON.stringify(saves));
                     document.getElementById('saveOverlay').classList.remove('visible');
-                    this.toast('Szene gespeichert (ohne Bilder, Speicher voll)');
+                    this.toast('Szene gespeichert (ohne Bilder): ' + name);
                 } catch(e2) {
-                    this.toast('Speicher voll! Bitte alte Szenen löschen.');
+                    // Nuclear option: clear old saves and try once more
+                    try {
+                        localStorage.setItem('rift_wb_saves', JSON.stringify([sceneData]));
+                        document.getElementById('saveOverlay').classList.remove('visible');
+                        this.toast('Szene gespeichert (alte Szenen gelöscht)');
+                    } catch(e3) {
+                        this.toast('Speicher voll! Bitte alte Szenen manuell löschen.');
+                    }
                 }
             }
         }
