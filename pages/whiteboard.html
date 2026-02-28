@@ -249,9 +249,6 @@
         .wb-token__hp-fill.low { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
         .wb-token__hp-fill.critical { background: linear-gradient(90deg, #ef4444, #f87171); }
         .wb-token__initiative { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; background: #1e1e1e; border: 2px solid #8b5cf6; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-        .wb-token__combat-stats { position:absolute; left:50%; transform:translateX(-50%); display:flex; gap:1px; pointer-events:none; white-space:nowrap; border-radius:4px; overflow:hidden; }
-        .wb-token__combat-stat { background:rgba(0,0,0,0.85); padding:1px 5px; font-size:8px; font-weight:700; display:flex; align-items:center; gap:2px; }
-        .wb-token__combat-stat svg { width:8px; height:8px; flex-shrink:0; }
         
         /* Combat Log - floating damage/heal numbers */
         .wb-combat-float { position: absolute; pointer-events: none; z-index: 250; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 22px; text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6); white-space: nowrap; animation: combat-float 1.8s ease-out forwards; }
@@ -4086,25 +4083,24 @@ const WB = {
             // Name label (moved down if HP bar exists)
             const labelBottom = (t.maxHp && t.maxHp > 0) ? '-28px' : '-20px';
             if (uiScale > 0.55) {
-                html += `<span class="wb-token__label" style="bottom:${labelBottom};transform:translateX(-50%) scale(${uiScale});transform-origin:center top">${t.name || ''}</span>`;
+                let labelHtml = t.name || '';
+                // In combat: add Init + AC as second line
+                if (this.initiativeActive) {
+                    let stats = '';
+                    if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '') {
+                        stats += `<span style="color:#a78bfa">Init ${t.initiative}</span>`;
+                    }
+                    if (t.ac) {
+                        stats += `<span style="color:#60a5fa">AC ${t.ac}</span>`;
+                    }
+                    if (stats) {
+                        labelHtml = `<div style="text-align:center;line-height:1.2">${t.name || ''}<div style="display:flex;justify-content:center;gap:6px;font-size:8px;margin-top:1px;opacity:0.85">${stats}</div></div>`;
+                    }
+                }
+                html += `<span class="wb-token__label" style="bottom:${labelBottom};transform:translateX(-50%) scale(${uiScale});transform-origin:center top">${labelHtml}</span>`;
             }
             
-            // Combat stats bar (Init + AC) - shown during combat below name
-            if (this.initiativeActive && uiScale > 0.45) {
-                const statsBottom = (t.maxHp && t.maxHp > 0) ? '-40px' : '-32px';
-                let statsHtml = '';
-                if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '') {
-                    statsHtml += `<div class="wb-token__combat-stat" style="color:#a78bfa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>${t.initiative}</div>`;
-                }
-                if (t.ac) {
-                    statsHtml += `<div class="wb-token__combat-stat" style="color:#60a5fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>${t.ac}</div>`;
-                }
-                if (statsHtml) {
-                    html += `<div class="wb-token__combat-stats" style="bottom:${statsBottom};transform:translateX(-50%) scale(${uiScale});transform-origin:center top">${statsHtml}</div>`;
-                }
-            }
-            
-            // Initiative badge
+            // Initiative badge (only outside combat)
             if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '' && !this.initiativeActive) {
                 html += `<div class="wb-token__initiative" style="transform:scale(${uiScale});transform-origin:top right">${t.initiative}</div>`;
             }
