@@ -705,12 +705,13 @@
 
         /* Custom attack row */
         .wb-ab-dice-row { display:flex; gap:4px; margin-bottom:8px; justify-content:center; }
-        .wb-ab-dice-pick { width:38px; height:38px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; padding:6px; }
+        .wb-ab-dice-pick { width:38px; height:38px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; padding:6px; position:relative; }
         .wb-ab-dice-pick img { width:100%; height:100%; filter:brightness(0) invert(1); opacity:0.4; transition:opacity 0.15s; }
         .wb-ab-dice-pick:hover { background:rgba(249,115,22,0.12); border-color:rgba(249,115,22,0.35); }
         .wb-ab-dice-pick:hover img { opacity:0.9 }
         .wb-ab-dice-pick.active { background:rgba(249,115,22,0.18); border-color:#f97316; }
         .wb-ab-dice-pick.active img { opacity:1; filter:brightness(0) invert(1) drop-shadow(0 0 3px rgba(249,115,22,0.5)); }
+        .wb-ab-dice-badge { position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; background:#f97316; color:#000; font-size:10px; font-weight:800; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; pointer-events:none; line-height:1; }
         .wb-ab-custom-row { display:flex; gap:6px; align-items:center; }
         .wb-ab-custom-input { width:52px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:var(--white, #dedede); font-size:13px; font-weight:600; text-align:center; padding:6px 4px; font-family:'Inter',sans-serif; }
         .wb-ab-custom-input:focus { outline:none; border-color:rgba(255,255,255,0.25); }
@@ -4763,6 +4764,8 @@ const WB = {
     _abState: 'idle',
     _abWeapon: null, // Selected weapon for attack
     _abAttacker: null, // Cached attacker ref
+    _abDmg: '1d6', // Cached manual damage string
+    _abBonus: 0, // Cached manual bonus
     
     // Get the token whose turn it is (that the current user can interact with)
     getActionBarToken() {
@@ -4902,13 +4905,21 @@ const WB = {
             // Manual attack
             html += `<div style="margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06)">`;
             html += `<div class="wb-ab-dice-row">`;
+            // Parse cached damage to highlight active die and show count
+            const curMatch = this._abDmg.match(/^(\d+)?d(\d+)/i);
+            const curCount = parseInt(curMatch?.[1]) || 1;
+            const curDie = parseInt(curMatch?.[2]) || 6;
             [4,6,8,10,12,20,100].forEach(d => {
-                html += `<button class="wb-ab-dice-pick" data-ab="set-die" data-die="${d}" title="d${d}"><img src="/assets/icons/dice/d${d}.svg" draggable="false"></button>`;
+                const isActive = d === curDie;
+                html += `<button class="wb-ab-dice-pick${isActive ? ' active' : ''}" data-ab="set-die" data-die="${d}" title="d${d}">`;
+                html += `<img src="/assets/icons/dice/d${d}.svg" draggable="false">`;
+                if (isActive && curCount > 0) html += `<span class="wb-ab-dice-badge">${curCount}</span>`;
+                html += `</button>`;
             });
             html += `</div>`;
             html += `<div class="wb-ab-custom-row">`;
-            html += `<span class="wb-ab-custom-label">Bonus</span><input type="number" class="wb-ab-custom-input" id="abAtkBonus" value="${token.initiative || 0}">`;
-            html += `<span class="wb-ab-custom-label">Schaden</span><input type="text" class="wb-ab-custom-input" id="abAtkDmg" value="1d6" style="width:64px">`;
+            html += `<span class="wb-ab-custom-label">Bonus</span><input type="number" class="wb-ab-custom-input" id="abAtkBonus" value="${this._abBonus}">`;
+            html += `<span class="wb-ab-custom-label">Schaden</span><input type="text" class="wb-ab-custom-input" id="abAtkDmg" value="${this._abDmg}" style="width:64px">`;
             html += `<button class="wb-ab-weapon wb-ab-weapon--custom" data-ab="weapon" data-widx="custom" style="flex:1;justify-content:center">`;
             html += `<span class="wb-ab-weapon__name" style="color:rgba(255,255,255,0.6);font-size:12px">Angriff</span>`;
             html += `</button>`;
@@ -4950,6 +4961,21 @@ const WB = {
             };
         });
         
+        // Right-click on dice buttons: decrease count
+        bar.querySelectorAll('.wb-ab-dice-pick').forEach(btn => {
+            btn.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleAbAction('unset-die', btn.dataset);
+            };
+        });
+        
+        // Sync manual input changes to cache
+        const bonusInput = bar.querySelector('#abAtkBonus');
+        const dmgInput = bar.querySelector('#abAtkDmg');
+        if (bonusInput) bonusInput.oninput = () => { this._abBonus = parseInt(bonusInput.value) || 0; };
+        if (dmgInput) dmgInput.oninput = () => { this._abDmg = dmgInput.value || '1d6'; };
+        
         // Prevent clicks inside action bar from propagating to canvas
         bar.onmousedown = (e) => e.stopPropagation();
         bar.onpointerdown = (e) => e.stopPropagation();
@@ -4972,11 +4998,16 @@ const WB = {
                 if (widx === 'spell') {
                     weapon = { name: 'Zauberangriff', bonus: parseInt(sd?.spellcasting?.spellAttack) || 0, damage: '1d10' };
                 } else if (widx === 'custom') {
+                    // Sync cache from inputs before reading
                     const bar = document.getElementById('actionBar');
+                    const bonusEl = bar?.querySelector('#abAtkBonus');
+                    const dmgEl = bar?.querySelector('#abAtkDmg');
+                    if (bonusEl) this._abBonus = parseInt(bonusEl.value) || 0;
+                    if (dmgEl) this._abDmg = dmgEl.value || '1d6';
                     weapon = {
                         name: 'Angriff',
-                        bonus: parseInt(bar.querySelector('#abAtkBonus')?.value) || 0,
-                        damage: bar.querySelector('#abAtkDmg')?.value || '1d6'
+                        bonus: this._abBonus,
+                        damage: this._abDmg
                     };
                 } else {
                     const w = sd?.weapons?.[parseInt(widx)];
@@ -5067,19 +5098,32 @@ const WB = {
                 break;
                 
             case 'set-die': {
-                const die = dataset.die;
-                const bar = document.getElementById('actionBar');
-                const dmgInput = bar?.querySelector('#abAtkDmg');
-                if (dmgInput) {
-                    // Parse current count prefix (e.g. "2d8" → keep "2", change die)
-                    const m = dmgInput.value.match(/^(\d+)?d/i);
-                    const count = m?.[1] || '1';
-                    dmgInput.value = `${count}d${die}`;
+                const die = parseInt(dataset.die);
+                const m = this._abDmg.match(/^(\d+)?d(\d+)/i);
+                const oldCount = parseInt(m?.[1]) || 1;
+                const oldDie = parseInt(m?.[2]) || 6;
+                const mod = this._abDmg.match(/([+-]\d+)$/)?.[1] || '';
+                
+                if (die === oldDie) {
+                    this._abDmg = `${oldCount + 1}d${die}${mod}`;
+                } else {
+                    this._abDmg = `1d${die}${mod}`;
                 }
-                // Highlight active button
-                bar?.querySelectorAll('.wb-ab-dice-pick').forEach(b => b.classList.remove('active'));
-                const clicked = bar?.querySelector(`.wb-ab-dice-pick[data-die="${die}"]`);
-                if (clicked) clicked.classList.add('active');
+                this.renderActionBar();
+                break;
+            }
+            
+            case 'unset-die': {
+                const die = parseInt(dataset.die);
+                const m = this._abDmg.match(/^(\d+)?d(\d+)/i);
+                const oldCount = parseInt(m?.[1]) || 1;
+                const oldDie = parseInt(m?.[2]) || 6;
+                const mod = this._abDmg.match(/([+-]\d+)$/)?.[1] || '';
+                
+                if (die === oldDie && oldCount > 1) {
+                    this._abDmg = `${oldCount - 1}d${die}${mod}`;
+                    this.renderActionBar();
+                }
                 break;
             }
         }
