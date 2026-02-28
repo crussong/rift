@@ -1365,6 +1365,10 @@
                                 <button class="wb-status-btn" data-status="grappled" title="Gepackt"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#f87171" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
                                 <button class="wb-status-btn" data-status="concentrating" title="Konzentriert"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></button>
                             </div>
+                            <div id="statusDurations" style="margin-top:8px;display:none">
+                                <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px">Dauer (Runden) — leer = permanent</div>
+                                <div id="statusDurInputs" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+                            </div>
                         </div>
                         
                         <!-- GM Notes -->
@@ -2562,6 +2566,23 @@ const WB = {
                     this.lastDragPoint = p;
                 }
             } else {
+                // Ctrl+Click with selected token: add waypoint
+                if (e.ctrlKey && this.selected?.type === 'token' && this.tool === 'select') {
+                    const token = this.selected.item;
+                    if (this.canControl(token)) {
+                        if (this.initiativeActive && token.id !== this.initiativeActive) {
+                            // In combat, only active token can use waypoints
+                        } else {
+                            this.addWaypoint(token, p);
+                            return;
+                        }
+                    }
+                }
+                // Commit waypoints on non-Ctrl click on empty space
+                if (this._waypoints?.length > 0 && !e.ctrlKey) {
+                    this.commitWaypoints();
+                    return;
+                }
                 this.deselect();
                 this.multiSelected = [];
                 // Start marquee selection - use raw world coords for precision
@@ -2583,6 +2604,12 @@ const WB = {
     
     onMove(e) {
         const p = this.getPoint(e);
+        
+        // Waypoint path preview: show cursor extension
+        if (this._waypoints?.length > 0 && this._waypointToken && !this._tokenDrag) {
+            this.drawWaypointPath(p);
+            // Don't return — allow other hover effects
+        }
         
         // Token drag mode: draw line from start to cursor
         if (this.isDragging && this._tokenDrag) {
@@ -2884,6 +2911,13 @@ const WB = {
             return;
         }
         this._rightDragWasPanning = false;
+        
+        // Right-click cancels waypoint planning
+        if (this._waypoints?.length > 0) {
+            this.cancelWaypoints();
+            this.toast('Wegpunkte abgebrochen', 'info');
+            return;
+        }
         const p = this.getPoint(e);
         const hit = this.hitTest(p) || this._contextHit;
         this._contextHit = null;
@@ -3461,6 +3495,7 @@ const WB = {
     
     deselect() {
         this.selected = null;
+        if (this._waypoints?.length > 0) this.cancelWaypoints();
         document.getElementById('selectBox').classList.remove('visible');
         document.getElementById('formatBar').classList.remove('visible');
         this.render();
@@ -4003,7 +4038,11 @@ const WB = {
                 };
                 html += `<div class="wb-token__status" style="transform:scale(${uiScale});transform-origin:top left">`;
                 t.status.forEach(s => {
-                    if (statusSvgs[s]) html += `<div class="wb-token__status-icon" data-status="${s}" style="pointer-events:auto;cursor:help">${statusSvgs[s]}</div>`;
+                    if (statusSvgs[s]) {
+                        const dur = t.statusDurations?.[s];
+                        const durBadge = dur > 0 ? `<span style="position:absolute;bottom:-4px;right:-4px;background:#1a1a1a;color:white;font-size:7px;font-weight:700;width:12px;height:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.3)">${dur}</span>` : '';
+                        html += `<div class="wb-token__status-icon" data-status="${s}" style="pointer-events:auto;cursor:help;position:relative">${statusSvgs[s]}${durBadge}</div>`;
+                    }
                 });
                 html += '</div>';
             }
@@ -5938,7 +5977,14 @@ const WB = {
         document.querySelectorAll('#statusGrid .wb-status-btn').forEach(btn => {
             const status = btn.dataset.status;
             btn.classList.toggle('active', tokenStatuses.includes(status));
+            // Rewire click to also update duration section
+            btn.onclick = () => {
+                btn.classList.toggle('active');
+                this._updateStatusDurations();
+            };
         });
+        this._editStatusDurations = token.statusDurations ? { ...token.statusDurations } : {};
+        this._updateStatusDurations();
         
         // Border color picker
         const borderPicker = document.getElementById('editTokenBorderPicker');
@@ -5978,6 +6024,38 @@ const WB = {
                 }).catch(e => console.warn('[WB] Could not load members:', e));
             }
         }
+    },
+    
+    _updateStatusDurations() {
+        const container = document.getElementById('statusDurations');
+        const inputs = document.getElementById('statusDurInputs');
+        const activeStatuses = [];
+        document.querySelectorAll('#statusGrid .wb-status-btn.active').forEach(btn => {
+            if (btn.dataset.status !== 'dead' && btn.dataset.status !== 'unconscious') {
+                activeStatuses.push({ id: btn.dataset.status, name: btn.title });
+            }
+        });
+        
+        if (!activeStatuses.length) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'block';
+        inputs.innerHTML = '';
+        activeStatuses.forEach(s => {
+            const val = this._editStatusDurations?.[s.id] || '';
+            const el = document.createElement('div');
+            el.style.cssText = 'display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.06);border-radius:6px;padding:3px 8px';
+            el.innerHTML = `<span style="font-size:10px;color:rgba(255,255,255,0.5)">${s.name}</span><input type="number" min="0" max="99" value="${val}" placeholder="—" data-dur="${s.id}" style="width:36px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:white;text-align:center;font-size:11px;padding:2px;font-family:inherit">`;
+            el.querySelector('input').oninput = (e) => {
+                const v = parseInt(e.target.value);
+                if (!this._editStatusDurations) this._editStatusDurations = {};
+                if (v > 0) this._editStatusDurations[s.id] = v;
+                else delete this._editStatusDurations[s.id];
+            };
+            inputs.appendChild(el);
+        });
     },
     
     saveTokenEdit() {
@@ -6032,6 +6110,18 @@ const WB = {
         document.querySelectorAll('#statusGrid .wb-status-btn.active').forEach(btn => {
             t.status.push(btn.dataset.status);
         });
+        
+        // Save status durations (read from inputs, not just cached values)
+        t.statusDurations = {};
+        document.querySelectorAll('#statusDurInputs input[data-dur]').forEach(inp => {
+            const v = parseInt(inp.value);
+            if (v > 0) t.statusDurations[inp.dataset.dur] = v;
+        });
+        // Clean up durations for statuses no longer active
+        Object.keys(t.statusDurations).forEach(k => {
+            if (!t.status.includes(k)) delete t.statusDurations[k];
+        });
+        if (!Object.keys(t.statusDurations).length) delete t.statusDurations;
         
         this.syncToken(t);
         this.renderTokens();
@@ -6243,6 +6333,29 @@ const WB = {
         // Pan to active token
         const t = tokensWithInit[nextIdx];
         t._turnMovementUsed = 0; t._turnAttacksUsed = 0; // Reset movement for new turn
+        
+        // Decrement status durations at start of this token's turn
+        if (t.statusDurations && t.status?.length) {
+            const expired = [];
+            for (const [status, rounds] of Object.entries(t.statusDurations)) {
+                if (rounds > 0) {
+                    t.statusDurations[status] = rounds - 1;
+                    if (t.statusDurations[status] <= 0) {
+                        expired.push(status);
+                    }
+                }
+            }
+            if (expired.length) {
+                expired.forEach(s => {
+                    t.status = (t.status || []).filter(st => st !== s);
+                    delete t.statusDurations[s];
+                    const statusNames = { poisoned:'Vergiftet', burning:'Brennend', frozen:'Gefroren', stunned:'Betäubt', invisible:'Unsichtbar', blessed:'Gesegnet', cursed:'Verflucht', blinded:'Geblendet', frightened:'Verängstigt', charmed:'Bezaubert', restrained:'Festgesetzt', concentrating:'Konzentration' };
+                    this.combatLog('status', { text: `<strong>${t.name}</strong>: ${statusNames[s] || s} abgelaufen`, detail: 'Automatisch entfernt (0 Runden)' });
+                });
+                this.syncToken(t);
+                this.renderTokens();
+            }
+        }
         this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
         this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
         this.startAnimation();
@@ -8000,6 +8113,296 @@ const WB = {
         this.tokens.forEach(t => { t._turnMovementUsed = 0; t._turnAttacksUsed = 0; });
     },
     
+    // ==================== WAYPOINT MOVEMENT ====================
+    _waypoints: [],
+    _waypointToken: null,
+    
+    addWaypoint(token, p) {
+        // First waypoint: set token as source
+        if (!this._waypointToken || this._waypointToken.id !== token.id) {
+            this._waypoints = [];
+            this._waypointToken = token;
+        }
+        
+        // Snap target to grid center
+        let wx = p.rawX, wy = p.rawY;
+        if (this.snap && this.gridSize) {
+            wx = Math.floor((wx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+            wy = Math.floor((wy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+        }
+        
+        this._waypoints.push({ x: wx, y: wy });
+        this.drawWaypointPath();
+        
+        // Show toast on first waypoint
+        if (this._waypoints.length === 1) {
+            this.toast('Wegpunkt gesetzt — Ctrl+Klick für weitere, Enter/Klick zum Bewegen', 'info');
+        }
+    },
+    
+    getWaypointTotalDist() {
+        if (!this._waypointToken || !this._waypoints.length) return 0;
+        const gs = this.gridSize || 70;
+        let total = 0;
+        let prev = { x: this._waypointToken.x, y: this._waypointToken.y };
+        for (const wp of this._waypoints) {
+            const dx = wp.x - prev.x, dy = wp.y - prev.y;
+            total += Math.round(Math.sqrt(dx * dx + dy * dy) / gs);
+            prev = wp;
+        }
+        return total;
+    },
+    
+    drawWaypointPath(cursorP) {
+        if (!this._waypointToken || !this._waypoints.length) return;
+        
+        const ctx = this.uiCtx;
+        ctx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+        this.uiCanvas.style.zIndex = '52';
+        
+        const token = this._waypointToken;
+        const gs = this.gridSize || 70;
+        const lineColor = token.borderColor || '#8b5cf6';
+        
+        const inCombat = !!this.initiativeActive;
+        const used = inCombat ? (token._turnMovementUsed || 0) : 0;
+        const maxFields = token.speed || 6;
+        
+        // Build full point list: token position + all waypoints + optional cursor
+        const points = [{ x: token.x, y: token.y }];
+        for (const wp of this._waypoints) points.push(wp);
+        if (cursorP) {
+            let cx = cursorP.rawX, cy = cursorP.rawY;
+            if (this.snap && this.gridSize) {
+                cx = Math.floor((cx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+                cy = Math.floor((cy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+            }
+            points.push({ x: cx, y: cy, preview: true });
+        }
+        
+        ctx.save();
+        
+        // Draw segments
+        let cumDist = used;
+        for (let i = 1; i < points.length; i++) {
+            const from = points[i - 1];
+            const to = points[i];
+            const sx1 = from.x * this.zoom + this.panX;
+            const sy1 = from.y * this.zoom + this.panY;
+            const sx2 = to.x * this.zoom + this.panX;
+            const sy2 = to.y * this.zoom + this.panY;
+            
+            const dx = to.x - from.x, dy = to.y - from.y;
+            const segFields = Math.round(Math.sqrt(dx * dx + dy * dy) / gs);
+            cumDist += segFields;
+            
+            const over = inCombat && cumDist > maxFields;
+            const segColor = to.preview ? 'rgba(255,255,255,0.3)' : (over ? '#ef4444' : lineColor);
+            
+            // Dashed line
+            ctx.strokeStyle = segColor;
+            ctx.lineWidth = 3;
+            ctx.setLineDash(to.preview ? [6, 8] : [10, 6]);
+            ctx.globalAlpha = to.preview ? 0.5 : 0.7;
+            ctx.beginPath();
+            ctx.moveTo(sx1, sy1);
+            ctx.lineTo(sx2, sy2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Arrow at end of segment
+            if (segFields > 0) {
+                const angle = Math.atan2(sy2 - sy1, sx2 - sx1);
+                ctx.globalAlpha = to.preview ? 0.4 : 0.8;
+                ctx.fillStyle = segColor;
+                ctx.beginPath();
+                ctx.moveTo(sx2, sy2);
+                ctx.lineTo(sx2 - 12 * Math.cos(angle - 0.4), sy2 - 12 * Math.sin(angle - 0.4));
+                ctx.lineTo(sx2 - 12 * Math.cos(angle + 0.4), sy2 - 12 * Math.sin(angle + 0.4));
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        
+        // Draw waypoint dots (not preview)
+        for (let i = 0; i < this._waypoints.length; i++) {
+            const wp = this._waypoints[i];
+            const sx = wp.x * this.zoom + this.panX;
+            const sy = wp.y * this.zoom + this.panY;
+            
+            // Numbered dot
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = lineColor;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.font = '700 10px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(i + 1), sx, sy);
+        }
+        
+        // Total distance badge at last waypoint
+        const lastWp = this._waypoints[this._waypoints.length - 1];
+        const lsx = lastWp.x * this.zoom + this.panX;
+        const lsy = lastWp.y * this.zoom + this.panY;
+        
+        const totalFields = this.getWaypointTotalDist();
+        const totalWithUsed = used + totalFields;
+        const overTotal = inCombat && totalWithUsed > maxFields;
+        const distColor = inCombat ? (overTotal ? '#ef4444' : totalWithUsed === maxFields ? '#f59e0b' : '#22c55e') : 'rgba(255,255,255,0.7)';
+        const badgeText = inCombat ? `${totalWithUsed} / ${maxFields} Felder` : `${totalFields} Felder`;
+        
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = 'rgba(16,16,20,0.92)';
+        ctx.font = '700 13px Inter, sans-serif';
+        const tw = ctx.measureText(badgeText).width + 24;
+        ctx.beginPath();
+        ctx.roundRect(lsx - tw / 2, lsy - 36, tw, 26, 6);
+        ctx.fill();
+        // Border
+        ctx.strokeStyle = distColor;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.6;
+        ctx.stroke();
+        // Text
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = distColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, lsx, lsy - 23);
+        
+        // Small hint at bottom
+        if (this._waypoints.length >= 1) {
+            const hintText = 'Enter = Bewegen · Esc = Abbrechen';
+            ctx.globalAlpha = 0.4;
+            ctx.font = '500 10px Inter, sans-serif';
+            ctx.fillStyle = 'white';
+            ctx.fillText(hintText, lsx, lsy + 22);
+        }
+        
+        ctx.restore();
+    },
+    
+    commitWaypoints() {
+        if (!this._waypointToken || !this._waypoints.length) return;
+        
+        const token = this._waypointToken;
+        const fromX = token.x, fromY = token.y;
+        const gs = this.gridSize || 70;
+        
+        // Clamp to movement in combat
+        let waypoints = [...this._waypoints];
+        if (this.initiativeActive && token.speed) {
+            const used = token._turnMovementUsed || 0;
+            let remaining = Math.max(0, token.speed - used);
+            const clamped = [];
+            let prev = { x: token.x, y: token.y };
+            for (const wp of waypoints) {
+                const dx = wp.x - prev.x, dy = wp.y - prev.y;
+                const segFields = Math.round(Math.sqrt(dx * dx + dy * dy) / gs);
+                if (segFields <= remaining) {
+                    clamped.push(wp);
+                    remaining -= segFields;
+                    prev = wp;
+                } else {
+                    // Partial: clamp this segment
+                    if (remaining > 0) {
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const maxDist = remaining * gs;
+                        const ratio = maxDist / dist;
+                        let cx = prev.x + dx * ratio, cy = prev.y + dy * ratio;
+                        if (this.snap && this.gridSize) {
+                            cx = Math.floor((cx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+                            cy = Math.floor((cy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+                        }
+                        clamped.push({ x: cx, y: cy });
+                    }
+                    break;
+                }
+            }
+            waypoints = clamped;
+        }
+        
+        if (!waypoints.length) {
+            this.cancelWaypoints();
+            return;
+        }
+        
+        // Animate through waypoints sequentially
+        const finalWp = waypoints[waypoints.length - 1];
+        this.animateWaypointPath(token, waypoints, 0);
+        
+        // Track undo (from original pos to final)
+        this.pushTokenUndo({ type: 'move', tokenId: token.id, from: { x: fromX, y: fromY }, to: { x: finalWp.x, y: finalWp.y } });
+        
+        // Track cumulative movement
+        let prev = { x: fromX, y: fromY };
+        for (const wp of waypoints) {
+            this.trackTurnMovement(token, prev.x, prev.y, wp.x, wp.y);
+            prev = wp;
+        }
+        
+        this.cancelWaypoints(true); // Clear state but don't clear canvas (animation will handle it)
+    },
+    
+    animateWaypointPath(token, waypoints, index) {
+        if (index >= waypoints.length) {
+            // All waypoints reached
+            this.hideDragLine();
+            this.renderInitiative();
+            this.renderTokenSidebar();
+            if (this.initiativeActive) {
+                setTimeout(() => this.showActiveTurnRange(), 50);
+            }
+            return;
+        }
+        
+        const wp = waypoints[index];
+        const startX = token.x, startY = token.y;
+        const dx = wp.x - startX, dy = wp.y - startY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 1) {
+            token.x = wp.x; token.y = wp.y;
+            this.syncToken(token);
+            this.animateWaypointPath(token, waypoints, index + 1);
+            return;
+        }
+        
+        const duration = Math.min(500, Math.max(200, dist * 0.8));
+        const startTime = performance.now();
+        
+        const animate = (now) => {
+            const t = Math.min(1, (now - startTime) / duration);
+            const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            token.x = startX + dx * ease;
+            token.y = startY + dy * ease;
+            this.renderTokens();
+            
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                token.x = wp.x; token.y = wp.y;
+                this.syncToken(token);
+                this.renderTokens();
+                // Next waypoint
+                this.animateWaypointPath(token, waypoints, index + 1);
+            }
+        };
+        requestAnimationFrame(animate);
+    },
+    
+    cancelWaypoints(keepCanvas) {
+        this._waypoints = [];
+        this._waypointToken = null;
+        if (!keepCanvas) {
+            this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+            this.uiCanvas.style.zIndex = '5';
+        }
+    },
+    
     // Show range for active turn token
     showActiveTurnRange() {
         const activeToken = this.tokens.find(t => t.id === this.initiativeActive);
@@ -9260,6 +9663,19 @@ const WB = {
             if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) { e.preventDefault(); this.redo(); }
             
             if (overlayOpen) return; // Block tool shortcuts while modal open
+            
+            // Waypoint movement: Enter commits, Escape cancels
+            if (e.key === 'Enter' && this._waypoints?.length > 0 && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                this.commitWaypoints();
+                return;
+            }
+            if (e.key === 'Escape' && this._waypoints?.length > 0) {
+                e.preventDefault();
+                this.cancelWaypoints();
+                this.toast('Wegpunkte abgebrochen', 'info');
+                return;
+            }
             
             // Action Bar: Escape cancels current state
             if (e.key === 'Escape' && this._abState && this._abState !== 'idle' && this._abState !== 'combat_idle' && this._abState !== 'death_save') {
@@ -11404,7 +11820,8 @@ const WB = {
             turn: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
             death: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 8l8 8M16 8l-8 8"/></svg>',
             conc: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>',
-            secret: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>'
+            secret: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
+            status: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'
         };
         
         const entry = { type, data, time, icon: icons[type] || icons.roll };
@@ -11454,7 +11871,7 @@ const WB = {
             const icon = e.target.closest('[data-status]');
             if (icon) {
                 const rect = icon.getBoundingClientRect();
-                this.showConditionTooltip(icon.dataset.status, rect.right, rect.top);
+                this.showConditionTooltip(icon.dataset.status, rect.right, rect.top, icon);
             }
         });
         wrapper.addEventListener('mouseout', (e) => {
@@ -11485,12 +11902,26 @@ const WB = {
         petrified: { name: 'Versteinert', desc: 'In unbelebte Substanz verwandelt. Bewusstlos. Resistenz gegen allen Schaden. Immun gegen Gift und Krankheit.' }
     },
     
-    showConditionTooltip(statusKey, x, y) {
+    showConditionTooltip(statusKey, x, y, tokenEl) {
         const tip = document.getElementById('conditionTip');
         const info = this._conditionDescs[statusKey];
         if (!info || !tip) return;
         const color = this._conditionColors[statusKey] || '#aaa';
-        tip.innerHTML = `<div class="wb-condition-tip__name" style="color:${color}">${info.name}</div><div class="wb-condition-tip__desc">${info.desc}</div>`;
+        
+        // Find token to check duration
+        let durText = '';
+        if (tokenEl) {
+            const tEl = tokenEl.closest('.wb-token');
+            if (tEl) {
+                const idx = parseInt(tEl.dataset.idx);
+                const token = this.tokens[idx];
+                if (token?.statusDurations?.[statusKey] > 0) {
+                    durText = `<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px">Noch ${token.statusDurations[statusKey]} Runde${token.statusDurations[statusKey] !== 1 ? 'n' : ''}</div>`;
+                }
+            }
+        }
+        
+        tip.innerHTML = `<div class="wb-condition-tip__name" style="color:${color}">${info.name}</div><div class="wb-condition-tip__desc">${info.desc}</div>${durText}`;
         tip.style.left = Math.min(x + 12, window.innerWidth - 240) + 'px';
         tip.style.top = Math.min(y - 10, window.innerHeight - 100) + 'px';
         tip.style.display = 'block';
