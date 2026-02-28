@@ -704,6 +704,13 @@
         .wb-ab-gm-label { font-size:10px; color:var(--text-dim, #666); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-right:4px; }
 
         /* Custom attack row */
+        .wb-ab-dice-row { display:flex; gap:4px; margin-bottom:8px; justify-content:center; }
+        .wb-ab-dice-pick { width:38px; height:38px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; padding:6px; }
+        .wb-ab-dice-pick img { width:100%; height:100%; filter:brightness(0) invert(1); opacity:0.4; transition:opacity 0.15s; }
+        .wb-ab-dice-pick:hover { background:rgba(249,115,22,0.12); border-color:rgba(249,115,22,0.35); }
+        .wb-ab-dice-pick:hover img { opacity:0.9 }
+        .wb-ab-dice-pick.active { background:rgba(249,115,22,0.18); border-color:#f97316; }
+        .wb-ab-dice-pick.active img { opacity:1; filter:brightness(0) invert(1) drop-shadow(0 0 3px rgba(249,115,22,0.5)); }
         .wb-ab-custom-row { display:flex; gap:6px; align-items:center; }
         .wb-ab-custom-input { width:52px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:var(--white, #dedede); font-size:13px; font-weight:600; text-align:center; padding:6px 4px; font-family:'Inter',sans-serif; }
         .wb-ab-custom-input:focus { outline:none; border-color:rgba(255,255,255,0.25); }
@@ -4894,11 +4901,16 @@ const WB = {
             
             // Manual attack
             html += `<div style="margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06)">`;
+            html += `<div class="wb-ab-dice-row">`;
+            [4,6,8,10,12,20].forEach(d => {
+                html += `<button class="wb-ab-dice-pick" data-ab="set-die" data-die="${d}" title="d${d}"><img src="/assets/icons/dice/d${d}.svg" draggable="false"></button>`;
+            });
+            html += `</div>`;
             html += `<div class="wb-ab-custom-row">`;
             html += `<span class="wb-ab-custom-label">Bonus</span><input type="number" class="wb-ab-custom-input" id="abAtkBonus" value="${token.initiative || 0}">`;
             html += `<span class="wb-ab-custom-label">Schaden</span><input type="text" class="wb-ab-custom-input" id="abAtkDmg" value="1d6" style="width:64px">`;
             html += `<button class="wb-ab-weapon wb-ab-weapon--custom" data-ab="weapon" data-widx="custom" style="flex:1;justify-content:center">`;
-            html += `<span class="wb-ab-weapon__name" style="color:rgba(255,255,255,0.6);font-size:12px">Manuell</span>`;
+            html += `<span class="wb-ab-weapon__name" style="color:rgba(255,255,255,0.6);font-size:12px">Angriff</span>`;
             html += `</button>`;
             html += `</div></div>`;
             
@@ -5053,6 +5065,23 @@ const WB = {
                 this.setAbState('combat_idle');
                 this.nextTurn();
                 break;
+                
+            case 'set-die': {
+                const die = dataset.die;
+                const bar = document.getElementById('actionBar');
+                const dmgInput = bar?.querySelector('#abAtkDmg');
+                if (dmgInput) {
+                    // Parse current count prefix (e.g. "2d8" → keep "2", change die)
+                    const m = dmgInput.value.match(/^(\d+)?d/i);
+                    const count = m?.[1] || '1';
+                    dmgInput.value = `${count}d${die}`;
+                }
+                // Highlight active button
+                bar?.querySelectorAll('.wb-ab-dice-pick').forEach(b => b.classList.remove('active'));
+                const clicked = bar?.querySelector(`.wb-ab-dice-pick[data-die="${die}"]`);
+                if (clicked) clicked.classList.add('active');
+                break;
+            }
         }
     },
     
@@ -10153,6 +10182,8 @@ const WBDice = {
     // === ANIMATED DICE DISPLAY ===
     
     _show(label) {
+        // Cancel any pending hide from previous roll
+        if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
         const overlay = document.getElementById('wbDiceOverlay');
         const lbl = document.getElementById('wbDiceLabel');
         const stage = document.getElementById('wbDiceStage');
@@ -10168,7 +10199,8 @@ const WBDice = {
     },
 
     _hide(delay) {
-        setTimeout(() => {
+        if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+        this._hideTimer = setTimeout(() => {
             const overlay = document.getElementById('wbDiceOverlay');
             if (overlay) {
                 overlay.style.animation = 'wbDiceFadeOut 0.4s ease-in forwards';
@@ -10177,6 +10209,7 @@ const WBDice = {
                     overlay.style.pointerEvents = 'none';
                 }, 400);
             }
+            this._hideTimer = null;
         }, delay || 0);
     },
 
@@ -10319,7 +10352,7 @@ const WBDice = {
             const isNat20 = isD20 && diceList[0].result === 20;
             const isNat1 = isD20 && diceList[0].result === 1;
             this._showResult(`= ${total}`, isNat20, isNat1);
-            this._hide(1800);
+            this._hide(2500);
             callback(diceList.map(d => d.result));
         });
 
