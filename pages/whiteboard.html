@@ -238,6 +238,8 @@
         .wb-ruler-info { position: absolute; background: rgba(0,0,0,0.9); color: #fbbf24; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; pointer-events: none; z-index: 150; display: none; border: 2px solid #fbbf24; }
         
         .wb-token { position: absolute; left: 0; top: 0; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.5); cursor: move; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.8); user-select: none; -webkit-user-drag: none; z-index: 50; will-change: transform; overflow: visible; }
+        .wb-token--ghost { border-style: dashed !important; box-shadow: none !important; cursor: default !important; animation: ghostPulse 2s ease-in-out infinite; }
+        @keyframes ghostPulse { 0%,100% { opacity: 0.2; } 50% { opacity: 0.35; } }
         .wb-token--topdown { border-radius: 4px; border: 2px solid rgba(255,255,255,0.15); box-shadow: 0 2px 16px rgba(0,0,0,0.6); }
         .wb-token--topdown.selected { outline: 3px solid rgba(139,92,246,0.9) !important; outline-offset: 2px; }
         .wb-token--topdown.active-turn { outline: 3px solid rgba(34,197,94,0.8) !important; outline-offset: 2px; }
@@ -4349,6 +4351,32 @@ const WB = {
         const c = document.getElementById('tokensContainer');
         c.innerHTML = '';
         
+        // Ghost token: show semi-transparent token at turn start position during combat
+        if (this.initiativeActive) {
+            const activeToken = this.tokens.find(t => t.id === this.initiativeActive);
+            if (activeToken && activeToken._turnStartX !== undefined && activeToken._turnStartY !== undefined) {
+                const movedDist = Math.sqrt(Math.pow(activeToken.x - activeToken._turnStartX, 2) + Math.pow(activeToken.y - activeToken._turnStartY, 2));
+                // Only show ghost if token has actually moved from start
+                if (movedDist > 5) {
+                    const ghost = document.createElement('div');
+                    const gSize = activeToken.size * this.zoom;
+                    const gx = activeToken._turnStartX * this.zoom + this.panX - gSize / 2;
+                    const gy = activeToken._turnStartY * this.zoom + this.panY - gSize / 2;
+                    const isTopdown = activeToken.tokenStyle === 'topdown';
+                    ghost.className = 'wb-token wb-token--ghost' + (isTopdown ? ' wb-token--topdown' : '');
+                    ghost.style.cssText = `width:${gSize}px;height:${gSize}px;transform:translate3d(${gx}px,${gy}px,0);pointer-events:none;z-index:40;border-color:${activeToken.borderColor || '#8b5cf6'};filter:grayscale(0.5)`;
+                    if (activeToken.img) {
+                        const imgRadius = isTopdown ? 'border-radius:2px' : 'border-radius:50%';
+                        ghost.innerHTML = `<img src="${activeToken.img}" style="width:100%;height:100%;object-fit:cover;${imgRadius};pointer-events:none">`;
+                    } else {
+                        ghost.style.background = activeToken.color || '#8b5cf6';
+                        ghost.innerHTML = `<span style="font-size:${Math.max(10, gSize * 0.35)}px;pointer-events:none">${activeToken.label || '?'}</span>`;
+                    }
+                    c.appendChild(ghost);
+                }
+            }
+        }
+        
         // Detect stacked tokens (same grid cell) for visual offset
         const gs = this.gridSize || 70;
         const _stackMap = {};
@@ -6990,6 +7018,7 @@ const WB = {
         // Pan to active token
         const t = tokensWithInit[nextIdx];
         t._turnMovementUsed = 0; t._turnAttacksUsed = 0; // Reset movement for new turn
+        t._turnStartX = t.x; t._turnStartY = t.y; // Ghost token start position
         
         // Decrement status durations at start of this token's turn
         if (t.statusDurations && t.status?.length) {
@@ -7051,6 +7080,7 @@ const WB = {
         
         const t = tokensWithInit[prevIdx];
         t._turnMovementUsed = 0; t._turnAttacksUsed = 0;
+        t._turnStartX = t.x; t._turnStartY = t.y;
         this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
         this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
         this.startAnimation();
@@ -7213,6 +7243,8 @@ const WB = {
         this.initiativeActive = firstToken.id;
         firstToken._turnMovementUsed = 0;
         firstToken._turnAttacksUsed = 0;
+        firstToken._turnStartX = firstToken.x;
+        firstToken._turnStartY = firstToken.y;
         
         // Enable timer
         this._turnTimerEnabled = true;
@@ -7250,6 +7282,7 @@ const WB = {
             t.initiative = null;
             t._turnMovementUsed = 0;
             t._turnAttacksUsed = 0;
+            delete t._turnStartX; delete t._turnStartY;
             this.syncToken(t);
         });
         
@@ -7407,15 +7440,15 @@ const WB = {
         const dx = p.rawX - drag.startX;
         const dy = p.rawY - drag.startY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const fields = Math.round(dist / (this.gridSize || 70));
+        const gs = this.gridSize || 70;
+        const fields = Math.round(dist / gs);
         
         const inCombat = !!this.initiativeActive;
         const used = inCombat ? (drag.token._turnMovementUsed || 0) : 0;
         const maxFields = drag.token.speed || 6;
+        const dashFields = maxFields * 2; // Dash = double movement
         const totalUsed = used + fields;
-        const over = inCombat && totalUsed > maxFields;
         const lineColor = drag.token.borderColor || '#8b5cf6';
-        const distColor = inCombat ? (over ? '#ef4444' : totalUsed === maxFields ? '#f59e0b' : '#22c55e') : 'rgba(255,255,255,0.7)';
         
         // Snapped target for endpoint indicator
         let snapSX = p.rx, snapSY = p.ry;
@@ -7426,37 +7459,86 @@ const WB = {
             snapSY = snapY * this.zoom + this.panY;
         }
         
-        // Draw dashed line
         ctx.save();
-        ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 3;
-        ctx.setLineDash([10, 6]);
-        ctx.globalAlpha = 0.7;
-        ctx.beginPath();
-        ctx.moveTo(startSX, startSY);
-        ctx.lineTo(snapSX, snapSY);
-        ctx.stroke();
-        ctx.setLineDash([]);
         
-        // Arrow at end
-        const angle = Math.atan2(snapSY - startSY, snapSX - startSX);
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = lineColor;
-        ctx.beginPath();
-        ctx.moveTo(snapSX, snapSY);
-        ctx.lineTo(snapSX - 14 * Math.cos(angle - 0.4), snapSY - 14 * Math.sin(angle - 0.4));
-        ctx.lineTo(snapSX - 14 * Math.cos(angle + 0.4), snapSY - 14 * Math.sin(angle + 0.4));
-        ctx.closePath();
-        ctx.fill();
+        if (inCombat && fields > 0 && dist > 1) {
+            // Draw color-segmented ruler: green (normal) → yellow (dash) → red (over)
+            const dirX = (snapSX - startSX) / dist / this.zoom;
+            const dirY = (snapSY - startSY) / dist / this.zoom;
+            const totalScreenDist = Math.sqrt(Math.pow(snapSX - startSX, 2) + Math.pow(snapSY - startSY, 2));
+            
+            // Calculate threshold distances in screen pixels
+            const greenEnd = Math.min(1, Math.max(0, (maxFields - used) / fields));
+            const yellowEnd = Math.min(1, Math.max(0, (dashFields - used) / fields));
+            
+            const segments = [];
+            if (greenEnd > 0) segments.push({ start: 0, end: greenEnd, color: '#22c55e' });
+            if (yellowEnd > greenEnd) segments.push({ start: greenEnd, end: yellowEnd, color: '#eab308' });
+            if (yellowEnd < 1) segments.push({ start: yellowEnd, end: 1, color: '#ef4444' });
+            // If no movement used and within normal range, all green
+            if (segments.length === 0) segments.push({ start: 0, end: 1, color: '#22c55e' });
+            
+            segments.forEach(seg => {
+                const sx = startSX + (snapSX - startSX) * seg.start;
+                const sy = startSY + (snapSY - startSY) * seg.start;
+                const ex = startSX + (snapSX - startSX) * seg.end;
+                const ey = startSY + (snapSY - startSY) * seg.end;
+                
+                ctx.strokeStyle = seg.color;
+                ctx.lineWidth = 4;
+                ctx.setLineDash([10, 6]);
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(ex, ey);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+            
+            // Arrow at end in final segment color
+            const endColor = segments[segments.length - 1].color;
+            const angle = Math.atan2(snapSY - startSY, snapSX - startSX);
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = endColor;
+            ctx.beginPath();
+            ctx.moveTo(snapSX, snapSY);
+            ctx.lineTo(snapSX - 14 * Math.cos(angle - 0.4), snapSY - 14 * Math.sin(angle - 0.4));
+            ctx.lineTo(snapSX - 14 * Math.cos(angle + 0.4), snapSY - 14 * Math.sin(angle + 0.4));
+            ctx.closePath();
+            ctx.fill();
+        } else {
+            // Non-combat: simple token-colored dashed line
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 6]);
+            ctx.globalAlpha = 0.7;
+            ctx.beginPath();
+            ctx.moveTo(startSX, startSY);
+            ctx.lineTo(snapSX, snapSY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Arrow at end
+            const angle = Math.atan2(snapSY - startSY, snapSX - startSX);
+            ctx.globalAlpha = 0.8;
+            ctx.fillStyle = lineColor;
+            ctx.beginPath();
+            ctx.moveTo(snapSX, snapSY);
+            ctx.lineTo(snapSX - 14 * Math.cos(angle - 0.4), snapSY - 14 * Math.sin(angle - 0.4));
+            ctx.lineTo(snapSX - 14 * Math.cos(angle + 0.4), snapSY - 14 * Math.sin(angle + 0.4));
+            ctx.closePath();
+            ctx.fill();
+        }
         
         // Destination circle
+        const destColor = inCombat ? (totalUsed > dashFields ? '#ef4444' : totalUsed > maxFields ? '#eab308' : '#22c55e') : lineColor;
         ctx.globalAlpha = 0.3;
-        ctx.fillStyle = lineColor;
+        ctx.fillStyle = destColor;
         ctx.beginPath();
         ctx.arc(snapSX, snapSY, 10, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 0.6;
-        ctx.strokeStyle = lineColor;
+        ctx.strokeStyle = destColor;
         ctx.lineWidth = 2;
         ctx.stroke();
         
@@ -7464,16 +7546,38 @@ const WB = {
         if (fields > 0) {
             const mx = (startSX + snapSX) / 2;
             const my = (startSY + snapSY) / 2;
-            const badgeText = inCombat ? (totalUsed + ' / ' + maxFields) : (fields + ' Felder');
-            ctx.globalAlpha = 0.9;
-            ctx.fillStyle = 'rgba(16,16,20,0.9)';
-            const tw = ctx.measureText(badgeText).width + 20;
+            const ft = fields * 5; // 5ft per grid
+            let badgeText, badgeColor;
+            if (inCombat) {
+                const remaining = maxFields - totalUsed;
+                if (totalUsed <= maxFields) {
+                    badgeText = `${fields} Felder (${ft}ft) · ${remaining} übrig`;
+                    badgeColor = '#22c55e';
+                } else if (totalUsed <= dashFields) {
+                    badgeText = `${fields} Felder (${ft}ft) · DASH`;
+                    badgeColor = '#eab308';
+                } else {
+                    badgeText = `${fields} Felder (${ft}ft) · ZU WEIT`;
+                    badgeColor = '#ef4444';
+                }
+            } else {
+                badgeText = `${fields} Felder (${ft}ft)`;
+                badgeColor = 'rgba(255,255,255,0.8)';
+            }
+            ctx.globalAlpha = 0.95;
+            ctx.font = '700 12px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(16,16,20,0.92)';
+            const tw = ctx.measureText(badgeText).width + 24;
             ctx.beginPath();
-            ctx.roundRect(mx - tw / 2, my - 13, tw, 26, 6);
+            ctx.roundRect(mx - tw / 2, my - 14, tw, 28, 8);
+            ctx.fill();
+            // Colored left accent bar
+            ctx.fillStyle = badgeColor;
+            ctx.beginPath();
+            ctx.roundRect(mx - tw / 2, my - 14, 4, 28, [8, 0, 0, 8]);
             ctx.fill();
             ctx.globalAlpha = 1;
-            ctx.fillStyle = distColor;
-            ctx.font = '700 13px inherit';
+            ctx.fillStyle = badgeColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(badgeText, mx, my);
@@ -8841,6 +8945,7 @@ const WB = {
         
         // Draw segments
         let cumDist = used;
+        const dashFields = maxFields * 2;
         for (let i = 1; i < points.length; i++) {
             const from = points[i - 1];
             const to = points[i];
@@ -8851,10 +8956,17 @@ const WB = {
             
             const dx = to.x - from.x, dy = to.y - from.y;
             const segFields = Math.round(Math.sqrt(dx * dx + dy * dy) / gs);
+            const segStartDist = cumDist;
             cumDist += segFields;
             
-            const over = inCombat && cumDist > maxFields;
-            const segColor = to.preview ? 'rgba(255,255,255,0.3)' : (over ? '#ef4444' : lineColor);
+            let segColor;
+            if (to.preview) {
+                segColor = cumDist > dashFields ? 'rgba(239,68,68,0.35)' : cumDist > maxFields ? 'rgba(234,179,8,0.35)' : 'rgba(34,197,94,0.35)';
+            } else if (inCombat) {
+                segColor = cumDist > dashFields ? '#ef4444' : cumDist > maxFields ? '#eab308' : '#22c55e';
+            } else {
+                segColor = lineColor;
+            }
             
             // Dashed line
             ctx.strokeStyle = segColor;
@@ -8907,9 +9019,25 @@ const WB = {
         
         const totalFields = this.getWaypointTotalDist();
         const totalWithUsed = used + totalFields;
-        const overTotal = inCombat && totalWithUsed > maxFields;
-        const distColor = inCombat ? (overTotal ? '#ef4444' : totalWithUsed === maxFields ? '#f59e0b' : '#22c55e') : 'rgba(255,255,255,0.7)';
-        const badgeText = inCombat ? `${totalWithUsed} / ${maxFields} Felder` : `${totalFields} Felder`;
+        const ft = totalFields * 5;
+        let distColor, badgeText;
+        if (inCombat) {
+            const dashMax = maxFields * 2;
+            if (totalWithUsed <= maxFields) {
+                const remaining = maxFields - totalWithUsed;
+                distColor = '#22c55e';
+                badgeText = `${totalFields} Felder (${ft}ft) · ${remaining} übrig`;
+            } else if (totalWithUsed <= dashMax) {
+                distColor = '#eab308';
+                badgeText = `${totalFields} Felder (${ft}ft) · DASH`;
+            } else {
+                distColor = '#ef4444';
+                badgeText = `${totalFields} Felder (${ft}ft) · ZU WEIT`;
+            }
+        } else {
+            distColor = 'rgba(255,255,255,0.7)';
+            badgeText = `${totalFields} Felder (${ft}ft)`;
+        }
         
         ctx.globalAlpha = 0.95;
         ctx.fillStyle = 'rgba(16,16,20,0.92)';
