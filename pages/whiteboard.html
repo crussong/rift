@@ -211,6 +211,7 @@
         .wb-radius-indicator { position: absolute; border-radius: 50%; pointer-events: none; z-index: 45; display: none; transform: translate(-50%, -50%); }
         .wb-radius-indicator.visible { display: block; }
         .wb-radius-move { border: 3px dashed rgba(34,197,94,0.7); background: radial-gradient(circle, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.05) 70%, transparent 100%); box-shadow: 0 0 12px rgba(34,197,94,0.2), inset 0 0 20px rgba(34,197,94,0.05); }
+        .wb-radius-dash { border: 2px dashed rgba(234,179,8,0.45); background: none; box-shadow: 0 0 8px rgba(234,179,8,0.1); }
         .wb-radius-move__label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(22,22,22,0.9); color: #22c55e; padding: 2px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; font-weight: 600; }
         .wb-radius-range { border: 2px dotted rgba(239,68,68,0.4); background: radial-gradient(circle, rgba(239,68,68,0.04) 0%, transparent 100%); }
         .wb-radius-range__label { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: rgba(22,22,22,0.9); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; font-weight: 600; }
@@ -1122,6 +1123,7 @@
                         <div id="wbGrid"></div>
                         <div id="imagesContainer"></div>
                         <div class="wb-radius-indicator wb-radius-move" id="moveRadius"><div class="wb-radius-move__label" id="moveRadiusLabel"></div></div>
+                        <div class="wb-radius-indicator wb-radius-dash" id="dashRadius"><div class="wb-radius-move__label" id="dashRadiusLabel" style="color:#eab308;border-color:rgba(234,179,8,0.3)"></div></div>
                         <div class="wb-radius-indicator wb-radius-range" id="attackRange"><div class="wb-radius-range__label" id="attackRangeLabel"></div></div>
                         <div class="wb-radius-origin" id="moveOrigin"></div>
                         <div class="wb-radius-distance" id="moveDistance"></div>
@@ -3050,6 +3052,37 @@ const WB = {
                 const clamped = this.clampMovement(t, fromX, fromY, targetX, targetY);
                 targetX = clamped.x;
                 targetY = clamped.y;
+                
+                // Dash confirmation needed?
+                if (clamped.needsDash && this._pendingDash) {
+                    const dashData = this._pendingDash;
+                    this._pendingDash = null;
+                    
+                    // First move to clamped (normal) position
+                    this.animateTokenMove(t, targetX, targetY);
+                    this.trackTurnMovement(t, fromX, fromY, targetX, targetY);
+                    this.pushTokenUndo({ type: 'move', tokenId: t.id, from: { x: fromX, y: fromY }, to: { x: targetX, y: targetY } });
+                    
+                    // Show dash confirmation toast
+                    const normalPos = { x: targetX, y: targetY };
+                    setTimeout(() => {
+                        this.showDashConfirm(t, normalPos, dashData.targetX, dashData.targetY);
+                    }, 400);
+                    
+                    this.renderInitiative();
+                    this.renderTokenSidebar();
+                    this.hideDragLine();
+                    this.hideMoveRadius();
+                    this._tokenDrag = null;
+                    this._multiDrag = null;
+                    this._dragOrigin = null;
+                    this.isDragging = false;
+                    this.lastDragPoint = null;
+                    if (this.initiativeActive) {
+                        setTimeout(() => this.showActiveTurnRange(), 50);
+                    }
+                    return;
+                }
             }
             
             // Multi-drag: move all selected tokens by the same offset
@@ -6947,7 +6980,7 @@ const WB = {
                 </div>
                 <div class="wb-initiative-item__info">
                     <div class="wb-initiative-item__name">${t.name || 'Token'}</div>
-                    <div class="wb-initiative-item__hp">${t.maxHp ? `HP: ${t.hp}/${t.maxHp}` : ''} ${t.ac ? `AC: ${t.ac}` : ''}${isActive && t.speed ? ` <span style="color:${(t._turnMovementUsed||0) >= t.speed ? '#ef4444' : '#22c55e'}">${t.speed - (t._turnMovementUsed||0)}/${t.speed} Mv</span>` : ''}${isActive ? ` <span style="color:${(t._turnAttacksUsed||0) >= (t.attacks||1) ? '#ef4444' : '#f97316'}">${(t.attacks||1) - (t._turnAttacksUsed||0)}/${t.attacks||1} Atk</span>` : ''}</div>
+                    <div class="wb-initiative-item__hp">${t.maxHp ? `HP: ${t.hp}/${t.maxHp}` : ''} ${t.ac ? `AC: ${t.ac}` : ''}${isActive && t.speed ? ` <span style="color:${(t._turnMovementUsed||0) >= (t._turnDashed ? t.speed*2 : t.speed) ? '#ef4444' : t._turnDashed ? '#eab308' : '#22c55e'}">${(t._turnDashed ? t.speed*2 : t.speed) - (t._turnMovementUsed||0)}/${t._turnDashed ? t.speed*2 : t.speed} Mv${t._turnDashed ? ' ⚡' : ''}</span>` : ''}${isActive ? (t._turnDashed ? ` <span style="color:#eab308">DASH</span>` : ` <span style="color:${(t._turnAttacksUsed||0) >= (t.attacks||1) ? '#ef4444' : '#f97316'}">${(t.attacks||1) - (t._turnAttacksUsed||0)}/${t.attacks||1} Atk</span>`) : ''}</div>
                 </div>
                 <div class="wb-initiative-item__init" style="display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:white;min-width:32px">
                     ${t.initiative ?? ''}
@@ -7019,6 +7052,7 @@ const WB = {
         const t = tokensWithInit[nextIdx];
         t._turnMovementUsed = 0; t._turnAttacksUsed = 0; // Reset movement for new turn
         t._turnStartX = t.x; t._turnStartY = t.y; // Ghost token start position
+        delete t._turnDashed; // Reset dash
         
         // Decrement status durations at start of this token's turn
         if (t.statusDurations && t.status?.length) {
@@ -7081,6 +7115,7 @@ const WB = {
         const t = tokensWithInit[prevIdx];
         t._turnMovementUsed = 0; t._turnAttacksUsed = 0;
         t._turnStartX = t.x; t._turnStartY = t.y;
+        delete t._turnDashed;
         this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
         this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
         this.startAnimation();
@@ -7245,6 +7280,7 @@ const WB = {
         firstToken._turnAttacksUsed = 0;
         firstToken._turnStartX = firstToken.x;
         firstToken._turnStartY = firstToken.y;
+        delete firstToken._turnDashed;
         
         // Enable timer
         this._turnTimerEnabled = true;
@@ -7283,6 +7319,7 @@ const WB = {
             t._turnMovementUsed = 0;
             t._turnAttacksUsed = 0;
             delete t._turnStartX; delete t._turnStartY;
+            delete t._turnDashed;
             this.syncToken(t);
         });
         
@@ -8743,6 +8780,25 @@ const WB = {
         const label = used > 0 ? `${remaining} / ${rd.speed} Felder` : `${rd.speed} Felder`;
         document.getElementById('moveRadiusLabel').textContent = label;
         
+        // Dash range (yellow dashed, outer ring) - only if not already dashed and has remaining movement
+        const dashEl = document.getElementById('dashRadius');
+        if (dashEl && !token._turnDashed && remaining > 0) {
+            const dashRemaining = Math.max(0, (rd.speed * 2) - used);
+            const dashRadiusPx = dashRemaining * this.gridSize * this.zoom * 2;
+            if (dashRemaining > remaining) {
+                dashEl.style.width = dashRadiusPx + 'px';
+                dashEl.style.height = dashRadiusPx + 'px';
+                dashEl.style.left = sx + 'px';
+                dashEl.style.top = sy + 'px';
+                dashEl.classList.add('visible');
+                document.getElementById('dashRadiusLabel').textContent = `Dash: ${dashRemaining} Felder`;
+            } else {
+                dashEl.classList.remove('visible');
+            }
+        } else if (dashEl) {
+            dashEl.classList.remove('visible');
+        }
+        
         // Attack range (red dotted)
         if (range > 0) {
             atkEl.style.width = attackRadiusPx + 'px';
@@ -8827,6 +8883,8 @@ const WB = {
         document.getElementById('attackRange').classList.remove('visible');
         document.getElementById('moveOrigin').classList.remove('visible');
         document.getElementById('moveDistance').classList.remove('visible');
+        const dashEl = document.getElementById('dashRadius');
+        if (dashEl) { dashEl.classList.remove('visible'); }
     },
     
     // Track movement after token drop
@@ -8841,7 +8899,7 @@ const WB = {
         }
     },
     
-    // Clamp token movement to remaining speed
+    // Clamp token movement to remaining speed (with dash support)
     clampMovement(token, fromX, fromY, targetX, targetY) {
         if (!this.gridSize || !token.speed || !this.initiativeActive) return { x: targetX, y: targetY };
         
@@ -8849,29 +8907,138 @@ const WB = {
         const remaining = Math.max(0, token.speed - used);
         const maxDist = remaining * this.gridSize;
         
+        // Dash: double movement but costs action (no attacks)
+        const hasDashed = token._turnDashed || false;
+        const dashRemaining = Math.max(0, (token.speed * 2) - used);
+        const dashMaxDist = dashRemaining * this.gridSize;
+        
         const dx = targetX - fromX;
         const dy = targetY - fromY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist <= maxDist + 0.5) return { x: targetX, y: targetY }; // Within range (small tolerance)
+        if (dist <= maxDist + 0.5) return { x: targetX, y: targetY }; // Within normal range
         
-        // Clamp to max distance along the movement vector
-        const ratio = maxDist / dist;
-        let clampedX = fromX + dx * ratio;
-        let clampedY = fromY + dy * ratio;
-        
-        // Re-snap to grid center
-        if (this.snap && this.gridSize) {
-            clampedX = Math.floor((clampedX - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
-            clampedY = Math.floor((clampedY - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+        // Already dashed this turn: clamp to dash max
+        if (hasDashed) {
+            if (dist <= dashMaxDist + 0.5) return { x: targetX, y: targetY };
+            const ratio = dashMaxDist / dist;
+            let cx = fromX + dx * ratio, cy = fromY + dy * ratio;
+            if (this.snap && this.gridSize) {
+                cx = Math.floor((cx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+                cy = Math.floor((cy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+            }
+            return { x: cx, y: cy };
         }
         
-        return { x: clampedX, y: clampedY };
+        // Within dash range but beyond normal: flag for dash confirmation
+        if (dist <= dashMaxDist + 0.5) {
+            this._pendingDash = { token, fromX, fromY, targetX, targetY };
+            // Clamp to normal for now — async confirm will move to full target
+            const ratio = maxDist / dist;
+            let cx = fromX + dx * ratio, cy = fromY + dy * ratio;
+            if (this.snap && this.gridSize) {
+                cx = Math.floor((cx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+                cy = Math.floor((cy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+            }
+            return { x: cx, y: cy, needsDash: true };
+        }
+        
+        // Beyond dash range: clamp to dash max
+        const ratio = dashMaxDist / dist;
+        let cx = fromX + dx * ratio, cy = fromY + dy * ratio;
+        if (this.snap && this.gridSize) {
+            cx = Math.floor((cx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+            cy = Math.floor((cy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+        }
+        this._pendingDash = { token, fromX, fromY, targetX: cx, targetY: cy };
+        
+        // Clamp to normal first
+        const nRatio = maxDist / dist;
+        let nx = fromX + dx * nRatio, ny = fromY + dy * nRatio;
+        if (this.snap && this.gridSize) {
+            nx = Math.floor((nx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+            ny = Math.floor((ny - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+        }
+        return { x: nx, y: ny, needsDash: true };
     },
     
     // Reset movement when turn changes
     resetTurnMovement() {
-        this.tokens.forEach(t => { t._turnMovementUsed = 0; t._turnAttacksUsed = 0; });
+        this.tokens.forEach(t => { t._turnMovementUsed = 0; t._turnAttacksUsed = 0; delete t._turnDashed; });
+    },
+    
+    showDashConfirm(token, normalPos, dashTargetX, dashTargetY) {
+        // Calculate dash distance info
+        const gs = this.gridSize || 70;
+        const extraDist = Math.sqrt(Math.pow(dashTargetX - normalPos.x, 2) + Math.pow(dashTargetY - normalPos.y, 2));
+        const extraFields = Math.round(extraDist / gs);
+        const totalFt = ((token._turnMovementUsed || 0) + extraFields) * 5;
+        
+        // Remove existing dash confirm if any
+        const existing = document.getElementById('dashConfirmOverlay');
+        if (existing) existing.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'dashConfirmOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px)';
+        overlay.innerHTML = `
+            <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:28px 32px;max-width:360px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.6)">
+                <div style="width:48px;height:48px;border-radius:50%;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#eab308" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                <div style="font-size:16px;font-weight:700;color:white;margin-bottom:6px">Dash verwenden?</div>
+                <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:20px;line-height:1.5">
+                    <strong style="color:#eab308">${token.name}</strong> will sich über die normale Bewegung hinaus bewegen.<br>
+                    Dash verbraucht die <strong style="color:#ef4444">Aktion</strong> — keine Angriffe in diesem Zug.
+                </div>
+                <div style="display:flex;gap:10px;justify-content:center">
+                    <button id="dashConfirmNo" style="padding:10px 20px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s">Abbrechen</button>
+                    <button id="dashConfirmYes" style="padding:10px 20px;border-radius:10px;border:none;background:#eab308;color:#1a1a1a;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s">Dash! (+${extraFields} Felder)</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Focus yes button
+        document.getElementById('dashConfirmYes').focus();
+        
+        const cleanup = () => { overlay.remove(); };
+        
+        document.getElementById('dashConfirmYes').onclick = () => {
+            cleanup();
+            // Mark token as dashed: consume all attacks
+            token._turnDashed = true;
+            token._turnAttacksUsed = token.attacks || 1;
+            
+            // Move token to dash target
+            this.animateTokenMove(token, dashTargetX, dashTargetY);
+            this.trackTurnMovement(token, normalPos.x, normalPos.y, dashTargetX, dashTargetY);
+            
+            this.combatLog('move', { 
+                text: `<strong>${token.name}</strong> verwendet <span style="color:#eab308">Dash</span>!`, 
+                detail: `Bewegung verdoppelt. Keine Angriffe in diesem Zug.` 
+            });
+            this.toast(`${token.name} → Dash! Keine Angriffe diesen Zug.`);
+            
+            this.renderInitiative();
+            this.renderTokenSidebar();
+            this.renderActionBar();
+            setTimeout(() => this.showActiveTurnRange(), 400);
+        };
+        
+        document.getElementById('dashConfirmNo').onclick = () => {
+            cleanup();
+            this.toast('Dash abgebrochen');
+            setTimeout(() => this.showActiveTurnRange(), 50);
+        };
+        
+        // Escape to cancel
+        const onKey = (e) => {
+            if (e.key === 'Escape') { cleanup(); this.toast('Dash abgebrochen'); window.removeEventListener('keydown', onKey); }
+            if (e.key === 'Enter') { document.getElementById('dashConfirmYes')?.click(); window.removeEventListener('keydown', onKey); }
+        };
+        window.addEventListener('keydown', onKey);
     },
     
     // ==================== WAYPOINT MOVEMENT ====================
@@ -9079,39 +9246,111 @@ const WB = {
         
         // Clamp to movement in combat
         let waypoints = [...this._waypoints];
+        let needsDash = false;
         if (this.initiativeActive && token.speed) {
             const used = token._turnMovementUsed || 0;
-            let remaining = Math.max(0, token.speed - used);
-            const clamped = [];
+            const hasDashed = token._turnDashed || false;
+            const maxSpeed = hasDashed ? token.speed * 2 : token.speed;
+            let remaining = Math.max(0, maxSpeed - used);
+            
+            // Calculate total waypoint distance
+            let totalFields = 0;
             let prev = { x: token.x, y: token.y };
             for (const wp of waypoints) {
                 const dx = wp.x - prev.x, dy = wp.y - prev.y;
+                totalFields += Math.round(Math.sqrt(dx * dx + dy * dy) / gs);
+                prev = wp;
+            }
+            
+            // Check if dash is needed
+            if (totalFields > remaining && !hasDashed) {
+                const dashRemaining = Math.max(0, (token.speed * 2) - used);
+                if (totalFields <= dashRemaining) {
+                    needsDash = true;
+                }
+            }
+            
+            if (!needsDash) {
+                // Clamp to available movement
+                const clamped = [];
+                prev = { x: token.x, y: token.y };
+                let rem = remaining;
+                for (const wp of waypoints) {
+                    const dx = wp.x - prev.x, dy = wp.y - prev.y;
+                    const segFields = Math.round(Math.sqrt(dx * dx + dy * dy) / gs);
+                    if (segFields <= rem) {
+                        clamped.push(wp);
+                        rem -= segFields;
+                        prev = wp;
+                    } else {
+                        if (rem > 0) {
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const maxDist = rem * gs;
+                            const ratio = maxDist / dist;
+                            let cx = prev.x + dx * ratio, cy = prev.y + dy * ratio;
+                            if (this.snap && this.gridSize) {
+                                cx = Math.floor((cx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
+                                cy = Math.floor((cy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
+                            }
+                            clamped.push({ x: cx, y: cy });
+                        }
+                        break;
+                    }
+                }
+                waypoints = clamped;
+            }
+        }
+        
+        if (!waypoints.length) {
+            this.cancelWaypoints();
+            return;
+        }
+        
+        // Dash confirmation for waypoints
+        if (needsDash) {
+            const finalWp = waypoints[waypoints.length - 1];
+            
+            // First: clamp to normal speed and move there
+            const normalClamped = [];
+            let prev = { x: token.x, y: token.y };
+            let rem = Math.max(0, token.speed - (token._turnMovementUsed || 0));
+            for (const wp of waypoints) {
+                const dx = wp.x - prev.x, dy = wp.y - prev.y;
                 const segFields = Math.round(Math.sqrt(dx * dx + dy * dy) / gs);
-                if (segFields <= remaining) {
-                    clamped.push(wp);
-                    remaining -= segFields;
+                if (segFields <= rem) {
+                    normalClamped.push(wp);
+                    rem -= segFields;
                     prev = wp;
                 } else {
-                    // Partial: clamp this segment
-                    if (remaining > 0) {
+                    if (rem > 0) {
                         const dist = Math.sqrt(dx * dx + dy * dy);
-                        const maxDist = remaining * gs;
-                        const ratio = maxDist / dist;
+                        const ratio = (rem * gs) / dist;
                         let cx = prev.x + dx * ratio, cy = prev.y + dy * ratio;
                         if (this.snap && this.gridSize) {
                             cx = Math.floor((cx - this.gridOffsetX) / this.gridSize) * this.gridSize + this.gridOffsetX + this.gridSize / 2;
                             cy = Math.floor((cy - this.gridOffsetY) / this.gridSize) * this.gridSize + this.gridOffsetY + this.gridSize / 2;
                         }
-                        clamped.push({ x: cx, y: cy });
+                        normalClamped.push({ x: cx, y: cy });
                     }
                     break;
                 }
             }
-            waypoints = clamped;
-        }
-        
-        if (!waypoints.length) {
-            this.cancelWaypoints();
+            
+            if (normalClamped.length) {
+                const normalFinal = normalClamped[normalClamped.length - 1];
+                this.animateWaypointPath(token, normalClamped, 0);
+                let prevT = { x: fromX, y: fromY };
+                for (const wp of normalClamped) { this.trackTurnMovement(token, prevT.x, prevT.y, wp.x, wp.y); prevT = wp; }
+                this.pushTokenUndo({ type: 'move', tokenId: token.id, from: { x: fromX, y: fromY }, to: normalFinal });
+                
+                setTimeout(() => {
+                    this.showDashConfirm(token, normalFinal, finalWp.x, finalWp.y);
+                }, normalClamped.length * 350 + 200);
+            } else {
+                this.showDashConfirm(token, { x: fromX, y: fromY }, finalWp.x, finalWp.y);
+            }
+            
+            this.cancelWaypoints(true);
             return;
         }
         
