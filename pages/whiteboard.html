@@ -6614,7 +6614,7 @@ const WB = {
         const bBtn = document.getElementById('editTokenBestiaryBtn');
         let bDebounce = null;
         
-        const doSearch = () => {
+        const doSearch = async () => {
             const q = bInput.value.trim().toLowerCase();
             if (q.length < 2) { bResults.style.display = 'none'; return; }
             
@@ -6622,8 +6622,8 @@ const WB = {
             if (!this._srdMonsters) {
                 bResults.innerHTML = '<div style="padding:12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.4)">Lade Bestiary...</div>';
                 bResults.style.display = 'block';
-                this._loadSrdMonsters().then(() => doSearch());
-                return;
+                await this._loadSrdMonsters();
+                if (!this._srdMonsters) { bResults.innerHTML = '<div style="padding:12px;text-align:center;font-size:11px;color:#ef4444">API-Fehler</div>'; return; }
             }
             
             const matches = this._srdMonsters.filter(m => 
@@ -6693,14 +6693,18 @@ const WB = {
     },
     
     async _loadSrdMonsters() {
-        if (this._srdMonsters || this._srdMonstersFetching) return;
-        this._srdMonstersFetching = true;
-        try {
-            const res = await fetch('https://www.dnd5eapi.co/api/2014/monsters');
-            const data = await res.json();
-            this._srdMonsters = data.results || [];
-        } catch(e) { console.error('SRD load failed:', e); }
-        this._srdMonstersFetching = false;
+        if (this._srdMonsters) return;
+        // If already fetching, wait for it
+        if (this._srdMonstersPromise) return this._srdMonstersPromise;
+        this._srdMonstersPromise = (async () => {
+            try {
+                const res = await fetch('https://www.dnd5eapi.co/api/2014/monsters');
+                const data = await res.json();
+                this._srdMonsters = data.results || [];
+            } catch(e) { console.error('SRD load failed:', e); }
+            this._srdMonstersPromise = null;
+        })();
+        return this._srdMonstersPromise;
     },
     
     _applyBestiaryToEditModal(m) {
