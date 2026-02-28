@@ -4081,13 +4081,29 @@ const WB = {
             }
             
             // Name label (moved down if HP bar exists)
-            const labelBottom = (t.maxHp && t.maxHp > 0) ? '-28px' : '-20px';
+            const hasHp = t.maxHp && t.maxHp > 0;
+            const labelBottom = hasHp ? '-28px' : '-20px';
             if (uiScale > 0.55) {
                 html += `<span class="wb-token__label" style="bottom:${labelBottom};transform:translateX(-50%) scale(${uiScale});transform-origin:center top">${t.name || ''}</span>`;
             }
             
-            // Initiative badge
-            if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '') {
+            // Combat stats line (Init + AC) — separate row below name, only in combat
+            if (this.initiativeActive && uiScale > 0.55) {
+                const statsBottom = hasHp ? '-41px' : '-33px';
+                let parts = '';
+                if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '') {
+                    parts += `<span style="color:#a78bfa">Init ${t.initiative}</span>`;
+                }
+                if (t.ac) {
+                    parts += `<span style="color:#60a5fa">AC ${t.ac}</span>`;
+                }
+                if (parts) {
+                    html += `<span class="wb-token__label" style="bottom:${statsBottom};transform:translateX(-50%) scale(${uiScale});transform-origin:center top;font-size:8px;padding:1px 6px;display:flex;gap:6px;opacity:0.85">${parts}</span>`;
+                }
+            }
+            
+            // Initiative badge (hide in combat — info is in stats line)
+            if (t.initiative !== undefined && t.initiative !== null && t.initiative !== '' && !this.initiativeActive) {
                 html += `<div class="wb-token__initiative" style="transform:scale(${uiScale});transform-origin:top right">${t.initiative}</div>`;
             }
             
