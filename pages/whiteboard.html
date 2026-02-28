@@ -7037,29 +7037,20 @@ const WB = {
         }
         
         // Show max 60 at a time for performance
-        const shown = monsters.slice(0, 60);
+        this._bestiaryFiltered = monsters;
+        this._bestiaryShown = 0;
+        grid.innerHTML = '';
+        this._appendBestiaryBatch(grid, 60);
         
-        grid.innerHTML = shown.map(m => {
-            const imgUrl = `https://www.dnd5eapi.co/api/images/monsters/${m.index}.png`;
-            return `<div class="wb-tmgr-row wb-bestiary-item" data-index="${m.index}" data-url="${m.url}" style="cursor:pointer">
-                <div class="wb-tmgr-portrait" style="border:2px solid #ef4444;background:#1a1a1a;overflow:hidden">
-                    <img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='<span>${m.name.charAt(0)}</span>';this.parentElement.style.background='#ef4444'">
-                </div>
-                <div class="wb-tmgr-info">
-                    <div class="wb-tmgr-name">${m.name}</div>
-                    <div class="wb-tmgr-stats"><span class="wb-tmgr-stat" style="opacity:0.4">${m.index}</span></div>
-                </div>
-                <div class="wb-tmgr-actions">
-                    <button data-srd="${m.index}" data-srd-url="${m.url}" title="Token erstellen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                </div>
-            </div>`;
-        }).join('');
+        // Infinite scroll
+        grid.onscroll = () => {
+            if (this._bestiaryShown >= this._bestiaryFiltered.length) return;
+            if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 80) {
+                this._appendBestiaryBatch(grid, 40);
+            }
+        };
         
-        if (monsters.length > 60) {
-            grid.innerHTML += `<p style="color:rgba(255,255,255,0.4);text-align:center;padding:12px;font-size:11px">Zeige 60 von ${monsters.length} — Suchfeld nutzen um einzugrenzen</p>`;
-        }
-        
-        // Wire click handlers
+        // Event delegation for dynamically added items (infinite scroll)
         const loadMonster = async (url, index) => {
             try {
                 const btn = grid.querySelector(`[data-srd="${index}"]`);
@@ -7072,20 +7063,46 @@ const WB = {
                 this.toast('Fehler beim Laden: ' + err.message);
             }
         };
+        grid.onclick = (e) => {
+            const btn = e.target.closest('[data-srd]');
+            if (btn) { e.stopPropagation(); loadMonster(btn.dataset.srdUrl, btn.dataset.srd); return; }
+            const row = e.target.closest('.wb-bestiary-item');
+            if (row && !e.target.closest('.wb-tmgr-actions')) loadMonster(row.dataset.url, row.dataset.index);
+        };
+    },
+    
+    _appendBestiaryBatch(grid, count) {
+        const monsters = this._bestiaryFiltered;
+        if (!monsters) return;
+        const start = this._bestiaryShown;
+        const batch = monsters.slice(start, start + count);
+        if (!batch.length) return;
         
-        grid.querySelectorAll('[data-srd]').forEach(btn => {
-            btn.onclick = e => {
-                e.stopPropagation();
-                loadMonster(btn.dataset.srdUrl, btn.dataset.srd);
-            };
-        });
+        // Remove old "loading more" sentinel if present
+        const sentinel = grid.querySelector('.wb-bestiary-sentinel');
+        if (sentinel) sentinel.remove();
         
-        grid.querySelectorAll('.wb-bestiary-item').forEach(row => {
-            row.onclick = e => {
-                if (e.target.closest('.wb-tmgr-actions')) return;
-                loadMonster(row.dataset.url, row.dataset.index);
-            };
-        });
+        const html = batch.map(m => {
+            const imgUrl = `https://www.dnd5eapi.co/api/images/monsters/${m.index}.png`;
+            return `<div class="wb-tmgr-row wb-bestiary-item" data-index="${m.index}" data-url="${m.url}" style="cursor:pointer">
+                <div class="wb-tmgr-portrait" style="border:2px solid #ef4444;background:#1a1a1a;overflow:hidden">
+                    <img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='<span>${m.name.charAt(0)}</span>';this.parentElement.style.background='#ef4444'" loading="lazy">
+                </div>
+                <div class="wb-tmgr-info">
+                    <div class="wb-tmgr-name">${m.name}</div>
+                    <div class="wb-tmgr-stats"><span class="wb-tmgr-stat" style="opacity:0.4">${m.index}</span></div>
+                </div>
+                <div class="wb-tmgr-actions">
+                    <button data-srd="${m.index}" data-srd-url="${m.url}" title="Token erstellen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                </div>
+            </div>`;
+        }).join('');
+        
+        grid.insertAdjacentHTML('beforeend', html);
+        this._bestiaryShown = start + batch.length;
+        
+        // Update count
+        document.getElementById('tokenLibCount').textContent = `${this._bestiaryShown} / ${monsters.length} Monster`;
     },
     
     renderTokenLibrary(grid) {
