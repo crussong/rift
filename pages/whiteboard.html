@@ -3159,8 +3159,21 @@ const WB = {
             return;
         }
         const p = this.getPoint(e);
-        const hit = this.hitTest(p) || this._contextHit;
+        let hit = this.hitTest(p) || this._contextHit;
         this._contextHit = null;
+        
+        // Fallback: check images regardless of active layer (for context menu access)
+        if (!hit && this.isGM) {
+            const px = p.rawX !== undefined ? p.rawX : p.x;
+            const py = p.rawY !== undefined ? p.rawY : p.y;
+            for (let i = this.images.length - 1; i >= 0; i--) {
+                const img = this.images[i];
+                if (px >= img.x && px <= img.x + img.w && py >= img.y && py <= img.y + img.h) {
+                    hit = { type: 'image', item: img, index: i };
+                    break;
+                }
+            }
+        }
         
         const m = document.getElementById('contextMenu');
         let html = '';
@@ -4203,10 +4216,17 @@ const WB = {
             el.draggable = false;
             el.ondragstart = () => false;
             
-            // Only allow image interaction on Map layer
+            // Only allow image drag interaction on Map layer (not locked)
             if (this.layer !== 'map' || img.locked) {
                 el.style.pointerEvents = 'none';
             } else {
+                // Context menu for images on map layer
+                el.oncontextmenu = e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this._contextHit = { type: 'image', item: img, index: i };
+                    this.onContext(e);
+                };
                 el.onmousedown = e => {
                     if (e.button !== 0) return;
                     if (this.tool !== 'select') {
