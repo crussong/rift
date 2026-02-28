@@ -9066,11 +9066,14 @@ const WB = {
         
         this.tokens.forEach(t => {
             const type = t.type || 'player';
+            // Players: skip hidden tokens entirely
+            if (!this.isGM && type === 'hidden') return;
             if (groups[type]) groups[type].tokens.push(t);
             else groups.player.tokens.push(t);
         });
         
-        if (this.tokens.length === 0) {
+        const totalVisible = Object.values(groups).reduce((sum, g) => sum + g.tokens.length, 0);
+        if (totalVisible === 0) {
             body.innerHTML = '<div class="wb-token-sidebar__empty"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:0.3"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg><br>Noch keine Tokens platziert.<br>Klicke auf das Token-Tool um einen zu erstellen.</div>';
             return;
         }
@@ -9095,27 +9098,55 @@ const WB = {
                 const isMultiSel = this.multiSelected.includes(t);
                 const hpPercent = t.maxHp ? Math.max(0, Math.min(100, (t.hp / t.maxHp) * 100)) : 0;
                 const hpColor = hpPercent <= 25 ? '#ef4444' : hpPercent <= 50 ? '#f59e0b' : '#22c55e';
+                const canControl = this.canControl(t);
+                const isEnemy = type === 'monster' || type === 'npc';
                 
-                html += `<div class="wb-token-sidebar__item${isSelected ? ' active' : ''}${isDead ? ' dead' : ''}${isMultiSel ? ' multi-selected' : ''}" data-token-id="${t.id}">
-                    <input type="checkbox" class="wb-token-sidebar__check" data-check-id="${t.id}" ${isMultiSel ? 'checked' : ''} style="width:14px;height:14px;cursor:pointer;accent-color:#8b5cf6;flex-shrink:0">
-                    <div class="wb-token-sidebar__portrait" style="background:${t.img ? 'transparent' : t.color};border-color:${t.borderColor || group.color}">
+                // Players: show health estimate for enemies, exact HP only for controlled tokens
+                const showExactHp = this.isGM || canControl;
+                const healthEst = !showExactHp && isEnemy && t.maxHp ? this.getHealthEstimate(t) : null;
+                
+                html += `<div class="wb-token-sidebar__item${isSelected ? ' active' : ''}${isDead ? ' dead' : ''}${isMultiSel ? ' multi-selected' : ''}" data-token-id="${t.id}">`;
+                // Checkbox: GM only
+                if (this.isGM) {
+                    html += `<input type="checkbox" class="wb-token-sidebar__check" data-check-id="${t.id}" ${isMultiSel ? 'checked' : ''} style="width:14px;height:14px;cursor:pointer;accent-color:#8b5cf6;flex-shrink:0">`;
+                }
+                html += `<div class="wb-token-sidebar__portrait" style="background:${t.img ? 'transparent' : t.color};border-color:${t.borderColor || group.color}">
                         ${t.img ? `<img src="${t.img}">` : `<span>${t.label || '?'}</span>`}
                     </div>
                     <div class="wb-token-sidebar__info">
                         <div class="wb-token-sidebar__name">${t.name || 'Token'}</div>
-                        <div class="wb-token-sidebar__meta">
-                            ${t.maxHp ? `<span>HP ${t.hp}/${t.maxHp}</span>` : ''}
-                            ${t.ac ? `<span>AC ${t.ac}</span>` : ''}
-                            ${t.speed ? `<span>Bew ${t.speed}</span>` : ''}
-                            ${t.initiative !== null && t.initiative !== undefined ? `<span>Init ${t.initiative}</span>` : ''}
-                        </div>
-                        ${t.maxHp ? `<div class="wb-token-sidebar__hp-bar"><div class="wb-token-sidebar__hp-fill" style="width:${hpPercent}%;background:${hpColor}"></div></div>` : ''}
-                    </div>
-                    <div class="wb-token-sidebar__quick-hp">
+                        <div class="wb-token-sidebar__meta">`;
+                
+                if (showExactHp) {
+                    // GM or owned token: show full stats
+                    if (t.maxHp) html += `<span>HP ${t.hp}/${t.maxHp}</span>`;
+                    if (t.ac) html += `<span>AC ${t.ac}</span>`;
+                    if (t.speed) html += `<span>Bew ${t.speed}</span>`;
+                    if (t.initiative !== null && t.initiative !== undefined) html += `<span>Init ${t.initiative}</span>`;
+                } else if (healthEst) {
+                    // Player viewing enemy: health estimate only
+                    html += `<span style="color:${hpColor}">${healthEst.text}</span>`;
+                } else {
+                    // Player viewing friendly: show visible stats
+                    if (t.maxHp) html += `<span>HP ${t.hp}/${t.maxHp}</span>`;
+                    if (t.initiative !== null && t.initiative !== undefined) html += `<span>Init ${t.initiative}</span>`;
+                }
+                
+                html += `</div>`;
+                if (showExactHp && t.maxHp) {
+                    html += `<div class="wb-token-sidebar__hp-bar"><div class="wb-token-sidebar__hp-fill" style="width:${hpPercent}%;background:${hpColor}"></div></div>`;
+                }
+                html += `</div>`;
+                
+                // Quick HP buttons: GM or token owner only
+                if (canControl) {
+                    html += `<div class="wb-token-sidebar__quick-hp">
                         <button class="wb-token-sidebar__hp-btn" data-action="damage" data-id="${t.id}" title="Schaden">-</button>
                         <button class="wb-token-sidebar__hp-btn" data-action="heal" data-id="${t.id}" title="Heilen">+</button>
-                    </div>
-                </div>`;
+                    </div>`;
+                }
+                
+                html += `</div>`;
             });
             
             html += '</div>';
@@ -11204,6 +11235,7 @@ const WB = {
             { el: 'combatLog', header: '.wb-combat-log__header' },
             { el: 'atmoPanel', header: '.wb-atmo-panel__header' },
             { el: 'soundPanel', header: '.wb-sound-panel__header' },
+            { el: 'journalPanel', header: '.wb-journal__header' },
         ];
         
         panels.forEach(({ el, header }) => {
@@ -12736,8 +12768,7 @@ const WB = {
             if (e.target.id === 'journalEditor') document.getElementById('journalEditor').classList.remove('visible');
         });
         
-        // Make panel draggable
-        this.makePanelDraggable('journalPanel', 'journalHeader');
+        // Journal panel dragging handled by main panel system
         
         // Format buttons
         const ta = document.getElementById('journalEntryContent');
