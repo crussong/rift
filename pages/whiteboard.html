@@ -286,6 +286,9 @@
         }
         .wb-anim-die.landed { animation: wbDiceLand 0.3s ease-out, wbDiceGlow 2s ease-in-out infinite; }
         .wb-anim-die .die-type { position:absolute;top:4px;right:8px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:0.5px }
+        .wb-anim-die .die-icon { position:absolute;top:6px;right:6px;width:22px;height:22px;opacity:0.4;filter:brightness(0) invert(1);pointer-events:none;transition:opacity 0.3s }
+        .wb-anim-die.landed .die-icon { opacity:0.55 }
+        .wb-anim-die.nat20 .die-icon, .wb-anim-die.nat1 .die-icon { opacity:0.6 }
         .wb-anim-die.nat20 { background: linear-gradient(135deg, #5a3e0a 0%, #3d2a06 50%, #1a1200 100%); border-color: rgba(251,191,36,0.7); box-shadow: 0 0 30px rgba(251,191,36,0.5), 0 8px 24px rgba(0,0,0,0.5); color: #fbbf24 }
         .wb-anim-die.nat1 { background: linear-gradient(135deg, #5e1f1f 0%, #351010 50%, #200a0a 100%); border-color: rgba(239,68,68,0.7); box-shadow: 0 0 30px rgba(239,68,68,0.5), 0 8px 24px rgba(0,0,0,0.5); color: #ef4444 }
         .wb-combat-float--miss { color: #888; font-size: 16px; }
@@ -672,6 +675,9 @@
         .wb-ab-weapon--custom:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); border-left-color:rgba(255,255,255,0.4); }
         .wb-ab-weapon__name { font-size:13px; font-weight:600; color:var(--white, #dedede); }
         .wb-ab-weapon__detail { font-size:12px; color:var(--text-dim, #666); font-weight:500; }
+        .wb-ab-weapon__left { display:flex; align-items:center; gap:8px; min-width:0; }
+        .wb-ab-die-icon { width:20px; height:20px; opacity:0.45; filter:brightness(0) invert(1); flex-shrink:0; transition:opacity 0.15s }
+        .wb-ab-weapon:hover .wb-ab-die-icon { opacity:0.8 }
 
         /* Target mode indicator */
         .wb-ab-target-info { display:flex; align-items:center; gap:12px; padding:2px 0; }
@@ -4852,6 +4858,14 @@ const WB = {
         
         // ---- STATE: select_weapon ----
         else if (this._abState === 'select_weapon') {
+            // Helper: extract die type from damage string for icon
+            const dieIcon = (dmg) => {
+                const m = (dmg || '').match(/d(\d+)/i);
+                const sides = m ? parseInt(m[1]) : 0;
+                if ([4,6,8,10,12,20,100].includes(sides)) return `<img class="wb-ab-die-icon" src="/assets/icons/dice/d${sides}.svg" draggable="false">`;
+                return '';
+            };
+            
             html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">`;
             html += `<span style="font-size:13px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.5px">Waffe / Angriff</span>`;
             html += `<button class="wb-ab-btn wb-ab-btn--cancel" data-ab="cancel" style="padding:6px 12px;font-size:11px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Zurück</button>`;
@@ -4864,7 +4878,7 @@ const WB = {
                 const bonus = parseInt(w.bonus) || 0;
                 const sign = bonus >= 0 ? '+' : '';
                 html += `<button class="wb-ab-weapon" data-ab="weapon" data-widx="${i}">`;
-                html += `<span class="wb-ab-weapon__name">${w.name}</span>`;
+                html += `<div class="wb-ab-weapon__left">${dieIcon(w.damage)}<span class="wb-ab-weapon__name">${w.name}</span></div>`;
                 html += `<span class="wb-ab-weapon__detail">${sign}${bonus} / ${w.damage || '?'}</span>`;
                 html += `</button>`;
             });
@@ -4873,7 +4887,7 @@ const WB = {
             if (sd?.spellcasting?.spellAttack) {
                 const sa = parseInt(sd.spellcasting.spellAttack) || 0;
                 html += `<button class="wb-ab-weapon wb-ab-weapon--spell" data-ab="weapon" data-widx="spell">`;
-                html += `<span class="wb-ab-weapon__name">Zauberangriff</span>`;
+                html += `<div class="wb-ab-weapon__left">${dieIcon('1d10')}<span class="wb-ab-weapon__name">Zauberangriff</span></div>`;
                 html += `<span class="wb-ab-weapon__detail">+${sa} / 1d10</span>`;
                 html += `</button>`;
             }
@@ -4896,10 +4910,13 @@ const WB = {
             const w = this._abWeapon;
             const bonus = parseInt(w.bonus) || 0;
             const sign = bonus >= 0 ? '+' : '';
+            const dm = (w.damage || '').match(/d(\d+)/i);
+            const dSides = dm ? parseInt(dm[1]) : 0;
+            const dIcon = [4,6,8,10,12,20,100].includes(dSides) ? `<img class="wb-ab-die-icon" src="/assets/icons/dice/d${dSides}.svg" draggable="false" style="opacity:0.6">` : '';
             html += `<div class="wb-ab-target-info">`;
             html += `<div class="wb-ab-target-dot"></div>`;
             html += `<div style="flex:1">`;
-            html += `<div class="wb-ab-target-label">${w.name} <span style="color:rgba(255,255,255,0.4);font-weight:500;font-size:12px;margin-left:6px">${sign}${bonus} / ${w.damage}</span></div>`;
+            html += `<div class="wb-ab-target-label" style="display:flex;align-items:center;gap:6px">${dIcon}${w.name} <span style="color:rgba(255,255,255,0.4);font-weight:500;font-size:12px;margin-left:6px">${sign}${bonus} / ${w.damage}</span></div>`;
             html += `<div class="wb-ab-target-hint">Klicke auf ein Ziel auf der Karte</div>`;
             html += `</div>`;
             html += `<button class="wb-ab-btn wb-ab-btn--cancel" data-ab="cancel" style="padding:6px 12px;font-size:11px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Abbrechen</button>`;
@@ -10168,12 +10185,16 @@ const WBDice = {
         const stage = document.getElementById('wbDiceStage');
         stage.innerHTML = '';
 
+        // Map sides to available SVGs
+        const validDice = [4, 6, 8, 10, 12, 20, 100];
+
         const dieEls = [];
         diceList.forEach((d, i) => {
             const el = document.createElement('div');
             el.className = 'wb-anim-die';
             el.style.animationDelay = (i * 0.12) + 's';
-            el.innerHTML = `<span class="die-value">?</span><span class="die-type">W${d.sides}</span>`;
+            const hasSvg = validDice.includes(d.sides);
+            el.innerHTML = `<span class="die-value">?</span>${hasSvg ? `<img class="die-icon" src="/assets/icons/dice/d${d.sides}.svg" draggable="false">` : `<span class="die-type">W${d.sides}</span>`}`;
             stage.appendChild(el);
             dieEls.push({ el, data: d });
         });
