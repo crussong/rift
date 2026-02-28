@@ -867,7 +867,21 @@
         .wb-handout-viewer__box { background:#1a1a1a; border:1px solid rgba(255,255,255,0.12); border-radius:14px; width:520px; max-width:90vw; max-height:80vh; display:flex; flex-direction:column; overflow:hidden; }
         .wb-handout-viewer__head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08); }
         .wb-handout-viewer__title { font-size:16px; font-weight:700; color:rgba(255,255,255,0.9); }
-        .wb-handout-viewer__body { padding:18px; overflow-y:auto; flex:1; font-size:14px; color:rgba(255,255,255,0.75); line-height:1.7; white-space:pre-wrap; word-wrap:break-word; }
+        .wb-handout-viewer__body { padding:18px; overflow-y:auto; flex:1; font-size:14px; color:rgba(255,255,255,0.75); line-height:1.7; word-wrap:break-word; }
+        .wb-handout-viewer__body h2 { font-size:16px; font-weight:700; color:rgba(255,255,255,0.9); margin:16px 0 8px; }
+        .wb-handout-viewer__body hr { border:none; border-top:1px solid rgba(255,255,255,0.1); margin:12px 0; }
+        .wb-handout-viewer__body strong { color:rgba(255,255,255,0.95); }
+        .wb-handout-viewer__body em { font-style:italic; color:rgba(255,255,255,0.8); }
+        .wb-handout-viewer__body img { max-width:100%; border-radius:8px; margin:8px 0; cursor:pointer; transition:transform 0.2s; }
+        .wb-handout-viewer__body img:hover { transform:scale(1.02); }
+        .wb-handout-viewer__hero { width:100%; max-height:240px; object-fit:cover; border-radius:0; margin:0; display:block; }
+        .wb-journal-editor__fmt-btn { padding:3px 8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:rgba(255,255,255,0.5); font-size:11px; cursor:pointer; display:flex; align-items:center; gap:3px; font-family:Inter,sans-serif; }
+        .wb-journal-editor__fmt-btn:hover { background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.8); }
+        .wb-journal-img-thumb { position:relative; width:72px; height:72px; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); cursor:pointer; }
+        .wb-journal-img-thumb img { width:100%; height:100%; object-fit:cover; }
+        .wb-journal-img-thumb__remove { position:absolute; top:2px; right:2px; width:18px; height:18px; background:rgba(0,0,0,0.7); border-radius:50%; border:none; color:white; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .wb-journal-img-thumb--hero { outline:2px solid #a78bfa; outline-offset:1px; }
+        .wb-journal-img-thumb__badge { position:absolute; bottom:2px; left:2px; background:rgba(139,92,246,0.9); color:white; font-size:7px; padding:1px 4px; border-radius:3px; font-weight:700; }
 
         /* ==================== SECRET ROLL TOGGLE ==================== */
         .wb-dice-secret { display:flex; align-items:center; gap:4px; font-size:10px; color:rgba(255,255,255,0.4); cursor:pointer; user-select:none; margin-left:4px; }
@@ -1684,14 +1698,29 @@
                             </div>
                             <div>
                                 <label class="wb-journal-editor__label">Inhalt</label>
-                                <textarea class="wb-journal-editor__textarea" id="journalEntryContent" placeholder="Schreibe den Handout-Text..."></textarea>
+                                <div style="display:flex;gap:4px;margin-bottom:6px">
+                                    <button class="wb-journal-editor__fmt-btn" id="journalFmtBold" title="Fett (**text**)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 4h8a4 4 0 0 1 0 8H6zM6 12h9a4 4 0 0 1 0 8H6z"/></svg></button>
+                                    <button class="wb-journal-editor__fmt-btn" id="journalFmtItalic" title="Kursiv (*text*)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+                                    <button class="wb-journal-editor__fmt-btn" id="journalFmtH2" title="Überschrift (## text)"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><text x="2" y="18" font-size="16" font-weight="700" font-family="Inter,sans-serif">H</text></svg></button>
+                                    <button class="wb-journal-editor__fmt-btn" id="journalFmtHr" title="Trennlinie (---)">—</button>
+                                    <div style="flex:1"></div>
+                                    <button class="wb-journal-editor__fmt-btn" id="journalImgUploadBtn" title="Bild einfügen" style="color:#a78bfa"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Bild</button>
+                                </div>
+                                <textarea class="wb-journal-editor__textarea" id="journalEntryContent" placeholder="Schreibe den Handout-Text...&#10;&#10;Markdown: **fett**, *kursiv*, ## Überschrift, --- Trennlinie&#10;Bilder werden unten angehängt."></textarea>
                             </div>
+                            <div id="journalImagesSection" style="display:none">
+                                <label class="wb-journal-editor__label">Bilder</label>
+                                <div id="journalImagesList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+                            </div>
+                            <input type="file" id="journalImageInput" accept="image/*" style="display:none">
                             <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.6);cursor:pointer;margin-top:4px">
                                 <input type="checkbox" id="journalEntryShared" style="accent-color:var(--red,#FF4655)"> Für Spieler sichtbar
                             </label>
                         </div>
                         <div class="wb-journal-editor__foot">
                             <button class="wb-journal-editor__btn wb-journal-editor__btn--delete" id="journalEntryDelete" style="display:none">Löschen</button>
+                            <button class="wb-journal-editor__btn wb-journal-editor__btn--cancel" id="journalEntryPreview" style="color:#a78bfa" title="Vorschau wie Spieler es sehen">Vorschau</button>
+                            <div style="flex:1"></div>
                             <button class="wb-journal-editor__btn wb-journal-editor__btn--cancel" id="journalEntryCancel">Abbrechen</button>
                             <button class="wb-journal-editor__btn wb-journal-editor__btn--save" id="journalEntrySave">Speichern</button>
                         </div>
@@ -12441,6 +12470,17 @@ const WB = {
         // Editor: save
         document.getElementById('journalEntrySave')?.addEventListener('click', () => this.saveJournalEntry());
         
+        // Editor: preview
+        document.getElementById('journalEntryPreview')?.addEventListener('click', () => {
+            const preview = {
+                title: document.getElementById('journalEntryTitle').value || 'Vorschau',
+                content: document.getElementById('journalEntryContent').value || '',
+                images: this._journalEditImages || [],
+                heroImageIdx: this._journalEditHeroIdx || 0
+            };
+            this.openHandout(preview);
+        });
+        
         // Editor: delete
         document.getElementById('journalEntryDelete')?.addEventListener('click', () => this.deleteJournalEntry());
         
@@ -12457,6 +12497,39 @@ const WB = {
         
         // Make panel draggable
         this.makePanelDraggable('journalPanel', 'journalHeader');
+        
+        // Format buttons
+        const ta = document.getElementById('journalEntryContent');
+        const wrapSel = (before, after) => {
+            const start = ta.selectionStart, end = ta.selectionEnd;
+            const sel = ta.value.substring(start, end) || 'text';
+            ta.setRangeText(before + sel + after, start, end, 'select');
+            ta.focus();
+        };
+        document.getElementById('journalFmtBold')?.addEventListener('click', () => wrapSel('**', '**'));
+        document.getElementById('journalFmtItalic')?.addEventListener('click', () => wrapSel('*', '*'));
+        document.getElementById('journalFmtH2')?.addEventListener('click', () => {
+            const start = ta.selectionStart;
+            const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+            ta.setRangeText('## ', lineStart, lineStart, 'end');
+            ta.focus();
+        });
+        document.getElementById('journalFmtHr')?.addEventListener('click', () => {
+            const start = ta.selectionStart;
+            ta.setRangeText('\n---\n', start, start, 'end');
+            ta.focus();
+        });
+        
+        // Image upload
+        document.getElementById('journalImgUploadBtn')?.addEventListener('click', () => {
+            document.getElementById('journalImageInput').click();
+        });
+        document.getElementById('journalImageInput')?.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            e.target.value = '';
+            this.uploadJournalImage(file);
+        });
         
         // Firebase sync
         this.initJournalFirebase();
@@ -12494,7 +12567,12 @@ const WB = {
         
         entries.forEach(e => {
             const preview = (e.content || '').substring(0, 60).replace(/\n/g, ' ');
-            html += `<div class="wb-jentry" data-jid="${e.id}">`;
+            const heroImg = e.images?.length ? e.images[e.heroImageIdx ?? 0] : null;
+            html += `<div class="wb-jentry" data-jid="${e.id}" style="display:flex;gap:10px;align-items:flex-start">`;
+            if (heroImg) {
+                html += `<img src="${heroImg}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;margin-top:2px">`;
+            }
+            html += `<div style="flex:1;min-width:0">`;
             html += `<div class="wb-jentry__head">`;
             html += `<span class="wb-jentry__title">${this._escHtml(e.title || 'Unbenannt')}</span>`;
             html += `<span class="wb-jentry__type wb-jentry__type--${e.type || 'note'}">${typeLabels[e.type] || 'Notiz'}</span>`;
@@ -12502,7 +12580,9 @@ const WB = {
             if (preview) html += `<div class="wb-jentry__preview">${this._escHtml(preview)}</div>`;
             html += `<div class="wb-jentry__meta">`;
             if (e.shared) html += `<span class="wb-jentry__shared">Geteilt</span>`;
+            if (e.images?.length) html += `<span style="color:rgba(167,139,250,0.7)">${e.images.length} Bild${e.images.length > 1 ? 'er' : ''}</span>`;
             if (e.linkedNoteId) html += `<span>Kartennotiz</span>`;
+            html += `</div>`;
             html += `</div>`;
             html += `</div>`;
         });
@@ -12541,7 +12621,8 @@ const WB = {
             contentEl.value = entry.content || '';
             sharedEl.checked = !!entry.shared;
             deleteBtn.style.display = '';
-            // Select type
+            this._journalEditImages = entry.images ? [...entry.images] : [];
+            this._journalEditHeroIdx = entry.heroImageIdx ?? 0;
             document.querySelectorAll('#journalTypeSelect .wb-journal-editor__type').forEach(b => {
                 b.classList.toggle('active', b.dataset.jtype === (entry.type || 'note'));
             });
@@ -12552,11 +12633,14 @@ const WB = {
             contentEl.value = '';
             sharedEl.checked = false;
             deleteBtn.style.display = 'none';
+            this._journalEditImages = [];
+            this._journalEditHeroIdx = 0;
             document.querySelectorAll('#journalTypeSelect .wb-journal-editor__type').forEach(b => {
                 b.classList.toggle('active', b.dataset.jtype === 'lore');
             });
         }
         
+        this.renderJournalImages();
         editor.classList.add('visible');
         setTimeout(() => titleEl.focus(), 50);
     },
@@ -12581,6 +12665,8 @@ const WB = {
                 entry.type = type;
                 entry.shared = shared;
                 entry.updatedAt = now;
+                entry.images = this._journalEditImages || [];
+                entry.heroImageIdx = this._journalEditHeroIdx || 0;
                 this.syncJournalEntry(entry);
                 if (shared && !wasShared) {
                     this.toast(`"${entry.title}" mit Spielern geteilt`);
@@ -12598,7 +12684,9 @@ const WB = {
                 shared: shared,
                 createdAt: now,
                 updatedAt: now,
-                userId: this.userId
+                userId: this.userId,
+                images: this._journalEditImages || [],
+                heroImageIdx: this._journalEditHeroIdx || 0
             };
             this._journal.push(entry);
             this.syncJournalEntry(entry);
@@ -12628,7 +12716,30 @@ const WB = {
     openHandout(entry) {
         if (!entry) return;
         document.getElementById('handoutViewerTitle').textContent = entry.title || 'Unbenannt';
-        document.getElementById('handoutViewerBody').textContent = entry.content || '';
+        
+        let html = '';
+        
+        // Hero image (first image or designated hero)
+        const images = entry.images || [];
+        const heroIdx = entry.heroImageIdx ?? 0;
+        if (images.length > 0 && images[heroIdx]) {
+            html += `<img class="wb-handout-viewer__hero" src="${images[heroIdx]}" alt="Header">`;
+        }
+        
+        // Render markdown-light content
+        html += this.renderJournalMarkdown(entry.content || '');
+        
+        // Additional images (skip hero)
+        if (images.length > 1 || (images.length === 1 && heroIdx !== 0)) {
+            html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">';
+            images.forEach((src, i) => {
+                if (i === heroIdx) return;
+                html += `<img src="${src}" style="max-width:200px;max-height:160px;border-radius:8px;cursor:pointer;object-fit:cover" onclick="window.open('${src}','_blank')">`;
+            });
+            html += '</div>';
+        }
+        
+        document.getElementById('handoutViewerBody').innerHTML = html;
         document.getElementById('handoutViewer').classList.add('visible');
     },
     
@@ -12636,6 +12747,97 @@ const WB = {
         if (!this.db || !this.roomCode) return;
         const data = { ...entry };
         this.db.ref('whiteboard/' + this.roomCode + '/journal/' + entry.id).set(data);
+    },
+    
+    // Upload image to Cloudinary for journal entry
+    async uploadJournalImage(file) {
+        this.toast('Bild wird hochgeladen...');
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', 'RIFTapp');
+            formData.append('folder', 'rift_journal');
+            
+            const resp = await fetch('https://api.cloudinary.com/v1_1/dza4jgreq/image/upload', {
+                method: 'POST', body: formData
+            });
+            const data = await resp.json();
+            
+            if (data.secure_url) {
+                if (!this._journalEditImages) this._journalEditImages = [];
+                this._journalEditImages.push(data.secure_url);
+                this.renderJournalImages();
+                this.toast('Bild hinzugefügt');
+            } else {
+                throw new Error(data.error?.message || 'Upload fehlgeschlagen');
+            }
+        } catch (err) {
+            this.toast('Upload fehlgeschlagen: ' + err.message);
+        }
+    },
+    
+    renderJournalImages() {
+        const section = document.getElementById('journalImagesSection');
+        const list = document.getElementById('journalImagesList');
+        const images = this._journalEditImages || [];
+        
+        if (images.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+        
+        section.style.display = 'block';
+        let html = '';
+        images.forEach((src, i) => {
+            const isHero = i === (this._journalEditHeroIdx || 0);
+            html += `<div class="wb-journal-img-thumb${isHero ? ' wb-journal-img-thumb--hero' : ''}" data-jimgidx="${i}">`;
+            html += `<img src="${src}">`;
+            html += `<button class="wb-journal-img-thumb__remove" data-jimgremove="${i}" title="Entfernen">&times;</button>`;
+            if (isHero) html += `<span class="wb-journal-img-thumb__badge">HERO</span>`;
+            html += `</div>`;
+        });
+        list.innerHTML = html;
+        
+        // Click thumbnail = set as hero
+        list.querySelectorAll('.wb-journal-img-thumb').forEach(el => {
+            el.addEventListener('click', e => {
+                if (e.target.closest('[data-jimgremove]')) return;
+                this._journalEditHeroIdx = parseInt(el.dataset.jimgidx);
+                this.renderJournalImages();
+            });
+        });
+        
+        // Remove button
+        list.querySelectorAll('[data-jimgremove]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const idx = parseInt(btn.dataset.jimgremove);
+                this._journalEditImages.splice(idx, 1);
+                if (this._journalEditHeroIdx >= this._journalEditImages.length) this._journalEditHeroIdx = 0;
+                if (this._journalEditHeroIdx > idx) this._journalEditHeroIdx--;
+                this.renderJournalImages();
+            });
+        });
+    },
+    
+    renderJournalMarkdown(text) {
+        if (!text) return '';
+        // Escape HTML first
+        let html = this._escHtml(text);
+        // Headers: ## text
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        // Horizontal rules: ---
+        html = html.replace(/^---$/gm, '<hr>');
+        // Bold: **text**
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        // Italic: *text*
+        html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+        // Line breaks
+        html = html.replace(/\n/g, '<br>');
+        // Clean up double <br> after block elements
+        html = html.replace(/<\/h2><br>/g, '</h2>');
+        html = html.replace(/<hr><br>/g, '<hr>');
+        return html;
     },
     
     initJournalFirebase() {
