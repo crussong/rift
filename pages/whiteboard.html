@@ -6557,12 +6557,14 @@ const WB = {
         const dy = p.rawY - drag.startY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const fields = Math.round(dist / (this.gridSize || 70));
-        const used = drag.token._turnMovementUsed || 0;
+        
+        const inCombat = !!this.initiativeActive;
+        const used = inCombat ? (drag.token._turnMovementUsed || 0) : 0;
         const maxFields = drag.token.speed || 6;
         const totalUsed = used + fields;
-        const over = totalUsed > maxFields;
+        const over = inCombat && totalUsed > maxFields;
         const lineColor = drag.token.borderColor || '#8b5cf6';
-        const distColor = over ? '#ef4444' : totalUsed === maxFields ? '#f59e0b' : '#22c55e';
+        const distColor = inCombat ? (over ? '#ef4444' : totalUsed === maxFields ? '#f59e0b' : '#22c55e') : 'rgba(255,255,255,0.7)';
         
         // Snapped target for endpoint indicator
         let snapSX = p.rx, snapSY = p.ry;
@@ -6611,7 +6613,7 @@ const WB = {
         if (fields > 0) {
             const mx = (startSX + snapSX) / 2;
             const my = (startSY + snapSY) / 2;
-            const badgeText = totalUsed + ' / ' + maxFields;
+            const badgeText = inCombat ? (totalUsed + ' / ' + maxFields) : (fields + ' Felder');
             ctx.globalAlpha = 0.9;
             ctx.fillStyle = 'rgba(16,16,20,0.9)';
             const tw = ctx.measureText(badgeText).width + 20;
