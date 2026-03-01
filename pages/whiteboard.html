@@ -1220,9 +1220,10 @@
                         <!-- 3D Dice Fullscreen Overlay (always present, backdrop toggles) -->
                         <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:600;pointer-events:none;display:none">
                             <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)"></div>
+                            <div id="wbDiceContext" style="position:absolute;top:24px;left:0;right:0;text-align:center;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;z-index:1"></div>
                             <div id="wbDiceStage" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;padding:40px"></div>
-                            <div id="wbDiceResult" style="position:absolute;bottom:80px;left:0;right:0;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s"></div>
-                            <div id="wbDiceLabel" style="position:absolute;bottom:36px;left:0;right:0;text-align:center;font-size:15px;font-weight:600;color:rgba(255,255,255,0.5);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:1px;text-transform:uppercase"></div>
+                            <div id="wbDiceResult" style="position:absolute;bottom:72px;left:0;right:0;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s;z-index:1"></div>
+                            <div id="wbDiceLabel" style="position:absolute;bottom:36px;left:0;right:0;text-align:center;font-size:11px;font-weight:500;color:rgba(255,255,255,0.3);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:0.5px;z-index:1"></div>
                         </div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
@@ -5338,6 +5339,8 @@ const WB = {
         this.renderActionBar();
         
         // Phase 1: 3D Attack Roll (d20)
+        const atkBonusStr = atkBonus >= 0 ? '+' + atkBonus : '' + atkBonus;
+        WBDice._pendingContext = { player: attacker.name, action: 'Angriff: ' + weaponName, detail: '1W20 ' + atkBonusStr + ' vs AC ' + targetAC };
         WBDice.throwCombat('1d20', (results) => {
             const atkRoll = results[0] || (Math.floor(Math.random() * 20) + 1);
             const atkTotal = atkRoll + atkBonus;
@@ -5352,6 +5355,11 @@ const WB = {
                 nat20: isNat20, nat1: isNat1
             });
             
+            // Update overlay with hit/miss breakdown
+            const hitStr = isNat20 ? 'KRITISCHER TREFFER!' : isNat1 ? 'KRITISCHER FEHLSCHLAG!' : hit ? 'TREFFER!' : 'VERFEHLT!';
+            const hitColor = hit ? '#22c55e' : '#ef4444';
+            WBDice._showResult(`= ${atkTotal}`, isNat20, isNat1, `${atkRoll} ${atkBonusStr} = ${atkTotal} vs AC ${targetAC} — ${hitStr}`);
+            
             // Attack line animation
             setTimeout(() => this.showAttackLine(attacker, target, hit, isNat20), 300);
             
@@ -5362,6 +5370,8 @@ const WB = {
                 const dmgNotation = `${rollCount}d${d.die}`;
                 
                 setTimeout(() => {
+                    const dmgModStr = d.mod ? (d.mod > 0 ? '+' + d.mod : '' + d.mod) : '';
+                    WBDice._pendingContext = { player: attacker.name, action: (isNat20 ? 'Krit! ' : '') + 'Schaden: ' + weaponName, detail: dmgNotation.replace(/d/g, 'W') + dmgModStr };
                     WBDice.throwCombat(dmgNotation, (dmgResults) => {
                         let dmgTotal = 0;
                         const dmgRolls = [];
@@ -6189,12 +6199,14 @@ const WB = {
         
         // Toast summary
         const modStr = mod !== 0 ? (mod > 0 ? '+' + mod : mod) : '';
-        const rollsStr = count > 1 ? ` (${rolls.join('+')})` : '';
-        let toastMsg = `${token.name}: ${count}d${die}${modStr} = ${total}${rollsStr}`;
-        if (isNat20) toastMsg += ' NAT 20!';
-        if (isNat1) toastMsg += ' NAT 1!';
-        if (label) toastMsg = `${token.name} [${label}]: ${total}`;
-        this.toast(toastMsg);
+        const rollsStr = count > 1 ? ` [${rolls.join('+')}]` : '';
+        if (label) {
+            this.toast(`${token.name} — ${label}: ${rolls[0] || total}${modStr} = ${total}${rollsStr}`);
+            this.combatLog('roll', { text: `<strong>${token.name}</strong> — ${label}`, detail: `${count}W${die}${modStr}${rollsStr} = ${total}${isNat20 ? ' NAT 20!' : ''}${isNat1 ? ' NAT 1!' : ''}` });
+        } else {
+            this.toast(`${token.name}: ${count}W${die}${modStr} = ${total}${rollsStr}`);
+            this.combatLog('roll', { text: `<strong>${token.name}</strong> würfelt ${count}W${die}${modStr}`, detail: `${rollsStr ? rollsStr + ' = ' : ''}${total}${isNat20 ? ' NAT 20!' : ''}${isNat1 ? ' NAT 1!' : ''}` });
+        }
     },
     
     showDiceResult(token, total, opts) {
@@ -6208,8 +6220,12 @@ const WB = {
         el.className = cls;
         
         let inner = `<span class="wb-dice-result__total">${total}</span>`;
-        const modStr = opts.mod !== 0 ? (opts.mod > 0 ? '+' + opts.mod : opts.mod) : '';
-        inner += `<span class="wb-dice-result__detail">${opts.count}d${opts.die}${modStr}</span>`;
+        // Show roll breakdown: "14 + 4" or "[3, 5, 2] + 3"
+        if (opts.rolls && opts.rolls.length > 0) {
+            const rollStr = opts.rolls.length > 1 ? `[${opts.rolls.join('+')}]` : opts.rolls[0];
+            const modStr = opts.mod ? (opts.mod > 0 ? ' + ' + opts.mod : ' - ' + Math.abs(opts.mod)) : '';
+            inner += `<span class="wb-dice-result__detail">${rollStr}${modStr}</span>`;
+        }
         if (opts.nat20) inner += `<span class="wb-dice-result__crit">NAT 20!</span>`;
         if (opts.nat1) inner += `<span class="wb-dice-result__crit wb-dice-result__crit--fail">NAT 1</span>`;
         if (opts.label) inner += `<span class="wb-dice-result__label">${opts.label}</span>`;
@@ -15900,16 +15916,30 @@ const WBDice = {
 
     // === ANIMATED DICE DISPLAY ===
     
-    _show(label) {
-        // Cancel any pending hide from previous roll
+    _show(label, context) {
+        // context: { player, action, detail } — optional structured info
         if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
         const overlay = document.getElementById('wbDiceOverlay');
         const lbl = document.getElementById('wbDiceLabel');
         const stage = document.getElementById('wbDiceStage');
         const result = document.getElementById('wbDiceResult');
+        const ctx = document.getElementById('wbDiceContext');
         if (stage) stage.innerHTML = '';
         if (result) { result.innerHTML = ''; result.style.opacity = '0'; }
-        if (lbl) lbl.textContent = label || '';
+        if (lbl) lbl.textContent = '';
+        if (ctx) {
+            if (context) {
+                let html = '';
+                if (context.player) html += `<div style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">${context.player}</div>`;
+                if (context.action) html += `<div style="font-family:Inter,sans-serif;font-size:16px;font-weight:700;color:#a78bfa">${context.action}</div>`;
+                if (context.detail) html += `<div style="font-family:Inter,sans-serif;font-size:11px;color:rgba(255,255,255,0.35)">${context.detail}</div>`;
+                ctx.innerHTML = html;
+            } else if (label) {
+                ctx.innerHTML = `<div style="font-family:Inter,sans-serif;font-size:14px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">${label}</div>`;
+            } else {
+                ctx.innerHTML = '';
+            }
+        }
         if (overlay) {
             overlay.style.display = 'block';
             overlay.style.pointerEvents = 'auto';
@@ -15983,13 +16013,19 @@ const WBDice = {
         }, totalTime);
     },
 
-    _showResult(text, isNat20, isNat1) {
+    _showResult(text, isNat20, isNat1, breakdown) {
         const result = document.getElementById('wbDiceResult');
+        const lbl = document.getElementById('wbDiceLabel');
         if (!result) return;
         const color = isNat20 ? '#fbbf24' : isNat1 ? '#ef4444' : '#a78bfa';
         const size = isNat20 ? '48px' : isNat1 ? '42px' : '36px';
-        result.innerHTML = `<div style="font-family:Inter,sans-serif;font-size:${size};font-weight:900;color:${color};text-shadow:0 0 30px ${color}80">${text}</div>`;
+        let html = `<div style="font-family:Inter,sans-serif;font-size:${size};font-weight:900;color:${color};text-shadow:0 0 30px ${color}80">${text}</div>`;
+        if (isNat20) html += `<div style="font-family:Inter,sans-serif;font-size:13px;font-weight:800;color:#fbbf24;text-shadow:0 0 10px rgba(251,191,36,0.6);margin-top:2px">NAT 20!</div>`;
+        if (isNat1) html += `<div style="font-family:Inter,sans-serif;font-size:13px;font-weight:800;color:#ef4444;text-shadow:0 0 10px rgba(239,68,68,0.6);margin-top:2px">NAT 1!</div>`;
+        result.innerHTML = html;
         result.style.opacity = '1';
+        // Show breakdown in label area
+        if (lbl && breakdown) lbl.textContent = breakdown;
     },
 
     // === ROLL METHODS ===
@@ -16023,15 +16059,16 @@ const WBDice = {
         const isNat1 = isD20 && diceList[0].result === 1;
 
         const notationStr = notation.replace(/d/g, 'W') + (mod ? (mod > 0 ? '+' + mod : '' + mod) : '');
-        this._show(notationStr);
-
+        
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
         const playerName = userData.name || 'Spieler';
+        this._show(null, { player: playerName, action: notationStr });
 
         this._animateDice(diceList, () => {
             const rollStr = diceList.map(d => d.result).join(', ');
             const critStr = isNat20 ? ' NAT 20!' : isNat1 ? ' NAT 1!' : '';
-            this._showResult(`= ${total}${critStr}`, isNat20, isNat1);
+            const breakdownStr = diceList.length > 1 ? `[${rollStr}]${mod ? (mod>0?'+':'')+mod : ''} = ${total}` : (mod ? `${diceList[0].result}${mod>0?'+':''}${mod} = ${total}` : '');
+            this._showResult(`= ${total}`, isNat20, isNat1, breakdownStr);
             
             const isSecret = document.getElementById('wbDiceSecret')?.checked;
             
@@ -16068,7 +16105,7 @@ const WBDice = {
     },
 
     // Combat dice: notation string like "1d20", returns results via callback
-    throwCombat(notation, callback, label) {
+    throwCombat(notation, callback, label, context) {
         const diceList = [];
         const re = /(\d*)d(\d+)/gi;
         let m;
@@ -16080,7 +16117,14 @@ const WBDice = {
             }
         }
 
-        this._show(label || notation.replace(/d/g, 'W'));
+        // Use pending context from combat system, passed context, or fallback to label
+        const ctx = this._pendingContext || context || null;
+        this._pendingContext = null;
+        if (ctx) {
+            this._show(null, ctx);
+        } else {
+            this._show(label || notation.replace(/d/g, 'W'));
+        }
         this._animateDice(diceList, () => {
             const total = diceList.reduce((s, d) => s + d.result, 0);
             const isD20 = diceList.length === 1 && diceList[0].sides === 20;
@@ -16091,13 +16135,21 @@ const WBDice = {
             callback(diceList.map(d => d.result));
         });
 
-        // Sync
+        // Sync WITH full data so remote players see correct results
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+        const total = diceList.reduce((s, d) => s + d.result, 0);
+        const isD20 = diceList.length === 1 && diceList[0].sides === 20;
+        const isNat20 = isD20 && diceList[0].result === 20;
+        const isNat1 = isD20 && diceList[0].result === 1;
         this.syncRoll({
             player: userData.name || 'Spieler',
             playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || '',
             color: userData.color || '#8b5cf6',
             notation: notation.replace(/d/g, 'W'),
+            total: total,
+            results: diceList.map(d => d.result),
+            critical: isNat20 ? 'success' : isNat1 ? 'failure' : false,
+            label: label || null,
             timestamp: Date.now(), diceConfig: { diceList }
         });
     },
@@ -16122,17 +16174,26 @@ const WBDice = {
             }
             
             if (roll.diceConfig?.diceList) {
-                this._show(roll.player + ': ' + (roll.notation || ''));
+                const remoteCtx = roll.label ? { player: roll.player, action: roll.label } : null;
+                if (remoteCtx) {
+                    this._show(null, remoteCtx);
+                } else {
+                    this._show(roll.player + ': ' + (roll.notation || ''));
+                }
                 this._animateDice(roll.diceConfig.diceList, () => {
-                    const total = roll.total || roll.diceConfig.diceList.reduce((s, d) => s + d.result, 0);
+                    const total = roll.total ?? roll.diceConfig.diceList.reduce((s, d) => s + d.result, 0);
                     this._showResult(`= ${total}`, roll.critical === 'success', roll.critical === 'failure');
                     this._hide(2000);
                 });
             }
 
+            const rollTotal = roll.total ?? '?';
+            const rollResults = roll.results ? roll.results.join(', ') : roll.diceConfig?.diceList?.map(d => d.result).join(', ') || '?';
+            const modStr = roll.modifier ? (roll.modifier > 0 ? '+' + roll.modifier : '' + roll.modifier) : '';
             const critStr = roll.critical === 'success' ? ' NAT 20!' : roll.critical === 'failure' ? ' NAT 1!' : '';
-            WB.toast(`${roll.player} würfelt ${roll.notation}${roll.modifier ? (roll.modifier>0?'+':'')+roll.modifier : ''}: [${roll.results?.join(', ')}] = ${roll.total}${critStr}`);
-            WB.combatLog('roll', { text: `<strong>${roll.player}</strong> würfelt ${roll.notation || '?'}`, detail: `[${roll.results?.join(', ') || '?'}] = ${roll.total}${critStr}` });
+            const labelStr = roll.label ? ` (${roll.label})` : '';
+            WB.toast(`${roll.player} würfelt ${roll.notation || '?'}${modStr}${labelStr}: [${rollResults}]${modStr} = ${rollTotal}${critStr}`);
+            WB.combatLog('roll', { text: `<strong>${roll.player}</strong> würfelt ${roll.notation || '?'}${labelStr}`, detail: `[${rollResults}]${modStr} = ${rollTotal}${critStr}` });
         });
     },
 
