@@ -642,6 +642,16 @@
         .wb-note--loot { background: rgba(251,191,36,0.7); }
         .wb-note--trap { background: rgba(239,68,68,0.7); }
         .wb-note--door { background: rgba(139,92,246,0.7); }
+        
+        /* Interactive Doors */
+        .wb-door { position:absolute; z-index:50; pointer-events:auto; cursor:pointer; transform:translate(-50%, -50%); }
+        .wb-door__body { width:36px; height:20px; position:relative; display:flex; align-items:center; justify-content:center; border-radius:4px; transition:all 0.2s; }
+        .wb-door__body:hover { filter:brightness(1.3); }
+        .wb-door--closed .wb-door__body { background:rgba(139,92,246,0.8); border:2px solid rgba(167,139,250,0.6); }
+        .wb-door--open .wb-door__body { background:rgba(34,197,94,0.5); border:2px dashed rgba(34,197,94,0.5); }
+        .wb-door--locked .wb-door__body { background:rgba(239,68,68,0.7); border:2px solid rgba(239,68,68,0.6); }
+        .wb-door__icon { width:14px; height:14px; color:white; display:flex; align-items:center; justify-content:center; }
+        .wb-door__label { position:absolute; bottom:-16px; left:50%; transform:translateX(-50%); font-size:9px; color:rgba(255,255,255,0.4); white-space:nowrap; pointer-events:none; text-shadow:0 1px 3px rgba(0,0,0,0.8); }
         .wb-note--custom { background: rgba(107,114,128,0.7); }
         /* Drag & drop overlay */
         .wb-drop-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(139,92,246,0.15); border: 3px dashed rgba(139,92,246,0.6); display: none; align-items: center; justify-content: center; z-index: 500; pointer-events: none; }
@@ -1091,6 +1101,7 @@
                                     <button class="wb-dd-item" id="imageBtn" title="Ein Bild oder Prop von deinem Gerät auf die Karte laden. Frei skalier- und verschiebbar."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Bild / Prop</button>
                                     <button class="wb-dd-item" id="stampBtn" title="Vorgefertigte Sticker und Symbole schnell auf der Karte platzieren."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>Sticker</button>
                                     <button class="wb-dd-item" id="noteBtn" title="Kartennotiz erstellen. Verschiedene Typen: Info, Loot, Gefahr, Quest, Geheim."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Kartennotiz</button>
+                                    <button class="wb-dd-item" id="doorBtn" title="Interaktive Tür platzieren. Klicke auf die Karte um eine Tür zu setzen. Spieler können Türen öffnen/schliessen."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/><circle cx="15.5" cy="12" r="1.5" fill="currentColor"/></svg>Tür<span class="wb-dd-item__key">D</span></button>
                                     <div class="wb-dd-sep"></div>
                                     <button class="wb-dd-item" id="tokenExportBtn" title="Token-Liste als JSON exportieren oder importieren."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Token Export/Import</button>
                                 </div>
@@ -2294,6 +2305,10 @@ const WB = {
                     this._placingNote = false;
                     document.getElementById('noteBtn')?.classList.remove('active');
                 }
+                if (this._doorPlaceMode) {
+                    this._doorPlaceMode = false;
+                    document.getElementById('doorBtn')?.classList.remove('active');
+                }
                 
                 // Auto snap control: off for drawing tools, restore for others
                 const drawTools = ['pen', 'line', 'rect', 'circle', 'arrow', 'polygon', 'text', 'eraser'];
@@ -2825,6 +2840,30 @@ const WB = {
         
         // Note placement mode takes priority over any tool
         if (this._placingNote && this.isGM) { this.showNoteDialog(p); return; }
+        
+        // Door placement mode
+        if (this._doorPlaceMode && this.isGM) {
+            this._doorPlaceMode = false;
+            document.getElementById('doorBtn')?.classList.remove('active');
+            const door = {
+                id: 'door_' + Date.now(),
+                x: p.rawX,
+                y: p.rawY,
+                rotation: 0,
+                state: 'closed',
+                label: ''
+            };
+            // Snap to grid if enabled
+            if (this.snap && this.gridSize) {
+                door.x = Math.round(door.x / this.gridSize) * this.gridSize;
+                door.y = Math.round(door.y / this.gridSize) * this.gridSize;
+            }
+            this._doors.push(door);
+            this.syncDoor(door);
+            this.renderDoors();
+            this.toast('Tür platziert');
+            return;
+        }
         
         // SELECT TOOL - Main new logic
         if (this.tool === 'select') {
@@ -4323,6 +4362,7 @@ const WB = {
         if (this._remoteRulers) this.renderRemoteRulers();
         if (this._auras) this.renderAuras();
         if (this._notes) this.renderNotes();
+        if (this._doors) this.renderDoors();
         this.renderTokenLinks();
     },
     
@@ -10040,7 +10080,7 @@ const WB = {
         const sceneData = {
             name, date: Date.now(), thumb,
             strokes: this.strokes, tokens: optimizedTokens, images: optimizedImages,
-            fogAreas: this.fogAreas, auras: this._auras || [], notes: this._notes || [],
+            fogAreas: this.fogAreas, auras: this._auras || [], notes: this._notes || [], doors: this._doors || [],
             bgDataUrl: bgData,
             bgOrigWidth: bgW,
             bgOrigHeight: bgH,
@@ -10193,7 +10233,7 @@ const WB = {
         // Wipe current whiteboard first
         this.isClearing = true;
         this.strokes = []; this.images = []; this.tokens = []; this.fogAreas = [];
-        this._auras = []; this._notes = [];
+        this._auras = []; this._notes = []; this._doors = [];
         this.bgImage = null; this.bgDataUrl = null;
         this.history = []; this.historyIdx = -1;
         this.initiativeActive = null; this.initiativeOrder = [];
@@ -10214,6 +10254,8 @@ const WB = {
                 this.db.ref(base + '/auras').remove(),
                 this.db.ref(base + '/notes').remove()
             ]).catch(e => console.warn('[WB] Wipe error:', e));
+            // Also clear doors
+            this.db.ref(base + '/doors').remove().catch(() => {});
         }
         this.isClearing = false;
         
@@ -10224,6 +10266,7 @@ const WB = {
         this.fogAreas = scene.fogAreas || [];
         this._auras = scene.auras || [];
         this._notes = scene.notes || [];
+        this._doors = scene.doors || [];
         if (scene.gridSize) this.gridSize = scene.gridSize;
         if (scene.gridOffsetX !== undefined) this.gridOffsetX = scene.gridOffsetX;
         if (scene.gridOffsetY !== undefined) this.gridOffsetY = scene.gridOffsetY;
@@ -10245,6 +10288,7 @@ const WB = {
             this.images.forEach(i => this.syncImageToFirebase(i));
             this._auras.forEach(a => this.syncAura(a));
             this._notes.forEach(n => this.syncNote(n));
+            this._doors.forEach(d => this.syncDoor(d));
             if (scene.bgDataUrl) this.syncBackground(scene.bgDataUrl);
             // Re-attach listeners after sync
             setTimeout(() => this.setupFirebaseListeners(), 500);
@@ -10574,6 +10618,7 @@ const WB = {
         this.fogAreas = [];
         this._auras = [];
         this._notes = [];
+        this._doors = [];
         this.bgImage = null;
         this.bgDataUrl = null;
         this.history = []; 
@@ -10602,7 +10647,8 @@ const WB = {
                 this.db.ref(base + '/focus').remove(),
                 this.db.ref(base + '/ruler').remove(),
                 this.db.ref(base + '/auras').remove(),
-                this.db.ref(base + '/notes').remove()
+                this.db.ref(base + '/notes').remove(),
+                this.db.ref(base + '/doors').remove()
             ])
                 .then(() => {
                     console.log('[WB] Firebase data REMOVED for room:', this.roomCode);
@@ -10942,6 +10988,11 @@ const WB = {
             if (_key === 'k' && !e.ctrlKey) this.toggleCombatLog();
             if (_key === 'j' && !e.ctrlKey && !e.metaKey) this.toggleJournal();
             if (_key === 'q' && !e.ctrlKey) this.toggleQuestLog();
+            if (_key === 'd' && !e.ctrlKey && !e.metaKey && this.isGM) {
+                this._doorPlaceMode = !this._doorPlaceMode;
+                document.getElementById('doorBtn')?.classList.toggle('active', this._doorPlaceMode);
+                this.toast(this._doorPlaceMode ? 'Tür-Modus: Klicke auf die Karte' : 'Tür-Modus beendet', 'info');
+            }
             if (_key === 'i' && !e.ctrlKey) {
                 document.getElementById('initiativeBtn')?.click();
             }
@@ -11018,6 +11069,8 @@ const WB = {
             if (e.key === 'Escape') {
                 this.deselect();
                 this.polygonPoints = [];
+                if (this._doorPlaceMode) { this._doorPlaceMode = false; document.getElementById('doorBtn')?.classList.remove('active'); }
+                if (this._placingNote) { this._placingNote = false; document.getElementById('noteBtn')?.classList.remove('active'); }
                 document.querySelectorAll('.wb-overlay').forEach(o => o.classList.remove('visible'));
                 document.getElementById('stampsPanel').classList.remove('visible');
                 document.getElementById('contextMenu').classList.remove('visible');
@@ -11057,6 +11110,7 @@ const WB = {
                 ['K', 'Kampfprotokoll'],
                 ['J', 'Journal'],
                 ['Q', 'Quest-Log'],
+                ['D', 'Tür platzieren (GM)'],
                 ['B', 'Bestiary (GM)'],
             ]},
             { title: 'Kampf', keys: [
@@ -11887,6 +11941,14 @@ const WB = {
             this.renderNotes();
         });
         
+        // Doors
+        const doorsRef = this.db.ref('whiteboard/' + this.roomCode + '/doors');
+        doorsRef.on('value', snap => {
+            const data = snap.val();
+            this._doors = data ? Object.entries(data).map(([id, d]) => ({ id, ...d })) : [];
+            this.renderDoors();
+        });
+        
         // Track refs for cleanup
         this.firebaseListeners = [
             { ref: strokesRef, event: 'value' },
@@ -11900,7 +11962,8 @@ const WB = {
             { ref: imagesRef, event: 'value' },
             { ref: rulerRef, event: 'value' },
             { ref: aurasRef, event: 'value' },
-            { ref: notesRef, event: 'value' }
+            { ref: notesRef, event: 'value' },
+            { ref: doorsRef, event: 'value' }
         ];
     },
     
@@ -12431,6 +12494,18 @@ const WB = {
             };
         }
         
+        // Door button
+        const doorBtn = document.getElementById('doorBtn');
+        if (doorBtn) {
+            if (!this.isGM) { doorBtn.style.display = 'none'; }
+            doorBtn.onclick = () => {
+                if (!this.isGM) return;
+                this._doorPlaceMode = !this._doorPlaceMode;
+                doorBtn.classList.toggle('active', this._doorPlaceMode);
+                this.toast(this._doorPlaceMode ? 'Klicke auf die Map um Tür zu setzen' : 'Tür-Modus deaktiviert', 'info');
+            };
+        }
+        
         // Note type selection
         document.getElementById('noteTypes')?.addEventListener('click', e => {
             const btn = e.target.closest('.wb-btn');
@@ -12573,6 +12648,183 @@ const WB = {
     
     syncNote(n) {
         if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/notes/' + n.id).set(n);
+    },
+    
+    // ==================== INTERACTIVE DOORS ====================
+    _doors: [],
+    
+    syncDoor(d) {
+        if (this.db && this.roomCode) {
+            const clean = { x: d.x, y: d.y, rotation: d.rotation || 0, state: d.state, label: d.label || '' };
+            this.db.ref('whiteboard/' + this.roomCode + '/doors/' + d.id).set(clean);
+        }
+    },
+    
+    removeDoor(id) {
+        this._doors = this._doors.filter(d => d.id !== id);
+        if (this.db && this.roomCode) this.db.ref('whiteboard/' + this.roomCode + '/doors/' + id).remove();
+        this.renderDoors();
+    },
+    
+    toggleDoor(door) {
+        if (door.state === 'locked') {
+            this.toast('Diese Tür ist verschlossen', 'error');
+            return;
+        }
+        door.state = door.state === 'closed' ? 'open' : 'closed';
+        this.syncDoor(door);
+        this.renderDoors();
+    },
+    
+    renderDoors() {
+        const c = document.getElementById('notesContainer');
+        c.querySelectorAll('.wb-door').forEach(el => el.remove());
+        
+        const doorIcons = {
+            closed: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5"><rect x="4" y="2" width="16" height="20" rx="1"/><circle cx="16" cy="12" r="1.5" fill="white" stroke="none"/></svg>',
+            open: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2"><path d="M4 2v20"/><path d="M4 2l12 3v14l-12 3"/></svg>',
+            locked: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+        };
+        
+        this._doors.forEach(d => {
+            const el = document.createElement('div');
+            el.className = `wb-door wb-door--${d.state}`;
+            el.dataset.doorId = d.id;
+            const x = d.x * this.zoom + this.panX;
+            const y = d.y * this.zoom + this.panY;
+            const rot = d.rotation || 0;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            
+            el.innerHTML = `<div class="wb-door__body" style="transform:rotate(${rot}deg)">
+                <div class="wb-door__icon">${doorIcons[d.state] || doorIcons.closed}</div>
+            </div>${d.label ? `<div class="wb-door__label">${d.label}</div>` : ''}`;
+            
+            // Click: toggle open/closed (all users)
+            el.onclick = e => {
+                e.stopPropagation();
+                this.toggleDoor(d);
+            };
+            
+            // GM: right-click context menu
+            if (this.isGM) {
+                el.oncontextmenu = e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showDoorContextMenu(d, e.clientX, e.clientY);
+                };
+                
+                // GM: drag to move
+                el.onmousedown = e => {
+                    if (e.button !== 0 || !e.shiftKey) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const startP = this.getPoint(e);
+                    
+                    const onMove = ev => {
+                        const p = this.getPoint(ev);
+                        d.x += p.rawX - startP.rawX;
+                        d.y += p.rawY - startP.rawY;
+                        startP.rawX = p.rawX;
+                        startP.rawY = p.rawY;
+                        this.renderDoors();
+                    };
+                    const onUp = () => {
+                        if (this.snap && this.gridSize) {
+                            d.x = Math.round(d.x / this.gridSize) * this.gridSize;
+                            d.y = Math.round(d.y / this.gridSize) * this.gridSize;
+                        }
+                        this.syncDoor(d);
+                        this.renderDoors();
+                        window.removeEventListener('mousemove', onMove);
+                        window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                };
+            }
+            
+            c.appendChild(el);
+        });
+    },
+    
+    showDoorContextMenu(door, mx, my) {
+        const m = document.getElementById('contextMenu');
+        const states = [
+            { state: 'open', label: 'Offen', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20"/><path d="M4 2l12 3v14l-12 3"/></svg>', color: '#22c55e' },
+            { state: 'closed', label: 'Geschlossen', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="1"/><circle cx="16" cy="12" r="1.5" fill="currentColor"/></svg>', color: '#a78bfa' },
+            { state: 'locked', label: 'Verschlossen', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>', color: '#ef4444' }
+        ];
+        
+        m.innerHTML = `
+            <div style="padding:6px 10px;font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px">Tür</div>
+            ${states.map(s => `
+                <div class="wb-ctx-item${door.state === s.state ? ' active' : ''}" data-door-state="${s.state}" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:${door.state === s.state ? s.color : 'rgba(255,255,255,0.6)'}">
+                    ${s.icon} ${s.label}
+                </div>
+            `).join('')}
+            <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
+            <div class="wb-ctx-item" id="doorRotate" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:rgba(255,255,255,0.6)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Drehen (90°)
+            </div>
+            <div class="wb-ctx-item" id="doorLabel" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:rgba(255,255,255,0.6)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Beschriftung
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
+            <div class="wb-ctx-item" id="doorDelete" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:#ef4444">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Löschen
+            </div>
+        `;
+        
+        // Position
+        m.style.left = mx + 'px';
+        m.style.top = my + 'px';
+        m.classList.add('visible');
+        
+        // State change handlers
+        m.querySelectorAll('[data-door-state]').forEach(el => {
+            el.onmouseenter = () => el.style.background = 'rgba(255,255,255,0.06)';
+            el.onmouseleave = () => el.style.background = '';
+            el.onclick = () => {
+                door.state = el.dataset.doorState;
+                this.syncDoor(door);
+                this.renderDoors();
+                m.classList.remove('visible');
+                this.toast(`Tür → ${el.textContent.trim()}`);
+            };
+        });
+        
+        // Hover on other items
+        ['doorRotate', 'doorLabel', 'doorDelete'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.onmouseenter = () => el.style.background = 'rgba(255,255,255,0.06)';
+                el.onmouseleave = () => el.style.background = '';
+            }
+        });
+        
+        document.getElementById('doorRotate').onclick = () => {
+            door.rotation = ((door.rotation || 0) + 90) % 360;
+            this.syncDoor(door);
+            this.renderDoors();
+            m.classList.remove('visible');
+        };
+        
+        document.getElementById('doorLabel').onclick = () => {
+            m.classList.remove('visible');
+            const label = prompt('Tür-Beschriftung:', door.label || '');
+            if (label !== null) {
+                door.label = label;
+                this.syncDoor(door);
+                this.renderDoors();
+            }
+        };
+        
+        document.getElementById('doorDelete').onclick = () => {
+            this.removeDoor(door.id);
+            m.classList.remove('visible');
+            this.toast('Tür entfernt');
+        };
     },
     
     // ==================== DRAG & DROP ====================
