@@ -845,6 +845,9 @@
         .wb-quest__obj input[type=checkbox] { margin-top:2px; accent-color:#a78bfa; cursor:pointer; }
         .wb-quest__obj--done { text-decoration:line-through; color:rgba(255,255,255,0.25); }
         .wb-quest__actions { display:flex; gap:4px; margin-top:8px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04); }
+        .wb-quests.collapsed .wb-quests__body { display: none; }
+        .wb-quests.collapsed { max-height: none !important; height: auto !important; }
+        .wb-quests.collapsed .wb-panel-resize { display: none; }
         .wb-journal.visible { display:flex; flex-direction:column; }
         .wb-journal.collapsed .wb-journal__body { display:none; }
         .wb-journal.collapsed .wb-panel-resize { display:none; }
@@ -1731,6 +1734,7 @@
                         <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px">Quests</span>
                         <div style="display:flex;gap:4px">
                             <button class="wb-token-sidebar__close" id="questAddBtn" title="Neue Quest (GM)" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                            <button class="wb-token-sidebar__close" id="questCollapseBtn" title="Ein-/Ausklappen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
                             <button class="wb-token-sidebar__close" id="questCloseBtn" title="Schliessen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                         </div>
                     </div>
@@ -11174,13 +11178,18 @@ const WB = {
         window.addEventListener('keydown', onKey);
     },
     
+    
     // ==================== QUEST LOG ====================
     _quests: [],
+    _questsExpanded: new Set(),
     
     initQuestLog() {
         document.getElementById('questCloseBtn').onclick = () => {
             document.getElementById('questPanel').classList.remove('visible');
             document.getElementById('questLogBtn')?.classList.remove('active-red');
+        };
+        document.getElementById('questCollapseBtn').onclick = () => {
+            document.getElementById('questPanel').classList.toggle('collapsed');
         };
         document.getElementById('questLogBtn').onclick = () => this.toggleQuestLog();
         
@@ -11190,7 +11199,7 @@ const WB = {
             addBtn.onclick = () => this.createQuest();
         }
         
-        // Firebase listener
+        // Firebase listener — players see quests too
         if (this.db && this.roomCode) {
             const ref = this.db.ref('whiteboard/' + this.roomCode + '/quests');
             this.firebaseListeners.push(ref);
@@ -11204,6 +11213,78 @@ const WB = {
                 this.renderQuestLog();
             });
         }
+        
+        // Event delegation (bound once, not per render)
+        document.getElementById('questBody').onclick = e => {
+            // Checkbox toggle
+            const cb = e.target.closest('input[type=checkbox][data-qid]');
+            if (cb) {
+                e.stopPropagation();
+                const qid = cb.dataset.qid;
+                const idx = parseInt(cb.dataset.oidx);
+                const quest = this._quests.find(q => q.id === qid);
+                if (quest && quest.objectives?.[idx] !== undefined) {
+                    quest.objectives[idx].done = cb.checked;
+                    this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid + '/objectives/' + idx + '/done').set(cb.checked);
+                    cb.closest('.wb-quest__obj').classList.toggle('wb-quest__obj--done', cb.checked);
+                    // Update progress badge inline
+                    const card = cb.closest('.wb-quest');
+                    if (card) {
+                        const total = quest.objectives.length;
+                        const done = quest.objectives.filter(o => o.done).length;
+                        const badge = card.querySelector('.wb-quest__progress');
+                        if (badge) badge.textContent = `${done}/${total}`;
+                    }
+                }
+                return;
+            }
+            
+            // GM action buttons
+            const btn = e.target.closest('[data-qa]');
+            if (btn) {
+                e.stopPropagation();
+                if (!this.isGM) return;
+                const action = btn.dataset.qa;
+                const qid = btn.dataset.qid;
+                const quest = this._quests.find(q => q.id === qid);
+                if (!quest) return;
+                
+                if (action === 'edit') {
+                    this.editQuest(quest);
+                } else if (action === 'obj') {
+                    this._questsExpanded.add(qid);
+                    if (!quest.objectives) quest.objectives = [];
+                    quest.objectives.push({ text: 'Neues Ziel', done: false });
+                    const { id, ...data } = quest;
+                    this.db.ref('whiteboard/' + this.roomCode + '/quests/' + id).set(data);
+                } else if (action === 'status') {
+                    this._questsExpanded.add(qid);
+                    quest.status = quest.status === 'active' ? 'completed' : 'active';
+                    this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid + '/status').set(quest.status);
+                } else if (action === 'delete') {
+                    if (confirm('Quest "' + quest.title + '" löschen?')) {
+                        this._questsExpanded.delete(qid);
+                        this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid).remove();
+                    }
+                }
+                return;
+            }
+            
+            // Toggle expand (only from header click)
+            const head = e.target.closest('.wb-quest__head');
+            if (head) {
+                const card = head.closest('.wb-quest');
+                const qid = card?.dataset.qid;
+                if (!qid) return;
+                if (this._questsExpanded.has(qid)) {
+                    this._questsExpanded.delete(qid);
+                    card.classList.remove('expanded');
+                } else {
+                    this._questsExpanded.add(qid);
+                    card.classList.add('expanded');
+                }
+            }
+        };
     },
     
     toggleQuestLog() {
@@ -11215,14 +11296,9 @@ const WB = {
     createQuest() {
         const id = 'q_' + Date.now();
         const quest = { title: 'Neue Quest', description: '', objectives: [], status: 'active', createdAt: Date.now() };
-        this._quests.unshift({ id, ...quest });
+        this._questsExpanded.add(id);
         this.db.ref('whiteboard/' + this.roomCode + '/quests/' + id).set(quest);
-        this.renderQuestLog();
-        // Auto-expand and edit
-        setTimeout(() => {
-            const el = document.querySelector(`[data-qid="${id}"]`);
-            if (el) { el.classList.add('expanded'); el.querySelector('.wb-quest__title')?.click(); }
-        }, 50);
+        setTimeout(() => this.editQuest({ id, ...quest }), 200);
     },
     
     renderQuestLog() {
@@ -11238,12 +11314,13 @@ const WB = {
             const doneCount = (q.objectives || []).filter(o => o.done).length;
             const totalCount = (q.objectives || []).length;
             const progress = totalCount > 0 ? `${doneCount}/${totalCount}` : '';
+            const isExpanded = this._questsExpanded.has(q.id);
             
-            return `<div class="wb-quest" data-qid="${q.id}">
+            return `<div class="wb-quest${isExpanded ? ' expanded' : ''}" data-qid="${q.id}">
                 <div class="wb-quest__head">
                     <div class="wb-quest__icon wb-quest__icon--${q.status || 'active'}"></div>
                     <span class="wb-quest__title">${q.title || 'Ohne Titel'}</span>
-                    ${progress ? `<span style="font-size:9px;color:rgba(255,255,255,0.25)">${progress}</span>` : ''}
+                    ${progress ? `<span class="wb-quest__progress" style="font-size:9px;color:rgba(255,255,255,0.25)">${progress}</span>` : ''}
                     <span class="wb-quest__chev">&#9654;</span>
                 </div>
                 <div class="wb-quest__content">
@@ -11257,59 +11334,12 @@ const WB = {
                     ${this.isGM ? `<div class="wb-quest__actions">
                         <button data-qa="edit" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);cursor:pointer">Bearbeiten</button>
                         <button data-qa="obj" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);cursor:pointer">+ Ziel</button>
-                        <button data-qa="status" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(${q.status === 'active' ? '34,197,94' : '234,179,8'},0.1);color:${q.status === 'active' ? '#22c55e' : '#eab308'};cursor:pointer">${q.status === 'active' ? 'Abschliessen' : 'Reaktivieren'}</button>
+                        <button data-qa="status" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(${q.status === 'active' ? '34,197,94' : '234,179,8'},0.1);color:${q.status === 'active' ? '#22c55e' : '#eab308'};cursor:pointer">${q.status === 'active' ? 'Abschliessen' : 'Reaktivieren'}</button>
                         <button data-qa="delete" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.08);color:#ef4444;cursor:pointer;margin-left:auto">X</button>
                     </div>` : ''}
                 </div>
             </div>`;
         }).join('');
-        
-        // Event delegation
-        body.onclick = e => {
-            // Toggle expand
-            const head = e.target.closest('.wb-quest__head');
-            if (head) {
-                head.closest('.wb-quest').classList.toggle('expanded');
-                return;
-            }
-            
-            // Checkbox toggle
-            const cb = e.target.closest('input[type=checkbox][data-qid]');
-            if (cb) {
-                const qid = cb.dataset.qid;
-                const idx = parseInt(cb.dataset.oidx);
-                const quest = this._quests.find(q => q.id === qid);
-                if (quest && quest.objectives[idx] !== undefined) {
-                    quest.objectives[idx].done = cb.checked;
-                    this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid + '/objectives/' + idx + '/done').set(cb.checked);
-                    // Update visual
-                    cb.closest('.wb-quest__obj').classList.toggle('wb-quest__obj--done', cb.checked);
-                }
-                return;
-            }
-            
-            // GM actions
-            if (!this.isGM) return;
-            const btn = e.target.closest('[data-qa]');
-            if (!btn) return;
-            const action = btn.dataset.qa;
-            const qid = btn.dataset.qid;
-            const quest = this._quests.find(q => q.id === qid);
-            if (!quest) return;
-            
-            if (action === 'edit') {
-                this.editQuest(quest);
-            } else if (action === 'obj') {
-                this.addQuestObjective(quest);
-            } else if (action === 'status') {
-                quest.status = quest.status === 'active' ? 'completed' : 'active';
-                this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid + '/status').set(quest.status);
-            } else if (action === 'delete') {
-                if (confirm('Quest "' + quest.title + '" löschen?')) {
-                    this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid).remove();
-                }
-            }
-        };
     },
     
     editQuest(quest) {
@@ -11320,6 +11350,7 @@ const WB = {
         overlay.id = 'questEditOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px)';
         
+        const objText = (quest.objectives || []).map(o => (o.done ? '[x] ' : '') + o.text).join('\n');
         overlay.innerHTML = `
             <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:24px;width:380px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.6)">
                 <div style="font-size:14px;font-weight:700;color:white;margin-bottom:16px">Quest bearbeiten</div>
@@ -11329,7 +11360,7 @@ const WB = {
                 <textarea id="qeDesc" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:12px;height:80px;resize:vertical;outline:none;font-family:Inter,sans-serif">${quest.description || ''}</textarea>
                 <div style="margin-top:8px">
                     <label style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Ziele (eins pro Zeile)</label>
-                    <textarea id="qeObjs" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:12px;height:80px;resize:vertical;outline:none;font-family:Inter,sans-serif">${(quest.objectives || []).map(o => (o.done ? '[x] ' : '') + o.text).join('\n')}</textarea>
+                    <textarea id="qeObjs" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:12px;height:80px;resize:vertical;outline:none;font-family:Inter,sans-serif">${objText}</textarea>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
                     <button id="qeCancel" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);cursor:pointer;font-size:12px">Abbrechen</button>
@@ -11358,13 +11389,6 @@ const WB = {
             close();
             this.toast('Quest gespeichert');
         };
-    },
-    
-    addQuestObjective(quest) {
-        if (!quest.objectives) quest.objectives = [];
-        quest.objectives.push({ text: 'Neues Ziel', done: false });
-        const { id, ...data } = quest;
-        this.db.ref('whiteboard/' + this.roomCode + '/quests/' + id).set(data);
     },
     
     // ==================== QUICK SEARCH ====================
@@ -11424,6 +11448,14 @@ const WB = {
                 });
             }
             
+            // Search quests
+            this._quests.forEach(quest => {
+                if (quest.title?.toLowerCase().includes(q) || quest.description?.toLowerCase().includes(q) || quest.objectives?.some(o => o.text?.toLowerCase().includes(q))) {
+                    const statusLabel = { active: 'Aktiv', completed: 'Abgeschlossen', failed: 'Fehlgeschlagen' };
+                    items.push({ type: 'quest', name: quest.title || 'Ohne Titel', sub: `Quest · ${statusLabel[quest.status] || 'Aktiv'}`, icon: 'quest', color: '#eab308', data: quest });
+                }
+            });
+            
             if (items.length === 0) {
                 results.innerHTML = '<div style="padding:16px;text-align:center;font-size:11px;color:rgba(255,255,255,0.25)">Keine Ergebnisse</div>';
                 selectedIdx = -1;
@@ -11433,7 +11465,8 @@ const WB = {
             const icons = {
                 token: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>',
                 journal: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
-                bestiary: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c-4-3-8-7-8-12a8 8 0 0 1 16 0c0 5-4 9-8 12z"/><circle cx="12" cy="10" r="3"/></svg>'
+                bestiary: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c-4-3-8-7-8-12a8 8 0 0 1 16 0c0 5-4 9-8 12z"/><circle cx="12" cy="10" r="3"/></svg>',
+                quest: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'
             };
             
             // Limit to 12 results
@@ -11447,7 +11480,7 @@ const WB = {
                         <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div>
                         <div style="font-size:10px;color:rgba(255,255,255,0.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.sub}</div>
                     </div>
-                    <span style="font-size:9px;color:rgba(255,255,255,0.2);text-transform:uppercase">${item.type === 'token' ? 'Token' : item.type === 'journal' ? 'Journal' : 'Bestiary'}</span>
+                    <span style="font-size:9px;color:rgba(255,255,255,0.2);text-transform:uppercase">${({token:'Token',journal:'Journal',bestiary:'Bestiary',quest:'Quest'})[item.type]}</span>
                 </div>
             `).join('');
             
@@ -11492,6 +11525,12 @@ const WB = {
                     const bInput = document.getElementById('bestiarySearch');
                     if (bInput) { bInput.value = item.data.name; bInput.dispatchEvent(new Event('input')); }
                 }, 200);
+            } else if (item.type === 'quest') {
+                // Open quest log and expand the quest
+                const panel = document.getElementById('questPanel');
+                if (!panel.classList.contains('visible')) this.toggleQuestLog();
+                this._questsExpanded.add(item.data.id);
+                this.renderQuestLog();
             }
         };
         
@@ -11518,6 +11557,7 @@ const WB = {
                 this.tokens.forEach(t => { if (t.name?.toLowerCase().includes(q) || t.label?.toLowerCase().includes(q)) allItems.push({ type: 'token', data: t }); });
                 this._journal.forEach(ej => { if (ej.title?.toLowerCase().includes(q) || ej.content?.toLowerCase().includes(q)) allItems.push({ type: 'journal', data: ej }); });
                 if (this._srdMonsters) this._srdMonsters.forEach(m => { if (m.name?.toLowerCase().includes(q) || m.index?.toLowerCase().includes(q)) allItems.push({ type: 'bestiary', data: m }); });
+                this._quests.forEach(quest => { if (quest.title?.toLowerCase().includes(q) || quest.description?.toLowerCase().includes(q) || quest.objectives?.some(o => o.text?.toLowerCase().includes(q))) allItems.push({ type: 'quest', data: quest }); });
                 if (allItems[selectedIdx]) selectItem(allItems[selectedIdx]);
             }
             if (e.key === 'Escape') close();
