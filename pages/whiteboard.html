@@ -5074,8 +5074,7 @@ const WB = {
             
             // === ATTACKS TAB ===
             html += `<div class="wb-qdice__panel" data-panel="attacks">`;
-            const weapons = sd.weapons || [];
-            const validWeapons = weapons.filter(w => w.name);
+            const validWeapons = this.getTokenWeapons(token);
             if (validWeapons.length > 0) {
                 validWeapons.forEach(w => {
                     const bonus = w.bonus || '+0';
@@ -5140,7 +5139,20 @@ const WB = {
             html += `</div>`;
             
         } else {
-            // No sheet data: show basic dice picker
+            // No sheet data: show parsed weapons from items + basic dice picker
+            const parsedWeapons = this.getTokenWeapons(token);
+            if (parsedWeapons.length > 0) {
+                html += `<div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px;padding:4px 0 2px">Waffen</div>`;
+                parsedWeapons.forEach(w => {
+                    const bonus = w.bonus || '+0';
+                    const dmg = w.damage || '';
+                    html += `<button class="wb-qdice__action" data-die="20" data-mod="${parseInt(bonus)||0}" data-label="Angriff: ${w.name}">`;
+                    html += `<span class="wb-qdice__action-name">${w.name}</span>`;
+                    html += `<span class="wb-qdice__action-detail">${bonus} / ${dmg}</span>`;
+                    html += `</button>`;
+                });
+                html += `<div style="border-top:1px solid rgba(255,255,255,0.06);margin:6px 0"></div>`;
+            }
             html += this._buildFreeDicePanel();
         }
         
@@ -5208,19 +5220,17 @@ const WB = {
         html += `<div class="wb-qdice__header" style="color:#f97316">${attacker.name} greift ${target.name} an</div>`;
         html += `<div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin:-4px 0 8px">Ziel-AC: ${targetAC} | Angriffe: <span style="color:${remainAtks > 0 ? '#f97316' : '#ef4444'}">${remainAtks}/${maxAtks}</span></div>`;
         
-        // Weapons from sheet
-        if (sd?.weapons) {
-            const weapons = sd.weapons.filter(w => w.name);
-            if (weapons.length > 0) {
-                weapons.forEach((w, i) => {
-                    const bonus = parseInt(w.bonus) || 0;
-                    const sign = bonus >= 0 ? '+' : '';
-                    html += `<button class="wb-qdice__action wb-attack-btn" data-widx="${i}" style="border-left:2px solid #f97316">`;
-                    html += `<span class="wb-qdice__action-name">${w.name}</span>`;
-                    html += `<span class="wb-qdice__action-detail">${sign}${bonus} / ${w.damage || '?'}</span>`;
-                    html += `</button>`;
-                });
-            }
+        // Weapons from sheet or parsed items
+        const _atkWeapons = this.getTokenWeapons(attacker);
+        if (_atkWeapons.length > 0) {
+            _atkWeapons.forEach((w, i) => {
+                const bonus = parseInt(w.bonus) || 0;
+                const sign = bonus >= 0 ? '+' : '';
+                html += `<button class="wb-qdice__action wb-attack-btn" data-widx="${i}" style="border-left:2px solid #f97316">`;
+                html += `<span class="wb-qdice__action-name">${w.name}</span>`;
+                html += `<span class="wb-qdice__action-detail">${sign}${bonus} / ${w.damage || '?'}</span>`;
+                html += `</button>`;
+            });
         }
         
         // Spell attack if available
@@ -5259,7 +5269,7 @@ const WB = {
                     dmgDice = menuEl.querySelector('#atkDmg')?.value || '1d6';
                     weaponName = 'Angriff';
                 } else {
-                    const w = sd?.weapons?.[parseInt(widx)];
+                    const w = this.getTokenWeapons(attacker)[parseInt(widx)];
                     if (w) {
                         atkBonus = parseInt(w.bonus) || 0;
                         dmgDice = w.damage || '1d6';
@@ -5786,8 +5796,8 @@ const WB = {
             html += `<button class="wb-ab-btn wb-ab-btn--cancel" data-ab="cancel" style="padding:6px 10px;font-size:11px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>`;
             html += `<div class="wb-ab-sep"></div>`;
             
-            // Character weapons from sheet (horizontal)
-            const weapons = sd?.weapons?.filter(w => w.name) || [];
+            // Character weapons from sheet OR parsed from items
+            const weapons = this.getTokenWeapons(token);
             const hasSpellAttack = !!(sd?.spellcasting?.spellAttack);
             const hasWeapons = weapons.length > 0 || hasSpellAttack;
             
@@ -5942,7 +5952,7 @@ const WB = {
                         damage: this._abDmg
                     };
                 } else {
-                    const w = sd?.weapons?.[parseInt(widx)];
+                    const w = this.getTokenWeapons(token)[parseInt(widx)];
                     if (w) weapon = { name: w.name || 'Waffe', bonus: parseInt(w.bonus) || 0, damage: w.damage || '1d6' };
                 }
                 
@@ -13205,6 +13215,142 @@ const WB = {
         document.getElementById('doorLabel').onclick = () => { m.classList.remove('visible'); const l = prompt('Tür-Beschriftung:', door.label || ''); if (l !== null) { door.label = l; this.syncDoor(door); this.renderDoors(); } };
         // Delete
         document.getElementById('doorDelete').onclick = () => { this.removeDoor(door.id); m.classList.remove('visible'); this.toast('Tür entfernt'); };
+    },
+    
+    // ==================== WEAPON DATABASE & PARSER ====================
+    // SRD 5e Weapon Database: { damage, type, ability }
+    // ability: 'str' = melee, 'dex' = ranged, 'finesse' = max(str,dex)
+    _weaponDB: {
+        // Simple Melee
+        'club': { damage: '1d4', type: 'bludgeoning', ability: 'str' },
+        'dagger': { damage: '1d4', type: 'piercing', ability: 'finesse' },
+        'greatclub': { damage: '1d8', type: 'bludgeoning', ability: 'str' },
+        'handaxe': { damage: '1d6', type: 'slashing', ability: 'str' },
+        'javelin': { damage: '1d6', type: 'piercing', ability: 'str' },
+        'light hammer': { damage: '1d4', type: 'bludgeoning', ability: 'str' },
+        'mace': { damage: '1d6', type: 'bludgeoning', ability: 'str' },
+        'quarterstaff': { damage: '1d6', type: 'bludgeoning', ability: 'str' },
+        'sickle': { damage: '1d4', type: 'slashing', ability: 'str' },
+        'spear': { damage: '1d6', type: 'piercing', ability: 'str' },
+        // Simple Ranged
+        'light crossbow': { damage: '1d8', type: 'piercing', ability: 'dex' },
+        'crossbow, light': { damage: '1d8', type: 'piercing', ability: 'dex' },
+        'dart': { damage: '1d4', type: 'piercing', ability: 'finesse' },
+        'shortbow': { damage: '1d6', type: 'piercing', ability: 'dex' },
+        'sling': { damage: '1d4', type: 'bludgeoning', ability: 'dex' },
+        // Martial Melee
+        'battleaxe': { damage: '1d8', type: 'slashing', ability: 'str' },
+        'flail': { damage: '1d8', type: 'bludgeoning', ability: 'str' },
+        'glaive': { damage: '1d10', type: 'slashing', ability: 'str' },
+        'greataxe': { damage: '1d12', type: 'slashing', ability: 'str' },
+        'greatsword': { damage: '2d6', type: 'slashing', ability: 'str' },
+        'halberd': { damage: '1d10', type: 'slashing', ability: 'str' },
+        'lance': { damage: '1d12', type: 'piercing', ability: 'str' },
+        'longsword': { damage: '1d8', type: 'slashing', ability: 'str' },
+        'maul': { damage: '2d6', type: 'bludgeoning', ability: 'str' },
+        'morningstar': { damage: '1d8', type: 'piercing', ability: 'str' },
+        'pike': { damage: '1d10', type: 'piercing', ability: 'str' },
+        'rapier': { damage: '1d8', type: 'piercing', ability: 'finesse' },
+        'scimitar': { damage: '1d6', type: 'slashing', ability: 'finesse' },
+        'shortsword': { damage: '1d6', type: 'piercing', ability: 'finesse' },
+        'trident': { damage: '1d6', type: 'piercing', ability: 'str' },
+        'war pick': { damage: '1d8', type: 'piercing', ability: 'str' },
+        'warhammer': { damage: '1d8', type: 'bludgeoning', ability: 'str' },
+        'whip': { damage: '1d4', type: 'slashing', ability: 'finesse' },
+        // Martial Ranged
+        'blowgun': { damage: '1', type: 'piercing', ability: 'dex' },
+        'hand crossbow': { damage: '1d6', type: 'piercing', ability: 'dex' },
+        'crossbow, hand': { damage: '1d6', type: 'piercing', ability: 'dex' },
+        'heavy crossbow': { damage: '1d10', type: 'piercing', ability: 'dex' },
+        'crossbow, heavy': { damage: '1d10', type: 'piercing', ability: 'dex' },
+        'longbow': { damage: '1d8', type: 'piercing', ability: 'dex' },
+        'net': { damage: '0', type: 'none', ability: 'dex' },
+        // Monster natural weapons
+        'bite': { damage: '1d6', type: 'piercing', ability: 'str' },
+        'claw': { damage: '1d4', type: 'slashing', ability: 'str' },
+        'claws': { damage: '1d4', type: 'slashing', ability: 'str' },
+        'slam': { damage: '1d6', type: 'bludgeoning', ability: 'str' },
+        'tail': { damage: '1d8', type: 'bludgeoning', ability: 'str' },
+        'gore': { damage: '1d8', type: 'piercing', ability: 'str' },
+        'hooves': { damage: '2d6', type: 'bludgeoning', ability: 'str' },
+        'tentacle': { damage: '1d6', type: 'bludgeoning', ability: 'str' },
+        'sting': { damage: '1d4', type: 'piercing', ability: 'dex' },
+        'talons': { damage: '1d4', type: 'slashing', ability: 'dex' },
+        'fist': { damage: '1d4', type: 'bludgeoning', ability: 'str' },
+        'beak': { damage: '1d4', type: 'piercing', ability: 'str' },
+        'horns': { damage: '1d8', type: 'piercing', ability: 'str' },
+        'tusks': { damage: '2d6', type: 'slashing', ability: 'str' },
+        'constrict': { damage: '1d8', type: 'bludgeoning', ability: 'str' },
+    },
+    
+    // Non-weapon keywords to filter out
+    _nonWeaponKeywords: ['multiattack', 'spellcasting', 'innate spellcasting', 'change shape',
+        'shapechanger', 'legendary actions', 'legendary resistance', 'frightful presence',
+        'pack tactics', 'nimble escape', 'cunning action', 'sneak attack', 'divine eminence',
+        'dark devotion', 'brave', 'charge', 'rampage', 'relentless', 'aggressive',
+        'hold breath', 'illumination', 'keen senses', 'keen smell', 'keen sight',
+        'spider climb', 'sunlight sensitivity', 'parry', 'leadership', 'redirect attack',
+        'shadow stealth', 'amorphous', 'undead fortitude', 'rejuvenation', 'etherealness',
+        'incorporeal movement', 'turn resistance', 'magic resistance', 'regeneration',
+        'web sense', 'web walker', 'breath weapon', 'fire breath', 'cold breath',
+        'poison breath', 'lightning breath', 'acid breath'],
+    
+    // Parse ability scores from token notes: "CR 1/4 | STR 16 DEX 14 ..."
+    _parseTokenAbilities(token) {
+        const notes = token.notes || '';
+        const result = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, cr: 0, prof: 2 };
+        const strM = notes.match(/STR\s+(\d+)/i); if (strM) result.str = parseInt(strM[1]);
+        const dexM = notes.match(/DEX\s+(\d+)/i); if (dexM) result.dex = parseInt(dexM[1]);
+        const crM = notes.match(/CR\s+([\d/]+)/i);
+        if (crM) {
+            const crStr = crM[1];
+            result.cr = crStr.includes('/') ? parseInt(crStr.split('/')[0]) / parseInt(crStr.split('/')[1]) : (parseInt(crStr) || 0);
+        }
+        result.prof = result.cr < 1 ? 2 : Math.max(2, Math.floor((result.cr - 1) / 4) + 2);
+        return result;
+    },
+    
+    // Get weapons for any token — sheetData weapons OR parsed items
+    getTokenWeapons(token) {
+        const sd = token.sheetData;
+        const sheetWeapons = sd?.weapons?.filter(w => w.name) || [];
+        if (sheetWeapons.length > 0) return sheetWeapons;
+        
+        const items = token.items || '';
+        if (!items.trim()) return [];
+        
+        const abilities = this._parseTokenAbilities(token);
+        const strMod = Math.floor((abilities.str - 10) / 2);
+        const dexMod = Math.floor((abilities.dex - 10) / 2);
+        const prof = abilities.prof;
+        
+        const parsed = [];
+        const parts = items.split(/[,;]|\band\b/i).map(s => s.trim()).filter(Boolean);
+        
+        for (const part of parts) {
+            const lower = part.toLowerCase().trim();
+            if (this._nonWeaponKeywords.some(kw => lower === kw || lower.includes(kw))) continue;
+            
+            // Match against weapon DB: exact, then partial
+            let matched = null;
+            if (this._weaponDB[lower]) {
+                matched = this._weaponDB[lower];
+            } else {
+                for (const [key, val] of Object.entries(this._weaponDB)) {
+                    if (lower.includes(key) || key.includes(lower)) { matched = val; break; }
+                }
+            }
+            if (!matched) continue;
+            
+            const abilityMod = matched.ability === 'finesse' ? Math.max(strMod, dexMod) : matched.ability === 'dex' ? dexMod : strMod;
+            const totalBonus = abilityMod + prof;
+            const dmgBonus = abilityMod;
+            const dmgStr = dmgBonus !== 0 ? `${matched.damage}${dmgBonus >= 0 ? '+' : ''}${dmgBonus}` : matched.damage;
+            const displayName = part.trim().replace(/\b\w/g, c => c.toUpperCase());
+            
+            parsed.push({ name: displayName, bonus: `+${totalBonus}`, damage: dmgStr, _parsed: true, _type: matched.type });
+        }
+        return parsed;
     },
     
     // ==================== ENCOUNTER BUILDER ====================
