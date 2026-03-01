@@ -56,6 +56,12 @@
     <!-- Character Creation Wizard -->
     <div class="wizard-overlay" id="wizardModal">
         <div class="wizard-modal">
+            <!-- Wizard Tooltip -->
+            <div class="wizard-tooltip" id="wizardTooltip">
+                <div class="wizard-tooltip-title" id="wizardTooltipTitle"></div>
+                <div class="wizard-tooltip-text" id="wizardTooltipText"></div>
+                <div class="wizard-tooltip-detail" id="wizardTooltipDetail"></div>
+            </div>
             <div class="wizard-header">
                 <h2 id="wizardTitle">Erstelle deinen Charakter</h2>
                 <div class="wizard-progress">
@@ -277,9 +283,15 @@
                             <input type="number" id="wizardCha" value="10" min="1" max="20">
                         </div>
                     </div>
-                    <div style="margin-top: 16px; text-align: center; display: flex; gap: 8px; justify-content: center;">
-                        <button class="new-char-btn" onclick="applyStandardArray()" style="font-size: 12px;">Standard-Array anwenden</button>
-                        <button class="new-char-btn" onclick="rollAllAbilities()" style="font-size: 12px; background: var(--md-surface-container-high); color: var(--md-on-surface);">4W6 Würfeln</button>
+                    <div style="margin-top: 16px; text-align: center; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                        <div style="text-align:center;">
+                            <button class="new-char-btn" onclick="applyStandardArray()" style="font-size: 12px;">Standard-Array anwenden</button>
+                            <div class="wizard-btn-hint" title="Setzt die Werte 15, 14, 13, 12, 10, 8 in die Felder. Du kannst sie danach umsortieren, um sie dem gewünschten Attribut zuzuordnen."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ausgewogene Verteilung</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <button class="new-char-btn" onclick="rollAllAbilities()" style="font-size: 12px; background: var(--md-surface-container-high); color: var(--md-on-surface);">4W6 Würfeln</button>
+                            <div class="wizard-btn-hint" title="Würfelt 4W6, streicht den niedrigsten Würfel und addiert die restlichen drei. Ergibt Werte zwischen 3 und 18 — riskanter, aber potenziell stärker."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Zufällig, höheres Potenzial</div>
+                        </div>
                     </div>
                     <p style="font-size: 10px; color: var(--md-on-surface-variant); text-align: center; margin-top: 10px; opacity: 0.7;">Spezies-Bonus (+2/+1 auf beliebige Attribute) einrechnen</p>
                 </div>
@@ -6444,10 +6456,12 @@
             document.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
             updateWizardStep();
             document.getElementById('wizardModal').classList.add('active');
+            document.body.classList.add('wizard-open');
         }
 
         function closeWizard() {
             document.getElementById('wizardModal').classList.remove('active');
+            document.body.classList.remove('wizard-open');
         }
 
         function updateWizardStep() {
@@ -6488,7 +6502,7 @@
                     wizardData.selectedSkills.push(el.dataset.skill);
                 });
             } else if (wizardStep === 7) {
-                document.getElementById('wizardModal').classList.remove('active');
+                closeWizard();
                 try { applyWizardData(); } catch(e) { console.error('Error applying wizard data:', e); }
                 return;
             }
@@ -6530,16 +6544,45 @@
         }
 
         // ===== WIZARD STEP 6: Proficiencies =====
+        // Skill descriptions for tooltips
+        const SKILL_DESC = {
+            athletics: 'Klettern, Springen, Schwimmen. Prüfungen für körperliche Kraftakte.',
+            acrobatics: 'Balance, Stürze abfangen, akrobatische Tricks. Basiert auf DEX.',
+            sleight: 'Taschendiebstahl, Objekte verstecken, Fingerfertigkeit. Basiert auf DEX.',
+            stealth: 'Ungesehen und ungehört bewegen. Wird gegen Wahrnehmung geprüft.',
+            arcana: 'Wissen über Magie, magische Gegenstände, Zauber identifizieren.',
+            history: 'Wissen über vergangene Ereignisse, Zivilisationen, Kriege, Könige.',
+            investigation: 'Hinweise finden, Rätsel lösen, Fallen entdecken, Logik anwenden.',
+            nature: 'Wissen über Tiere, Pflanzen, Wetter, natürliche Zyklen.',
+            religion: 'Wissen über Götter, Riten, Gebete, heilige Symbole, Untote.',
+            animal: 'Tiere beruhigen, Absichten lesen, domestizierte Tiere kontrollieren.',
+            insight: 'Lügen erkennen, Emotionen lesen, wahre Absichten durchschauen.',
+            medicine: 'Verwundete stabilisieren, Krankheiten diagnostizieren, Gift erkennen.',
+            perception: 'Dinge bemerken: Geräusche, versteckte Türen, Kreaturen, Details.',
+            survival: 'Fährten lesen, jagen, navigieren, Wetter vorhersagen, Unterkünfte bauen.',
+            deception: 'Lügen, Verkleidungen, falsche Identitäten, Irreführung.',
+            intimidation: 'Einschüchtern durch Drohungen, Körperhaltung oder Worte.',
+            performance: 'Musik, Tanz, Schauspiel, Geschichtenerzählen vor Publikum.',
+            persuasion: 'Diplomatisch überzeugen, verhandeln, Verbündete gewinnen.'
+        };
+
         function populateWizardProficiencies() {
             const lang = getLang();
             const className = wizardData.class || '';
             const saves = CLASS_SAVES[className] || [];
             const skillInfo = CLASS_SKILLS[className] || { count: 2, skills: [] };
             const abNames = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' };
+            const abFull = { str:'Stärke', dex:'Geschicklichkeit', con:'Konstitution', int:'Intelligenz', wis:'Weisheit', cha:'Charisma' };
+            
+            // Save explanation
             const saveGrid = document.getElementById('wizardSaveGrid');
-            saveGrid.innerHTML = Object.keys(abNames).map(ab => {
+            const saveExplain = saves.length > 0
+                ? `Jede Klasse beherrscht zwei Rettungswürfe. <strong>${term(className)}</strong> beherrscht <strong>${saves.map(s => abFull[s]).join('</strong> und <strong>')}</strong>. Das ist durch die Klasse festgelegt und kann nicht geändert werden.`
+                : 'Wähle zuerst eine Klasse, um die Rettungswürfe zu sehen.';
+            
+            saveGrid.innerHTML = `<div class="wizard-section-explain">${saveExplain}</div>` + Object.keys(abNames).map(ab => {
                 const isProf = saves.includes(ab);
-                return `<div class="wizard-save-badge${isProf ? ' proficient' : ''}">
+                return `<div class="wizard-save-badge${isProf ? ' proficient' : ''}" title="${abFull[ab]}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     ${abNames[ab]}${isProf ? ' <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
                 </div>`;
@@ -6548,11 +6591,17 @@
             const SKILL_AB = { athletics:'str', acrobatics:'dex', sleight:'dex', stealth:'dex', arcana:'int', history:'int', investigation:'int', nature:'int', religion:'int', animal:'wis', insight:'wis', medicine:'wis', perception:'wis', survival:'wis', deception:'cha', intimidation:'cha', performance:'cha', persuasion:'cha' };
             const skillNamesDe = { athletics:'Athletik', acrobatics:'Akrobatik', sleight:'Fingerfertigkeit', stealth:'Heimlichkeit', arcana:'Arkane Kunde', history:'Geschichte', investigation:'Nachforschungen', nature:'Naturkunde', religion:'Religion', animal:'Umgang mit Tieren', insight:'Motiv erkennen', medicine:'Heilkunde', perception:'Wahrnehmung', survival:'Überleben', deception:'Täuschung', intimidation:'Einschüchtern', performance:'Auftreten', persuasion:'Überreden' };
             const sNames = lang === 'de' ? skillNamesDe : SKILL_NAMES;
+            
+            // Skill explanation
+            const skillExplain = skillInfo.skills.length > 0
+                ? `<strong>${term(className)}</strong> kann <strong>${skillInfo.count}</strong> Fertigkeit${skillInfo.count > 1 ? 'en' : ''} aus einer klassenspezifischen Liste wählen. Hover über eine Fertigkeit für Details.`
+                : 'Wähle zuerst eine Klasse.';
+            
             const grid = document.getElementById('wizardSkillGrid');
             const prev = wizardData.selectedSkills || [];
-            grid.innerHTML = skillInfo.skills.map(sk => {
+            grid.innerHTML = `<div class="wizard-section-explain" style="grid-column:1/-1">${skillExplain}</div>` + skillInfo.skills.map(sk => {
                 const isSelected = prev.includes(sk);
-                return `<div class="wizard-skill-item${isSelected ? ' selected' : ''}" data-skill="${sk}" onclick="toggleWizardSkill(this)">
+                return `<div class="wizard-skill-item${isSelected ? ' selected' : ''}" data-skill="${sk}" onclick="toggleWizardSkill(this)" title="${SKILL_DESC[sk] || ''}">
                     <div class="wizard-skill-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
                     <span>${sNames[sk] || sk}</span>
                     <span class="wizard-skill-ability">${abNames[SKILL_AB[sk]] || ''}</span>
@@ -6681,10 +6730,87 @@
             autoSave();
         }
 
-        // Close wizard with escape key or clicking outside
-        document.getElementById('wizardModal').addEventListener('click', function(e) {
-            if (e.target === this) closeWizard();
+        // Wizard: Escape key to close
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('wizardModal').classList.contains('active')) {
+                closeWizard();
+            }
         });
+
+        // ===== WIZARD TOOLTIP SYSTEM =====
+        const WIZARD_TOOLTIPS = {
+            // Species
+            'Human': { title: 'Mensch', text: 'Vielseitig und anpassungsfähig. Keine spezifischen Boni in 5e (2024) — dafür flexibel bei Attributs-Boni.', detail: '<strong>Bonus:</strong> +2/+1 auf beliebige Attribute (oder +1 auf drei)<br><strong>Spezial:</strong> 1 zusätzliche Fertigkeit, 1 zusätzliches Talent (Stufe 1)' },
+            'Elf': { title: 'Elf', text: 'Anmutige Wesen mit langer Lebensspanne und natürlicher Magie.', detail: '<strong>Bonus:</strong> Dunkelsicht 60ft, Vorteil gegen Verzauberung<br><strong>Spezial:</strong> Trance (4h statt 8h Schlaf), Wahrnehmungs-Geübtheit' },
+            'Dwarf': { title: 'Zwerg', text: 'Robuste und widerstandsfähige Bergbewohner mit Steinkenntnis.', detail: '<strong>Bonus:</strong> Dunkelsicht 60ft, Giftresistenz (Vorteil + halber Schaden)<br><strong>Spezial:</strong> Werkzeug-Geübtheit, Tempo nicht durch schwere Rüstung verringert' },
+            'Halfling': { title: 'Halbling', text: 'Kleine aber mutige Wesen mit unglaublichem Glück.', detail: '<strong>Bonus:</strong> Glückspilz (1er neu würfeln), Mutig (Vorteil vs. Furcht)<br><strong>Spezial:</strong> Durch Kreaturen mittlerer Größe hindurchbewegen' },
+            'Dragonborn': { title: 'Drakonischblütiger', text: 'Stolze Nachfahren der Drachen mit elementarem Odem.', detail: '<strong>Bonus:</strong> Odemwaffe (Schadensart wählen), Schadensresistenz<br><strong>Spezial:</strong> Odem skaliert mit Stufe, 15ft Kegel oder 30ft Linie' },
+            'Tiefling': { title: 'Tiefling', text: 'Wesen mit infernalischem Erbe und angeborener Magie.', detail: '<strong>Bonus:</strong> Dunkelsicht 60ft, Feuerresistenz<br><strong>Spezial:</strong> Infernalisches Vermächtnis (Thaumaturgie, Hellish Rebuke, Darkness)' },
+            'Gnome': { title: 'Gnom', text: 'Erfinderische und neugierige Wesen mit natürlicher Magieresistenz.', detail: '<strong>Bonus:</strong> Dunkelsicht 60ft, Gnomische Gerissenheit (Vorteil vs. Magie-Saves INT/WIS/CHA)<br><strong>Spezial:</strong> Klein, aber mit mächtigem Geist' },
+            'Half-Orc': { title: 'Halbork', text: 'Starke und zähe Krieger mit orkischem Erbe.', detail: '<strong>Bonus:</strong> Dunkelsicht 60ft, Unbändige Ausdauer (1x auf 1 HP statt 0)<br><strong>Spezial:</strong> Wilde Attacken (+1 Schadenswürfel bei Kritischem Treffer)' },
+            // Classes
+            'Fighter': { title: 'Kämpfer', text: 'Meister jeder Waffe und Rüstung. Vielseitigste Kampfklasse.', detail: '<strong>Trefferwürfel:</strong> W10 | <strong>Saves:</strong> STR, KON<br><strong>Rüstung:</strong> Alle + Schilde<br><strong>Spezial:</strong> Kampfstil, Zweiter Wind, Aktionsstoß' },
+            'Wizard': { title: 'Magier', text: 'Arkaner Gelehrter mit dem größten Zauberrepertoire.', detail: '<strong>Trefferwürfel:</strong> W6 | <strong>Saves:</strong> INT, WEI<br><strong>Rüstung:</strong> Keine<br><strong>Spezial:</strong> Zauberbuch, Arkane Erholung, mächtigste Zauber im Spiel' },
+            'Rogue': { title: 'Schurke', text: 'Geschickter Spezialist mit tödlichem Hinterhältigen Angriff.', detail: '<strong>Trefferwürfel:</strong> W8 | <strong>Saves:</strong> GES, INT<br><strong>Rüstung:</strong> Leichte Rüstung<br><strong>Spezial:</strong> Hinterhältiger Angriff, Expertise (4 Skills), Geschickte Aktion' },
+            'Cleric': { title: 'Kleriker', text: 'Göttlicher Zauberwirker und Heiler in schwerer Rüstung.', detail: '<strong>Trefferwürfel:</strong> W8 | <strong>Saves:</strong> WEI, CHA<br><strong>Rüstung:</strong> Leicht, Mittel, Schilde<br><strong>Spezial:</strong> Göttliche Domäne, Kanalisation, volle Heilerliste' },
+            'Barbarian': { title: 'Barbar', text: 'Ungezähmter Krieger der durch Wut unaufhaltsam wird.', detail: '<strong>Trefferwürfel:</strong> W12 | <strong>Saves:</strong> STR, KON<br><strong>Rüstung:</strong> Leicht, Mittel, Schilde<br><strong>Spezial:</strong> Wut (Resistenz + Bonusschaden), Rücksichtsloser Angriff' },
+            'Bard': { title: 'Barde', text: 'Musikalischer Magier der das Team mit Inspiration stärkt.', detail: '<strong>Trefferwürfel:</strong> W8 | <strong>Saves:</strong> GES, CHA<br><strong>Rüstung:</strong> Leichte Rüstung<br><strong>Spezial:</strong> Bardische Inspiration, Jack of All Trades, volle Zauberliste' },
+            'Paladin': { title: 'Paladin', text: 'Heiliger Ritter mit göttlicher Magie und schwerer Rüstung.', detail: '<strong>Trefferwürfel:</strong> W10 | <strong>Saves:</strong> WEI, CHA<br><strong>Rüstung:</strong> Alle + Schilde<br><strong>Spezial:</strong> Göttliches Strafgericht, Handauflegen, Aura des Schutzes' },
+            'Ranger': { title: 'Waldläufer', text: 'Jäger und Fährtenleser mit Naturmagie.', detail: '<strong>Trefferwürfel:</strong> W10 | <strong>Saves:</strong> STR, GES<br><strong>Rüstung:</strong> Leicht, Mittel, Schilde<br><strong>Spezial:</strong> Bevorzugter Feind, Natürlicher Entdecker, Jägersinne' },
+            'Sorcerer': { title: 'Zauberer', text: 'Angeborene Magie die durch Metamagie angepasst wird.', detail: '<strong>Trefferwürfel:</strong> W6 | <strong>Saves:</strong> KON, CHA<br><strong>Rüstung:</strong> Keine<br><strong>Spezial:</strong> Zauberpunkte, Metamagie (Zauber modifizieren)' },
+            'Warlock': { title: 'Hexenmeister', text: 'Paktmagier mit mächtigem Eldritch Blast.', detail: '<strong>Trefferwürfel:</strong> W8 | <strong>Saves:</strong> WEI, CHA<br><strong>Rüstung:</strong> Leichte Rüstung<br><strong>Spezial:</strong> Pakt-Magie (kurze Rast), Eldritch Blast, Anrufungen' },
+            'Druid': { title: 'Druide', text: 'Naturmagier der sich in Tiere verwandeln kann.', detail: '<strong>Trefferwürfel:</strong> W8 | <strong>Saves:</strong> INT, WEI<br><strong>Rüstung:</strong> Leicht, Mittel, Schilde (kein Metall)<br><strong>Spezial:</strong> Wildgestalt, volle Zauberliste, Naturmagie' },
+            'Monk': { title: 'Mönch', text: 'Kampfkünstler der Ki für übernatürliche Fähigkeiten nutzt.', detail: '<strong>Trefferwürfel:</strong> W8 | <strong>Saves:</strong> STR, GES<br><strong>Rüstung:</strong> Keine (WEI + GES = RK)<br><strong>Spezial:</strong> Kampfkunst, Ki-Punkte, Flurry of Blows, schnelle Bewegung' },
+            // Backgrounds
+            'Soldier': { title: 'Soldat', text: 'Erfahrener Krieger mit militärischer Ausbildung.', detail: '<strong>Fertigkeiten:</strong> Athletik, Einschüchtern<br><strong>Werkzeug:</strong> Spielset, Landfahrzeuge<br><strong>Feature:</strong> Militärischer Rang' },
+            'Criminal': { title: 'Krimineller', text: 'Gesetzloser mit Kontakten in die Unterwelt.', detail: '<strong>Fertigkeiten:</strong> Täuschung, Heimlichkeit<br><strong>Werkzeug:</strong> Diebeswerkzeug, Spielset<br><strong>Feature:</strong> Krimineller Kontakt' },
+            'Sage': { title: 'Gelehrter', text: 'Forscher und Buchgelehrter mit breitem Wissen.', detail: '<strong>Fertigkeiten:</strong> Arkane Kunde, Geschichte<br><strong>Sprachen:</strong> 2 beliebige<br><strong>Feature:</strong> Forscher (Wissensquellen finden)' },
+            'Acolyte': { title: 'Akolyt', text: 'Tempeldiener mit religiöser Ausbildung.', detail: '<strong>Fertigkeiten:</strong> Motiv erkennen, Religion<br><strong>Sprachen:</strong> 2 beliebige<br><strong>Feature:</strong> Zuflucht der Gläubigen (Tempel-Unterkunft)' },
+            'Noble': { title: 'Adliger', text: 'Wohlhabender Erbe mit höfischem Einfluss.', detail: '<strong>Fertigkeiten:</strong> Geschichte, Überreden<br><strong>Werkzeug:</strong> Spielset<br><strong>Feature:</strong> Position des Privilegs' },
+            'Folk Hero': { title: 'Volksheld', text: 'Held des einfachen Volkes.', detail: '<strong>Fertigkeiten:</strong> Umgang mit Tieren, Überleben<br><strong>Werkzeug:</strong> Handwerkszeug, Landfahrzeuge<br><strong>Feature:</strong> Rustikale Gastfreundschaft' },
+            'Entertainer': { title: 'Unterhalter', text: 'Künstler und Performer mit Bühnentalent.', detail: '<strong>Fertigkeiten:</strong> Akrobatik, Auftreten<br><strong>Werkzeug:</strong> Verkleidungsset, Musikinstrument<br><strong>Feature:</strong> Von der Volksgunst' },
+            'Hermit': { title: 'Einsiedler', text: 'Zurückgezogener Mystiker mit einer Entdeckung.', detail: '<strong>Fertigkeiten:</strong> Heilkunde, Religion<br><strong>Werkzeug:</strong> Kräuterkundeausrüstung<br><strong>Feature:</strong> Entdeckung (einzigartiges Wissen)' }
+        };
+
+        // Tooltip event delegation
+        (function() {
+            const tt = document.getElementById('wizardTooltip');
+            if (!tt) return;
+            const modal = document.querySelector('#wizardModal .wizard-modal');
+            
+            modal.addEventListener('mouseover', function(e) {
+                const opt = e.target.closest('.wizard-option');
+                if (!opt) return;
+                const val = opt.dataset.value;
+                const data = WIZARD_TOOLTIPS[val];
+                if (!data) return;
+                
+                document.getElementById('wizardTooltipTitle').textContent = data.title;
+                document.getElementById('wizardTooltipText').textContent = data.text;
+                document.getElementById('wizardTooltipDetail').innerHTML = data.detail;
+                
+                const rect = opt.getBoundingClientRect();
+                let left = rect.right + 12;
+                let top = rect.top;
+                // Keep within viewport
+                if (left + 280 > window.innerWidth) left = rect.left - 292;
+                if (top + 160 > window.innerHeight) top = window.innerHeight - 170;
+                if (top < 10) top = 10;
+                
+                tt.style.left = left + 'px';
+                tt.style.top = top + 'px';
+                tt.classList.add('visible');
+            });
+            
+            modal.addEventListener('mouseout', function(e) {
+                const opt = e.target.closest('.wizard-option');
+                if (!opt) return;
+                // Check if moving to child
+                const related = e.relatedTarget;
+                if (related && opt.contains(related)) return;
+                tt.classList.remove('visible');
+            });
+        })();
 
         // ===== QUICK START TEMPLATES =====
         templates = [
