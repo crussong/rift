@@ -5138,6 +5138,8 @@ const WB = {
     _abilityNames: { str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA' },
     
     showQuickDicePanel(menuEl, token) {
+        // Store token for WBDice context
+        WBDice._contextToken = token || null;
         const sd = token.sheetData;
         let html = `<div class="wb-qdice">`;
         html += `<div class="wb-qdice__header">${token.name}</div>`;
@@ -16175,6 +16177,7 @@ const WBDice = {
     isRolling: false,
     trayOpen: false,
     diceRef: null,
+    _contextToken: null,
 
     init() {
         console.log('%c[WBDice] v2025-03-01-BANNER loaded', 'color:#22c55e;font-weight:bold;font-size:14px');
@@ -16276,7 +16279,7 @@ const WBDice = {
     // === ANIMATED DICE DISPLAY ===
     
     _show(label, context) {
-        console.log('[WBDice._show]', { label, hasContext: !!context, headline: context?.headline, token: context?.token?.name, hasImg: !!context?.token?.img, hp: context?.token?.hp, maxHp: context?.token?.maxHp, ac: context?.token?.ac });
+        console.log('[WBDice._show] headline:', context?.headline, 'token:', context?.token?.name, 'hp:', context?.token?.hp, 'maxHp:', context?.token?.maxHp, 'ac:', context?.token?.ac, 'img:', !!context?.token?.img);
         if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
         const overlay = document.getElementById('wbDiceOverlay');
         const stage = document.getElementById('wbDiceStage');
@@ -16295,6 +16298,7 @@ const WBDice = {
                 const accentColor = isSpell ? '#3b82f6' : isDmg ? '#ef4444' : isAtk ? '#f97316' : '#a78bfa';
                 
                 // === TOKEN BANNER (always show if token exists) ===
+                console.log('[WBDice._show] banner check: t=', !!t, 't.name=', t?.name);
                 if (t && t.name) {
                     html += `<div class="wb-do-banner">`;
                     html += `<div class="wb-do-banner__portrait" style="background:${t.img ? 'transparent' : (t.color || '#8b5cf6')}">`;
@@ -16340,6 +16344,7 @@ const WBDice = {
             } else if (label) {
                 html += `<div class="wb-do-headline" style="color:#a78bfa">${label}</div>`;
             }
+            console.log('[WBDice._show] html length:', html.length, 'has banner:', html.includes('wb-do-banner'));
             ctx.innerHTML = html;
         }
         if (overlay) {
@@ -16521,13 +16526,12 @@ const WBDice = {
         const notationStr = notation.replace(/d/g, 'W') + (mod ? (mod > 0 ? '+' + mod : '' + mod) : '');
         
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-        // Find the active token for context (multiple fallback strategies)
-        let contextToken = null;
-        try {
-            if (WB.initiativeActive) contextToken = WB.tokens.find(t => t.id === WB.initiativeActive) || null;
-            if (!contextToken && WB.selected?.type === 'token') contextToken = WB.selected.item;
-        } catch(e) {}
+        // Find token: stored from dice panel > active initiative > selected
+        let contextToken = this._contextToken || null;
+        if (!contextToken && WB.initiativeActive) contextToken = WB.tokens.find(t => t.id === WB.initiativeActive) || null;
+        if (!contextToken && WB.selected?.type === 'token') contextToken = WB.selected.item || null;
         const playerName = contextToken?.name || userData.name || 'Spieler';
+        console.log('[WBDice.roll] token:', contextToken?.name, 'hp:', contextToken?.hp, '/', contextToken?.maxHp, 'ac:', contextToken?.ac, 'img:', !!contextToken?.img);
         this._show(null, {
             player: playerName,
             headline: notationStr,
