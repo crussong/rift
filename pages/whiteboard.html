@@ -849,17 +849,17 @@
         .wb-combat-log__close:hover { background:rgba(255,255,255,0.15); color:white; }
         .wb-combat-log__body { overflow-y:auto; flex:1; padding:6px; max-height:280px; }
         .wb-combat-log__empty { text-align:center; padding:24px; font-size:11px; color:rgba(255,255,255,0.3); }
-        .wb-clog { padding:6px 8px; border-radius:6px; margin-bottom:2px; font-size:11px; line-height:1.5; display:flex; gap:8px; align-items:flex-start; cursor:pointer; }
+        .wb-clog { padding:6px 8px; border-radius:6px; margin-bottom:2px; font-size:11px; line-height:1.5; display:flex; gap:8px; align-items:flex-start; }
         .wb-clog:hover { background:rgba(255,255,255,0.03); }
         .wb-clog__icon { width:18px; height:18px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:4px; margin-top:1px; }
         .wb-clog__body { flex:1; min-width:0; }
         .wb-clog__text { color:rgba(255,255,255,0.7); }
         .wb-clog__text strong { color:var(--white, #dedede); font-weight:600; }
-        .wb-clog__detail { font-size:10px; color:rgba(255,255,255,0.3); margin-top:1px; display:none; overflow:hidden; }
-        .wb-clog.expanded .wb-clog__detail { display:block; }
-        .wb-clog__expand { font-size:9px; color:rgba(255,255,255,0.15); margin-top:1px; }
-        .wb-clog.expanded .wb-clog__expand { display:none; }
+        .wb-clog__detail { font-size:10px; color:rgba(255,255,255,0.3); margin-top:1px; }
         .wb-clog__time { font-size:9px; color:rgba(255,255,255,0.2); flex-shrink:0; margin-top:2px; }
+        .wb-combat-log.minimized .wb-combat-log__body { display:none; }
+        .wb-combat-log.minimized { max-height:none; }
+        .wb-combat-log.minimized .wb-panel-resize { display:none; }
         .wb-clog--hit .wb-clog__icon { background:rgba(249,115,22,0.15); color:#f97316; }
         .wb-clog--miss .wb-clog__icon { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.3); }
         .wb-clog--crit .wb-clog__icon { background:rgba(251,191,36,0.2); color:#fbbf24; }
@@ -1818,8 +1818,7 @@
                     <div class="wb-combat-log__header">
                         <span class="wb-combat-log__title">Kampfprotokoll</span>
                         <div style="display:flex;gap:4px">
-                            <button class="wb-combat-log__close" id="combatLogExpandAll" title="Alle aufklappen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
-                            <button class="wb-combat-log__close" id="combatLogCollapseAll" title="Alle zuklappen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 15 12 9 18 15"/></svg></button>
+                            <button class="wb-combat-log__close" id="combatLogMinimize" title="Ein-/Ausklappen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                             <button class="wb-combat-log__close" id="combatLogClear" title="Log leeren"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>
                             <button class="wb-combat-log__close" id="combatLogClose"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                         </div>
@@ -5813,6 +5812,7 @@ const WB = {
     },
     
     renderActionBar() {
+        this.hideWeaponTooltip(); // Clean up any open tooltip
         const bar = document.getElementById('actionBar');
         if (!bar) return;
         
@@ -7479,6 +7479,9 @@ const WB = {
         
         let count = 0;
         this.tokens.forEach((t, i) => {
+            // Skip dead tokens
+            if (t.status?.includes('dead')) return;
+            
             // Determine initiative modifier
             let mod = 0;
             if (t.sheetData?.abilities?.dex) {
@@ -13635,22 +13638,20 @@ const WB = {
     },
     
     // Tooltip element (lazy-created)
-    _tooltipEl: null,
-    _tooltipTimer: null,
+    _weaponTipEl: null,
     
     _ensureTooltip() {
-        if (!this._tooltipEl) {
+        if (!this._weaponTipEl) {
             const el = document.createElement('div');
             el.className = 'wb-wt';
             el.id = 'wbWeaponTooltip';
             document.body.appendChild(el);
-            this._tooltipEl = el;
+            this._weaponTipEl = el;
         }
-        return this._tooltipEl;
+        return this._weaponTipEl;
     },
     
     showWeaponTooltip(btnEl, w) {
-        clearTimeout(this._tooltipTimer);
         const tip = this._ensureTooltip();
         tip.innerHTML = this._buildWeaponTooltipHTML(w);
         tip.classList.add('visible');
@@ -13679,10 +13680,7 @@ const WB = {
     },
     
     hideWeaponTooltip() {
-        clearTimeout(this._tooltipTimer);
-        this._tooltipTimer = setTimeout(() => {
-            if (this._tooltipEl) this._tooltipEl.classList.remove('visible');
-        }, 80);
+        if (this._weaponTipEl) this._weaponTipEl.classList.remove('visible');
     },
     
     
@@ -15258,10 +15256,7 @@ const WB = {
         const el = document.createElement('div');
         el.className = `wb-clog wb-clog--${type}`;
         const hasDetail = !!data.detail;
-        el.innerHTML = `<div class="wb-clog__icon">${entry.icon}</div><div class="wb-clog__body"><div class="wb-clog__text">${data.text}</div>${hasDetail ? `<div class="wb-clog__expand">...</div><div class="wb-clog__detail">${data.detail}</div>` : ''}</div><span class="wb-clog__time">${time}</span>`;
-        if (hasDetail) {
-            el.onclick = () => el.classList.toggle('expanded');
-        }
+        el.innerHTML = `<div class="wb-clog__icon">${entry.icon}</div><div class="wb-clog__body"><div class="wb-clog__text">${data.text}</div>${hasDetail ? `<div class="wb-clog__detail">${data.detail}</div>` : ''}</div><span class="wb-clog__time">${time}</span>`;
         body.appendChild(el);
         body.scrollTop = body.scrollHeight;
         
@@ -15281,11 +15276,8 @@ const WB = {
             this._combatLogEntries = [];
             document.getElementById('combatLogBody').innerHTML = '<div class="wb-combat-log__empty">Keine Einträge</div>';
         };
-        document.getElementById('combatLogExpandAll').onclick = () => {
-            document.querySelectorAll('#combatLogBody .wb-clog').forEach(el => el.classList.add('expanded'));
-        };
-        document.getElementById('combatLogCollapseAll').onclick = () => {
-            document.querySelectorAll('#combatLogBody .wb-clog').forEach(el => el.classList.remove('expanded'));
+        document.getElementById('combatLogMinimize').onclick = () => {
+            document.getElementById('combatLog').classList.toggle('minimized');
         };
     },
     
@@ -16066,8 +16058,11 @@ const WB = {
             if (token._deathSaves.failures >= 3) {
                 if (!token.status) token.status = [];
                 if (!token.status.includes('dead')) token.status.push('dead');
+                delete token._deathSaves;
                 this.combatLog('death', { text: `<strong>${token.name}</strong> ist gestorben!`, detail: '3 fehlgeschlagene Todesrettungswürfe' });
                 this.toast(`${token.name} ist gestorben!`);
+                // Exit death save state
+                this._abState = 'combat_idle';
             } else if (token._deathSaves.successes >= 3) {
                 // Stabilized but still at 0 HP
                 token._deathSaves = { successes: 0, failures: 0 };
@@ -16435,7 +16430,14 @@ const WBDice = {
         const notationStr = notation.replace(/d/g, 'W') + (mod ? (mod > 0 ? '+' + mod : '' + mod) : '');
         
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-        const playerName = userData.name || 'Spieler';
+        // Use active combat token or selected token name for immersion (GM rolling for a token)
+        let playerName = userData.name || 'Spieler';
+        if (WB.isGM) {
+            const activeToken = WB.initiativeActive ? WB.tokens.find(t => t.id === WB.initiativeActive) : null;
+            const selectedToken = WB.selected?.type === 'token' ? WB.selected.item : null;
+            const ctxToken = activeToken || selectedToken;
+            if (ctxToken?.name) playerName = ctxToken.name;
+        }
         this._show(null, { player: playerName, action: notationStr });
 
         this._animateDice(diceList, () => {
