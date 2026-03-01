@@ -329,6 +329,39 @@
         @keyframes wbDiceFadeIn { from { opacity:0 } to { opacity:1 } }
         @keyframes wbDiceFadeOut { from { opacity:1 } to { opacity:0 } }
         @keyframes wbDiceGlow { 0%,100% { box-shadow: 0 0 20px rgba(139,92,246,0.4), inset 0 0 15px rgba(139,92,246,0.1) } 50% { box-shadow: 0 0 40px rgba(139,92,246,0.7), inset 0 0 25px rgba(139,92,246,0.2) } }
+        @keyframes wbResultSlideUp { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
+        
+        /* Dice Overlay Context Header */
+        .wb-do-ctx { display:flex; flex-direction:column; align-items:center; gap:4px; }
+        .wb-do-ctx__player { font-size:11px; font-weight:700; color:rgba(255,255,255,0.4); letter-spacing:1.5px; text-transform:uppercase; }
+        .wb-do-ctx__action { font-size:18px; font-weight:800; color:#a78bfa; letter-spacing:0.3px; }
+        .wb-do-ctx__action--atk { color:#f97316; }
+        .wb-do-ctx__action--dmg { color:#ef4444; }
+        .wb-do-ctx__action--spell { color:#3b82f6; }
+        .wb-do-ctx__action--heal { color:#22c55e; }
+        .wb-do-ctx__versus { display:flex; align-items:center; gap:12px; margin-top:2px; }
+        .wb-do-ctx__vs-label { font-size:10px; font-weight:700; color:rgba(255,255,255,0.25); letter-spacing:1px; }
+        .wb-do-ctx__detail { font-size:11px; color:rgba(255,255,255,0.3); font-weight:500; }
+        
+        /* Dice Overlay Result Card */
+        .wb-do-result { background:rgba(20,20,28,0.9); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px 20px; min-width:240px; max-width:360px; backdrop-filter:blur(8px); box-shadow:0 8px 32px rgba(0,0,0,0.4); text-align:center; }
+        .wb-do-result__total { font-size:32px; font-weight:900; color:white; line-height:1; letter-spacing:-0.5px; }
+        .wb-do-result__total--crit { color:#fbbf24; text-shadow:0 0 20px rgba(251,191,36,0.5); }
+        .wb-do-result__total--fail { color:#ef4444; text-shadow:0 0 20px rgba(239,68,68,0.5); }
+        .wb-do-result__total--hit { color:#22c55e; }
+        .wb-do-result__total--miss { color:#ef4444; }
+        .wb-do-result__verdict { font-size:12px; font-weight:800; letter-spacing:1px; text-transform:uppercase; margin-top:4px; }
+        .wb-do-result__verdict--hit { color:#22c55e; }
+        .wb-do-result__verdict--miss { color:#ef4444; }
+        .wb-do-result__verdict--crit { color:#fbbf24; font-size:14px; }
+        .wb-do-result__breakdown { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06); flex-wrap:wrap; }
+        .wb-do-result__part { font-size:12px; font-weight:600; color:rgba(255,255,255,0.5); }
+        .wb-do-result__part--roll { color:white; font-size:14px; font-weight:800; background:rgba(139,92,246,0.15); padding:2px 8px; border-radius:4px; }
+        .wb-do-result__part--mod { color:#a78bfa; }
+        .wb-do-result__part--eq { color:rgba(255,255,255,0.25); }
+        .wb-do-result__part--total { color:white; font-size:14px; font-weight:800; }
+        .wb-do-result__part--ac { color:rgba(255,255,255,0.35); font-size:11px; }
+        .wb-do-result__source { font-size:9px; color:rgba(255,255,255,0.2); margin-top:6px; letter-spacing:0.3px; }
         .wb-anim-die {
             width: 100px; height: 100px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
             font-family: 'Inter', sans-serif; font-size: 36px; font-weight: 900; color: white;
@@ -1244,11 +1277,12 @@
                         <div class="wb-radius-distance" id="moveDistance"></div>
                         <!-- 3D Dice Fullscreen Overlay (always present, backdrop toggles) -->
                         <div id="wbDiceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:600;pointer-events:none;display:none">
-                            <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)"></div>
-                            <div id="wbDiceContext" style="position:absolute;top:24px;left:0;right:0;text-align:center;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;z-index:1"></div>
-                            <div id="wbDiceStage" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;padding:40px"></div>
-                            <div id="wbDiceResult" style="position:absolute;bottom:72px;left:0;right:0;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s;z-index:1"></div>
-                            <div id="wbDiceLabel" style="position:absolute;bottom:36px;left:0;right:0;text-align:center;font-size:11px;font-weight:500;color:rgba(255,255,255,0.3);font-family:Inter,sans-serif;pointer-events:none;letter-spacing:0.5px;z-index:1"></div>
+                            <div id="wbDiceBackdrop" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)"></div>
+                            <div id="wbDiceLayout" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;z-index:1;font-family:Inter,sans-serif">
+                                <div id="wbDiceContext" style="flex-shrink:0;margin-bottom:16px;text-align:center"></div>
+                                <div id="wbDiceStage" style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;min-height:100px"></div>
+                                <div id="wbDiceResultCard" style="flex-shrink:0;margin-top:20px;opacity:0;transform:translateY(10px);transition:opacity 0.3s ease, transform 0.3s ease"></div>
+                            </div>
                         </div>
                         <div id="tokensContainer"></div>
                         <div id="remoteCursors"></div>
@@ -5378,7 +5412,7 @@ const WB = {
         
         // Phase 1: 3D Attack Roll (d20)
         const atkBonusStr = atkBonus >= 0 ? '+' + atkBonus : '' + atkBonus;
-        WBDice._pendingContext = { player: attacker.name, action: 'Angriff: ' + weaponName, detail: '1W20 ' + atkBonusStr + ' vs AC ' + targetAC };
+        WBDice._pendingContext = { player: attacker.name, action: 'Angriff: ' + weaponName, actionType: 'atk', target: target.name, ac: targetAC };
         WBDice.throwCombat('1d20', (results) => {
             const atkRoll = results[0] || (Math.floor(Math.random() * 20) + 1);
             const atkTotal = atkRoll + atkBonus;
@@ -5393,10 +5427,14 @@ const WB = {
                 nat20: isNat20, nat1: isNat1
             });
             
-            // Update overlay with hit/miss breakdown
-            const hitStr = isNat20 ? 'KRITISCHER TREFFER!' : isNat1 ? 'KRITISCHER FEHLSCHLAG!' : hit ? 'TREFFER!' : 'VERFEHLT!';
-            const hitColor = hit ? '#22c55e' : '#ef4444';
-            WBDice._showResult(`= ${atkTotal}`, isNat20, isNat1, `${atkRoll} ${atkBonusStr} = ${atkTotal} vs AC ${targetAC} — ${hitStr}`);
+            // Update overlay with rich result card
+            const verdict = isNat20 ? 'KRITISCHER TREFFER!' : isNat1 ? 'KRITISCHER FEHLSCHLAG!' : hit ? 'TREFFER!' : 'VERFEHLT!';
+            const verdictType = hit ? 'hit' : 'miss';
+            WBDice._showResult({
+                total: atkTotal, rolls: [atkRoll], mod: atkBonus, modLabel: 'Bonus',
+                isNat20, isNat1, verdict, verdictType, ac: targetAC,
+                source: `1W20 ${atkBonusStr} — ${weaponName}`
+            });
             
             // Attack line animation
             setTimeout(() => this.showAttackLine(attacker, target, hit, isNat20), 300);
@@ -5409,7 +5447,7 @@ const WB = {
                 
                 setTimeout(() => {
                     const dmgModStr = d.mod ? (d.mod > 0 ? '+' + d.mod : '' + d.mod) : '';
-                    WBDice._pendingContext = { player: attacker.name, action: (isNat20 ? 'Krit! ' : '') + 'Schaden: ' + weaponName, detail: dmgNotation.replace(/d/g, 'W') + dmgModStr };
+                    WBDice._pendingContext = { player: attacker.name, action: (isNat20 ? 'Krit! ' : '') + 'Schaden: ' + weaponName, actionType: 'dmg', target: target.name, detail: dmgNotation.replace(/d/g, 'W') + dmgModStr };
                     WBDice.throwCombat(dmgNotation, (dmgResults) => {
                         let dmgTotal = 0;
                         const dmgRolls = [];
@@ -16196,28 +16234,33 @@ const WBDice = {
     // === ANIMATED DICE DISPLAY ===
     
     _show(label, context) {
-        // context: { player, action, detail } — optional structured info
+        // context: { player, action, actionType, detail, target, ac } — structured info
         if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
         const overlay = document.getElementById('wbDiceOverlay');
-        const lbl = document.getElementById('wbDiceLabel');
         const stage = document.getElementById('wbDiceStage');
-        const result = document.getElementById('wbDiceResult');
         const ctx = document.getElementById('wbDiceContext');
+        const resultCard = document.getElementById('wbDiceResultCard');
         if (stage) stage.innerHTML = '';
-        if (result) { result.innerHTML = ''; result.style.opacity = '0'; }
-        if (lbl) lbl.textContent = '';
+        if (resultCard) { resultCard.innerHTML = ''; resultCard.style.opacity = '0'; resultCard.style.transform = 'translateY(10px)'; }
         if (ctx) {
+            let html = '<div class="wb-do-ctx">';
             if (context) {
-                let html = '';
-                if (context.player) html += `<div style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">${context.player}</div>`;
-                if (context.action) html += `<div style="font-family:Inter,sans-serif;font-size:16px;font-weight:700;color:#a78bfa">${context.action}</div>`;
-                if (context.detail) html += `<div style="font-family:Inter,sans-serif;font-size:11px;color:rgba(255,255,255,0.35)">${context.detail}</div>`;
-                ctx.innerHTML = html;
+                if (context.player) html += `<div class="wb-do-ctx__player">${context.player}</div>`;
+                const actionCls = context.actionType === 'atk' ? ' wb-do-ctx__action--atk' : context.actionType === 'dmg' ? ' wb-do-ctx__action--dmg' : context.actionType === 'spell' ? ' wb-do-ctx__action--spell' : context.actionType === 'heal' ? ' wb-do-ctx__action--heal' : '';
+                if (context.action) html += `<div class="wb-do-ctx__action${actionCls}">${context.action}</div>`;
+                if (context.target) {
+                    html += `<div class="wb-do-ctx__versus">`;
+                    html += `<span class="wb-do-ctx__vs-label">vs</span>`;
+                    html += `<span class="wb-do-ctx__detail">${context.target}${context.ac ? ' (AC ' + context.ac + ')' : ''}</span>`;
+                    html += `</div>`;
+                } else if (context.detail) {
+                    html += `<div class="wb-do-ctx__detail">${context.detail}</div>`;
+                }
             } else if (label) {
-                ctx.innerHTML = `<div style="font-family:Inter,sans-serif;font-size:14px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">${label}</div>`;
-            } else {
-                ctx.innerHTML = '';
+                html += `<div class="wb-do-ctx__action">${label}</div>`;
             }
+            html += '</div>';
+            ctx.innerHTML = html;
         }
         if (overlay) {
             overlay.style.display = 'block';
@@ -16292,19 +16335,71 @@ const WBDice = {
         }, totalTime);
     },
 
-    _showResult(text, isNat20, isNat1, breakdown) {
-        const result = document.getElementById('wbDiceResult');
-        const lbl = document.getElementById('wbDiceLabel');
-        if (!result) return;
-        const color = isNat20 ? '#fbbf24' : isNat1 ? '#ef4444' : '#a78bfa';
-        const size = isNat20 ? '48px' : isNat1 ? '42px' : '36px';
-        let html = `<div style="font-family:Inter,sans-serif;font-size:${size};font-weight:900;color:${color};text-shadow:0 0 30px ${color}80">${text}</div>`;
-        if (isNat20) html += `<div style="font-family:Inter,sans-serif;font-size:13px;font-weight:800;color:#fbbf24;text-shadow:0 0 10px rgba(251,191,36,0.6);margin-top:2px">NAT 20!</div>`;
-        if (isNat1) html += `<div style="font-family:Inter,sans-serif;font-size:13px;font-weight:800;color:#ef4444;text-shadow:0 0 10px rgba(239,68,68,0.6);margin-top:2px">NAT 1!</div>`;
-        result.innerHTML = html;
-        result.style.opacity = '1';
-        // Show breakdown in label area
-        if (lbl && breakdown) lbl.textContent = breakdown;
+    // result: { total, rolls[], mod, isNat20, isNat1, verdict, verdictType, source }
+    _showResult(resultData) {
+        const card = document.getElementById('wbDiceResultCard');
+        if (!card) return;
+        
+        const r = typeof resultData === 'object' ? resultData : { total: resultData };
+        const total = r.total ?? 0;
+        const isNat20 = r.isNat20 || false;
+        const isNat1 = r.isNat1 || false;
+        
+        // Total styling
+        let totalCls = 'wb-do-result__total';
+        if (isNat20) totalCls += ' wb-do-result__total--crit';
+        else if (isNat1) totalCls += ' wb-do-result__total--fail';
+        else if (r.verdictType === 'hit') totalCls += ' wb-do-result__total--hit';
+        else if (r.verdictType === 'miss') totalCls += ' wb-do-result__total--miss';
+        
+        let html = '<div class="wb-do-result">';
+        
+        // Total
+        html += `<div class="${totalCls}">${total}</div>`;
+        
+        // Verdict (TREFFER / VERFEHLT / NAT 20 etc.)
+        if (r.verdict) {
+            let vCls = 'wb-do-result__verdict';
+            if (isNat20) vCls += ' wb-do-result__verdict--crit';
+            else if (r.verdictType === 'hit') vCls += ' wb-do-result__verdict--hit';
+            else if (r.verdictType === 'miss' || isNat1) vCls += ' wb-do-result__verdict--miss';
+            html += `<div class="${vCls}">${r.verdict}</div>`;
+        }
+        
+        // Breakdown: [roll] + mod = total  vs AC
+        if (r.rolls && r.rolls.length > 0) {
+            html += '<div class="wb-do-result__breakdown">';
+            if (r.rolls.length === 1) {
+                html += `<span class="wb-do-result__part wb-do-result__part--roll">${r.rolls[0]}</span>`;
+            } else {
+                html += `<span class="wb-do-result__part wb-do-result__part--roll">${r.rolls.join(' + ')}</span>`;
+            }
+            if (r.mod && r.mod !== 0) {
+                const sign = r.mod > 0 ? '+' : '';
+                html += `<span class="wb-do-result__part wb-do-result__part--eq">+</span>`;
+                html += `<span class="wb-do-result__part wb-do-result__part--mod">${Math.abs(r.mod)} ${r.modLabel || ''}</span>`;
+            }
+            html += `<span class="wb-do-result__part wb-do-result__part--eq">=</span>`;
+            html += `<span class="wb-do-result__part wb-do-result__part--total">${total}</span>`;
+            if (r.ac !== undefined) {
+                html += `<span class="wb-do-result__part wb-do-result__part--ac">vs AC ${r.ac}</span>`;
+            }
+            html += '</div>';
+        }
+        
+        // Source line
+        if (r.source) {
+            html += `<div class="wb-do-result__source">${r.source}</div>`;
+        }
+        
+        html += '</div>';
+        card.innerHTML = html;
+        
+        // Animate in
+        requestAnimationFrame(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        });
     },
 
     // === ROLL METHODS ===
@@ -16346,8 +16441,12 @@ const WBDice = {
         this._animateDice(diceList, () => {
             const rollStr = diceList.map(d => d.result).join(', ');
             const critStr = isNat20 ? ' NAT 20!' : isNat1 ? ' NAT 1!' : '';
-            const breakdownStr = diceList.length > 1 ? `[${rollStr}]${mod ? (mod>0?'+':'')+mod : ''} = ${total}` : (mod ? `${diceList[0].result}${mod>0?'+':''}${mod} = ${total}` : '');
-            this._showResult(`= ${total}`, isNat20, isNat1, breakdownStr);
+            this._showResult({
+                total, rolls: diceList.map(d => d.result), mod: mod || 0,
+                isNat20, isNat1,
+                verdict: isNat20 ? 'NAT 20!' : isNat1 ? 'NAT 1!' : null,
+                source: notationStr
+            });
             
             const isSecret = document.getElementById('wbDiceSecret')?.checked;
             
@@ -16409,7 +16508,12 @@ const WBDice = {
             const isD20 = diceList.length === 1 && diceList[0].sides === 20;
             const isNat20 = isD20 && diceList[0].result === 20;
             const isNat1 = isD20 && diceList[0].result === 1;
-            this._showResult(`= ${total}`, isNat20, isNat1);
+            this._showResult({
+                total, rolls: diceList.map(d => d.result),
+                isNat20, isNat1,
+                verdict: isNat20 ? 'NAT 20!' : isNat1 ? 'NAT 1!' : null,
+                source: label || notation.replace(/d/g, 'W')
+            });
             this._hide(2500);
             callback(diceList.map(d => d.result));
         });
@@ -16461,7 +16565,14 @@ const WBDice = {
                 }
                 this._animateDice(roll.diceConfig.diceList, () => {
                     const total = roll.total ?? roll.diceConfig.diceList.reduce((s, d) => s + d.result, 0);
-                    this._showResult(`= ${total}`, roll.critical === 'success', roll.critical === 'failure');
+                    const isNat20 = roll.critical === 'success';
+                    const isNat1 = roll.critical === 'failure';
+                    this._showResult({
+                        total, rolls: roll.diceConfig.diceList.map(d => d.result),
+                        mod: roll.modifier || 0, isNat20, isNat1,
+                        verdict: isNat20 ? 'NAT 20!' : isNat1 ? 'NAT 1!' : null,
+                        source: roll.notation || null
+                    });
                     this._hide(2000);
                 });
             }
