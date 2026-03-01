@@ -2073,7 +2073,7 @@ const WB = {
     // Data
     strokes: [], images: [], tokens: [], fogAreas: [],
     selected: null, // Single selected item
-    bgImage: null, bgDataUrl: null, history: [], historyIdx: -1,
+    bgImage: null, bgDataUrl: null, bgWidth: 0, bgHeight: 0, history: [], historyIdx: -1,
     toolbarLocked: false, multiSelected: [], isMarquee: false, marqueeStart: null,
     
     // User
@@ -2647,8 +2647,8 @@ const WB = {
         }
         
         // Calculate grid size based on background image dimensions
-        const bgW = this.bgImage.width;
-        const bgH = this.bgImage.height;
+        const bgW = this.bgWidth || this.bgImage.width;
+        const bgH = this.bgHeight || this.bgImage.height;
         
         const gridFromWidth = bgW / widthFields;
         const gridFromHeight = bgH / heightFields;
@@ -4446,7 +4446,7 @@ const WB = {
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, this.bgCanvas.width, this.bgCanvas.height);
         if (this.bgImage && this.bgImage.complete)
-            ctx.drawImage(this.bgImage, this.panX, this.panY, this.bgImage.width * this.zoom, this.bgImage.height * this.zoom);
+            ctx.drawImage(this.bgImage, this.panX, this.panY, (this.bgWidth || this.bgImage.width) * this.zoom, (this.bgHeight || this.bgImage.height) * this.zoom);
     },
     
     renderMain() {
@@ -9906,7 +9906,7 @@ const WB = {
         document.getElementById('bgSelectBtn').onclick = () => document.getElementById('bgFileInput').click();
         document.getElementById('bgFileInput').onchange = e => { if (e.target.files[0]) this.loadBg(e.target.files[0]); };
         document.getElementById('bgRemoveBtn').onclick = () => {
-            this.bgImage = null; this.bgDataUrl = null; this.render();
+            this.bgImage = null; this.bgDataUrl = null; this.bgWidth = 0; this.bgHeight = 0; this.render();
             this.syncBackground(null);
             document.getElementById('bgOverlay').classList.remove('visible');
             this.toast('Hintergrund entfernt');
@@ -9937,6 +9937,8 @@ const WB = {
             img.onload = () => {
                 this.bgImage = img;
                 this.bgDataUrl = e.target.result;
+                this.bgWidth = img.width;
+                this.bgHeight = img.height;
                 this.render();
                 document.getElementById('bgOverlay').classList.remove('visible');
                 this.toast('Hintergrund geladen');
@@ -9952,20 +9954,33 @@ const WB = {
         if (!this.db || !this.roomCode) return;
         this.db.ref('whiteboard/' + this.roomCode + '/background').set({
             dataUrl: dataUrl || null,
+            bgWidth: this.bgWidth || null,
+            bgHeight: this.bgHeight || null,
             updatedBy: this.userId,
             ts: Date.now()
         });
     },
     
-    loadBgFromUrl(dataUrl) {
-        if (!dataUrl) { this.bgImage = null; this.bgDataUrl = null; this.render(); return; }
-        const img = new Image();
-        img.onload = () => {
-            this.bgImage = img;
-            this.bgDataUrl = dataUrl;
-            this.render();
-        };
-        img.src = dataUrl;
+    loadBgFromUrl(dataUrl, logicalWidth, logicalHeight) {
+        return new Promise(resolve => {
+            if (!dataUrl) { this.bgImage = null; this.bgDataUrl = null; this.bgWidth = 0; this.bgHeight = 0; this.render(); resolve(); return; }
+            const img = new Image();
+            img.onload = () => {
+                this.bgImage = img;
+                this.bgDataUrl = dataUrl;
+                // Use saved logical dimensions if available, otherwise use actual image dimensions
+                this.bgWidth = logicalWidth || img.width;
+                this.bgHeight = logicalHeight || img.height;
+                this.render();
+                resolve();
+            };
+            img.onerror = () => {
+                console.warn('[WB] Failed to load background image');
+                this.bgImage = null; this.bgDataUrl = null; this.bgWidth = 0; this.bgHeight = 0;
+                resolve();
+            };
+            img.src = dataUrl;
+        });
     },
     
     loadImage(file) {
@@ -10216,17 +10231,14 @@ const WB = {
             return copy;
         }));
         
-        // Optimize background: compress to max 2000px
+        // Optimize background: compress to max 2000px but preserve logical dimensions
         let bgData = this.bgDataUrl || null;
-        let bgW = this.bgImage ? this.bgImage.width : null;
-        let bgH = this.bgImage ? this.bgImage.height : null;
+        // Save the LOGICAL dimensions (what the grid/tokens are calibrated to)
+        let bgOrigW = this.bgWidth || (this.bgImage ? this.bgImage.width : null);
+        let bgOrigH = this.bgHeight || (this.bgImage ? this.bgImage.height : null);
         if (bgData && bgData.startsWith('data:') && this.bgImage) {
             bgData = await compressImg(bgData, 2000, 0.7);
-            if (bgData) {
-                const tmp = new Image(); 
-                await new Promise(r => { tmp.onload = r; tmp.src = bgData; });
-                bgW = tmp.width; bgH = tmp.height;
-            }
+            // NOTE: Do NOT update bgOrigW/bgOrigH - they must stay at the original logical size
         }
         
         const sceneData = {
@@ -10234,8 +10246,8 @@ const WB = {
             strokes: this.strokes, tokens: optimizedTokens, images: optimizedImages,
             fogAreas: this.fogAreas, auras: this._auras || [], notes: this._notes || [], doors: this._doors || [],
             bgDataUrl: bgData,
-            bgOrigWidth: bgW,
-            bgOrigHeight: bgH,
+            bgOrigWidth: bgOrigW,
+            bgOrigHeight: bgOrigH,
             gridSize: this.gridSize, gridOffsetX: this.gridOffsetX, gridOffsetY: this.gridOffsetY,
             gridColor: this.gridColor, gridColorRGB: this.gridColorRGB, gridOpacity: this.gridOpacity, panX: this.panX, panY: this.panY, zoom: this.zoom
         };
@@ -10386,9 +10398,8 @@ const WB = {
         this.isClearing = true;
         this.strokes = []; this.images = []; this.tokens = []; this.fogAreas = [];
         this._auras = []; this._notes = []; this._doors = [];
-        this.bgImage = null; this.bgDataUrl = null;
-        this.history = []; this.historyIdx = -1;
-        this.initiativeActive = null; this.initiativeOrder = [];
+        this.bgImage = null; this.bgDataUrl = null; this.bgWidth = 0; this.bgHeight = 0;
+        this.history = []; this.historyIdx = -1; this.initiativeOrder = [];
         this.deselect();
         
         if (this.db && this.roomCode) {
@@ -10428,9 +10439,10 @@ const WB = {
         if (scene.zoom) { this.zoom = scene.zoom; this.targetZoom = scene.zoom; }
         
         if (scene.bgDataUrl) {
-            this.loadBgFromUrl(scene.bgDataUrl);
+            // Pass saved original dimensions so the image maps correctly even if compressed
+            await this.loadBgFromUrl(scene.bgDataUrl, scene.bgOrigWidth || null, scene.bgOrigHeight || null);
         } else {
-            this.bgImage = null; this.bgDataUrl = null;
+            this.bgImage = null; this.bgDataUrl = null; this.bgWidth = 0; this.bgHeight = 0;
         }
         
         // Sync all to Firebase
@@ -10524,7 +10536,7 @@ const WB = {
     
     importSceneJSON(file) {
         const reader = new FileReader();
-        reader.onload = e => {
+        reader.onload = async e => {
             try {
                 const data = JSON.parse(e.target.result);
                 this.strokes = data.strokes || [];
@@ -10540,9 +10552,9 @@ const WB = {
                 if (data.zoom) { this.zoom = data.zoom; this.targetZoom = data.zoom; }
                 
                 if (data.bgDataUrl) {
-                    this.loadBgFromUrl(data.bgDataUrl);
+                    await this.loadBgFromUrl(data.bgDataUrl, data.bgOrigWidth || null, data.bgOrigHeight || null);
                 } else {
-                    this.bgImage = null; this.bgDataUrl = null;
+                    this.bgImage = null; this.bgDataUrl = null; this.bgWidth = 0; this.bgHeight = 0;
                 }
                 
                 // Sync to Firebase
@@ -10773,7 +10785,9 @@ const WB = {
         this._doors = [];
         this.bgImage = null;
         this.bgDataUrl = null;
-        this.history = []; 
+        this.bgWidth = 0;
+        this.bgHeight = 0;
+        this.history = [];
         this.historyIdx = -1;
         this.initiativeActive = null;
         this.initiativeOrder = [];
@@ -12009,10 +12023,10 @@ const WB = {
             const bg = snap.val();
             if (bg && bg.dataUrl) {
                 if (bg.updatedBy !== this.userId || !this.bgImage) {
-                    this.loadBgFromUrl(bg.dataUrl);
+                    this.loadBgFromUrl(bg.dataUrl, bg.bgWidth || null, bg.bgHeight || null);
                 }
             } else if (!bg || !bg.dataUrl) {
-                if (this.bgImage) { this.bgImage = null; this.bgDataUrl = null; this.render(); }
+                if (this.bgImage) { this.bgImage = null; this.bgDataUrl = null; this.bgWidth = 0; this.bgHeight = 0; this.render(); }
             }
         });
         
