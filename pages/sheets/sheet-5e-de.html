@@ -341,7 +341,7 @@
                             </div>
                         </div>
                         <div class="wizard-btn-row">
-                            <button class="new-char-btn" onclick="rollAllAbilities()" style="font-size: 12px; background: var(--md-surface-container-high); color: var(--md-on-surface);">4W6 Würfeln</button>
+                            <button class="new-char-btn" id="wizardRollBtn" onclick="rollAllAbilities()" style="font-size: 12px; background: var(--md-surface-container-high); color: var(--md-on-surface);">4W6 Würfeln (3)</button>
                             <div class="wizard-btn-info">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                                 <div class="wizard-btn-tip"><strong>4W6 Drop Lowest:</strong> Würfelt 4 sechsseitige Würfel, streicht den niedrigsten und addiert die restlichen drei. Ergibt Werte zwischen 3–18. Riskanter, aber potenziell stärker als Standard-Array.</div>
@@ -6546,6 +6546,9 @@
             document.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
             const diceResult = document.getElementById('wizardDiceResult');
             if (diceResult) { diceResult.style.display = 'none'; diceResult.innerHTML = ''; }
+            wizardRollsLeft = 3;
+            const rollBtn = document.getElementById('wizardRollBtn');
+            if (rollBtn) { rollBtn.textContent = '4W6 Würfeln (3)'; rollBtn.disabled = false; rollBtn.style.opacity = ''; rollBtn.style.cursor = ''; }
             const trail = document.getElementById('wizardTrail');
             if (trail) trail.innerHTML = '';
             const preview = document.getElementById('wizardNamePreview');
@@ -6705,7 +6708,23 @@
             document.getElementById('wizardCha').value = 8;
         }
 
+        let wizardRollsLeft = 3;
+        
         function rollAllAbilities() {
+            if (wizardRollsLeft <= 0) return;
+            wizardRollsLeft--;
+            
+            const btn = document.getElementById('wizardRollBtn');
+            if (btn) {
+                if (wizardRollsLeft > 0) {
+                    btn.textContent = `4W6 Würfeln (${wizardRollsLeft})`;
+                } else {
+                    btn.textContent = '4W6 — keine Würfe übrig';
+                    btn.disabled = true;
+                    btn.style.opacity = '0.4';
+                    btn.style.cursor = 'not-allowed';
+                }
+            }
             const abNames = ['STR','GES','KON','INT','WEI','CHA'];
             const abIds = ['wizardStr','wizardDex','wizardCon','wizardInt','wizardWis','wizardCha'];
             const results = [];
@@ -7001,51 +7020,424 @@
         }
 
         function applyWizardData() {
-            document.getElementById('charName').value = wizardData.name;
-            document.getElementById('level').value = wizardData.level;
-            document.getElementById('species').value = wizardData.species;
-            document.getElementById('charClass').value = wizardData.class;
-            document.getElementById('background').value = wizardData.background;
+            const d = wizardData;
+            const lang = getLang();
+            const cls = d.class || '';
+            const spec = d.species || '';
+            const bg = d.background || '';
+            const level = d.level || 1;
+            const dexMod = Math.floor(((d.dex || 10) - 10) / 2);
+            const strMod = Math.floor(((d.str || 10) - 10) / 2);
             
-            document.getElementById('str').value = wizardData.str;
-            document.getElementById('dex').value = wizardData.dex;
-            document.getElementById('con').value = wizardData.con;
-            document.getElementById('int').value = wizardData.int;
-            document.getElementById('wis').value = wizardData.wis;
-            document.getElementById('cha').value = wizardData.cha;
+            // ===== SPECIES DATA =====
+            const SPECIES_DATA = {
+                'Human': { speed:'9 m (30 ft)', size:'Mittel', senses:'—', languages:'Gemeinsprache, eine weitere Sprache', resistances:'', traits:'Einfallsreich: +1 auf eine Fertigkeit deiner Wahl.\nVielseitig: Du erhältst die Inspiration bei jedem langen Rast.\nFertigkeitsvielfalt: Geübtheit in einer zusätzlichen Fertigkeit.' },
+                'Elf': { speed:'9 m (30 ft)', size:'Mittel', senses:'Dunkelsicht 18 m (60 ft)', languages:'Gemeinsprache, Elfisch', resistances:'', traits:'Fey-Abstammung: Vorteil auf Rettungswürfe gegen Verzauberung.\nTrance: 4 Stunden meditativer Rast statt 8 Stunden Schlaf.\nScharfe Sinne: Geübtheit in Wahrnehmung.\nElfische Linie: Wähle Hochelf (Zaubertrick), Waldelf (Schneller, Maskierung) oder Drow (Überlegene Dunkelsicht, Drow-Magie).' },
+                'Dwarf': { speed:'7,5 m (25 ft)', size:'Mittel', senses:'Dunkelsicht 18 m (60 ft)', languages:'Gemeinsprache, Zwergisch', resistances:'Gift (Vorteil auf Rettungswürfe)', traits:'Zwergenresilienz: Vorteil auf Rettungswürfe gegen Gift, Resistenz gegen Giftschaden.\nWerkzeuggeübtheit: Schmiedewerkzeug, Brauerzubehör oder Maurerwerkzeug.\nSteinkundig: Doppelter Übungsbonus auf Geschichte-Würfe bei Steinarbeit.' },
+                'Halfling': { speed:'7,5 m (25 ft)', size:'Klein', senses:'—', languages:'Gemeinsprache, Halblingisch', resistances:'', traits:'Glück: Bei einer 1 auf einem W20 darfst du neu würfeln.\nTapfer: Vorteil auf Rettungswürfe gegen Furcht.\nFlink: Du kannst dich durch den Raum größerer Kreaturen bewegen.' },
+                'Dragonborn': { speed:'9 m (30 ft)', size:'Mittel', senses:'—', languages:'Gemeinsprache, Drakonisch', resistances:'Schadenstyp des gewählten Drachen', traits:'Odemwaffe: Kegelförmiger oder linearer Elementarangriff (2W6, steigt mit Stufe).\nSchadensresistenz: Resistenz gegen den Schadenstyp deiner Drachenart.\nDrachenart wählen: Schwarz (Säure), Blau (Blitz), Grün (Gift), Rot (Feuer), Weiß (Kälte) und weitere.' },
+                'Tiefling': { speed:'9 m (30 ft)', size:'Mittel', senses:'Dunkelsicht 18 m (60 ft)', languages:'Gemeinsprache, Infernal', resistances:'Feuer', traits:'Höllische Resistenz: Resistenz gegen Feuerschaden.\nInfernales Erbe:\n• Stufe 1: Thaumaturgy (Zaubertrick)\n• Stufe 3: Höllischer Tadel (1x/lange Rast)\n• Stufe 5: Dunkelheit (1x/lange Rast)' },
+                'Gnome': { speed:'7,5 m (25 ft)', size:'Klein', senses:'Dunkelsicht 18 m (60 ft)', languages:'Gemeinsprache, Gnomisch', resistances:'', traits:'Gnomische Gerissenheit: Vorteil auf INT-, WIS- und CHA-Rettungswürfe gegen Magie.\nGnomische Linie: Wähle Felsengnom (Bastler, Geringfügige Illusion) oder Waldgnom (Natürlicher Illusionist, Mit Tieren sprechen).' },
+                'Half-Elf': { speed:'9 m (30 ft)', size:'Mittel', senses:'Dunkelsicht 18 m (60 ft)', languages:'Gemeinsprache, Elfisch, eine weitere Sprache', resistances:'', traits:'Fey-Abstammung: Vorteil auf Rettungswürfe gegen Verzauberung.\nFertigkeitsvielfalt: Geübtheit in zwei Fertigkeiten deiner Wahl.\nVielseitig: Flexibel zwischen Welten der Elfen und Menschen.' },
+                'Half-Orc': { speed:'9 m (30 ft)', size:'Mittel', senses:'Dunkelsicht 18 m (60 ft)', languages:'Gemeinsprache, Orkisch', resistances:'', traits:'Unbändige Ausdauer: 1x pro lange Rast, wenn du auf 0 HP fällst, stattdessen auf 1 HP.\nWilde Attacken: Bei einem kritischen Treffer mit Nahkampfwaffe — ein zusätzlicher Schadenswürfel.\nBedrohlich: Geübtheit in Einschüchtern.' },
+                'Orc': { speed:'9 m (30 ft)', size:'Mittel', senses:'Dunkelsicht 36 m (120 ft)', languages:'Gemeinsprache, Orkisch', resistances:'', traits:'Adrenaline Rush: Bonus-Aktion Dash + temporäre HP = Übungsbonus (PB × pro lange Rast).\nUnbändige Ausdauer: 1x pro lange Rast auf 1 HP statt 0.\nKräftiger Bau: Zählst als eine Größe größer für Tragen/Schieben/Ziehen.' },
+                'Aasimar': { speed:'9 m (30 ft)', size:'Mittel', senses:'Dunkelsicht 18 m (60 ft)', languages:'Gemeinsprache, Celestisch', resistances:'Nekrotisch, Strahlend', traits:'Heilende Hände: Aktion, Stufe × Trefferpunkte heilen (1x pro lange Rast).\nLichtträger: Light-Zaubertrick (CHA).\nHimmlische Offenbarung (ab Stufe 3 wählen):\n• Strahlendes Seele: Flügel + Strahlungsschaden\n• Nekrotischer Schleier: Furcht + nekrotischer Schaden\n• Himmlische Ausstrahlung: Bonus-Strahlungsschaden' },
+                'Goliath': { speed:'9 m (30 ft)', size:'Mittel', senses:'—', languages:'Gemeinsprache, Riesisch', resistances:'', traits:'Steinausdauer: Reaktion, 1W12 + KON-Mod Schaden reduzieren (PB × pro lange Rast).\nGroße Statur: Tragkraft und Trage-/Schiebelast verdoppelt.\nRiesenerbe (wähle): Cloud (Nebelschritt), Fire (Feuerresistenz), Frost (Kälteresistenz), Hill (Rückstoß), Storm (Blitz-Resistenz).' }
+            };
             
-            // Save proficiencies from class
-            const saves = CLASS_SAVES[wizardData.class] || [];
+            // ===== CLASS STARTING DATA (Level 1) =====
+            const CLASS_START = {
+                'Barbarian': {
+                    armor: { light:true, medium:true, heavy:false, shields:true },
+                    weapons: { simple:true, martial:true },
+                    weaponsText: 'Alle einfachen und Kampfwaffen',
+                    startWeapons: [
+                        { name:'Großaxt', bonus:`+${strMod+2}`, damage:`1W12+${strMod}`, notes:'Schwer, Zweihand' },
+                        { name:'Wurfspeer (×4)', bonus:`+${strMod+2}`, damage:`1W6+${strMod}`, notes:'Wurfweite 9/36 m' }
+                    ],
+                    acType:'medium', startArmor:'Keine (Ungerüstete Verteidigung)',
+                    ac: 10 + dexMod + Math.floor(((d.con||10)-10)/2), shield:'',
+                    features:'WUTAUSBRUCH (Rage)\n2× pro lange Rast. Bonus-Aktion. Für 1 Minute:\n• +2 Schaden auf STR-Nahkampf\n• Resistenz gegen Hieb-/Stich-/Wuchtschaden\n• Vorteil auf STR-Prüfungen und -Rettungswürfe\n\nUNGERÜSTETE VERTEIDIGUNG\nOhne Rüstung: RK = 10 + GES-Mod + KON-Mod (Schild erlaubt)',
+                    resources: [{ name:'Wutausbrüche', current:'2', max:'2' }],
+                    tools: '—', spellcaster: false,
+                    equipment:'Großaxt, 4 Wurfspieße, Abenteurerpaket, Forschungsausrüstung',
+                    gold: 10
+                },
+                'Bard': {
+                    armor: { light:true, medium:false, heavy:false, shields:false },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Einfache Waffen, Handarmbrusten, Langschwerter, Rapiere, Kurzschwerter',
+                    startWeapons: [
+                        { name:'Rapier', bonus:`+${dexMod+2}`, damage:`1W8+${dexMod}`, notes:'Finesse' },
+                        { name:'Dolch', bonus:`+${dexMod+2}`, damage:`1W4+${dexMod}`, notes:'Finesse, Leicht, Wurf' }
+                    ],
+                    acType:'light', startArmor:'Lederrüstung',
+                    ac: 11 + dexMod, shield:'',
+                    features:'BARDISCHE INSPIRATION\nBonus-Aktion: Einem Verbündeten in 18 m einen 1W6-Inspirationswürfel geben (CHA-Mod × pro lange Rast). Der Verbündete kann den Würfel innerhalb von 10 Minuten auf einen Angriff, Fähigkeitenprüfung oder Rettungswurf addieren.\n\nZAUBERWIRKEN\nZauberfähigkeit: Charisma\n2 Zaubertricks, 4 bekannte Zauber, 2 Zauberplätze (1. Grad)\nMusikalisches Instrument als Fokus',
+                    resources: [{ name:'Bardische Inspiration', current: `${Math.max(1,Math.floor(((d.cha||10)-10)/2))}`, max: `${Math.max(1,Math.floor(((d.cha||10)-10)/2))}` }],
+                    tools: 'Drei Musikinstrumente deiner Wahl', spellcaster:'cha', cantrips:2, slots:{1:2},
+                    equipment:'Rapier, Dolch, Lederrüstung, Diplomatenpaket, Musikinstrument',
+                    gold: 10
+                },
+                'Cleric': {
+                    armor: { light:true, medium:true, heavy:false, shields:true },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Einfache Waffen',
+                    startWeapons: [
+                        { name:'Streitkolben', bonus:`+${strMod+2}`, damage:`1W6+${strMod}`, notes:'—' }
+                    ],
+                    acType:'medium', startArmor:'Schuppenpanzer + Schild',
+                    ac: 14 + Math.min(dexMod, 2) + 2, shield:'+2',
+                    features:'ZAUBERWIRKEN\nZauberfähigkeit: Weisheit\n3 Zaubertricks, alle Kleriker-Zauber vorbereiten (WEI-Mod + Stufe)\n2 Zauberplätze (1. Grad)\nHeiliges Symbol als Fokus\n\nGÖTTLICHE DOMÄNE\nWähle deine Domäne auf Stufe 1. Bestimmt Bonus-Zauber und Channel Divinity.',
+                    resources: [],
+                    tools: '—', spellcaster:'wis', cantrips:3, slots:{1:2},
+                    equipment:'Streitkolben, Schuppenpanzer, Schild, Heiliges Symbol, Priesterpaket',
+                    gold: 10
+                },
+                'Druid': {
+                    armor: { light:true, medium:true, heavy:false, shields:true },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Keulen, Dolche, Wurfpfeile, Wurfspieße, Streitkolben, Kampfstäbe, Krummschwerter, Sicheln, Schleudern, Speere',
+                    startWeapons: [
+                        { name:'Kampfstab', bonus:`+${strMod+2}`, damage:`1W6+${strMod}`, notes:'Vielseitig (1W8)' }
+                    ],
+                    acType:'medium', startArmor:'Lederrüstung + Schild',
+                    ac: 11 + dexMod + 2, shield:'+2',
+                    features:'ZAUBERWIRKEN\nZauberfähigkeit: Weisheit\n2 Zaubertricks, alle Druiden-Zauber vorbereiten (WEI-Mod + Stufe)\n2 Zauberplätze (1. Grad)\nDruidischer Fokus (Stab, Mistelzweig, etc.)\n\nDRUIDISCH\nDu kennst die geheime Sprache der Druiden.',
+                    resources: [],
+                    tools: 'Kräuterkundeausrüstung', spellcaster:'wis', cantrips:2, slots:{1:2},
+                    equipment:'Kampfstab, Lederrüstung, Schild, Druidischer Fokus, Forschungspaket, Kräuterkundeausrüstung',
+                    gold: 10
+                },
+                'Fighter': {
+                    armor: { light:true, medium:true, heavy:true, shields:true },
+                    weapons: { simple:true, martial:true },
+                    weaponsText: 'Alle einfachen und Kampfwaffen',
+                    startWeapons: [
+                        { name:'Langschwert', bonus:`+${strMod+2}`, damage:`1W8+${strMod}`, notes:'Vielseitig (1W10)' },
+                        { name:'Handaxt (×2)', bonus:`+${strMod+2}`, damage:`1W6+${strMod}`, notes:'Leicht, Wurf 6/18 m' }
+                    ],
+                    acType:'heavy', startArmor:'Kettenhemd + Schild',
+                    ac: 18, shield:'+2',
+                    features:'KAMPFSTIL\nWähle einen Kampfstil:\n• Verteidigung (+1 RK mit Rüstung)\n• Duellkampf (+2 Schaden mit einer Einhandwaffe)\n• Großwaffenkampf (1-2 bei Schadenswürfel → neu würfeln)\n• Schutz (Reaktion: Nachteil auf Angriff gegen Verbündeten)\n• Bogenschießen (+2 auf Fernkampfangriffe)\n\nZWEITER WIND\nBonus-Aktion: 1W10+Kämpfer-Stufe HP heilen (1x pro kurze/lange Rast)',
+                    resources: [{ name:'Zweiter Wind', current:'1', max:'1' }],
+                    tools: '—', spellcaster: false,
+                    equipment:'Kettenhemd, Schild, Langschwert, 2 Handäxte, Abenteurerpaket, Leichte Armbrust + 20 Bolzen',
+                    gold: 10
+                },
+                'Monk': {
+                    armor: { light:false, medium:false, heavy:false, shields:false },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Einfache Waffen, Kurzschwerter',
+                    startWeapons: [
+                        { name:'Kampfstab', bonus:`+${dexMod+2}`, damage:`1W6+${dexMod}`, notes:'Mönchswaffe, Vielseitig' },
+                        { name:'Unbewaffneter Schlag', bonus:`+${dexMod+2}`, damage:`1W4+${dexMod}`, notes:'Bonus-Aktion (Martial Arts)' }
+                    ],
+                    acType:'none', startArmor:'Keine (Ungerüstete Verteidigung)',
+                    ac: 10 + dexMod + Math.floor(((d.wis||10)-10)/2), shield:'',
+                    features:'UNGERÜSTETE VERTEIDIGUNG\nOhne Rüstung: RK = 10 + GES-Mod + WEI-Mod\n\nMARTIAL ARTS\n• GES statt STR für Mönchswaffen\n• Unbewaffnete Schläge: 1W4 Schaden\n• Bonus-Aktion: Ein unbewaffneter Schlag nach Angriffsaktion\n• Mönchswaffen: Einfache Nahkampfwaffen + Kurzschwerter',
+                    resources: [],
+                    tools: 'Ein Handwerkzeug oder Musikinstrument', spellcaster: false,
+                    equipment:'Kampfstab, 10 Wurfpfeile, Abenteurerpaket',
+                    gold: 5
+                },
+                'Paladin': {
+                    armor: { light:true, medium:true, heavy:true, shields:true },
+                    weapons: { simple:true, martial:true },
+                    weaponsText: 'Alle einfachen und Kampfwaffen',
+                    startWeapons: [
+                        { name:'Langschwert', bonus:`+${strMod+2}`, damage:`1W8+${strMod}`, notes:'Vielseitig (1W10)' },
+                        { name:'Wurfspeer (×5)', bonus:`+${strMod+2}`, damage:`1W6+${strMod}`, notes:'Wurfweite 9/36 m' }
+                    ],
+                    acType:'heavy', startArmor:'Kettenhemd + Schild',
+                    ac: 18, shield:'+2',
+                    features:'GÖTTLICHES GESPÜR (Divine Sense)\nAktion: Bis Ende des nächsten Zuges — Standort von Himmlischen, Untoten oder Unholden in 18 m erkennen. CHA-Mod + 1 × pro lange Rast.\n\nHÄNDEAUFLEGEN (Lay on Hands)\nPool = Paladin-Stufe × 5 HP. Aktion: Beliebig viele HP heilen oder 5 HP ausgeben um Krankheit/Gift zu neutralisieren.',
+                    resources: [{ name:'Händeauflegen', current:'5', max:'5' }, { name:'Göttliches Gespür', current:`${Math.max(1,Math.floor(((d.cha||10)-10)/2))+1}`, max:`${Math.max(1,Math.floor(((d.cha||10)-10)/2))+1}` }],
+                    tools: '—', spellcaster: false,
+                    equipment:'Kettenhemd, Schild, Langschwert, 5 Wurfspieße, Heiliges Symbol, Priesterpaket',
+                    gold: 10
+                },
+                'Ranger': {
+                    armor: { light:true, medium:true, heavy:false, shields:true },
+                    weapons: { simple:true, martial:true },
+                    weaponsText: 'Alle einfachen und Kampfwaffen',
+                    startWeapons: [
+                        { name:'Langbogen', bonus:`+${dexMod+2}`, damage:`1W8+${dexMod}`, notes:'Mun., Schwer, Zweihand, 45/180 m' },
+                        { name:'Kurzschwert (×2)', bonus:`+${dexMod+2}`, damage:`1W6+${dexMod}`, notes:'Finesse, Leicht' }
+                    ],
+                    acType:'medium', startArmor:'Schuppenpanzer',
+                    ac: 14 + Math.min(dexMod, 2), shield:'',
+                    features:'BEVORZUGTER FEIND\nVorteil auf Überlebens-Wurf zum Fährtenlesen und INT-Würfe für Wissen über gewählte Feindtypen.\n\nNATÜRLICHER ENTDECKER\nBevorzugtes Gelände: Vorteil auf INT- und WIS-Prüfungen dort, schwieriges Gelände behindert nicht, wachsam im Schlaf.\n\nZAUBERWIRKEN (ab Stufe 2)',
+                    resources: [],
+                    tools: '—', spellcaster: false,
+                    equipment:'Schuppenpanzer, 2 Kurzschwerter, Langbogen, 20 Pfeile, Abenteurerpaket',
+                    gold: 10
+                },
+                'Rogue': {
+                    armor: { light:true, medium:false, heavy:false, shields:false },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Einfache Waffen, Handarmbrusten, Langschwerter, Rapiere, Kurzschwerter',
+                    startWeapons: [
+                        { name:'Rapier', bonus:`+${dexMod+2}`, damage:`1W8+${dexMod}`, notes:'Finesse' },
+                        { name:'Kurzbogen', bonus:`+${dexMod+2}`, damage:`1W6+${dexMod}`, notes:'Mun., Zweihand, 24/96 m' },
+                        { name:'Dolch (×2)', bonus:`+${dexMod+2}`, damage:`1W4+${dexMod}`, notes:'Finesse, Leicht, Wurf' }
+                    ],
+                    acType:'light', startArmor:'Lederrüstung',
+                    ac: 11 + dexMod, shield:'',
+                    features:'EXPERTISE\nWähle 2 Fertigkeiten mit Geübtheit → doppelter Übungsbonus.\n\nHINTERHÄLTIGER ANGRIFF (Sneak Attack)\n1x pro Zug: +1W6 Schaden wenn Vorteil ODER Verbündeter in 1,5 m vom Ziel. Finesse- oder Fernkampfwaffe nötig.\n\nDIEBESKUNST (Cunning Action)\nBonus-Aktion: Dash, Disengage oder Hide.',
+                    resources: [],
+                    tools: 'Diebeswerkzeug', spellcaster: false,
+                    equipment:'Rapier, Kurzbogen, 20 Pfeile, 2 Dolche, Lederrüstung, Diebeswerkzeug, Einbrecherpaket',
+                    gold: 10
+                },
+                'Sorcerer': {
+                    armor: { light:false, medium:false, heavy:false, shields:false },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Dolche, Wurfpfeile, Schleudern, Kampfstäbe, Leichte Armbrusten',
+                    startWeapons: [
+                        { name:'Leichte Armbrust', bonus:`+${dexMod+2}`, damage:`1W8+${dexMod}`, notes:'Mun., Laden, Zweihand, 24/96 m' },
+                        { name:'Dolch (×2)', bonus:`+${dexMod+2}`, damage:`1W4+${dexMod}`, notes:'Finesse, Leicht, Wurf' }
+                    ],
+                    acType:'none', startArmor:'Keine',
+                    ac: 10 + dexMod, shield:'',
+                    features:'ZAUBERWIRKEN\nZauberfähigkeit: Charisma\n4 Zaubertricks, 2 bekannte Zauber, 2 Zauberplätze (1. Grad)\nArkanischer Fokus oder Komponentenbeutel\n\nZAUBERURSPRUNG\nWähle deinen Ursprung auf Stufe 1. Bestimmt Bonus-Features und Bonus-Zauber.',
+                    resources: [],
+                    tools: '—', spellcaster:'cha', cantrips:4, slots:{1:2},
+                    equipment:'Leichte Armbrust, 20 Bolzen, 2 Dolche, Arkanischer Fokus, Abenteurerpaket',
+                    gold: 10
+                },
+                'Warlock': {
+                    armor: { light:true, medium:false, heavy:false, shields:false },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Einfache Waffen',
+                    startWeapons: [
+                        { name:'Leichte Armbrust', bonus:`+${dexMod+2}`, damage:`1W8+${dexMod}`, notes:'Mun., Laden, Zweihand, 24/96 m' },
+                        { name:'Dolch (×2)', bonus:`+${dexMod+2}`, damage:`1W4+${dexMod}`, notes:'Finesse, Leicht, Wurf' }
+                    ],
+                    acType:'light', startArmor:'Lederrüstung',
+                    ac: 11 + dexMod, shield:'',
+                    features:'PAKTMAGIE\nZauberfähigkeit: Charisma\n2 Zaubertricks, 2 bekannte Zauber\n1 Pakt-Zauberplatz (1. Grad) — wird bei kurzer Rast erneuert!\n\nJENSEITIGER PATRON\nWähle deinen Patron auf Stufe 1. Bestimmt erweiterte Zauberliste und Patron-Features.',
+                    resources: [],
+                    tools: '—', spellcaster:'cha', cantrips:2, pact:true, slots:{1:1},
+                    equipment:'Leichte Armbrust, 20 Bolzen, 2 Dolche, Lederrüstung, Arkanischer Fokus, Gelehrtenpaket',
+                    gold: 10
+                },
+                'Wizard': {
+                    armor: { light:false, medium:false, heavy:false, shields:false },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Dolche, Wurfpfeile, Schleudern, Kampfstäbe, Leichte Armbrusten',
+                    startWeapons: [
+                        { name:'Kampfstab', bonus:`+${strMod+2}`, damage:`1W6+${strMod}`, notes:'Vielseitig (1W8)' }
+                    ],
+                    acType:'none', startArmor:'Keine',
+                    ac: 10 + dexMod, shield:'',
+                    features:'ZAUBERWIRKEN\nZauberfähigkeit: Intelligenz\n3 Zaubertricks, 6 Zauber im Zauberbuch, 2 Zauberplätze (1. Grad)\nArkanischer Fokus oder Zauberbuch als Fokus\nZauber vorbereiten: INT-Mod + Stufe\n\nARKANE ERHOLUNG\n1x pro Tag bei kurzer Rast: Zauberplätze zurückgewinnen (max. Summe = halbe Magier-Stufe, aufgerundet)',
+                    resources: [{ name:'Arkane Erholung', current:'1', max:'1' }],
+                    tools: '—', spellcaster:'int', cantrips:3, slots:{1:2},
+                    equipment:'Kampfstab, Zauberbuch, Arkanischer Fokus, Gelehrtenpaket, Komponentenbeutel',
+                    gold: 10
+                },
+                'Artificer': {
+                    armor: { light:true, medium:true, heavy:false, shields:true },
+                    weapons: { simple:true, martial:false },
+                    weaponsText: 'Einfache Waffen, Feuerwaffen (optional)',
+                    startWeapons: [
+                        { name:'Leichte Armbrust', bonus:`+${dexMod+2}`, damage:`1W8+${dexMod}`, notes:'Mun., Laden, Zweihand' }
+                    ],
+                    acType:'medium', startArmor:'Beschlagenes Leder + Schild',
+                    ac: 12 + Math.min(dexMod, 2) + 2, shield:'+2',
+                    features:'MAGISCHES BASTELN\nLange Rast: Einfache magische Gegenstände erschaffen (Licht, Flamme, Musik, Geruch, etc.).\n\nZAUBERWIRKEN\nZauberfähigkeit: Intelligenz\n2 Zaubertricks, alle Konstrukteur-Zauber vorbereiten (INT-Mod + halbe Stufe)\nWerkzeuge als Zauberfokus',
+                    resources: [],
+                    tools: 'Diebeswerkzeug, Bastlerwerkzeug, ein weiteres Handwerkzeug', spellcaster:'int', cantrips:2, slots:{1:2},
+                    equipment:'Leichte Armbrust, 20 Bolzen, Beschlagenes Leder, Schild, Diebeswerkzeug, Bastlerwerkzeug, Dungeoneerpaket',
+                    gold: 10
+                }
+            };
+            
+            // ===== BACKGROUND DATA =====
+            const BG_DATA = {
+                'Soldier': { tools:'Spielset, Landfahrzeuge', languages:'—', gold:10, equipment:'Rangabzeichen, Trophäe eines gefallenen Feindes, Knochenspielset, Alltagskleidung', feature:'Militärischer Rang: Soldaten deiner ehemaligen Organisation erkennen dich an und gewähren dir Zugang zu Militäreinrichtungen.' },
+                'Criminal': { tools:'Diebeswerkzeug, Spielset', languages:'—', gold:15, equipment:'Brechstange, dunkle Alltagskleidung mit Kapuze, Gürtel', feature:'Krimineller Kontakt: Du hast einen verlässlichen Kontakt in der kriminellen Unterwelt, der als Bote und Informant dient.' },
+                'Sage': { tools:'—', languages:'Zwei Sprachen deiner Wahl', gold:10, equipment:'Tintenfass, Feder, kleines Messer, Brief mit unbeantworteter Frage, Alltagskleidung', feature:'Forscher: Wenn du etwas nicht weißt, weißt du oft, wo du die Information finden kannst.' },
+                'Acolyte': { tools:'—', languages:'Zwei Sprachen deiner Wahl', gold:15, equipment:'Heiliges Symbol, Gebetsbuch, 5 Räucherstäbchen, Roben, Alltagskleidung', feature:'Zuflucht der Gläubigen: Du und deine Gefährten könnt in Tempeln und religiösen Gemeinschaften kostenlose Heilung und Unterkunft erhalten.' },
+                'Noble': { tools:'Spielset', languages:'Eine Sprache deiner Wahl', gold:25, equipment:'Feine Kleidung, Siegelring, Stammbaum-Urkunde', feature:'Position des Privilegs: Aufgrund deines adeligen Geburtsrechts behandeln dich andere mit Respekt. Willkommen in der gehobenen Gesellschaft.' },
+                'Folk Hero': { tools:'Ein Handwerkzeug, Landfahrzeuge', languages:'—', gold:10, equipment:'Handwerkzeug, Schaufel, Eisentopf, Alltagskleidung', feature:'Rustikale Gastfreundschaft: Einfache Leute helfen dir und verbergen dich, solange du sie nicht in Gefahr bringst.' },
+                'Entertainer': { tools:'Verkleidungsausrüstung, ein Musikinstrument', languages:'—', gold:15, equipment:'Musikinstrument, Kostüm, Liebesbrief eines Bewunderers', feature:'Auf Wunsch des Publikums: Du findest immer einen Ort zum Auftreten und erhältst kostenlose Unterkunft und Verpflegung, solange du jeden Abend auftrittst.' },
+                'Hermit': { tools:'Kräuterkundeausrüstung', languages:'Eine Sprache deiner Wahl', gold:5, equipment:'Schriftrolle mit Notizen/Gebeten, Winterdecke, Kräuterkundeausrüstung, Alltagskleidung', feature:'Entdeckung: Die stille Abgeschiedenheit hat dir eine einzigartige Einsicht beschert — eine bedeutende Wahrheit über das Universum, die Götter oder eine mächtige Kraft.' }
+            };
+            
+            // ===== APPLY BASICS =====
+            document.getElementById('charName').value = d.name;
+            document.getElementById('level').value = level;
+            document.getElementById('species').value = spec;
+            document.getElementById('charClass').value = cls;
+            document.getElementById('background').value = bg;
+            
+            // ===== APPLY ABILITIES =====
+            document.getElementById('str').value = d.str;
+            document.getElementById('dex').value = d.dex;
+            document.getElementById('con').value = d.con;
+            document.getElementById('int').value = d.int;
+            document.getElementById('wis').value = d.wis;
+            document.getElementById('cha').value = d.cha;
+            
+            // ===== SAVE PROFICIENCIES =====
+            const saves = CLASS_SAVES[cls] || [];
             ['str','dex','con','int','wis','cha'].forEach(ab => {
                 const cb = document.getElementById(ab + 'SaveProf');
                 if (cb) { cb.checked = saves.includes(ab); handleSaveProfChange(ab); }
             });
             
-            // Skill proficiencies
-            const selectedSkills = wizardData.selectedSkills || [];
+            // ===== SKILL PROFICIENCIES =====
+            const selectedSkills = d.selectedSkills || [];
             const SKILL_AB = { athletics:'str', acrobatics:'dex', sleight:'dex', stealth:'dex', arcana:'int', history:'int', investigation:'int', nature:'int', religion:'int', animal:'wis', insight:'wis', medicine:'wis', perception:'wis', survival:'wis', deception:'cha', intimidation:'cha', performance:'cha', persuasion:'cha' };
             Object.keys(SKILL_AB).forEach(sk => {
                 const cb = document.getElementById(sk + 'Prof');
                 if (cb) { cb.checked = selectedSkills.includes(sk); handleSkillProfChange(sk); }
             });
             
-            // HP
-            const hp = calcSuggestedHP(wizardData.class, wizardData.level, wizardData.con || 10);
+            // ===== HP =====
+            const hp = calcSuggestedHP(cls, level, d.con || 10);
             if (hp) {
                 document.getElementById('hpMax').value = hp.total;
                 document.getElementById('hpCurrent').value = hp.total;
                 _hpAutoSet = true;
             }
             
-            // Hit Dice
-            const die = HIT_DICE[wizardData.class];
+            // ===== HIT DICE =====
+            const die = HIT_DICE[cls];
             if (die) {
-                const lang = getLang();
-                const dStr = lang === 'de' ? `${wizardData.level}W${die}` : `${wizardData.level}d${die}`;
+                const dStr = lang === 'de' ? `${level}W${die}` : `${level}d${die}`;
                 document.getElementById('hdMax').value = dStr;
                 document.getElementById('hdCurrent').value = dStr;
             }
             
+            // ===== SPECIES DATA =====
+            const sData = SPECIES_DATA[spec];
+            if (sData) {
+                document.getElementById('speed').value = sData.speed;
+                document.getElementById('size').value = sData.size;
+                document.getElementById('senses').value = sData.senses;
+                document.getElementById('speciesTraits').value = sData.traits;
+                if (sData.resistances) document.getElementById('resistances').value = sData.resistances;
+            }
+            
+            // ===== CLASS DATA =====
+            const cData = CLASS_START[cls];
+            if (cData) {
+                // AC
+                document.getElementById('ac').value = cData.ac;
+                if (cData.shield) document.getElementById('shield').value = cData.shield;
+                
+                // Armor proficiencies
+                document.getElementById('armorLight').checked = !!cData.armor.light;
+                document.getElementById('armorMedium').checked = !!cData.armor.medium;
+                document.getElementById('armorHeavy').checked = !!cData.armor.heavy;
+                document.getElementById('armorShields').checked = !!cData.armor.shields;
+                
+                // Weapon proficiencies
+                document.getElementById('weaponSimple').checked = !!cData.weapons.simple;
+                document.getElementById('weaponMartial').checked = !!cData.weapons.martial;
+                document.getElementById('weaponFirearms').checked = (cls === 'Artificer');
+                document.getElementById('weaponsText').value = cData.weaponsText;
+                
+                // Starting weapons
+                char.weapons = cData.startWeapons.map(w => ({...w}));
+                renderWeapons();
+                
+                // Class features
+                document.getElementById('classFeatures').value = cData.features;
+                
+                // Class resources
+                if (cData.resources.length > 0) {
+                    char.classResources = cData.resources.map(r => ({...r}));
+                    renderResources();
+                }
+                
+                // Tools
+                let toolsText = cData.tools;
+                
+                // Spellcasting
+                if (cData.spellcaster) {
+                    const spellSel = document.getElementById('spellAbility');
+                    if (spellSel) { spellSel.value = cData.spellcaster; updateSpellStats(); }
+                }
+                
+                // Equipment
+                let equipText = cData.equipment;
+                
+                // ===== BACKGROUND DATA =====
+                const bData = BG_DATA[bg];
+                if (bData) {
+                    // Merge tools
+                    if (bData.tools && bData.tools !== '—') {
+                        toolsText = toolsText === '—' ? bData.tools : toolsText + '\n' + bData.tools;
+                    }
+                    // Gold
+                    const totalGold = (cData.gold || 0) + (bData.gold || 0);
+                    document.getElementById('gp').value = totalGold;
+                    
+                    // Equipment
+                    equipText += '\n\n— Hintergrund —\n' + bData.equipment;
+                    
+                    // Background feature in class features
+                    document.getElementById('classFeatures').value += '\n\n— ' + term(bg) + ' —\n' + bData.feature;
+                }
+                
+                document.getElementById('tools').value = toolsText;
+                document.getElementById('equipment').value = equipText;
+                
+                // ===== LANGUAGES =====
+                let langs = [];
+                if (sData?.languages) langs.push(sData.languages);
+                if (bData?.languages && bData.languages !== '—') langs.push(bData.languages);
+                document.getElementById('languages').value = langs.join(', ');
+            }
+            
+            // ===== DERIVED STATS =====
+            document.getElementById('initiative').value = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
+            document.getElementById('exhaustion').value = 0;
+            document.getElementById('hpTemp').value = 0;
+            
+            // ===== XP BY LEVEL =====
+            const XP_TABLE = { 1:0, 2:300, 3:900, 4:2700, 5:6500, 6:14000, 7:23000, 8:34000, 9:48000, 10:64000, 11:85000, 12:100000, 13:120000, 14:140000, 15:165000, 16:195000, 17:225000, 18:265000, 19:305000, 20:355000 };
+            document.getElementById('xp').value = XP_TABLE[level] || 0;
+            
+            // ===== COINS (start with 0 for non-gold) =====
+            document.getElementById('cp').value = 0;
+            document.getElementById('sp').value = 0;
+            document.getElementById('ep').value = 0;
+            document.getElementById('pp').value = 0;
+            // GP fallback if not set by class+background
+            if (!document.getElementById('gp').value || document.getElementById('gp').value === '0') {
+                document.getElementById('gp').value = 10;
+            }
+            
+            // ===== SPELL SLOTS =====
+            if (cData && cData.spellcaster && cData.slots) {
+                // Full casters at level 1: 2 slots of 1st level
+                // Set spell slot totals
+                for (let slotLvl = 1; slotLvl <= 9; slotLvl++) {
+                    const total = cData.slots[slotLvl] || 0;
+                    char.spellSlots[slotLvl] = { total: total, expended: 0 };
+                }
+                initSpellSlots();
+                
+                // Pact slots for Warlock
+                if (cData.pact) {
+                    document.getElementById('pactTotal').value = 1;
+                    document.getElementById('pactExpended').value = 0;
+                    const pactLvlEl = document.getElementById('pactLevel');
+                    if (pactLvlEl) pactLvlEl.value = 1;
+                    // Warlock uses pact slots instead of regular
+                    for (let slotLvl = 1; slotLvl <= 9; slotLvl++) {
+                        char.spellSlots[slotLvl] = { total: 0, expended: 0 };
+                    }
+                    initSpellSlots();
+                }
+            }
+            
+            // ===== TRIGGER ALL UPDATES =====
             ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(ab => updateModifier(ab));
             updateAllFromAbilities();
             handleClassChange();
