@@ -2841,25 +2841,23 @@ const WB = {
         // Note placement mode takes priority over any tool
         if (this._placingNote && this.isGM) { this.showNoteDialog(p); return; }
         
-        // Door placement mode
+        // Door placement mode — always unsnapped
         if (this._doorPlaceMode && this.isGM) {
             this._doorPlaceMode = false;
             document.getElementById('doorBtn')?.classList.remove('active');
+            const r = this.uiCanvas.getBoundingClientRect();
+            const doorX = (e.clientX - r.left - this.panX) / this.zoom;
+            const doorY = (e.clientY - r.top - this.panY) / this.zoom;
             const door = {
                 id: 'door_' + Date.now(),
-                x: p.rawX,
-                y: p.rawY,
+                x: doorX,
+                y: doorY,
                 rotation: 0,
                 state: 'closed',
                 label: '',
                 variant: 'normal',
                 size: 1
             };
-            // Snap to grid if enabled
-            if (this.snap && this.gridSize) {
-                door.x = Math.round(door.x / this.gridSize) * this.gridSize;
-                door.y = Math.round(door.y / this.gridSize) * this.gridSize;
-            }
             this._doors.push(door);
             this.syncDoor(door);
             this.renderDoors();
@@ -12871,33 +12869,33 @@ const WB = {
                     this.showDoorContextMenu(d, e.clientX, e.clientY);
                 };
                 
-                // GM: normal drag to move (no shift needed)
+                // GM: normal drag to move (always unsnapped)
                 el.onmousedown = e => {
                     if (e.button !== 0) return;
                     e.preventDefault();
                     e.stopPropagation();
-                    const startP = this.getPoint(e);
+                    const r = this.uiCanvas.getBoundingClientRect();
+                    let lastRawX = (e.clientX - r.left - this.panX) / this.zoom;
+                    let lastRawY = (e.clientY - r.top - this.panY) / this.zoom;
                     let moved = false;
                     this._doorDragging = d;
                     
                     const onMove = ev => {
-                        const p = this.getPoint(ev);
-                        const dx = p.rawX - startP.rawX;
-                        const dy = p.rawY - startP.rawY;
+                        const curR = this.uiCanvas.getBoundingClientRect();
+                        const rawX = (ev.clientX - curR.left - this.panX) / this.zoom;
+                        const rawY = (ev.clientY - curR.top - this.panY) / this.zoom;
+                        const dx = rawX - lastRawX;
+                        const dy = rawY - lastRawY;
                         if (!moved && Math.sqrt(dx*dx + dy*dy) < 3) return;
                         moved = true;
-                        d.x += p.rawX - startP.rawX;
-                        d.y += p.rawY - startP.rawY;
-                        startP.rawX = p.rawX;
-                        startP.rawY = p.rawY;
+                        d.x += dx;
+                        d.y += dy;
+                        lastRawX = rawX;
+                        lastRawY = rawY;
                         this.renderDoors();
                     };
                     const onUp = () => {
                         if (moved) {
-                            if (this.snap && this.gridSize) {
-                                d.x = Math.round(d.x / this.gridSize) * this.gridSize;
-                                d.y = Math.round(d.y / this.gridSize) * this.gridSize;
-                            }
                             this.syncDoor(d);
                             this.renderDoors();
                         }
