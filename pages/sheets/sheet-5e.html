@@ -1164,6 +1164,99 @@
             text-transform: uppercase;
         }
 
+        /* HP Suggestion */
+        .hp-suggest {
+            font-size: 9px;
+            color: var(--md-primary, #a78bfa);
+            margin-top: 6px;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.15s;
+            text-align: center;
+            line-height: 1.3;
+        }
+        .hp-suggest:hover { opacity: 1; }
+        .hp-suggest-formula { font-size: 8px; color: var(--md-on-surface-variant); margin-top: 2px; }
+
+        /* HP Roll Button */
+        .hp-roll-trigger {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 22px; height: 22px; border-radius: 6px;
+            background: var(--md-surface-container); border: 1px solid var(--md-outline-variant);
+            cursor: pointer; transition: all 0.15s; margin-left: 4px; vertical-align: middle;
+            padding: 0;
+        }
+        .hp-roll-trigger:hover { background: var(--md-surface-container-high); border-color: var(--md-primary, #a78bfa); }
+        .hp-roll-trigger svg { width: 12px; height: 12px; opacity: 0.6; }
+        .hp-roll-trigger:hover svg { opacity: 1; }
+
+        /* HP Roll Modal */
+        .hp-roll-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            display: none; align-items: center; justify-content: center;
+        }
+        .hp-roll-overlay.active { display: flex; }
+        .hp-roll-modal {
+            background: var(--md-surface-container-high, #2a2a2e);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; padding: 24px; width: 380px; max-width: 92vw;
+            max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+        }
+        .hp-roll-title {
+            font-size: 16px; font-weight: 700; color: var(--md-on-surface, #fff);
+            margin-bottom: 4px;
+        }
+        .hp-roll-subtitle {
+            font-size: 11px; color: var(--md-on-surface-variant, rgba(255,255,255,0.5));
+            margin-bottom: 16px;
+        }
+        .hp-roll-levels {
+            display: flex; flex-direction: column; gap: 6px;
+            max-height: 340px; overflow-y: auto; padding-right: 4px;
+        }
+        .hp-roll-level {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 10px; background: var(--md-surface-container, rgba(255,255,255,0.04));
+            border-radius: 8px; font-size: 12px; color: var(--md-on-surface, #fff);
+        }
+        .hp-roll-level.level-1 { border-left: 3px solid var(--md-primary, #a78bfa); }
+        .hp-roll-lvl-num {
+            font-weight: 700; min-width: 18px; color: var(--md-on-surface-variant, rgba(255,255,255,0.5));
+        }
+        .hp-roll-lvl-val {
+            font-weight: 700; min-width: 28px; text-align: center;
+            font-size: 14px; color: var(--md-primary, #a78bfa);
+        }
+        .hp-roll-lvl-detail {
+            flex: 1; font-size: 10px; color: var(--md-on-surface-variant, rgba(255,255,255,0.5));
+        }
+        .hp-roll-lvl-btn {
+            padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 600;
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
+            background: var(--md-surface-container-high, rgba(255,255,255,0.06));
+            color: var(--md-on-surface, #fff); transition: all 0.15s;
+        }
+        .hp-roll-lvl-btn:hover { background: rgba(255,255,255,0.12); }
+        .hp-roll-lvl-btn.rolled { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #a78bfa; }
+        .hp-roll-total {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .hp-roll-total-label { font-size: 12px; color: var(--md-on-surface-variant, rgba(255,255,255,0.5)); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .hp-roll-total-val { font-size: 24px; font-weight: 700; color: var(--md-primary, #a78bfa); }
+        .hp-roll-actions {
+            display: flex; gap: 8px; margin-top: 16px;
+        }
+        .hp-roll-actions button {
+            flex: 1; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+            cursor: pointer; border: none; transition: all 0.15s;
+        }
+        .hp-roll-apply { background: var(--md-primary, #a78bfa); color: white; }
+        .hp-roll-apply:hover { filter: brightness(1.15); }
+        .hp-roll-cancel { background: var(--md-surface-container, rgba(255,255,255,0.06)); color: var(--md-on-surface, #fff); border: 1px solid rgba(255,255,255,0.1); }
+        .hp-roll-cancel:hover { background: rgba(255,255,255,0.1); }
+
         @media (max-width: 800px) {
             .armor-hp-layout {
                 grid-template-columns: 120px 1fr 1fr;
@@ -4772,6 +4865,23 @@
         </div>
     </div>
 
+    <!-- HP Roll Modal -->
+    <div class="hp-roll-overlay" id="hpRollOverlay" onclick="if(event.target===this)closeHpRollModal()">
+        <div class="hp-roll-modal">
+            <div class="hp-roll-title" id="hpRollTitle">HP Berechnen</div>
+            <div class="hp-roll-subtitle" id="hpRollSubtitle"></div>
+            <div class="hp-roll-levels" id="hpRollLevels"></div>
+            <div class="hp-roll-total">
+                <span class="hp-roll-total-label">Gesamt HP</span>
+                <span class="hp-roll-total-val" id="hpRollTotal">0</span>
+            </div>
+            <div class="hp-roll-actions">
+                <button class="hp-roll-cancel" onclick="closeHpRollModal()">Abbrechen</button>
+                <button class="hp-roll-apply" onclick="applyHpRoll()">HP setzen</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Tooltip Popup Container -->
     <div class="tooltip-popup" id="tooltipPopup">
         <h4 id="tooltipTitle">Title</h4>
@@ -5071,7 +5181,11 @@
                     </div>
                     <div class="armor-stat-box">
                         <div class="armor-stat-label" data-i18n-text="max-hp">Maximum</div>
-                        <input type="number" class="armor-stat-value" id="hpMax" placeholder="–" oninput="autoSave()" data-i18n-title="max-hp">
+                        <div style="display:flex;align-items:center;justify-content:center;gap:2px">
+                            <input type="number" class="armor-stat-value" id="hpMax" placeholder="–" oninput="onHpMaxInput(); autoSave()" data-i18n-title="max-hp">
+                            <button class="hp-roll-trigger" onclick="openHpRollModal()" title="HP Würfeln"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/></svg></button>
+                        </div>
+                        <div class="hp-suggest" id="hpSuggest" onclick="applyHpSuggestion()" style="display:none"></div>
                     </div>
                     <div class="armor-stat-box">
                         <div class="armor-stat-label" data-i18n-text="temp-hp">Temp</div>
@@ -6439,6 +6553,14 @@
             { id: 'cha', name: 'Charisma', abbr: 'CHA', skills: ['deception', 'intimidation', 'performance', 'persuasion'] }
         ];
         const SKILL_NAMES = { athletics: 'Athletics', acrobatics: 'Acrobatics', sleight: 'Sleight of Hand', stealth: 'Stealth', arcana: 'Arcana', history: 'History', investigation: 'Investigation', nature: 'Nature', religion: 'Religion', animal: 'Animal Handling', insight: 'Insight', medicine: 'Medicine', perception: 'Perception', survival: 'Survival', deception: 'Deception', intimidation: 'Intimidation', performance: 'Performance', persuasion: 'Persuasion' };
+
+        // Hit Die per class (D&D 5e SRD)
+        const HIT_DICE = {
+            'Barbarian': 12,
+            'Fighter': 10, 'Paladin': 10, 'Ranger': 10,
+            'Artificer': 8, 'Bard': 8, 'Cleric': 8, 'Druid': 8, 'Monk': 8, 'Rogue': 8, 'Warlock': 8, 'Blood Hunter': 8,
+            'Sorcerer': 6, 'Wizard': 6
+        };
 
         // Subclass options per class (2024 5E) - MUST BE BEFORE FUNCTIONS
         const SUBCLASSES = {
@@ -8627,6 +8749,9 @@
             
             // Dim Pact Slots if not Warlock
             updatePactSlotsVisibility(selectedClass);
+            
+            // Update suggested HP for new class
+            updateSuggestedHP();
         }
 
         function updatePactSlotsVisibility(selectedClass) {
@@ -8828,6 +8953,7 @@
             
             // Cascade updates for derived stats
             if (abilityId === 'dex') updateInitiative();
+            if (abilityId === 'con') updateSuggestedHP();
             if (abilityId === 'wis' || abilityId === 'int') updatePassiveScores();
             
             // Update skills that depend on this ability
@@ -8891,6 +9017,184 @@
             updatePassiveScores();
             updateAllSkillBonuses();
             updateAllSaveBonuses();
+            updateSuggestedHP();
+        }
+
+        // Missing function that was being called - cascade all ability-dependent updates
+        function updateAllFromAbilities() {
+            ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(ab => updateModifier(ab));
+            updateAllSkillBonuses();
+            updateAllSaveBonuses();
+            updateInitiative();
+            updatePassiveScores();
+            updateSpellStats();
+            updateSuggestedHP();
+        }
+
+        // ===== HP CALCULATION SYSTEM =====
+
+        // Calculate suggested HP: Level 1 = max die + CON mod, Level 2+ = avg(die/2+1) + CON mod per level
+        function calcSuggestedHP(className, level, conScore) {
+            const die = HIT_DICE[className];
+            if (!die || !level || level < 1) return null;
+            const conMod = Math.floor((conScore - 10) / 2);
+            const avg = Math.floor(die / 2) + 1; // Average roll rounded down + 1 (PHB standard)
+            const level1 = die + conMod;
+            const restLevels = (level - 1) * (avg + conMod);
+            return { total: Math.max(1, level1 + restLevels), die, conMod, avg, level };
+        }
+
+        // Track whether HP was auto-set (so we can update it when class/level/CON changes)
+        let _hpAutoSet = false;
+
+        function updateSuggestedHP() {
+            const hint = document.getElementById('hpSuggest');
+            if (!hint) return;
+            const className = document.getElementById('charClass')?.value;
+            const level = parseInt(document.getElementById('level')?.value) || 1;
+            const conScore = parseInt(document.getElementById('con')?.value) || 10;
+            const result = calcSuggestedHP(className, level, conScore);
+            if (!result) { hint.style.display = 'none'; return; }
+
+            const lang = getLang();
+            const dStr = lang === 'de' ? `W${result.die}` : `d${result.die}`;
+            const conStr = result.conMod >= 0 ? `+${result.conMod}` : `${result.conMod}`;
+            const formula = `${result.level}${dStr}${conStr}/Lvl`;
+            hint.innerHTML = `<span>${lang === 'de' ? 'Vorschlag' : 'Suggested'}: <strong>${result.total}</strong></span><div class="hp-suggest-formula">${formula}</div>`;
+            hint.style.display = 'block';
+
+            // Auto-fill if empty or previously auto-set
+            const hpMax = document.getElementById('hpMax');
+            const hpCurrent = document.getElementById('hpCurrent');
+            if (hpMax && (!hpMax.value || _hpAutoSet)) {
+                hpMax.value = result.total;
+                if (hpCurrent && (!hpCurrent.value || _hpAutoSet)) {
+                    hpCurrent.value = result.total;
+                }
+                _hpAutoSet = true;
+                autoSave();
+            }
+
+            // Auto-fill Hit Dice fields
+            updateHitDiceFields(className, level, result.die);
+        }
+
+        function updateHitDiceFields(className, level, die) {
+            const hdCurrent = document.getElementById('hdCurrent');
+            const hdMax = document.getElementById('hdMax');
+            if (!hdCurrent || !hdMax || !die) return;
+            const lang = getLang();
+            const dStr = lang === 'de' ? `${level}W${die}` : `${level}d${die}`;
+            if (!hdMax.value || hdMax.value === hdCurrent.value) {
+                hdMax.value = dStr;
+                hdCurrent.value = dStr;
+            }
+        }
+
+        function onHpMaxInput() {
+            // User manually edited HP, stop auto-updating
+            _hpAutoSet = false;
+        }
+
+        function applyHpSuggestion() {
+            const className = document.getElementById('charClass')?.value;
+            const level = parseInt(document.getElementById('level')?.value) || 1;
+            const conScore = parseInt(document.getElementById('con')?.value) || 10;
+            const result = calcSuggestedHP(className, level, conScore);
+            if (!result) return;
+            document.getElementById('hpMax').value = result.total;
+            document.getElementById('hpCurrent').value = result.total;
+            _hpAutoSet = true;
+            autoSave();
+            const lang = getLang();
+            showToast(lang === 'de' ? `HP auf ${result.total} gesetzt` : `HP set to ${result.total}`, 'success');
+        }
+
+        // ===== HP ROLL MODAL =====
+        let _hpRollData = [];
+
+        function openHpRollModal() {
+            const className = document.getElementById('charClass')?.value;
+            const level = parseInt(document.getElementById('level')?.value) || 1;
+            const conScore = parseInt(document.getElementById('con')?.value) || 10;
+            const die = HIT_DICE[className];
+            if (!die) {
+                const lang = getLang();
+                showToast(lang === 'de' ? 'Bitte zuerst eine Klasse wählen' : 'Please select a class first', 'warning');
+                return;
+            }
+            const conMod = Math.floor((conScore - 10) / 2);
+            const avg = Math.floor(die / 2) + 1;
+            const lang = getLang();
+            const dStr = lang === 'de' ? `W${die}` : `d${die}`;
+
+            document.getElementById('hpRollTitle').textContent = lang === 'de' ? 'HP Berechnen' : 'Calculate HP';
+            document.getElementById('hpRollSubtitle').textContent = `${className} - ${dStr} | CON ${conMod >= 0 ? '+' : ''}${conMod}`;
+
+            // Build level rows
+            _hpRollData = [];
+            for (let i = 1; i <= level; i++) {
+                const isLvl1 = i === 1;
+                const baseVal = isLvl1 ? die : avg;
+                const total = Math.max(1, baseVal + conMod);
+                _hpRollData.push({ level: i, dieRoll: baseVal, conMod, total, isAvg: !isLvl1, rolled: false });
+            }
+
+            renderHpRollLevels(die, lang);
+            document.getElementById('hpRollOverlay').classList.add('active');
+        }
+
+        function renderHpRollLevels(die, lang) {
+            const container = document.getElementById('hpRollLevels');
+            const dStr = lang === 'de' ? `W${die}` : `d${die}`;
+            container.innerHTML = _hpRollData.map((d, i) => {
+                const conStr = d.conMod >= 0 ? `+${d.conMod}` : `${d.conMod}`;
+                if (d.level === 1) {
+                    return `<div class="hp-roll-level level-1">
+                        <span class="hp-roll-lvl-num">1</span>
+                        <span class="hp-roll-lvl-val">${d.total}</span>
+                        <span class="hp-roll-lvl-detail">Max ${dStr} (${d.dieRoll}) ${conStr} CON</span>
+                        <span style="font-size:9px;color:var(--md-on-surface-variant);opacity:0.5">${lang === 'de' ? 'Fest' : 'Fixed'}</span>
+                    </div>`;
+                }
+                const btnLabel = d.rolled
+                    ? (lang === 'de' ? `Gewürfelt: ${d.dieRoll}` : `Rolled: ${d.dieRoll}`)
+                    : (d.isAvg ? (lang === 'de' ? 'Würfeln' : 'Roll') : (lang === 'de' ? 'Würfeln' : 'Roll'));
+                const avgLabel = d.isAvg && !d.rolled ? ` (${lang === 'de' ? 'Durchschn.' : 'avg'} ${Math.floor(die/2)+1})` : '';
+                return `<div class="hp-roll-level">
+                    <span class="hp-roll-lvl-num">${d.level}</span>
+                    <span class="hp-roll-lvl-val">${d.total}</span>
+                    <span class="hp-roll-lvl-detail">${d.rolled ? d.dieRoll : Math.floor(die/2)+1} ${conStr} CON${avgLabel}</span>
+                    <button class="hp-roll-lvl-btn${d.rolled ? ' rolled' : ''}" onclick="rollHpLevel(${i}, ${die})">${btnLabel}</button>
+                </div>`;
+            }).join('');
+            const totalHP = _hpRollData.reduce((s, d) => s + d.total, 0);
+            document.getElementById('hpRollTotal').textContent = Math.max(1, totalHP);
+        }
+
+        function rollHpLevel(index, die) {
+            if (index === 0) return; // Level 1 is always max
+            const roll = Math.floor(Math.random() * die) + 1;
+            _hpRollData[index].dieRoll = roll;
+            _hpRollData[index].total = Math.max(1, roll + _hpRollData[index].conMod);
+            _hpRollData[index].isAvg = false;
+            _hpRollData[index].rolled = true;
+            renderHpRollLevels(die, getLang());
+        }
+
+        function applyHpRoll() {
+            const totalHP = Math.max(1, _hpRollData.reduce((s, d) => s + d.total, 0));
+            document.getElementById('hpMax').value = totalHP;
+            document.getElementById('hpCurrent').value = totalHP;
+            _hpAutoSet = false; // User explicitly chose these values via roll
+            autoSave();
+            closeHpRollModal();
+            const lang = getLang();
+            showToast(lang === 'de' ? `HP auf ${totalHP} gesetzt` : `HP set to ${totalHP}`, 'success');
+        }
+
+        function closeHpRollModal() {
+            document.getElementById('hpRollOverlay').classList.remove('active');
         }
 
         // Calculate Initiative from DEX Modifier
