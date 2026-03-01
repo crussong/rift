@@ -1514,6 +1514,14 @@
                             <button class="wb-token-type-btn" data-type="hidden">Versteckt</button>
                         </div>
                         
+                        <div id="editDeathSaveToggleRow" style="display:none;margin-bottom:10px;padding:6px 10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;cursor:pointer;user-select:none" title="Aktiviere Todesrettungswürfe für wichtige NPCs/Bosse (normalerweise nur für Spieler)">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;color:rgba(255,255,255,0.5)">
+                                <input type="checkbox" id="editDeathSaveToggle" style="accent-color:#8b5cf6;width:14px;height:14px">
+                                <span>Todesrettungswürfe</span>
+                                <span style="font-size:9px;color:rgba(255,255,255,0.25);margin-left:auto">(bei 0 HP nicht sofort tot)</span>
+                            </label>
+                        </div>
+                        
                         <input type="text" class="wb-modal__input" id="editTokenName" placeholder="Name...">
                         
                         <!-- Bestiary Quick Import -->
@@ -5434,15 +5442,28 @@ const WB = {
                             // Concentration check
                             if (dmgTotal > 0) this.checkConcentration(target, dmgTotal);
                             
-                            // Death saves reset on taking damage at 0 HP
-                            if (target.hp <= 0 && target._deathSaves) {
-                                target._deathSaves.failures = Math.min(3, (target._deathSaves.failures || 0) + 1);
-                                if (target._deathSaves.failures >= 3 && !target.status?.includes('dead')) {
-                                    if (!target.status) target.status = [];
-                                    target.status.push('dead');
-                                    this.combatLog('death', { text: `<strong>${target.name}</strong> ist gestorben!` });
+                            // Death at 0 HP: death saves for players, instant kill for others
+                            if (target.hp <= 0) {
+                                if (this._usesDeathSaves(target)) {
+                                    if (target._deathSaves) {
+                                        // Already in death saves: add failure for taking damage
+                                        target._deathSaves.failures = Math.min(3, (target._deathSaves.failures || 0) + 1);
+                                        if (target._deathSaves.failures >= 3 && !target.status?.includes('dead')) {
+                                            if (!target.status) target.status = [];
+                                            target.status.push('dead');
+                                            this.combatLog('death', { text: `<strong>${target.name}</strong> ist gestorben!` });
+                                        }
+                                    } else {
+                                        // First time at 0 HP: start death saves
+                                        target._deathSaves = { successes: 0, failures: 0 };
+                                        if (!target.status) target.status = [];
+                                        if (!target.status.includes('unconscious')) target.status.push('unconscious');
+                                    }
+                                    this.syncToken(target);
+                                    this.renderTokens();
+                                } else if (!target.status?.includes('dead')) {
+                                    this._instantKill(target);
                                 }
-                                this.syncToken(target);
                             }
                         }, 500);
                     });
@@ -6063,11 +6084,15 @@ const WB = {
                     this.combatLog('damage', { text: `<strong>${token.name}</strong>: -${amount} HP`, detail: `${token.hp}/${token.maxHp} HP verbleibend` });
                     if (amount > 0) this.checkConcentration(token, amount);
                     if (token.hp <= 0 && !token._deathSaves) {
-                        token._deathSaves = { successes: 0, failures: 0 };
-                        if (!token.status) token.status = [];
-                        if (!token.status.includes('unconscious')) token.status.push('unconscious');
-                        this.syncToken(token);
-                        this.renderTokens();
+                        if (this._usesDeathSaves(token)) {
+                            token._deathSaves = { successes: 0, failures: 0 };
+                            if (!token.status) token.status = [];
+                            if (!token.status.includes('unconscious')) token.status.push('unconscious');
+                            this.syncToken(token);
+                            this.renderTokens();
+                        } else if (!token.status?.includes('dead')) {
+                            this._instantKill(token);
+                        }
                     }
                 });
                 break;
@@ -6754,6 +6779,20 @@ const WB = {
             btn.classList.toggle('active', btn.dataset.type === (token.type || 'player'));
         });
         
+        // Death save toggle: show for non-player types
+        const dsToggleRow = document.getElementById('editDeathSaveToggleRow');
+        const dsToggle = document.getElementById('editDeathSaveToggle');
+        const currentType = token.type || 'player';
+        dsToggleRow.style.display = currentType !== 'player' ? '' : 'none';
+        dsToggle.checked = !!token.useDeathSaves;
+        
+        // Update toggle visibility when type changes
+        document.querySelectorAll('#editTokenTypeGrid .wb-token-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                dsToggleRow.style.display = btn.dataset.type !== 'player' ? '' : 'none';
+            });
+        });
+        
         // Size presets
         document.querySelectorAll('#tokenSizePresets .wb-size-preset').forEach(btn => {
             const size = parseInt(btn.dataset.size);
@@ -6904,6 +6943,14 @@ const WB = {
         // Get type
         const activeType = document.querySelector('#editTokenTypeGrid .wb-token-type-btn.active');
         if (activeType) t.type = activeType.dataset.type;
+        
+        // Death save toggle (only relevant for non-player types)
+        const dsChecked = document.getElementById('editDeathSaveToggle')?.checked;
+        if (t.type === 'player') {
+            delete t.useDeathSaves; // players always have death saves
+        } else {
+            t.useDeathSaves = !!dsChecked;
+        }
         
         // Owner
         const ownerSelect = document.getElementById('editTokenOwner');
@@ -7348,10 +7395,14 @@ const WB = {
         this.toast(`${t.name} ist dran!`);
         this.combatLog('turn', { text: `<strong>${t.name}</strong> ist dran!`, detail: `HP: ${t.hp ?? '?'}/${t.maxHp ?? '?'} | AC: ${t.ac ?? '?'}` });
         
-        // Death save state: token at 0 HP but not dead
-        if (t.hp !== undefined && t.hp <= 0 && !t.status?.includes('dead')) {
+        // Death save state: only for tokens that use death saves
+        if (t.hp !== undefined && t.hp <= 0 && !t.status?.includes('dead') && this._usesDeathSaves(t)) {
             this._abState = 'death_save';
             if (!t._deathSaves) t._deathSaves = { successes: 0, failures: 0 };
+        } else if (t.hp !== undefined && t.hp <= 0 && !t.status?.includes('dead') && !this._usesDeathSaves(t)) {
+            // Non-player at 0 HP: instant death, skip their turn
+            this._instantKill(t);
+            this._abState = 'combat_idle';
         } else {
             this._abState = 'combat_idle';
         }
@@ -13277,6 +13328,31 @@ const WB = {
         document.getElementById('doorLabel').onclick = () => { m.classList.remove('visible'); const l = prompt('Tür-Beschriftung:', door.label || ''); if (l !== null) { door.label = l; this.syncDoor(door); this.renderDoors(); } };
         // Delete
         document.getElementById('doorDelete').onclick = () => { this.removeDoor(door.id); m.classList.remove('visible'); this.toast('Tür entfernt'); };
+    },
+    
+    // ==================== DEATH SAVE GATING ====================
+    // Only player tokens get death saves by default.
+    // GMs can enable death saves on important NPCs/bosses via token edit toggle.
+    _usesDeathSaves(token) {
+        if (!token) return false;
+        if (token.useDeathSaves) return true; // GM toggle
+        return token.type === 'player';
+    },
+    
+    // Instant kill: add 'dead' status, log, clean up
+    _instantKill(token) {
+        if (!token.status) token.status = [];
+        if (!token.status.includes('dead')) {
+            token.status.push('dead');
+            this.combatLog('death', { text: `<strong>${token.name}</strong> ist gefallen!` });
+        }
+        // Remove unconscious if present
+        token.status = token.status.filter(s => s !== 'unconscious');
+        delete token._deathSaves;
+        this.syncToken(token);
+        this.renderTokens();
+        this.renderInitiative();
+        this.renderTokenSidebar();
     },
     
     // ==================== WEAPON DATABASE & PARSER ====================
