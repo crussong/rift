@@ -5080,7 +5080,8 @@ const WB = {
                 validWeapons.forEach(w => {
                     const bonus = w.bonus || '+0';
                     const dmg = w.damage || '';
-                    html += `<button class="wb-qdice__action" data-die="20" data-mod="${parseInt(bonus)||0}" data-label="Angriff: ${w.name}">`;
+                    const tip = this._weaponTooltip(w).replace(/"/g, '&quot;');
+                    html += `<button class="wb-qdice__action" data-die="20" data-mod="${parseInt(bonus)||0}" data-label="Angriff: ${w.name}" title="${tip}">`;
                     html += `<span class="wb-qdice__action-name">${w.name}</span>`;
                     html += `<span class="wb-qdice__action-detail">${bonus} / ${dmg}</span>`;
                     html += `</button>`;
@@ -5107,7 +5108,8 @@ const WB = {
                 const isProf = sd.savesProf?.[ab];
                 const total = mod + (isProf ? profBonus : 0);
                 const sign = total >= 0 ? '+' : '';
-                html += `<button class="wb-qdice__action${isProf?' wb-qdice__action--prof':''}" data-die="20" data-mod="${total}" data-label="${this._abilityNames[ab]} Save">`;
+                const saveTip = `${this._abilityNames[ab]} ${score} (Mod ${mod >= 0 ? '+' : ''}${mod})${isProf ? '\nGeübt: +' + profBonus + ' Prof' : ''}\nGesamt: ${sign}${total}`;
+                html += `<button class="wb-qdice__action${isProf?' wb-qdice__action--prof':''}" data-die="20" data-mod="${total}" data-label="${this._abilityNames[ab]} Save" title="${saveTip.replace(/"/g, '&quot;')}">`;
                 html += `<span class="wb-qdice__action-name">${this._abilityNames[ab]}</span>`;
                 html += `<span class="wb-qdice__action-detail">${sign}${total}${isProf?' (geübt)':''}</span>`;
                 html += `</button>`;
@@ -5127,7 +5129,8 @@ const WB = {
                 else if (isProf) total += profBonus;
                 const sign = total >= 0 ? '+' : '';
                 const tag = isExp ? ' (E)' : (isProf ? ' (G)' : '');
-                html += `<button class="wb-qdice__action${isProf||isExp?' wb-qdice__action--prof':''}" data-die="20" data-mod="${total}" data-label="${this._skillNames[sk]}">`;
+                const skillTip = `${this._skillNames[sk]} (${this._abilityNames[ab]})\n${this._abilityNames[ab]} ${parseInt(sd.abilities?.[ab])||10} (Mod ${mod >= 0 ? '+' : ''}${mod})${isExp ? '\nExpertise: +' + (profBonus*2) + ' (2x Prof)' : isProf ? '\nGeübt: +' + profBonus + ' Prof' : ''}\nGesamt: ${sign}${total}`;
+                html += `<button class="wb-qdice__action${isProf||isExp?' wb-qdice__action--prof':''}" data-die="20" data-mod="${total}" data-label="${this._skillNames[sk]}" title="${skillTip.replace(/"/g, '&quot;')}">`;
                 html += `<span class="wb-qdice__action-name">${this._skillNames[sk]}</span>`;
                 html += `<span class="wb-qdice__action-detail">${sign}${total}${tag}</span>`;
                 html += `</button>`;
@@ -5147,7 +5150,8 @@ const WB = {
                 parsedWeapons.forEach(w => {
                     const bonus = w.bonus || '+0';
                     const dmg = w.damage || '';
-                    html += `<button class="wb-qdice__action" data-die="20" data-mod="${parseInt(bonus)||0}" data-label="Angriff: ${w.name}">`;
+                    const tip = this._weaponTooltip(w).replace(/"/g, '&quot;');
+                    html += `<button class="wb-qdice__action" data-die="20" data-mod="${parseInt(bonus)||0}" data-label="Angriff: ${w.name}" title="${tip}">`;
                     html += `<span class="wb-qdice__action-name">${w.name}</span>`;
                     html += `<span class="wb-qdice__action-detail">${bonus} / ${dmg}</span>`;
                     html += `</button>`;
@@ -5227,7 +5231,8 @@ const WB = {
             _atkWeapons.forEach((w, i) => {
                 const bonus = parseInt(w.bonus) || 0;
                 const sign = bonus >= 0 ? '+' : '';
-                html += `<button class="wb-qdice__action wb-attack-btn" data-widx="${i}" style="border-left:2px solid #f97316">`;
+                const tip = this._weaponTooltip(w).replace(/"/g, '&quot;');
+                html += `<button class="wb-qdice__action wb-attack-btn" data-widx="${i}" style="border-left:2px solid #f97316" title="${tip}">`;
                 html += `<span class="wb-qdice__action-name">${w.name}</span>`;
                 html += `<span class="wb-qdice__action-detail">${sign}${bonus} / ${w.damage || '?'}</span>`;
                 html += `</button>`;
@@ -5822,7 +5827,8 @@ const WB = {
                 weapons.forEach((w, i) => {
                     const bonus = parseInt(w.bonus) || 0;
                     const sign = bonus >= 0 ? '+' : '';
-                    html += `<button class="wb-ab-weapon" data-ab="weapon" data-widx="${i}">`;
+                    const tip = this._weaponTooltip(w).replace(/"/g, '&quot;');
+                    html += `<button class="wb-ab-weapon" data-ab="weapon" data-widx="${i}" title="${tip}">`;
                     html += `<div class="wb-ab-weapon__left">${dieIcon(w.damage)}<span class="wb-ab-weapon__name">${w.name}</span></div>`;
                     html += `<span class="wb-ab-weapon__detail">${sign}${bonus} / ${w.damage || '?'}</span>`;
                     html += `</button>`;
@@ -5830,7 +5836,9 @@ const WB = {
                 
                 if (hasSpellAttack) {
                     const sa = parseInt(sd.spellcasting.spellAttack) || 0;
-                    html += `<button class="wb-ab-weapon wb-ab-weapon--spell" data-ab="weapon" data-widx="spell">`;
+                    const dc = sd.spellcasting.spellDC || '?';
+                    const spellTip = `Zauberangriff: +${sa}\nSpell DC: ${dc}`;
+                    html += `<button class="wb-ab-weapon wb-ab-weapon--spell" data-ab="weapon" data-widx="spell" title="${spellTip}">`;
                     html += `<div class="wb-ab-weapon__left">${dieIcon('1d10')}<span class="wb-ab-weapon__name">Zauberangriff</span></div>`;
                     html += `<span class="wb-ab-weapon__detail">+${sa} / 1d10</span>`;
                     html += `</button>`;
@@ -13359,14 +13367,36 @@ const WB = {
             if (!matched) continue;
             
             const abilityMod = matched.ability === 'finesse' ? Math.max(strMod, dexMod) : matched.ability === 'dex' ? dexMod : strMod;
+            const usedAbility = matched.ability === 'finesse' ? (dexMod >= strMod ? 'DEX' : 'STR') : matched.ability === 'dex' ? 'DEX' : 'STR';
             const totalBonus = abilityMod + prof;
             const dmgBonus = abilityMod;
             const dmgStr = dmgBonus !== 0 ? `${matched.damage}${dmgBonus >= 0 ? '+' : ''}${dmgBonus}` : matched.damage;
             const displayName = part.trim().replace(/\b\w/g, c => c.toUpperCase());
             
-            parsed.push({ name: displayName, bonus: `+${totalBonus}`, damage: dmgStr, _parsed: true, _type: matched.type });
+            parsed.push({
+                name: displayName, bonus: `+${totalBonus}`, damage: dmgStr,
+                _parsed: true, _type: matched.type, _baseDmg: matched.damage,
+                _ability: usedAbility, _abilityMod: abilityMod, _prof: prof,
+                _finesse: matched.ability === 'finesse'
+            });
         }
         return parsed;
+    },
+    
+    // Generate tooltip breakdown for a weapon
+    _weaponTooltip(w) {
+        if (!w) return '';
+        // Parsed weapon from items — full breakdown available
+        if (w._parsed) {
+            const atkLine = `Angriff: ${w._ability} ${w._abilityMod >= 0 ? '+' : ''}${w._abilityMod} + Prof +${w._prof} = ${w.bonus}`;
+            const dmgLine = `Schaden: ${w._baseDmg} + ${w._ability} ${w._abilityMod >= 0 ? '+' : ''}${w._abilityMod} = ${w.damage}`;
+            const typeLine = w._type ? `Typ: ${w._type}` : '';
+            const finesseLine = w._finesse ? 'Finesse (max STR/DEX)' : '';
+            return [atkLine, dmgLine, typeLine, finesseLine].filter(Boolean).join('\n');
+        }
+        // Sheet weapon — limited info
+        const bonus = parseInt(w.bonus) || 0;
+        return `Angriff: ${bonus >= 0 ? '+' : ''}${bonus}\nSchaden: ${w.damage || '?'}\n(Charakterbogen)`;
     },
     
     // ==================== ENCOUNTER BUILDER ====================
