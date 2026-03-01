@@ -334,17 +334,17 @@
         /* Dice Overlay Context Header */
         .wb-do-ctx { display:flex; flex-direction:column; align-items:center; gap:4px; }
         .wb-do-ctx__player { font-size:11px; font-weight:700; color:rgba(255,255,255,0.4); letter-spacing:1.5px; text-transform:uppercase; }
-        .wb-do-headline { font-size:13px; font-weight:800; letter-spacing:1px; text-transform:uppercase; text-align:center; margin:6px 0 4px; }
+        .wb-do-headline { font-size:13px; font-weight:800; letter-spacing:1px; text-transform:uppercase; text-align:center; margin:8px 0 6px; }
         
-        /* Token Identity Card */
-        .wb-do-token { display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:8px 14px 8px 8px; margin-bottom:4px; min-width:220px; }
-        .wb-do-token__portrait { width:42px; height:42px; border-radius:8px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; color:white; }
-        .wb-do-token__portrait img { width:100%; height:100%; object-fit:cover; }
-        .wb-do-token__info { flex:1; min-width:0; }
-        .wb-do-token__name { font-size:14px; font-weight:800; color:rgba(255,255,255,0.9); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .wb-do-token__stats { display:flex; gap:10px; margin-top:2px; }
-        .wb-do-token__stat { font-size:12px; font-weight:700; color:rgba(255,255,255,0.6); font-variant-numeric:tabular-nums; }
-        .wb-do-token__stat-label { font-size:9px; font-weight:700; color:rgba(255,255,255,0.25); letter-spacing:0.5px; text-transform:uppercase; margin-right:2px; }
+        /* Token Banner */
+        .wb-do-banner { display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:10px 18px 10px 10px; margin-bottom:2px; min-width:260px; backdrop-filter:blur(8px); }
+        .wb-do-banner__portrait { width:52px; height:52px; border-radius:10px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:white; border:2px solid rgba(255,255,255,0.1); }
+        .wb-do-banner__portrait img { width:100%; height:100%; object-fit:cover; }
+        .wb-do-banner__col { flex:1; min-width:0; }
+        .wb-do-banner__name { font-size:16px; font-weight:800; color:rgba(255,255,255,0.95); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+        .wb-do-banner__stats { display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
+        .wb-do-banner__chip { font-size:12px; font-weight:700; color:rgba(255,255,255,0.65); background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:4px; font-variant-numeric:tabular-nums; display:inline-flex; align-items:center; gap:4px; }
+        .wb-do-banner__chip-label { font-size:9px; font-weight:700; color:rgba(255,255,255,0.3); letter-spacing:0.5px; text-transform:uppercase; }
         
         /* Dice Overlay Info Card */
         .wb-do-info { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px 14px; margin-top:8px; min-width:200px; max-width:320px; display:flex; flex-direction:column; gap:4px; }
@@ -358,8 +358,8 @@
         .wb-do-info__ac { font-size:12px; font-weight:800; color:rgba(255,255,255,0.5); background:rgba(255,255,255,0.06); padding:1px 6px; border-radius:4px; }
         
         /* Dice Overlay Result Card */
-        .wb-do-result { background:rgba(20,20,28,0.9); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px 20px; min-width:240px; max-width:360px; backdrop-filter:blur(8px); box-shadow:0 8px 32px rgba(0,0,0,0.4); text-align:center; }
-        .wb-do-result__total { font-size:32px; font-weight:900; color:white; line-height:1; letter-spacing:-0.5px; }
+        .wb-do-result { background:rgba(20,20,28,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px 24px; min-width:200px; max-width:360px; backdrop-filter:blur(8px); box-shadow:0 8px 32px rgba(0,0,0,0.5); text-align:center; }
+        .wb-do-result__total { font-size:40px; font-weight:900; color:white; line-height:1; letter-spacing:-1px; }
         .wb-do-result__total--crit { color:#fbbf24; text-shadow:0 0 20px rgba(251,191,36,0.5); }
         .wb-do-result__total--fail { color:#ef4444; text-shadow:0 0 20px rgba(239,68,68,0.5); }
         .wb-do-result__total--hit { color:#22c55e; }
@@ -16284,43 +16284,46 @@ const WBDice = {
         if (resultCard) { resultCard.innerHTML = ''; resultCard.style.opacity = '0'; resultCard.style.transform = 'translateY(10px)'; }
         if (ctx) {
             let html = '';
-            const t = context?.token;
+            const t = context?.token || null;
             
             if (context?.headline) {
-                const accentColor = context.isSpell ? '#3b82f6' : context.actionType === 'dmg' ? '#ef4444' : context.actionType === 'atk' ? '#f97316' : '#a78bfa';
+                const isAtk = context.actionType === 'atk';
+                const isDmg = context.actionType === 'dmg';
+                const isSpell = context.isSpell;
+                const accentColor = isSpell ? '#3b82f6' : isDmg ? '#ef4444' : isAtk ? '#f97316' : '#a78bfa';
                 
-                // Token Identity Card
-                if (t) {
-                    const hpPct = t.maxHp ? Math.max(0, Math.min(100, (t.hp / t.maxHp) * 100)) : 0;
-                    const hpColor = hpPct > 50 ? '#22c55e' : hpPct > 25 ? '#eab308' : '#ef4444';
-                    html += `<div class="wb-do-token">`;
-                    html += `<div class="wb-do-token__portrait" style="background:${t.img ? 'transparent' : (t.color || '#8b5cf6')}">`;
-                    html += t.img ? `<img src="${t.img}" draggable="false">` : `<span>${t.label || t.name?.charAt(0) || '?'}</span>`;
+                // === TOKEN BANNER (always show if token exists) ===
+                if (t && t.name) {
+                    html += `<div class="wb-do-banner">`;
+                    html += `<div class="wb-do-banner__portrait" style="background:${t.img ? 'transparent' : (t.color || '#8b5cf6')}">`;
+                    html += t.img ? `<img src="${t.img}" draggable="false">` : `<span>${t.label || t.name.charAt(0)}</span>`;
                     html += `</div>`;
-                    html += `<div class="wb-do-token__info">`;
-                    html += `<div class="wb-do-token__name">${t.name || context.player}</div>`;
-                    html += `<div class="wb-do-token__stats">`;
-                    if (t.maxHp) html += `<span class="wb-do-token__stat"><span class="wb-do-token__stat-label">HP</span> <span style="color:${hpColor}">${t.hp}/${t.maxHp}</span></span>`;
-                    if (t.ac) html += `<span class="wb-do-token__stat"><span class="wb-do-token__stat-label">AC</span> ${t.ac}</span>`;
-                    if (t.speed) html += `<span class="wb-do-token__stat"><span class="wb-do-token__stat-label">BW</span> ${t.speed}</span>`;
+                    html += `<div class="wb-do-banner__col">`;
+                    html += `<div class="wb-do-banner__name">${t.name}</div>`;
+                    html += `<div class="wb-do-banner__stats">`;
+                    if (t.maxHp) {
+                        const hpPct = Math.max(0, Math.min(100, (t.hp / t.maxHp) * 100));
+                        const hpCol = hpPct > 50 ? '#22c55e' : hpPct > 25 ? '#eab308' : '#ef4444';
+                        html += `<span class="wb-do-banner__chip"><span class="wb-do-banner__chip-label">HP</span><span style="color:${hpCol}">${t.hp}/${t.maxHp}</span></span>`;
+                    }
+                    if (t.ac) html += `<span class="wb-do-banner__chip"><span class="wb-do-banner__chip-label">AC</span>${t.ac}</span>`;
+                    if (t.initiative != null) html += `<span class="wb-do-banner__chip"><span class="wb-do-banner__chip-label">Init</span>${t.initiative}</span>`;
                     html += `</div></div></div>`;
-                } else if (context.player) {
-                    html += `<div class="wb-do-ctx"><div class="wb-do-ctx__player">${context.player}</div></div>`;
                 }
                 
-                // Headline
+                // === HEADLINE ===
                 html += `<div class="wb-do-headline" style="color:${accentColor}">${context.headline}</div>`;
                 
-                // Weapon/Combat Info Card (attacks & damage only)
-                if (context.weapon && (context.actionType === 'atk' || context.actionType === 'dmg')) {
+                // === WEAPON INFO (attacks & damage) ===
+                if (context.weapon && (isAtk || isDmg)) {
                     html += `<div class="wb-do-info">`;
                     html += `<div class="wb-do-info__weapon">`;
                     html += `<span class="wb-do-info__wname">${context.weapon}</span>`;
-                    if (context.bonus && context.actionType === 'atk') html += `<span class="wb-do-info__wbonus" style="color:${accentColor}">${context.bonus}</span>`;
+                    if (context.bonus && isAtk) html += `<span class="wb-do-info__wbonus" style="color:${accentColor}">${context.bonus}</span>`;
                     html += `</div>`;
                     const stats = [];
-                    if (context.bonusBreakdown && context.actionType === 'atk') stats.push(context.bonusBreakdown);
-                    if (context.dmgDice && context.actionType === 'dmg') stats.push(context.dmgDice);
+                    if (context.bonusBreakdown && isAtk) stats.push(context.bonusBreakdown);
+                    if (context.dmgDice && isDmg) stats.push(context.dmgDice);
                     if (context.dmgType) stats.push(context.dmgType);
                     if (stats.length) html += `<div class="wb-do-info__stats">${stats.join(' · ')}</div>`;
                     if (context.target) {
@@ -16333,7 +16336,7 @@ const WBDice = {
                     html += '</div>';
                 }
             } else if (label) {
-                html += `<div class="wb-do-ctx"><div class="wb-do-headline" style="color:#a78bfa">${label}</div></div>`;
+                html += `<div class="wb-do-headline" style="color:#a78bfa">${label}</div>`;
             }
             ctx.innerHTML = html;
         }
@@ -16516,14 +16519,18 @@ const WBDice = {
         const notationStr = notation.replace(/d/g, 'W') + (mod ? (mod > 0 ? '+' + mod : '' + mod) : '');
         
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-        // Use active/selected token name for immersion (GM rolling for a token)
-        const abToken = WB.getActionBarToken?.();
-        const playerName = abToken?.name || userData.name || 'Spieler';
+        // Find the active token for context (multiple fallback strategies)
+        let contextToken = null;
+        try {
+            if (WB.initiativeActive) contextToken = WB.tokens.find(t => t.id === WB.initiativeActive) || null;
+            if (!contextToken && WB.selected?.type === 'token') contextToken = WB.selected.item;
+        } catch(e) {}
+        const playerName = contextToken?.name || userData.name || 'Spieler';
         this._show(null, {
             player: playerName,
             headline: notationStr,
             actionType: 'roll',
-            token: abToken || null
+            token: contextToken
         });
 
         this._animateDice(diceList, () => {
@@ -16608,8 +16615,11 @@ const WBDice = {
 
         // Sync WITH full data so remote players see correct results
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-        const syncToken = WB.getActionBarToken?.();
-        const syncName = syncToken?.name || userData.name || 'Spieler';
+        let syncName = userData.name || 'Spieler';
+        try {
+            const st = WB.initiativeActive ? WB.tokens.find(t => t.id === WB.initiativeActive) : null;
+            if (st?.name) syncName = st.name;
+        } catch(e) {}
         const total = diceList.reduce((s, d) => s + d.result, 0);
         const isD20 = diceList.length === 1 && diceList[0].sides === 20;
         const isNat20 = isD20 && diceList[0].result === 20;
