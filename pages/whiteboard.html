@@ -16499,14 +16499,9 @@ const WBDice = {
         const notationStr = notation.replace(/d/g, 'W') + (mod ? (mod > 0 ? '+' + mod : '' + mod) : '');
         
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
-        // Use active combat token or selected token name for immersion (GM rolling for a token)
-        let playerName = userData.name || 'Spieler';
-        if (WB.isGM) {
-            const activeToken = WB.initiativeActive ? WB.tokens.find(t => t.id === WB.initiativeActive) : null;
-            const selectedToken = WB.selected?.type === 'token' ? WB.selected.item : null;
-            const ctxToken = activeToken || selectedToken;
-            if (ctxToken?.name) playerName = ctxToken.name;
-        }
+        // Use active/selected token name for immersion (GM rolling for a token)
+        const abToken = WB.getActionBarToken?.();
+        const playerName = abToken?.name || userData.name || 'Spieler';
         this._show(null, { player: playerName, action: notationStr });
 
         this._animateDice(diceList, () => {
@@ -16591,12 +16586,14 @@ const WBDice = {
 
         // Sync WITH full data so remote players see correct results
         const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+        const syncToken = WB.getActionBarToken?.();
+        const syncName = syncToken?.name || userData.name || 'Spieler';
         const total = diceList.reduce((s, d) => s + d.result, 0);
         const isD20 = diceList.length === 1 && diceList[0].sides === 20;
         const isNat20 = isD20 && diceList[0].result === 20;
         const isNat1 = isD20 && diceList[0].result === 1;
         this.syncRoll({
-            player: userData.name || 'Spieler',
+            player: syncName,
             playerId: userData.odaiId || userData.odaid || localStorage.getItem('rift_player_id') || '',
             color: userData.color || '#8b5cf6',
             notation: notation.replace(/d/g, 'W'),
