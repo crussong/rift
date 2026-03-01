@@ -743,6 +743,31 @@
         .wb-ab-die-icon { width:18px; height:18px; opacity:0.45; filter:brightness(0) invert(1); flex-shrink:0; transition:opacity 0.15s }
         .wb-ab-weapon:hover .wb-ab-die-icon { opacity:0.8 }
 
+        /* Weapon Tooltip */
+        .wb-wt { position:fixed; z-index:9999; pointer-events:none; opacity:0; transform:translateY(6px); transition:opacity 0.15s ease, transform 0.15s ease; font-family:'Inter',sans-serif; }
+        .wb-wt.visible { opacity:1; transform:translateY(0); }
+        .wb-wt__card { background:rgba(16,16,20,0.96); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 14px; min-width:200px; max-width:280px; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); box-shadow:0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset; }
+        .wb-wt__header { display:flex; align-items:center; gap:10px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.06); }
+        .wb-wt__icon { width:36px; height:36px; border-radius:8px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .wb-wt__icon svg { width:20px; height:20px; }
+        .wb-wt__title { font-size:13px; font-weight:700; color:#e2e2e2; }
+        .wb-wt__subtitle { font-size:10px; color:rgba(255,255,255,0.35); margin-top:1px; }
+        .wb-wt__rows { display:flex; flex-direction:column; gap:5px; }
+        .wb-wt__row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .wb-wt__row-label { font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.4px; font-weight:600; }
+        .wb-wt__row-val { font-size:12px; font-weight:600; color:#dedede; font-variant-numeric:tabular-nums; }
+        .wb-wt__row-val--atk { color:#f97316; }
+        .wb-wt__row-val--dmg { color:#ef4444; }
+        .wb-wt__row-val--spell { color:#3b82f6; }
+        .wb-wt__calc { font-size:10px; color:rgba(255,255,255,0.3); font-weight:400; margin-left:4px; }
+        .wb-wt__badges { display:flex; gap:4px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06); flex-wrap:wrap; }
+        .wb-wt__badge { font-size:9px; font-weight:600; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:0.3px; }
+        .wb-wt__badge--finesse { background:rgba(139,92,246,0.15); color:#a78bfa; }
+        .wb-wt__badge--type { background:rgba(255,255,255,0.04); }
+        .wb-wt__badge--prof { background:rgba(34,197,94,0.12); color:#4ade80; }
+        .wb-wt__arrow { position:absolute; bottom:-5px; left:50%; transform:translateX(-50%); width:10px; height:5px; overflow:hidden; }
+        .wb-wt__arrow::after { content:''; position:absolute; top:-5px; left:0; width:10px; height:10px; background:rgba(16,16,20,0.96); border:1px solid rgba(255,255,255,0.1); transform:rotate(45deg); }
+
         /* Target mode */
         .wb-ab-target-info { display:flex; align-items:center; gap:12px; }
         .wb-ab-target-dot { width:8px; height:8px; border-radius:50%; background:var(--red, #FF4655); flex-shrink:0; animation:targetPulse 1.5s ease-in-out infinite; }
@@ -5815,6 +5840,7 @@ const WB = {
             const weapons = this.getTokenWeapons(token);
             const hasSpellAttack = !!(sd?.spellcasting?.spellAttack);
             const hasWeapons = weapons.length > 0 || hasSpellAttack;
+            this._abWeaponData = [];
             
             // No weapons → put Angriff button right after Zurück
             if (!hasWeapons) {
@@ -5823,12 +5849,12 @@ const WB = {
             }
             
             if (hasWeapons) {
+                this._abWeaponData = weapons.slice(); // store for tooltip lookup
                 html += `<div class="wb-ab-weapons">`;
                 weapons.forEach((w, i) => {
                     const bonus = parseInt(w.bonus) || 0;
                     const sign = bonus >= 0 ? '+' : '';
-                    const tip = this._weaponTooltip(w).replace(/"/g, '&quot;');
-                    html += `<button class="wb-ab-weapon" data-ab="weapon" data-widx="${i}" title="${tip}">`;
+                    html += `<button class="wb-ab-weapon" data-ab="weapon" data-widx="${i}" data-wt="${i}">`;
                     html += `<div class="wb-ab-weapon__left">${dieIcon(w.damage)}<span class="wb-ab-weapon__name">${w.name}</span></div>`;
                     html += `<span class="wb-ab-weapon__detail">${sign}${bonus} / ${w.damage || '?'}</span>`;
                     html += `</button>`;
@@ -5837,8 +5863,8 @@ const WB = {
                 if (hasSpellAttack) {
                     const sa = parseInt(sd.spellcasting.spellAttack) || 0;
                     const dc = sd.spellcasting.spellDC || '?';
-                    const spellTip = `Zauberangriff: +${sa}\nSpell DC: ${dc}`;
-                    html += `<button class="wb-ab-weapon wb-ab-weapon--spell" data-ab="weapon" data-widx="spell" title="${spellTip}">`;
+                    this._abWeaponData.push({ name: 'Zauberangriff', bonus: '+' + sa, damage: '1d10', _isSpell: true, _dc: dc });
+                    html += `<button class="wb-ab-weapon wb-ab-weapon--spell" data-ab="weapon" data-widx="spell" data-wt="${this._abWeaponData.length - 1}">`;
                     html += `<div class="wb-ab-weapon__left">${dieIcon('1d10')}<span class="wb-ab-weapon__name">Zauberangriff</span></div>`;
                     html += `<span class="wb-ab-weapon__detail">+${sa} / 1d10</span>`;
                     html += `</button>`;
@@ -5919,6 +5945,18 @@ const WB = {
                 e.stopPropagation();
                 this.handleAbAction(btn.dataset.ab, btn.dataset);
             };
+        });
+        
+        // Wire weapon tooltips
+        bar.querySelectorAll('[data-wt]').forEach(btn => {
+            btn.onmouseenter = () => {
+                const idx = parseInt(btn.dataset.wt);
+                const w = this._abWeaponData?.[idx];
+                if (w) this.showWeaponTooltip(btn, w);
+            };
+            btn.onmouseleave = () => this.hideWeaponTooltip();
+            btn.addEventListener('mousedown', () => this.hideWeaponTooltip());
+            btn.removeAttribute('title');
         });
         
         // Right-click on dice buttons: decrease count
@@ -13386,7 +13424,6 @@ const WB = {
     // Generate tooltip breakdown for a weapon
     _weaponTooltip(w) {
         if (!w) return '';
-        // Parsed weapon from items — full breakdown available
         if (w._parsed) {
             const atkLine = `Angriff: ${w._ability} ${w._abilityMod >= 0 ? '+' : ''}${w._abilityMod} + Prof +${w._prof} = ${w.bonus}`;
             const dmgLine = `Schaden: ${w._baseDmg} + ${w._ability} ${w._abilityMod >= 0 ? '+' : ''}${w._abilityMod} = ${w.damage}`;
@@ -13394,10 +13431,146 @@ const WB = {
             const finesseLine = w._finesse ? 'Finesse (max STR/DEX)' : '';
             return [atkLine, dmgLine, typeLine, finesseLine].filter(Boolean).join('\n');
         }
-        // Sheet weapon — limited info
         const bonus = parseInt(w.bonus) || 0;
         return `Angriff: ${bonus >= 0 ? '+' : ''}${bonus}\nSchaden: ${w.damage || '?'}\n(Charakterbogen)`;
     },
+    
+    // Weapon type SVG icons
+    _weaponIconSVGs: {
+        slashing: '<svg viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"><path d="M14.5 3.5L20.5 9.5L10 20L4 14L14.5 3.5Z"/><path d="M4 14L2 22L10 20"/><path d="M14.5 3.5L16 2"/></svg>',
+        piercing: '<svg viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"><path d="M12 2L15 9L12 22"/><path d="M12 2L9 9L12 22"/><path d="M8 12H16"/></svg>',
+        bludgeoning: '<svg viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"><path d="M10 14L4 20"/><rect x="9" y="2" width="8" height="10" rx="2"/><path d="M6 20L4 22"/></svg>',
+        ranged: '<svg viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"><path d="M18 2C14 2 8 6 4 12"/><path d="M18 2C18 6 14 12 8 16"/><path d="M20 8L14 14L8 20"/><path d="M17 11L21 7"/></svg>',
+        spell: '<svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"><path d="M12 2L14 8L20 8L15 12L17 18L12 14L7 18L9 12L4 8L10 8Z"/></svg>',
+        natural: '<svg viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"><path d="M4 20C6 14 10 10 14 8"/><path d="M7 17C9 13 12 10 16 7"/><path d="M10 16C12 12 14 10 18 6"/></svg>',
+        default: '<svg viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2V9M12 15V22M2 12H9M15 12H22"/></svg>',
+    },
+    
+    _getWeaponIcon(w) {
+        if (!w) return this._weaponIconSVGs.default;
+        if (w._isSpell) return this._weaponIconSVGs.spell;
+        const type = (w._type || '').toLowerCase();
+        // Ranged weapons
+        const rangedNames = ['crossbow','bow','longbow','shortbow','sling','dart','blowgun','net'];
+        const name = (w.name || '').toLowerCase();
+        if (rangedNames.some(r => name.includes(r))) return this._weaponIconSVGs.ranged;
+        // Natural weapons
+        const naturalNames = ['bite','claw','claws','slam','tail','gore','hooves','tentacle','sting','talons','fist','beak','horns','tusks','constrict'];
+        if (naturalNames.some(n => name.includes(n))) return this._weaponIconSVGs.natural;
+        if (type === 'piercing') return this._weaponIconSVGs.piercing;
+        if (type === 'bludgeoning') return this._weaponIconSVGs.bludgeoning;
+        if (type === 'slashing') return this._weaponIconSVGs.slashing;
+        return this._weaponIconSVGs.default;
+    },
+    
+    // Rich tooltip HTML
+    _buildWeaponTooltipHTML(w) {
+        if (!w) return '';
+        const icon = this._getWeaponIcon(w);
+        const isSpell = !!w._isSpell;
+        
+        let html = '<div class="wb-wt__card">';
+        // Header: icon + name
+        html += '<div class="wb-wt__header">';
+        html += `<div class="wb-wt__icon">${icon}</div>`;
+        html += '<div>';
+        html += `<div class="wb-wt__title">${w.name || 'Waffe'}</div>`;
+        if (w._parsed) {
+            html += `<div class="wb-wt__subtitle">Aus Items erkannt</div>`;
+        } else if (isSpell) {
+            html += `<div class="wb-wt__subtitle">Zauberwirken</div>`;
+        } else {
+            html += `<div class="wb-wt__subtitle">Charakterbogen</div>`;
+        }
+        html += '</div></div>';
+        
+        // Rows
+        html += '<div class="wb-wt__rows">';
+        
+        if (isSpell) {
+            html += `<div class="wb-wt__row"><span class="wb-wt__row-label">Angriff</span><span class="wb-wt__row-val wb-wt__row-val--spell">${w.bonus}</span></div>`;
+            if (w._dc) html += `<div class="wb-wt__row"><span class="wb-wt__row-label">Spell DC</span><span class="wb-wt__row-val wb-wt__row-val--spell">${w._dc}</span></div>`;
+        } else if (w._parsed) {
+            // Attack row with calc
+            const atkCalc = `${w._ability} ${w._abilityMod >= 0 ? '+' : ''}${w._abilityMod} + Prof +${w._prof}`;
+            html += `<div class="wb-wt__row"><span class="wb-wt__row-label">Angriff</span><span class="wb-wt__row-val wb-wt__row-val--atk">${w.bonus}<span class="wb-wt__calc">(${atkCalc})</span></span></div>`;
+            // Damage row with calc
+            const dmgCalc = `${w._baseDmg} + ${w._ability} ${w._abilityMod >= 0 ? '+' : ''}${w._abilityMod}`;
+            html += `<div class="wb-wt__row"><span class="wb-wt__row-label">Schaden</span><span class="wb-wt__row-val wb-wt__row-val--dmg">${w.damage}<span class="wb-wt__calc">(${dmgCalc})</span></span></div>`;
+        } else {
+            const bonus = parseInt(w.bonus) || 0;
+            html += `<div class="wb-wt__row"><span class="wb-wt__row-label">Angriff</span><span class="wb-wt__row-val wb-wt__row-val--atk">${bonus >= 0 ? '+' : ''}${bonus}</span></div>`;
+            html += `<div class="wb-wt__row"><span class="wb-wt__row-label">Schaden</span><span class="wb-wt__row-val wb-wt__row-val--dmg">${w.damage || '?'}</span></div>`;
+        }
+        html += '</div>';
+        
+        // Badges
+        const badges = [];
+        if (w._type) badges.push({ text: w._type, cls: 'wb-wt__badge--type' });
+        if (w._finesse) badges.push({ text: 'Finesse', cls: 'wb-wt__badge--finesse' });
+        if (w._prof) badges.push({ text: 'Prof +' + w._prof, cls: 'wb-wt__badge--prof' });
+        if (badges.length > 0) {
+            html += '<div class="wb-wt__badges">';
+            badges.forEach(b => { html += `<span class="wb-wt__badge ${b.cls}">${b.text}</span>`; });
+            html += '</div>';
+        }
+        
+        html += '<div class="wb-wt__arrow"></div>';
+        html += '</div>';
+        return html;
+    },
+    
+    // Tooltip element (lazy-created)
+    _tooltipEl: null,
+    _tooltipTimer: null,
+    
+    _ensureTooltip() {
+        if (!this._tooltipEl) {
+            const el = document.createElement('div');
+            el.className = 'wb-wt';
+            el.id = 'wbWeaponTooltip';
+            document.body.appendChild(el);
+            this._tooltipEl = el;
+        }
+        return this._tooltipEl;
+    },
+    
+    showWeaponTooltip(btnEl, w) {
+        clearTimeout(this._tooltipTimer);
+        const tip = this._ensureTooltip();
+        tip.innerHTML = this._buildWeaponTooltipHTML(w);
+        tip.classList.add('visible');
+        
+        // Position above button
+        const rect = btnEl.getBoundingClientRect();
+        tip.style.left = '0'; tip.style.top = '0';
+        const tipRect = tip.getBoundingClientRect();
+        let left = rect.left + rect.width / 2 - tipRect.width / 2;
+        let top = rect.top - tipRect.height - 8;
+        
+        // Clamp to viewport
+        left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+        if (top < 8) top = rect.bottom + 8; // flip below if no room
+        
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+        
+        // Adjust arrow position
+        const arrow = tip.querySelector('.wb-wt__arrow');
+        if (arrow) {
+            const arrowLeft = rect.left + rect.width / 2 - left;
+            arrow.style.left = Math.max(12, Math.min(arrowLeft, tipRect.width - 12)) + 'px';
+            arrow.style.transform = 'none';
+        }
+    },
+    
+    hideWeaponTooltip() {
+        clearTimeout(this._tooltipTimer);
+        this._tooltipTimer = setTimeout(() => {
+            if (this._tooltipEl) this._tooltipEl.classList.remove('visible');
+        }, 80);
+    },
+    
     
     // ==================== ENCOUNTER BUILDER ====================
     _encounterMonsters: [],
