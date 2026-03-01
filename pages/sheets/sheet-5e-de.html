@@ -75,6 +75,7 @@
                     <div class="wizard-progress-step" data-step="7"></div>
                     <div class="wizard-progress-step" data-step="8"></div>
                 </div>
+                <div class="wizard-progress-trail" id="wizardTrail"></div>
             </div>
             <div class="wizard-body">
                 <!-- Step 1: Name & Basics -->
@@ -83,11 +84,15 @@
                     <p>Jeder Held braucht einen Namen. Wie soll dein Charakter heißen?</p>
                     <div class="wizard-input-group">
                         <label>Charaktername</label>
-                        <input type="text" id="wizardName" placeholder="Charaktername eingeben...">
+                        <input type="text" id="wizardName" placeholder="Charaktername eingeben..." oninput="updateWizardNamePreview()">
                     </div>
                     <div class="wizard-input-group">
                         <label>Stufe (1-20)</label>
                         <input type="number" id="wizardLevel" value="1" min="1" max="20">
+                    </div>
+                    <div class="wizard-name-preview empty" id="wizardNamePreview">
+                        <div class="wizard-name-preview-name" id="wizardNamePreviewText">...</div>
+                        <div class="wizard-name-preview-sub">Abenteurer</div>
                     </div>
                 </div>
 
@@ -163,63 +168,73 @@
                 <div class="wizard-step" data-step="3">
                     <h3>Wähle deine Klasse</h3>
                     <p>Deine Klasse definiert deine Fähigkeiten und Rolle in der Gruppe.</p>
+                    <div class="wizard-role-tabs" id="wizardRoleTabs">
+                        <div class="wizard-role-tab active" onclick="filterWizardClasses('all')">Alle</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('melee')">Nahkampf</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('magic')">Magie</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('support')">Support</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('hybrid')">Hybrid</div>
+                    </div>
                     <div class="wizard-options" id="wizardClassOptions">
-                        <div class="wizard-option" data-value="Barbarian" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Barbarian" data-role="melee" onclick="selectWizardOption(this, 'class')">
+                            <span class="wizard-badge-beginner">Einsteiger</span>
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/barbarian.svg" alt="Barbar"></div>
                             <div class="wizard-option-name">Barbar</div>
                             <div class="wizard-option-desc">Tobender Krieger</div>
                         </div>
-                        <div class="wizard-option" data-value="Bard" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Bard" data-role="support" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/bard.svg" alt="Barde"></div>
                             <div class="wizard-option-name">Barde</div>
                             <div class="wizard-option-desc">Musikalische Magie</div>
                         </div>
-                        <div class="wizard-option" data-value="Cleric" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Cleric" data-role="support" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/cleric.svg" alt="Kleriker"></div>
                             <div class="wizard-option-name">Kleriker</div>
                             <div class="wizard-option-desc">Göttlicher Heiler</div>
                         </div>
-                        <div class="wizard-option" data-value="Druid" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Druid" data-role="hybrid" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/druid.svg" alt="Druide"></div>
                             <div class="wizard-option-name">Druide</div>
                             <div class="wizard-option-desc">Hüter der Natur</div>
                         </div>
-                        <div class="wizard-option" data-value="Fighter" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Fighter" data-role="melee" onclick="selectWizardOption(this, 'class')">
+                            <span class="wizard-badge-beginner">Einsteiger</span>
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/fighter.svg" alt="Kämpfer"></div>
                             <div class="wizard-option-name">Kämpfer</div>
                             <div class="wizard-option-desc">Meister des Kampfes</div>
                         </div>
-                        <div class="wizard-option" data-value="Monk" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Monk" data-role="melee" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/monk.svg" alt="Mönch"></div>
                             <div class="wizard-option-name">Mönch</div>
                             <div class="wizard-option-desc">Kampfkünstler</div>
                         </div>
-                        <div class="wizard-option" data-value="Paladin" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Paladin" data-role="hybrid" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/paladin.svg" alt="Paladin"></div>
                             <div class="wizard-option-name">Paladin</div>
                             <div class="wizard-option-desc">Heiliger Ritter</div>
                         </div>
-                        <div class="wizard-option" data-value="Ranger" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Ranger" data-role="hybrid" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/ranger.svg" alt="Waldläufer"></div>
                             <div class="wizard-option-name">Waldläufer</div>
                             <div class="wizard-option-desc">Wildnis-Jäger</div>
                         </div>
-                        <div class="wizard-option" data-value="Rogue" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Rogue" data-role="melee" onclick="selectWizardOption(this, 'class')">
+                            <span class="wizard-badge-beginner">Einsteiger</span>
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/rogue.svg" alt="Schurke"></div>
                             <div class="wizard-option-name">Schurke</div>
                             <div class="wizard-option-desc">Heimlich & geschickt</div>
                         </div>
-                        <div class="wizard-option" data-value="Sorcerer" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Sorcerer" data-role="magic" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/sorcerer.svg" alt="Zauberer"></div>
                             <div class="wizard-option-name">Zauberer</div>
                             <div class="wizard-option-desc">Angeborene Magie</div>
                         </div>
-                        <div class="wizard-option" data-value="Warlock" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Warlock" data-role="magic" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/warlock.svg" alt="Hexenmeister"></div>
                             <div class="wizard-option-name">Hexenmeister</div>
                             <div class="wizard-option-desc">Paktmagie</div>
                         </div>
-                        <div class="wizard-option" data-value="Wizard" onclick="selectWizardOption(this, 'class')">
+                        <div class="wizard-option" data-value="Wizard" data-role="magic" onclick="selectWizardOption(this, 'class')">
                             <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/wizard.svg" alt="Magier"></div>
                             <div class="wizard-option-name">Magier</div>
                             <div class="wizard-option-desc">Arkaner Gelehrter</div>
@@ -334,6 +349,7 @@
                         </div>
                     </div>
                     <p style="font-size: 10px; color: var(--md-on-surface-variant); text-align: center; margin-top: 10px; opacity: 0.7;">Spezies-Bonus (+2/+1 auf beliebige Attribute) einrechnen</p>
+                    <div class="wizard-dice-result" id="wizardDiceResult" style="display:none;"></div>
                 </div>
 
                 <!-- Step 7: Proficiencies -->
@@ -6532,9 +6548,24 @@
             document.body.classList.remove('wizard-open');
         }
 
+        let lastWizardStep = 1;
+        
+        // Species icon map
+        const SPECIES_ICON = { 'Human':'/assets/img/species/human.svg','Elf':'/assets/img/species/elf.svg','Dwarf':'/assets/img/species/dwarf.svg','Halfling':'/assets/img/species/halfling.svg','Dragonborn':'/assets/img/species/dragonborn.svg','Tiefling':'/assets/img/species/tiefling.svg','Gnome':'/assets/img/species/gnome.svg','Half-Elf':'/assets/img/species/half-elf.svg','Half-Orc':'/assets/img/species/half-orc.svg','Orc':'/assets/img/species/orc.svg','Aasimar':'/assets/img/species/aasimar.svg','Goliath':'/assets/img/species/goliath.svg' };
+        const CLASS_ICON = { 'Barbarian':'/assets/icons/dnd/class/barbarian.svg','Bard':'/assets/icons/dnd/class/bard.svg','Cleric':'/assets/icons/dnd/class/cleric.svg','Druid':'/assets/icons/dnd/class/druid.svg','Fighter':'/assets/icons/dnd/class/fighter.svg','Monk':'/assets/icons/dnd/class/monk.svg','Paladin':'/assets/icons/dnd/class/paladin.svg','Ranger':'/assets/icons/dnd/class/ranger.svg','Rogue':'/assets/icons/dnd/class/rogue.svg','Sorcerer':'/assets/icons/dnd/class/sorcerer.svg','Warlock':'/assets/icons/dnd/class/warlock.svg','Wizard':'/assets/icons/dnd/class/wizard.svg' };
+        
+        // Primary stat per class
+        const CLASS_PRIMARY = { 'Barbarian':'str','Bard':'cha','Cleric':'wis','Druid':'wis','Fighter':'str','Monk':'dex','Paladin':'str','Ranger':'dex','Rogue':'dex','Sorcerer':'cha','Warlock':'cha','Wizard':'int' };
+        
         function updateWizardStep() {
-            document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
-            document.querySelector(`.wizard-step[data-step="${wizardStep}"]`).classList.add('active');
+            const direction = wizardStep > lastWizardStep ? 'right' : 'left';
+            lastWizardStep = wizardStep;
+            
+            document.querySelectorAll('.wizard-step').forEach(s => {
+                s.classList.remove('active', 'slide-in-right', 'slide-in-left');
+            });
+            const activeStep = document.querySelector(`.wizard-step[data-step="${wizardStep}"]`);
+            activeStep.classList.add('active', `slide-in-${direction}`);
             
             document.querySelectorAll('.wizard-progress-step').forEach(s => {
                 const step = parseInt(s.dataset.step);
@@ -6550,8 +6581,61 @@
                 : (lang === 'de' ? 'Weiter' : 'Next');
             
             if (wizardStep === 4) populateWizardSubclass();
+            if (wizardStep === 6) updateWizardPrimaryStat();
             if (wizardStep === 7) populateWizardProficiencies();
             if (wizardStep === 8) populateWizardSummary();
+            
+            updateWizardTrail();
+        }
+        
+        function updateWizardTrail() {
+            const trail = document.getElementById('wizardTrail');
+            if (!trail) return;
+            let chips = '';
+            const d = wizardData;
+            if (d.name) chips += `<div class="wizard-trail-chip">${d.name}</div>`;
+            if (d.species) chips += `<div class="wizard-trail-chip"><img src="${SPECIES_ICON[d.species] || ''}" alt="">${term(d.species)}</div>`;
+            if (d.class) chips += `<div class="wizard-trail-chip"><img src="${CLASS_ICON[d.class] || ''}" alt="">${term(d.class)}</div>`;
+            if (d.background) chips += `<div class="wizard-trail-chip">${term(d.background)}</div>`;
+            trail.innerHTML = chips;
+        }
+        
+        function updateWizardNamePreview() {
+            const name = document.getElementById('wizardName').value;
+            const preview = document.getElementById('wizardNamePreview');
+            const text = document.getElementById('wizardNamePreviewText');
+            if (!preview || !text) return;
+            text.textContent = name || '...';
+            preview.classList.toggle('empty', !name);
+        }
+        
+        function filterWizardClasses(role) {
+            document.querySelectorAll('.wizard-role-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('#wizardClassOptions .wizard-option').forEach(opt => {
+                if (role === 'all') { opt.style.display = ''; }
+                else { opt.style.display = opt.dataset.role === role ? '' : 'none'; }
+            });
+        }
+        
+        function updateWizardPrimaryStat() {
+            const primary = CLASS_PRIMARY[wizardData.class];
+            const ids = ['wizardStr','wizardDex','wizardCon','wizardInt','wizardWis','wizardCha'];
+            const abs = ['str','dex','con','int','wis','cha'];
+            ids.forEach((id, i) => {
+                const item = document.getElementById(id)?.closest('.wizard-ability-item');
+                if (!item) return;
+                item.classList.remove('primary-stat');
+                const badge = item.querySelector('.wizard-ability-primary-badge');
+                if (badge) badge.remove();
+                if (abs[i] === primary) {
+                    item.classList.add('primary-stat');
+                    const b = document.createElement('div');
+                    b.className = 'wizard-ability-primary-badge';
+                    b.textContent = 'Primär';
+                    item.insertBefore(b, item.firstChild);
+                }
+            });
         }
 
         function wizardNext() {
@@ -6587,6 +6671,7 @@
             parent.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
             element.classList.add('selected');
             wizardData[type] = element.dataset.value;
+            updateWizardTrail();
         }
 
         function applyStandardArray() {
@@ -6599,17 +6684,35 @@
         }
 
         function rollAllAbilities() {
-            function roll4d6() {
+            const abNames = ['STR','GES','KON','INT','WEI','CHA'];
+            const abIds = ['wizardStr','wizardDex','wizardCon','wizardInt','wizardWis','wizardCha'];
+            const results = [];
+            
+            abIds.forEach((id, i) => {
                 const rolls = [1,2,3,4].map(() => Math.floor(Math.random() * 6) + 1);
                 rolls.sort((a, b) => a - b);
-                return rolls[1] + rolls[2] + rolls[3];
+                const dropped = rolls[0];
+                const kept = rolls.slice(1);
+                const total = kept.reduce((s, v) => s + v, 0);
+                document.getElementById(id).value = total;
+                results.push({ name: abNames[i], rolls, dropped, total });
+            });
+            
+            // Show animated dice breakdown
+            const container = document.getElementById('wizardDiceResult');
+            if (container) {
+                container.style.display = 'flex';
+                container.innerHTML = results.map(r => {
+                    const diceHtml = r.rolls.map((v, i) => 
+                        i === 0 ? `<span class="dropped">${v}</span>` : `<span>${v}</span>`
+                    ).join('');
+                    return `<div class="wizard-dice-ability">
+                        <div class="wizard-dice-rolls">${diceHtml}</div>
+                        <div class="wizard-dice-total">${r.total}</div>
+                        <div style="font-size:9px;color:var(--md-on-surface-variant)">${r.name}</div>
+                    </div>`;
+                }).join('');
             }
-            document.getElementById('wizardStr').value = roll4d6();
-            document.getElementById('wizardDex').value = roll4d6();
-            document.getElementById('wizardCon').value = roll4d6();
-            document.getElementById('wizardInt').value = roll4d6();
-            document.getElementById('wizardWis').value = roll4d6();
-            document.getElementById('wizardCha').value = roll4d6();
         }
 
         // ===== WIZARD STEP 6: Proficiencies =====
@@ -6828,31 +6931,49 @@
             const skillNamesDe = { athletics:'Athletik', acrobatics:'Akrobatik', sleight:'Fingerfertigkeit', stealth:'Heimlichkeit', arcana:'Arkane Kunde', history:'Geschichte', investigation:'Nachforschungen', nature:'Naturkunde', religion:'Religion', animal:'Umgang mit Tieren', insight:'Motiv erkennen', medicine:'Heilkunde', perception:'Wahrnehmung', survival:'Überleben', deception:'Täuschung', intimidation:'Einschüchtern', performance:'Auftreten', persuasion:'Überreden' };
             const sNames = lang === 'de' ? skillNamesDe : SKILL_NAMES;
             const selectedSkills = (d.selectedSkills || []).map(s => sNames[s] || s);
+            
+            const speciesIcon = SPECIES_ICON[d.species] || '';
+            const classIcon = CLASS_ICON[d.class] || '';
 
             document.getElementById('wizardSummary').innerHTML = `
-                <div class="wizard-summary-header">
-                    <div class="wizard-summary-portrait"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></div>
-                    <div class="wizard-summary-info">
-                        <div class="wizard-summary-name">${d.name || 'Namenlos'}</div>
-                        <div class="wizard-summary-meta">${d.species || '?'} ${className} Stufe ${level} | ${d.background || '?'}</div>
+                <div class="wizard-summary-card">
+                    ${speciesIcon ? `<div class="wizard-summary-card-bg"><img src="${speciesIcon}" alt=""></div>` : ''}
+                    <div class="wizard-summary-card-top">
+                        ${classIcon ? `<div class="wizard-summary-card-icon"><img src="${classIcon}" alt=""></div>` : ''}
+                        <div>
+                            <div class="wizard-summary-card-name">${d.name || 'Namenlos'}</div>
+                            <div class="wizard-summary-card-meta">${d.species ? term(d.species) : '?'} ${term(className)} Stufe ${level} &middot; ${d.background ? term(d.background) : '?'}</div>
+                        </div>
+                    </div>
+                    <div class="wizard-summary-card-body">
+                        <div class="wizard-summary-card-stats">
+                            <div class="wizard-summary-card-stat"><div class="wizard-summary-card-stat-val">${hpTotal}</div><div class="wizard-summary-card-stat-lbl">HP</div></div>
+                            <div class="wizard-summary-card-stat"><div class="wizard-summary-card-stat-val">${ac}</div><div class="wizard-summary-card-stat-lbl">RK</div></div>
+                            <div class="wizard-summary-card-stat"><div class="wizard-summary-card-stat-val">${initMod}</div><div class="wizard-summary-card-stat-lbl">Initiative</div></div>
+                            <div class="wizard-summary-card-stat"><div class="wizard-summary-card-stat-val">+${profBonus}</div><div class="wizard-summary-card-stat-lbl">Übung</div></div>
+                        </div>
+                        <div class="wizard-summary-card-abilities">
+                            ${abilities.map(ab => {
+                                const score = d[ab] || 10;
+                                const mod = Math.floor((score - 10) / 2);
+                                const primary = CLASS_PRIMARY[className] === ab ? ' style="border:1px solid rgba(191,155,48,0.3)"' : '';
+                                return `<div class="wizard-summary-card-ab"${primary}><div class="wizard-summary-card-ab-name">${abNames[ab]}</div><div class="wizard-summary-card-ab-score">${score}</div><div class="wizard-summary-card-ab-mod">${mod >= 0 ? '+' : ''}${mod}</div></div>`;
+                            }).join('')}
+                        </div>
+                        <div class="wizard-summary-card-section">
+                            <div class="wizard-summary-card-section-title">Rettungswürfe</div>
+                            <div class="wizard-summary-card-section-val">${saveNames.join(', ') || '—'}</div>
+                        </div>
+                        <div class="wizard-summary-card-section">
+                            <div class="wizard-summary-card-section-title">Fertigkeiten (${selectedSkills.length})</div>
+                            <div class="wizard-summary-card-section-val">${selectedSkills.join(', ') || '—'}</div>
+                        </div>
+                        <div class="wizard-summary-card-section">
+                            <div class="wizard-summary-card-section-title">Trefferwürfel</div>
+                            <div class="wizard-summary-card-section-val">${level}${dStr}</div>
+                        </div>
                     </div>
                 </div>
-                <div class="wizard-summary-stats">
-                    <div class="wizard-summary-stat"><div class="wizard-summary-stat-val">${hpTotal}</div><div class="wizard-summary-stat-label">HP</div></div>
-                    <div class="wizard-summary-stat"><div class="wizard-summary-stat-val">${ac}</div><div class="wizard-summary-stat-label">AC (Basis)</div></div>
-                    <div class="wizard-summary-stat"><div class="wizard-summary-stat-val">${initMod}</div><div class="wizard-summary-stat-label">Initiative</div></div>
-                    <div class="wizard-summary-stat"><div class="wizard-summary-stat-val">+${profBonus}</div><div class="wizard-summary-stat-label">Übungsbonus</div></div>
-                </div>
-                <div class="wizard-summary-abilities">
-                    ${abilities.map(ab => {
-                        const score = d[ab] || 10;
-                        const mod = Math.floor((score - 10) / 2);
-                        return `<div class="wizard-summary-ab"><div class="wizard-summary-ab-name">${abNames[ab]}</div><div class="wizard-summary-ab-score">${score}</div><div class="wizard-summary-ab-mod">${mod >= 0 ? '+' : ''}${mod}</div></div>`;
-                    }).join('')}
-                </div>
-                <div class="wizard-summary-profs"><div class="wizard-summary-profs-title">Rettungswürfe</div><div class="wizard-summary-profs-list">${saveNames.join(', ') || '—'}</div></div>
-                <div class="wizard-summary-profs"><div class="wizard-summary-profs-title">Fertigkeiten (${selectedSkills.length})</div><div class="wizard-summary-profs-list">${selectedSkills.join(', ') || '—'}</div></div>
-                <div class="wizard-summary-profs"><div class="wizard-summary-profs-title">Trefferwürfel</div><div class="wizard-summary-profs-list">${level}${dStr}</div></div>
             `;
         }
 

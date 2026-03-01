@@ -3396,10 +3396,19 @@ body.wizard-open { overflow: hidden; }
 }
 .wizard-step.active {
     display: block;
-    animation: fadeIn 0.3s ease;
 }
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateX(20px); }
+.wizard-step.slide-in-right {
+    animation: wizSlideInRight 0.35s ease forwards;
+}
+.wizard-step.slide-in-left {
+    animation: wizSlideInLeft 0.35s ease forwards;
+}
+@keyframes wizSlideInRight {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes wizSlideInLeft {
+    from { opacity: 0; transform: translateX(-40px); }
     to { opacity: 1; transform: translateX(0); }
 }
 .wizard-step h3 {
@@ -3433,6 +3442,16 @@ body.wizard-open { overflow: hidden; }
 .wizard-option.selected {
     border-color: var(--md-primary);
     background: color-mix(in srgb, var(--md-primary) 10%, var(--md-surface-container-high));
+    animation: wizardSelectPulse 0.4s ease;
+    box-shadow: 0 0 16px rgba(191, 155, 48, 0.25);
+}
+@keyframes wizardSelectPulse {
+    0% { box-shadow: 0 0 0 0 rgba(191, 155, 48, 0.5); transform: scale(1); }
+    50% { box-shadow: 0 0 20px 4px rgba(191, 155, 48, 0.35); transform: scale(1.04); }
+    100% { box-shadow: 0 0 16px rgba(191, 155, 48, 0.25); transform: scale(1); }
+}
+.wizard-option.selected .wizard-option-icon img {
+    filter: brightness(0) invert(1) drop-shadow(0 0 6px rgba(191, 155, 48, 0.4));
 }
 .wizard-option-icon {
     font-size: 28px;
@@ -3626,6 +3645,159 @@ body.wizard-open { overflow: hidden; }
     border-color: rgba(239, 68, 68, 0.3);
 }
 .wizard-close svg { display: block; }
+
+/* === WIZARD ENHANCEMENTS === */
+
+/* Progress trail - shows chosen icons */
+.wizard-progress-trail {
+    display: flex; gap: 8px; align-items: center; margin-top: 10px;
+    min-height: 24px; flex-wrap: wrap;
+}
+.wizard-trail-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px 3px 4px; border-radius: 12px; font-size: 10px; font-weight: 600;
+    background: rgba(191,155,48,0.12); color: var(--md-primary);
+    animation: chipIn 0.3s ease;
+}
+.wizard-trail-chip img { width: 16px; height: 16px; filter: brightness(0) invert(1); opacity: 0.8; }
+@keyframes chipIn { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
+
+/* Step 1: Live name preview */
+.wizard-name-preview {
+    margin-top: 16px; padding: 16px 20px; border-radius: 12px; text-align: center;
+    background: linear-gradient(135deg, rgba(191,155,48,0.08), rgba(191,155,48,0.03));
+    border: 1px solid rgba(191,155,48,0.15);
+    transition: all 0.3s ease; min-height: 60px;
+}
+.wizard-name-preview.empty { opacity: 0.3; }
+.wizard-name-preview-name {
+    font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700;
+    color: var(--md-primary); letter-spacing: 0.5px;
+    text-shadow: 0 0 20px rgba(191,155,48,0.15);
+}
+.wizard-name-preview-sub {
+    font-size: 10px; color: var(--md-on-surface-variant); margin-top: 4px;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* Class role filter tabs */
+.wizard-role-tabs {
+    display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.wizard-role-tab {
+    padding: 5px 12px; border-radius: 16px; font-size: 11px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--md-outline-variant);
+    background: transparent; color: var(--md-on-surface-variant);
+    transition: all 0.2s ease;
+}
+.wizard-role-tab:hover { border-color: var(--md-outline); color: var(--md-on-surface); }
+.wizard-role-tab.active {
+    background: var(--md-primary); color: var(--md-on-primary);
+    border-color: var(--md-primary);
+}
+
+/* Beginner badge */
+.wizard-badge-beginner {
+    position: absolute; top: -4px; right: -4px;
+    padding: 2px 6px; border-radius: 6px; font-size: 8px; font-weight: 700;
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff;
+    letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.4;
+    box-shadow: 0 2px 6px rgba(34,197,94,0.3);
+}
+
+/* Attribute primary stat highlight */
+.wizard-ability-item.primary-stat {
+    border: 1px solid rgba(191,155,48,0.4);
+    background: linear-gradient(135deg, rgba(191,155,48,0.1), var(--md-surface-container-high));
+}
+.wizard-ability-item.primary-stat label { color: var(--md-primary); }
+.wizard-ability-primary-badge {
+    font-size: 8px; font-weight: 700; color: var(--md-primary);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;
+}
+
+/* 4W6 Dice roll animation */
+.wizard-dice-result {
+    display: flex; gap: 6px; justify-content: center; margin-top: 12px; flex-wrap: wrap;
+}
+.wizard-dice-ability {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 8px 10px; border-radius: 8px; background: var(--md-surface-container-high);
+    min-width: 70px; animation: diceReveal 0.4s ease backwards;
+}
+.wizard-dice-ability:nth-child(1) { animation-delay: 0s; }
+.wizard-dice-ability:nth-child(2) { animation-delay: 0.08s; }
+.wizard-dice-ability:nth-child(3) { animation-delay: 0.16s; }
+.wizard-dice-ability:nth-child(4) { animation-delay: 0.24s; }
+.wizard-dice-ability:nth-child(5) { animation-delay: 0.32s; }
+.wizard-dice-ability:nth-child(6) { animation-delay: 0.4s; }
+@keyframes diceReveal {
+    from { opacity:0; transform:translateY(10px) rotateX(90deg); }
+    to { opacity:1; transform:translateY(0) rotateX(0); }
+}
+.wizard-dice-rolls {
+    display: flex; gap: 3px; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+}
+.wizard-dice-rolls span { padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.06); }
+.wizard-dice-rolls .dropped { text-decoration: line-through; opacity: 0.3; color: #ef4444; }
+.wizard-dice-total { font-size: 20px; font-weight: 800; color: var(--md-primary); }
+
+/* Trading Card Summary */
+.wizard-summary-card {
+    position: relative; border-radius: 16px; overflow: hidden;
+    background: linear-gradient(160deg, var(--md-surface-container-high), var(--md-surface-container));
+    border: 1px solid rgba(191,155,48,0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.wizard-summary-card-bg {
+    position: absolute; top: -20px; right: -20px; width: 180px; height: 180px;
+    opacity: 0.04; pointer-events: none;
+}
+.wizard-summary-card-bg img { width: 100%; height: 100%; filter: brightness(0) invert(1); }
+.wizard-summary-card-top {
+    padding: 20px; display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid rgba(191,155,48,0.12);
+    background: linear-gradient(135deg, rgba(191,155,48,0.06), transparent);
+}
+.wizard-summary-card-icon {
+    width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0;
+    background: rgba(191,155,48,0.1); display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(191,155,48,0.2);
+}
+.wizard-summary-card-icon img { width: 36px; height: 36px; filter: brightness(0) invert(1); }
+.wizard-summary-card-name {
+    font-family: 'Cinzel', serif; font-size: 20px; font-weight: 700; color: var(--md-on-surface);
+}
+.wizard-summary-card-meta { font-size: 11px; color: var(--md-on-surface-variant); margin-top: 2px; }
+.wizard-summary-card-body { padding: 16px 20px; position: relative; z-index: 1; }
+.wizard-summary-card-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px;
+}
+.wizard-summary-card-stat {
+    text-align: center; padding: 10px 4px; border-radius: 8px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+}
+.wizard-summary-card-stat-val { font-size: 20px; font-weight: 800; color: var(--md-primary); }
+.wizard-summary-card-stat-lbl { font-size: 9px; color: var(--md-on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.wizard-summary-card-abilities {
+    display: flex; gap: 6px; margin-bottom: 14px; justify-content: center; flex-wrap: wrap;
+}
+.wizard-summary-card-ab {
+    text-align: center; padding: 6px 0; min-width: 48px;
+    border-radius: 6px; background: rgba(255,255,255,0.03);
+}
+.wizard-summary-card-ab-name { font-size: 9px; font-weight: 700; color: var(--md-on-surface-variant); }
+.wizard-summary-card-ab-score { font-size: 16px; font-weight: 800; color: var(--md-on-surface); }
+.wizard-summary-card-ab-mod { font-size: 10px; color: var(--md-primary); }
+.wizard-summary-card-section {
+    padding: 8px 0; font-size: 11px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+}
+.wizard-summary-card-section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--md-on-surface-variant); margin-bottom: 4px;
+}
+.wizard-summary-card-section-val { color: var(--md-on-surface); line-height: 1.5; }
 
 /* Wizard: Proficiency Step */
 .wizard-save-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
