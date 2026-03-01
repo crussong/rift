@@ -12750,7 +12750,7 @@ const WB = {
     
     syncDoor(d) {
         if (this.db && this.roomCode) {
-            const clean = { x: d.x, y: d.y, rotation: d.rotation || 0, state: d.state, label: d.label || '', variant: d.variant || 'normal', size: d.size || 1 };
+            const clean = { x: d.x, y: d.y, rotation: d.rotation || 0, state: d.state, label: d.label || '', variant: d.variant || 'normal', size: d.size || 1, dc: d.dc || 0 };
             this.db.ref('whiteboard/' + this.roomCode + '/doors/' + d.id).set(clean);
         }
     },
@@ -12763,12 +12763,120 @@ const WB = {
     
     toggleDoor(door) {
         if (door.state === 'locked') {
-            this.toast('Diese Tür ist verschlossen', 'error');
+            if (this.isGM) {
+                // GM can force-toggle locked doors
+                door.state = 'open';
+                this.syncDoor(door);
+                this.renderDoors();
+                this._playDoorSound();
+                return;
+            }
+            // Player: show skill check if DC is set
+            if (door.dc) {
+                this.showDoorSkillCheck(door);
+            } else {
+                this.toast('Diese Tür ist verschlossen', 'error');
+            }
             return;
         }
         door.state = door.state === 'closed' ? 'open' : 'closed';
         this.syncDoor(door);
         this.renderDoors();
+        this._playDoorSound();
+    },
+    
+    _playDoorSound() {
+        // Play locally
+        this._playSoundLocal('door');
+        // Broadcast to all players
+        if (this.db && this.roomCode) {
+            const userData = JSON.parse(localStorage.getItem('rift_user') || '{}');
+            const pid = userData.odaiId || localStorage.getItem('rift_player_id') || '';
+            this.db.ref('rooms/' + this.roomCode + '/wb_sounds').push({
+                soundId: 'door', action: 'play', playerId: pid, ts: Date.now()
+            });
+        }
+    },
+    
+    showDoorSkillCheck(door) {
+        const existing = document.getElementById('doorCheckOverlay');
+        if (existing) existing.remove();
+        
+        const dc = door.dc || 15;
+        const overlay = document.createElement('div');
+        overlay.id = 'doorCheckOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px)';
+        
+        overlay.innerHTML = `
+            <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:24px;width:320px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.6);text-align:center">
+                <div style="width:48px;height:48px;margin:0 auto 12px;border-radius:12px;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <div style="font-size:14px;font-weight:700;color:white;margin-bottom:4px">${door.label || 'Verschlossene Tür'}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:16px">DC ${dc} — Würfle um das Schloss zu knacken</div>
+                <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:16px">
+                    <span style="font-size:11px;color:rgba(255,255,255,0.5)">Bonus:</span>
+                    <input id="doorCheckBonus" type="number" value="0" style="width:60px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:14px;text-align:center;outline:none;font-family:Inter,sans-serif">
+                </div>
+                <div style="display:flex;gap:8px;justify-content:center">
+                    <button id="doorCheckCancel" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);cursor:pointer;font-size:12px">Abbrechen</button>
+                    <button id="doorCheckRoll" style="padding:8px 20px;border-radius:8px;border:none;background:#8b5cf6;color:white;cursor:pointer;font-size:12px;font-weight:600">Würfeln (d20)</button>
+                </div>
+                <div id="doorCheckResult" style="margin-top:16px;display:none"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        document.getElementById('doorCheckBonus').focus();
+        
+        const close = () => overlay.remove();
+        document.getElementById('doorCheckCancel').onclick = close;
+        overlay.onclick = e => { if (e.target === overlay) close(); };
+        
+        const doRoll = () => {
+            const bonus = parseInt(document.getElementById('doorCheckBonus').value) || 0;
+            const roll = Math.floor(Math.random() * 20) + 1;
+            const total = roll + bonus;
+            const success = total >= dc;
+            const isCrit = roll === 20;
+            const isFail = roll === 1;
+            
+            const resultDiv = document.getElementById('doorCheckResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <div style="font-size:28px;font-weight:800;color:${isCrit ? '#fbbf24' : success ? '#22c55e' : '#ef4444'};margin-bottom:4px">
+                    ${isCrit ? '★ ' : ''}${total}${isCrit ? ' ★' : ''}
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.35)">d20: ${roll}${bonus !== 0 ? ` + ${bonus}` : ''}</div>
+                <div style="font-size:13px;font-weight:600;color:${success ? '#22c55e' : '#ef4444'};margin-top:8px">
+                    ${isCrit ? 'Kritischer Erfolg!' : isFail ? 'Kritischer Fehlschlag!' : success ? 'Erfolg! Tür geht auf.' : `Fehlgeschlagen (DC ${dc})`}
+                </div>
+            `;
+            
+            // Log to combat log
+            const logMsg = `🔓 Schloss knacken: d20(${roll})${bonus ? '+' + bonus : ''} = ${total} vs DC ${dc} → ${success ? 'Erfolg!' : 'Fehlschlag!'}`;
+            if (typeof this.combatLog === 'function') this.combatLog({ text: logMsg });
+            
+            if (success) {
+                setTimeout(() => {
+                    door.state = 'open';
+                    this.syncDoor(door);
+                    this.renderDoors();
+                    this._playDoorSound();
+                    close();
+                    this.toast('Schloss geknackt!');
+                }, 1500);
+            } else {
+                // Let player try again or close
+                document.getElementById('doorCheckRoll').textContent = 'Nochmal';
+            }
+        };
+        
+        document.getElementById('doorCheckRoll').onclick = doRoll;
+        overlay.addEventListener('keydown', e => {
+            if (e.key === 'Enter') doRoll();
+            if (e.key === 'Escape') close();
+        });
     },
     
     // Get door as a line segment in world coords for collision
@@ -12908,6 +13016,26 @@ const WB = {
                 };
             }
             
+            // GM: show blocking collision line when door is closed/locked
+            if (this.isGM && d.state !== 'open') {
+                const seg = this.getDoorSegment(d);
+                const lx1 = seg.x1 * this.zoom + this.panX;
+                const ly1 = seg.y1 * this.zoom + this.panY;
+                const lx2 = seg.x2 * this.zoom + this.panX;
+                const ly2 = seg.y2 * this.zoom + this.panY;
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                const bx = Math.min(lx1, lx2) - 4;
+                const by = Math.min(ly1, ly2) - 4;
+                const bw = Math.abs(lx2 - lx1) + 8;
+                const bh = Math.abs(ly2 - ly1) + 8;
+                line.setAttribute('viewBox', `${bx} ${by} ${bw} ${bh}`);
+                line.style.cssText = `position:absolute;left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px;z-index:49;pointer-events:none;overflow:visible`;
+                const lineColor = d.state === 'locked' ? 'rgba(239,68,68,0.35)' : 'rgba(167,139,250,0.3)';
+                line.innerHTML = `<line x1="${lx1}" y1="${ly1}" x2="${lx2}" y2="${ly2}" stroke="${lineColor}" stroke-width="3" stroke-dasharray="6 4" stroke-linecap="round"/>`;
+                line.classList.add('wb-door');
+                c.appendChild(line);
+            }
+            
             c.appendChild(el);
         });
     },
@@ -12947,9 +13075,21 @@ const WB = {
                 ${sizes.map(sz => `<button data-door-size="${sz.s}" style="flex:1;padding:4px;border-radius:5px;border:1px solid ${curSize === sz.s ? '#a78bfa' : 'rgba(255,255,255,0.1)'};background:${curSize === sz.s ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.04)'};color:${curSize === sz.s ? '#a78bfa' : 'rgba(255,255,255,0.5)'};cursor:pointer;font-size:10px;font-weight:600">${sz.label}</button>`).join('')}
             </div>
             <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
-            ${ctxItem('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Drehen (90°)', false, null, 'id="doorRotate"')}
-            ${ctxItem('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Beschriftung', false, null, 'id="doorLabel"')}
+            <div style="padding:5px 10px;font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px">Rotation · ${door.rotation || 0}°</div>
+            <div style="display:flex;gap:3px;padding:4px 10px">
+                <button data-door-rot="15" style="flex:1;padding:4px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);cursor:pointer;font-size:10px;font-weight:600">+15°</button>
+                <button data-door-rot="45" style="flex:1;padding:4px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);cursor:pointer;font-size:10px;font-weight:600">+45°</button>
+                <button data-door-rot="90" style="flex:1;padding:4px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);cursor:pointer;font-size:10px;font-weight:600">+90°</button>
+                <button data-door-rot="0" style="flex:1;padding:4px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);cursor:pointer;font-size:10px;font-weight:600">0°</button>
+            </div>
             <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 10px">
+                <span style="font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap">DC Schloss</span>
+                <input id="doorDcInput" type="number" min="0" max="30" value="${door.dc || 0}" style="width:48px;padding:3px 6px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:white;font-size:11px;text-align:center;outline:none;font-family:Inter,sans-serif">
+                <span style="font-size:9px;color:rgba(255,255,255,0.25)">0 = kein Check</span>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
+            ${ctxItem('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Beschriftung', false, null, 'id="doorLabel"')}
             ${ctxItem('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Löschen', false, '#ef4444', 'id="doorDelete"')}
         `;
         
@@ -12975,8 +13115,22 @@ const WB = {
         m.querySelectorAll('[data-door-size]').forEach(el => {
             el.onclick = () => { door.size = parseInt(el.dataset.doorSize); this.syncDoor(door); this.renderDoors(); m.classList.remove('visible'); };
         });
-        // Rotate
-        document.getElementById('doorRotate').onclick = () => { door.rotation = ((door.rotation || 0) + 90) % 360; this.syncDoor(door); this.renderDoors(); m.classList.remove('visible'); };
+        // Rotation buttons
+        m.querySelectorAll('[data-door-rot]').forEach(el => {
+            el.onclick = () => {
+                const deg = parseInt(el.dataset.doorRot);
+                door.rotation = deg === 0 ? 0 : ((door.rotation || 0) + deg) % 360;
+                this.syncDoor(door); this.renderDoors();
+                // Update label in menu without closing
+                this.showDoorContextMenu(door, parseInt(m.style.left), parseInt(m.style.top));
+            };
+        });
+        // DC input — live update
+        const dcInput = document.getElementById('doorDcInput');
+        if (dcInput) {
+            dcInput.onclick = e => e.stopPropagation();
+            dcInput.onchange = () => { door.dc = parseInt(dcInput.value) || 0; this.syncDoor(door); };
+        }
         // Label
         document.getElementById('doorLabel').onclick = () => { m.classList.remove('visible'); const l = prompt('Tür-Beschriftung:', door.label || ''); if (l !== null) { door.label = l; this.syncDoor(door); this.renderDoors(); } };
         // Delete
