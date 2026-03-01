@@ -342,6 +342,18 @@
         .wb-do-ctx__versus { display:flex; align-items:center; gap:12px; margin-top:2px; }
         .wb-do-ctx__vs-label { font-size:10px; font-weight:700; color:rgba(255,255,255,0.25); letter-spacing:1px; }
         .wb-do-ctx__detail { font-size:11px; color:rgba(255,255,255,0.3); font-weight:500; }
+        .wb-do-ctx__headline { font-size:16px; font-weight:800; letter-spacing:0.2px; }
+        
+        /* Dice Overlay Info Card */
+        .wb-do-info { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px 14px; margin-top:8px; min-width:200px; max-width:320px; display:flex; flex-direction:column; gap:4px; }
+        .wb-do-info__weapon { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .wb-do-info__wname { font-size:13px; font-weight:700; color:rgba(255,255,255,0.8); }
+        .wb-do-info__wbonus { font-size:16px; font-weight:900; font-variant-numeric:tabular-nums; }
+        .wb-do-info__stats { font-size:10px; color:rgba(255,255,255,0.3); font-weight:500; letter-spacing:0.2px; }
+        .wb-do-info__target { display:flex; align-items:center; gap:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.05); margin-top:2px; }
+        .wb-do-info__vs { font-size:9px; font-weight:700; color:rgba(255,255,255,0.2); text-transform:uppercase; letter-spacing:1px; }
+        .wb-do-info__tname { font-size:11px; font-weight:600; color:rgba(255,255,255,0.5); flex:1; }
+        .wb-do-info__ac { font-size:12px; font-weight:800; color:rgba(255,255,255,0.5); background:rgba(255,255,255,0.06); padding:1px 6px; border-radius:4px; }
         
         /* Dice Overlay Result Card */
         .wb-do-result { background:rgba(20,20,28,0.9); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px 20px; min-width:240px; max-width:360px; backdrop-filter:blur(8px); box-shadow:0 8px 32px rgba(0,0,0,0.4); text-align:center; }
@@ -5330,26 +5342,29 @@ const WB = {
             btn.onclick = (ev) => {
                 ev.stopPropagation();
                 const widx = btn.dataset.widx;
-                let atkBonus = 0, dmgDice = '1d6', weaponName = 'Angriff';
+                let atkBonus = 0, dmgDice = '1d6', weaponName = 'Angriff', weaponObj = null;
                 
                 if (widx === 'spell') {
                     atkBonus = parseInt(sd?.spellcasting?.spellAttack) || 0;
                     dmgDice = '1d10'; // Generic cantrip damage
                     weaponName = 'Zauberangriff';
+                    weaponObj = { name: 'Zauberangriff', bonus: '+' + atkBonus, damage: '1d10', _isSpell: true, _dc: sd?.spellcasting?.spellDC };
                 } else if (widx === 'custom') {
                     atkBonus = parseInt(menuEl.querySelector('#atkBonus')?.value) || 0;
                     dmgDice = menuEl.querySelector('#atkDmg')?.value || '1d6';
                     weaponName = 'Angriff';
+                    weaponObj = { name: 'Angriff', bonus: atkBonus, damage: dmgDice };
                 } else {
                     const w = this.getTokenWeapons(attacker)[parseInt(widx)];
                     if (w) {
                         atkBonus = parseInt(w.bonus) || 0;
                         dmgDice = w.damage || '1d6';
                         weaponName = w.name || 'Waffe';
+                        weaponObj = w;
                     }
                 }
                 
-                this.executeAttack(attacker, target, atkBonus, dmgDice, weaponName);
+                this.executeAttack(attacker, target, atkBonus, dmgDice, weaponName, weaponObj);
                 menuEl.classList.remove('visible');
             };
         });
@@ -5380,7 +5395,7 @@ const WB = {
         return { rolls, total, dice: d, str };
     },
     
-    executeAttack(attacker, target, atkBonus, dmgDice, weaponName) {
+    executeAttack(attacker, target, atkBonus, dmgDice, weaponName, weapon) {
         const targetAC = target.ac || 10;
         
         // Range check
@@ -5409,9 +5424,27 @@ const WB = {
         this.renderInitiative();
         this.renderActionBar();
         
-        // Phase 1: 3D Attack Roll (d20)
+        // Rich context for dice overlay
         const atkBonusStr = atkBonus >= 0 ? '+' + atkBonus : '' + atkBonus;
-        WBDice._pendingContext = { player: attacker.name, action: 'Angriff: ' + weaponName, actionType: 'atk', target: target.name, ac: targetAC };
+        let bonusBreakdown = null;
+        if (weapon?._parsed) {
+            bonusBreakdown = `${weapon._ability} ${weapon._abilityMod >= 0 ? '+' : ''}${weapon._abilityMod} + Prof +${weapon._prof}`;
+        }
+        
+        // Phase 1: Attack Roll
+        WBDice._pendingContext = {
+            player: attacker.name,
+            headline: 'würfelt Angriffsprobe',
+            actionType: 'atk',
+            weapon: weaponName,
+            bonusBreakdown: bonusBreakdown,
+            bonus: atkBonusStr,
+            dmgDice: dmgDice,
+            dmgType: weapon?._type || null,
+            target: target.name,
+            ac: targetAC,
+            isSpell: !!weapon?._isSpell
+        };
         WBDice.throwCombat('1d20', (results) => {
             const atkRoll = results[0] || (Math.floor(Math.random() * 20) + 1);
             const atkTotal = atkRoll + atkBonus;
@@ -5446,7 +5479,16 @@ const WB = {
                 
                 setTimeout(() => {
                     const dmgModStr = d.mod ? (d.mod > 0 ? '+' + d.mod : '' + d.mod) : '';
-                    WBDice._pendingContext = { player: attacker.name, action: (isNat20 ? 'Krit! ' : '') + 'Schaden: ' + weaponName, actionType: 'dmg', target: target.name, detail: dmgNotation.replace(/d/g, 'W') + dmgModStr };
+                    WBDice._pendingContext = {
+                        player: attacker.name,
+                        headline: isNat20 ? 'Kritischer Treffer!' : 'würfelt Schaden aus',
+                        actionType: 'dmg',
+                        weapon: weaponName,
+                        dmgDice: dmgNotation.replace(/d/g, 'W') + dmgModStr,
+                        dmgType: weapon?._type || null,
+                        target: target.name,
+                        isSpell: !!weapon?._isSpell
+                    };
                     WBDice.throwCombat(dmgNotation, (dmgResults) => {
                         let dmgTotal = 0;
                         const dmgRolls = [];
@@ -6235,7 +6277,7 @@ const WB = {
         this.setAbState('attacking');
         
         // Use existing executeAttack - it handles everything!
-        this.executeAttack(attacker, targetToken, parseInt(weapon.bonus) || 0, weapon.damage || '1d6', weapon.name || 'Angriff');
+        this.executeAttack(attacker, targetToken, parseInt(weapon.bonus) || 0, weapon.damage || '1d6', weapon.name || 'Angriff', weapon);
         
         // Return to combat_idle after attack animation finishes
         setTimeout(() => {
@@ -16229,7 +16271,9 @@ const WBDice = {
     // === ANIMATED DICE DISPLAY ===
     
     _show(label, context) {
-        // context: { player, action, actionType, detail, target, ac } — structured info
+        // context formats:
+        // Simple: { player, action } — for normal dice rolls
+        // Rich:   { player, headline, actionType, weapon, bonus, bonusBreakdown, dmgDice, dmgType, target, ac, isSpell } — for combat
         if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
         const overlay = document.getElementById('wbDiceOverlay');
         const stage = document.getElementById('wbDiceStage');
@@ -16238,23 +16282,48 @@ const WBDice = {
         if (stage) stage.innerHTML = '';
         if (resultCard) { resultCard.innerHTML = ''; resultCard.style.opacity = '0'; resultCard.style.transform = 'translateY(10px)'; }
         if (ctx) {
-            let html = '<div class="wb-do-ctx">';
-            if (context) {
-                if (context.player) html += `<div class="wb-do-ctx__player">${context.player}</div>`;
-                const actionCls = context.actionType === 'atk' ? ' wb-do-ctx__action--atk' : context.actionType === 'dmg' ? ' wb-do-ctx__action--dmg' : context.actionType === 'spell' ? ' wb-do-ctx__action--spell' : context.actionType === 'heal' ? ' wb-do-ctx__action--heal' : '';
-                if (context.action) html += `<div class="wb-do-ctx__action${actionCls}">${context.action}</div>`;
-                if (context.target) {
-                    html += `<div class="wb-do-ctx__versus">`;
-                    html += `<span class="wb-do-ctx__vs-label">vs</span>`;
-                    html += `<span class="wb-do-ctx__detail">${context.target}${context.ac ? ' (AC ' + context.ac + ')' : ''}</span>`;
+            let html = '';
+            if (context?.headline) {
+                // Rich combat context
+                const accentColor = context.isSpell ? '#3b82f6' : context.actionType === 'dmg' ? '#ef4444' : '#f97316';
+                html += '<div class="wb-do-ctx">';
+                html += `<div class="wb-do-ctx__player">${context.player || ''}</div>`;
+                html += `<div class="wb-do-ctx__headline" style="color:${accentColor}">${context.headline}</div>`;
+                
+                // Info card
+                html += `<div class="wb-do-info">`;
+                // Weapon row
+                if (context.weapon) {
+                    html += `<div class="wb-do-info__weapon">`;
+                    html += `<span class="wb-do-info__wname">${context.weapon}</span>`;
+                    if (context.bonus && context.actionType === 'atk') html += `<span class="wb-do-info__wbonus" style="color:${accentColor}">${context.bonus}</span>`;
                     html += `</div>`;
-                } else if (context.detail) {
-                    html += `<div class="wb-do-ctx__detail">${context.detail}</div>`;
                 }
+                // Stats row
+                const stats = [];
+                if (context.bonusBreakdown && context.actionType === 'atk') stats.push(context.bonusBreakdown);
+                if (context.dmgDice && context.actionType === 'dmg') stats.push(context.dmgDice);
+                if (context.dmgType) stats.push(context.dmgType);
+                if (stats.length) html += `<div class="wb-do-info__stats">${stats.join(' · ')}</div>`;
+                // Target row
+                if (context.target) {
+                    html += `<div class="wb-do-info__target">`;
+                    html += `<span class="wb-do-info__vs">vs</span>`;
+                    html += `<span class="wb-do-info__tname">${context.target}</span>`;
+                    if (context.ac) html += `<span class="wb-do-info__ac">AC ${context.ac}</span>`;
+                    html += `</div>`;
+                }
+                html += '</div>';
+                html += '</div>';
+            } else if (context?.player) {
+                // Simple context (free roll)
+                html += '<div class="wb-do-ctx">';
+                html += `<div class="wb-do-ctx__player">${context.player}</div>`;
+                if (context.action) html += `<div class="wb-do-ctx__headline" style="color:#a78bfa">${context.action}</div>`;
+                html += '</div>';
             } else if (label) {
-                html += `<div class="wb-do-ctx__action">${label}</div>`;
+                html += `<div class="wb-do-ctx"><div class="wb-do-ctx__headline" style="color:#a78bfa">${label}</div></div>`;
             }
-            html += '</div>';
             ctx.innerHTML = html;
         }
         if (overlay) {
