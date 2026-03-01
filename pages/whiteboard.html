@@ -781,13 +781,16 @@
         .wb-combat-log__close:hover { background:rgba(255,255,255,0.15); color:white; }
         .wb-combat-log__body { overflow-y:auto; flex:1; padding:6px; max-height:280px; }
         .wb-combat-log__empty { text-align:center; padding:24px; font-size:11px; color:rgba(255,255,255,0.3); }
-        .wb-clog { padding:6px 8px; border-radius:6px; margin-bottom:2px; font-size:11px; line-height:1.5; display:flex; gap:8px; align-items:flex-start; }
+        .wb-clog { padding:6px 8px; border-radius:6px; margin-bottom:2px; font-size:11px; line-height:1.5; display:flex; gap:8px; align-items:flex-start; cursor:pointer; }
         .wb-clog:hover { background:rgba(255,255,255,0.03); }
         .wb-clog__icon { width:18px; height:18px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:4px; margin-top:1px; }
         .wb-clog__body { flex:1; min-width:0; }
         .wb-clog__text { color:rgba(255,255,255,0.7); }
         .wb-clog__text strong { color:var(--white, #dedede); font-weight:600; }
-        .wb-clog__detail { font-size:10px; color:rgba(255,255,255,0.3); margin-top:1px; }
+        .wb-clog__detail { font-size:10px; color:rgba(255,255,255,0.3); margin-top:1px; display:none; overflow:hidden; }
+        .wb-clog.expanded .wb-clog__detail { display:block; }
+        .wb-clog__expand { font-size:9px; color:rgba(255,255,255,0.15); margin-top:1px; }
+        .wb-clog.expanded .wb-clog__expand { display:none; }
         .wb-clog__time { font-size:9px; color:rgba(255,255,255,0.2); flex-shrink:0; margin-top:2px; }
         .wb-clog--hit .wb-clog__icon { background:rgba(249,115,22,0.15); color:#f97316; }
         .wb-clog--miss .wb-clog__icon { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.3); }
@@ -818,6 +821,30 @@
 
         /* Journal panel */
         .wb-journal { position:absolute; top:70px; right:16px; background:rgba(22,22,22,0.92); border:1px solid rgba(255,255,255,0.1); border-radius:12px; z-index:100; width:320px; max-height:calc(100vh - 100px); display:none; overflow:hidden; backdrop-filter:blur(12px); }
+        
+        /* Quest Log */
+        .wb-quests { position:absolute; top:70px; left:16px; background:rgba(22,22,22,0.92); border:1px solid rgba(255,255,255,0.1); border-radius:12px; z-index:100; width:300px; max-height:calc(100vh - 100px); display:none; overflow:hidden; backdrop-filter:blur(12px); }
+        .wb-quests.visible { display:flex; flex-direction:column; }
+        .wb-quests__header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0; cursor:grab; user-select:none; }
+        .wb-quests__header:active { cursor:grabbing; }
+        .wb-quests__body { overflow-y:auto; flex:1; padding:6px; }
+        .wb-quest { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px; margin-bottom:6px; overflow:hidden; }
+        .wb-quest__head { display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer; }
+        .wb-quest__head:hover { background:rgba(255,255,255,0.03); }
+        .wb-quest__icon { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .wb-quest__icon--active { background:#eab308; box-shadow:0 0 6px rgba(234,179,8,0.4); }
+        .wb-quest__icon--completed { background:#22c55e; }
+        .wb-quest__icon--failed { background:#ef4444; }
+        .wb-quest__title { flex:1; font-size:12px; font-weight:600; color:rgba(255,255,255,0.8); }
+        .wb-quest__chev { color:rgba(255,255,255,0.2); transition:transform 0.15s; font-size:10px; }
+        .wb-quest.expanded .wb-quest__chev { transform:rotate(90deg); }
+        .wb-quest__content { display:none; padding:0 10px 10px; }
+        .wb-quest.expanded .wb-quest__content { display:block; }
+        .wb-quest__desc { font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:8px; line-height:1.5; }
+        .wb-quest__obj { display:flex; align-items:flex-start; gap:6px; padding:3px 0; font-size:11px; color:rgba(255,255,255,0.6); }
+        .wb-quest__obj input[type=checkbox] { margin-top:2px; accent-color:#a78bfa; cursor:pointer; }
+        .wb-quest__obj--done { text-decoration:line-through; color:rgba(255,255,255,0.25); }
+        .wb-quest__actions { display:flex; gap:4px; margin-top:8px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04); }
         .wb-journal.visible { display:flex; flex-direction:column; }
         .wb-journal.collapsed .wb-journal__body { display:none; }
         .wb-journal.collapsed .wb-panel-resize { display:none; }
@@ -1080,6 +1107,8 @@
                                     <button class="wb-dd-item" id="exportDataBtn" title="Alle Szenendaten als JSON-Datei exportieren, inklusive Token und Zeichnungen."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>Daten exportieren</button>
                                     <input type="file" id="sceneFileInput" accept=".json" style="display:none">
                                     <div class="wb-dd-sep"></div>
+                                    <button class="wb-dd-item" id="questLogBtnPlayer" title="Quest-Log anzeigen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quest-Log<span class="wb-dd-item__key">Q</span></button>
+                                    <div class="wb-dd-sep"></div>
                                     <button class="wb-dd-item" id="resetPanelBtnPlayer" title="Alle Fenster auf Standard-Position und -Grösse zurücksetzen." style="font-size:11px;opacity:0.5;padding:4px 10px"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Fenster zurücksetzen</button>
                                     <button class="wb-dd-item" id="hotkeyHelpBtnPlayer" title="Tastenkürzel-Übersicht anzeigen" style="font-size:11px;opacity:0.5;padding:4px 10px"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Tastenkürzel<span class="wb-dd-item__key">?</span></button>
                                 </div>
@@ -1093,6 +1122,7 @@
                                     <button class="wb-dd-item" id="combatLogBtn" title="Kampfprotokoll anzeigen. Alle Würfe, Angriffe und Ereignisse."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Kampfprotokoll<span class="wb-dd-item__key">K</span></button>
                                     <button class="wb-dd-item" id="initiativeBtn" title="Initiative-Reihenfolge verwalten. Legt die Zugreihenfolge im Kampf fest."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Initiative-Tracker<span class="wb-dd-item__key">I</span></button>
                                     <button class="wb-dd-item" id="journalBtn" title="Journal mit Handouts, Briefen, Lore und Quests. Kann mit Spielern geteilt werden."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>Journal<span class="wb-dd-item__key">J</span></button>
+                                    <button class="wb-dd-item" id="questLogBtn" title="Quest-Log mit Aufgaben und Zielen. Spieler sehen aktive Quests."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quest-Log<span class="wb-dd-item__key">Q</span></button>
                                     <div class="wb-dd-sep"></div>
                                     <button class="wb-dd-item" id="cursorToggleBtn" title="Eigenen Mauszeiger für alle Spieler sichtbar oder unsichtbar machen."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-6 2-2 6z"/><path d="M14 14l5 5"/></svg>Cursor anzeigen</button>
                                     <button class="wb-dd-item" id="toolbarLockBtn" title="Zeichenwerkzeuge für Spieler sperren. Spieler können weiterhin Auswählen, Messen und Pingen."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Werkzeuge sperren</button>
@@ -1665,6 +1695,8 @@
                     <div class="wb-combat-log__header">
                         <span class="wb-combat-log__title">Kampfprotokoll</span>
                         <div style="display:flex;gap:4px">
+                            <button class="wb-combat-log__close" id="combatLogExpandAll" title="Alle aufklappen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
+                            <button class="wb-combat-log__close" id="combatLogCollapseAll" title="Alle zuklappen"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 15 12 9 18 15"/></svg></button>
                             <button class="wb-combat-log__close" id="combatLogClear" title="Log leeren"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>
                             <button class="wb-combat-log__close" id="combatLogClose"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                         </div>
@@ -1693,6 +1725,20 @@
                     <div class="wb-panel-resize" data-resize="journalPanel"></div>
                 </div>
 
+                <!-- Quest Log Panel -->
+                <div class="wb-quests" id="questPanel">
+                    <div class="wb-quests__header" id="questHeader">
+                        <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px">Quests</span>
+                        <div style="display:flex;gap:4px">
+                            <button class="wb-token-sidebar__close" id="questAddBtn" title="Neue Quest (GM)" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                            <button class="wb-token-sidebar__close" id="questCloseBtn" title="Schliessen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="wb-quests__body" id="questBody">
+                        <div style="text-align:center;padding:24px;font-size:11px;color:rgba(255,255,255,0.3)">Keine Quests</div>
+                    </div>
+                    <div class="wb-panel-resize" data-resize="questPanel"></div>
+                </div>
                 <!-- Journal Editor (GM) -->
                 <div class="wb-journal-editor" id="journalEditor">
                     <div class="wb-journal-editor__box">
@@ -2046,6 +2092,7 @@ const WB = {
         // Init atmosphere & soundboard (need Firebase)
         this.setupAtmoPanel();
         this.setupSoundboard();
+        this.initQuestLog();
         
         // Init entity system
         if (window.RiftEntities) {
@@ -4411,6 +4458,19 @@ const WB = {
                         ghost.innerHTML = `<span style="font-size:${Math.max(10, gSize * 0.35)}px;pointer-events:none">${activeToken.label || '?'}</span>`;
                     }
                     c.appendChild(ghost);
+                    
+                    // Ghost connection line: dashed line from ghost → current position
+                    const curX = activeToken.x * this.zoom + this.panX;
+                    const curY = activeToken.y * this.zoom + this.panY;
+                    const ghostCX = gx + gSize / 2;
+                    const ghostCY = gy + gSize / 2;
+                    const lineLen = Math.sqrt(Math.pow(curX - ghostCX, 2) + Math.pow(curY - ghostCY, 2));
+                    if (lineLen > 10) {
+                        const ghostLine = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                        ghostLine.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:39;overflow:visible';
+                        ghostLine.innerHTML = `<line x1="${ghostCX}" y1="${ghostCY}" x2="${curX}" y2="${curY}" stroke="${activeToken.borderColor || '#8b5cf6'}" stroke-width="2" stroke-dasharray="8 6" stroke-opacity="0.25"/>`;
+                        c.appendChild(ghostLine);
+                    }
                 }
             }
         }
@@ -10877,6 +10937,7 @@ const WB = {
             // Panel hotkeys (non-conflicting with tools)
             if (_key === 'k' && !e.ctrlKey) this.toggleCombatLog();
             if (_key === 'j' && !e.ctrlKey && !e.metaKey) this.toggleJournal();
+            if (_key === 'q' && !e.ctrlKey) this.toggleQuestLog();
             if (_key === 'i' && !e.ctrlKey) {
                 document.getElementById('initiativeBtn')?.click();
             }
@@ -10914,6 +10975,12 @@ const WB = {
             // Hotkey help
             if (e.key === '?' || (e.shiftKey && _key === '/')) {
                 this.showHotkeyHelp();
+            }
+            
+            // Quick Search
+            if (e.code === 'Space' && e.ctrlKey) {
+                e.preventDefault();
+                this.showQuickSearch();
             }
             
             // Layer shortcuts: 1=Map, 2=Token, 3=Draw, 4=Fog
@@ -10985,6 +11052,7 @@ const WB = {
                 ['I', 'Initiative-Tracker'],
                 ['K', 'Kampfprotokoll'],
                 ['J', 'Journal'],
+                ['Q', 'Quest-Log'],
                 ['B', 'Bestiary (GM)'],
             ]},
             { title: 'Kampf', keys: [
@@ -11011,6 +11079,7 @@ const WB = {
                 ['Mausrad', 'Zoomen'],
             ]},
             { title: 'Sonstiges', keys: [
+                ['Ctrl+Leertaste', 'Schnellsuche'],
                 ['?', 'Diese Hilfe'],
                 ['Escape', 'Schließen / Abbrechen'],
             ]},
@@ -11027,6 +11096,7 @@ const WB = {
                 ['I', 'Initiative-Tracker'],
                 ['K', 'Kampfprotokoll'],
                 ['J', 'Journal'],
+                ['Q', 'Quest-Log'],
             ]},
             { title: 'Bewegung', keys: [
                 ['Ctrl+Klick', 'Wegpunkt setzen'],
@@ -11044,6 +11114,7 @@ const WB = {
                 ['Mausrad', 'Zoomen'],
             ]},
             { title: 'Sonstiges', keys: [
+                ['Ctrl+Leertaste', 'Schnellsuche'],
                 ['?', 'Diese Hilfe'],
                 ['Escape', 'Schließen / Abbrechen'],
             ]},
@@ -11101,6 +11172,359 @@ const WB = {
             if (e.key === 'Escape' || e.key === '?') { close(); window.removeEventListener('keydown', onKey); }
         };
         window.addEventListener('keydown', onKey);
+    },
+    
+    // ==================== QUEST LOG ====================
+    _quests: [],
+    
+    initQuestLog() {
+        document.getElementById('questCloseBtn').onclick = () => {
+            document.getElementById('questPanel').classList.remove('visible');
+            document.getElementById('questLogBtn')?.classList.remove('active-red');
+        };
+        document.getElementById('questLogBtn').onclick = () => this.toggleQuestLog();
+        
+        if (this.isGM) {
+            const addBtn = document.getElementById('questAddBtn');
+            addBtn.style.display = '';
+            addBtn.onclick = () => this.createQuest();
+        }
+        
+        // Firebase listener
+        if (this.db && this.roomCode) {
+            const ref = this.db.ref('whiteboard/' + this.roomCode + '/quests');
+            this.firebaseListeners.push(ref);
+            ref.on('value', snap => {
+                const data = snap.val();
+                this._quests = data ? Object.entries(data).map(([id, q]) => ({ id, ...q })) : [];
+                this._quests.sort((a, b) => {
+                    const order = { active: 0, completed: 1, failed: 2 };
+                    return (order[a.status] ?? 0) - (order[b.status] ?? 0) || (b.createdAt || 0) - (a.createdAt || 0);
+                });
+                this.renderQuestLog();
+            });
+        }
+    },
+    
+    toggleQuestLog() {
+        const panel = document.getElementById('questPanel');
+        panel.classList.toggle('visible');
+        document.getElementById('questLogBtn')?.classList.toggle('active-red', panel.classList.contains('visible'));
+    },
+    
+    createQuest() {
+        const id = 'q_' + Date.now();
+        const quest = { title: 'Neue Quest', description: '', objectives: [], status: 'active', createdAt: Date.now() };
+        this._quests.unshift({ id, ...quest });
+        this.db.ref('whiteboard/' + this.roomCode + '/quests/' + id).set(quest);
+        this.renderQuestLog();
+        // Auto-expand and edit
+        setTimeout(() => {
+            const el = document.querySelector(`[data-qid="${id}"]`);
+            if (el) { el.classList.add('expanded'); el.querySelector('.wb-quest__title')?.click(); }
+        }, 50);
+    },
+    
+    renderQuestLog() {
+        const body = document.getElementById('questBody');
+        if (!body) return;
+        
+        if (!this._quests.length) {
+            body.innerHTML = '<div style="text-align:center;padding:24px;font-size:11px;color:rgba(255,255,255,0.3)">Keine Quests</div>';
+            return;
+        }
+        
+        body.innerHTML = this._quests.map(q => {
+            const doneCount = (q.objectives || []).filter(o => o.done).length;
+            const totalCount = (q.objectives || []).length;
+            const progress = totalCount > 0 ? `${doneCount}/${totalCount}` : '';
+            
+            return `<div class="wb-quest" data-qid="${q.id}">
+                <div class="wb-quest__head">
+                    <div class="wb-quest__icon wb-quest__icon--${q.status || 'active'}"></div>
+                    <span class="wb-quest__title">${q.title || 'Ohne Titel'}</span>
+                    ${progress ? `<span style="font-size:9px;color:rgba(255,255,255,0.25)">${progress}</span>` : ''}
+                    <span class="wb-quest__chev">&#9654;</span>
+                </div>
+                <div class="wb-quest__content">
+                    ${q.description ? `<div class="wb-quest__desc">${q.description}</div>` : ''}
+                    ${(q.objectives || []).map((o, i) => `
+                        <div class="wb-quest__obj ${o.done ? 'wb-quest__obj--done' : ''}">
+                            <input type="checkbox" ${o.done ? 'checked' : ''} data-qid="${q.id}" data-oidx="${i}">
+                            <span>${o.text}</span>
+                        </div>
+                    `).join('')}
+                    ${this.isGM ? `<div class="wb-quest__actions">
+                        <button data-qa="edit" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);cursor:pointer">Bearbeiten</button>
+                        <button data-qa="obj" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);cursor:pointer">+ Ziel</button>
+                        <button data-qa="status" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(${q.status === 'active' ? '34,197,94' : '234,179,8'},0.1);color:${q.status === 'active' ? '#22c55e' : '#eab308'};cursor:pointer">${q.status === 'active' ? 'Abschliessen' : 'Reaktivieren'}</button>
+                        <button data-qa="delete" data-qid="${q.id}" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.08);color:#ef4444;cursor:pointer;margin-left:auto">X</button>
+                    </div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+        
+        // Event delegation
+        body.onclick = e => {
+            // Toggle expand
+            const head = e.target.closest('.wb-quest__head');
+            if (head) {
+                head.closest('.wb-quest').classList.toggle('expanded');
+                return;
+            }
+            
+            // Checkbox toggle
+            const cb = e.target.closest('input[type=checkbox][data-qid]');
+            if (cb) {
+                const qid = cb.dataset.qid;
+                const idx = parseInt(cb.dataset.oidx);
+                const quest = this._quests.find(q => q.id === qid);
+                if (quest && quest.objectives[idx] !== undefined) {
+                    quest.objectives[idx].done = cb.checked;
+                    this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid + '/objectives/' + idx + '/done').set(cb.checked);
+                    // Update visual
+                    cb.closest('.wb-quest__obj').classList.toggle('wb-quest__obj--done', cb.checked);
+                }
+                return;
+            }
+            
+            // GM actions
+            if (!this.isGM) return;
+            const btn = e.target.closest('[data-qa]');
+            if (!btn) return;
+            const action = btn.dataset.qa;
+            const qid = btn.dataset.qid;
+            const quest = this._quests.find(q => q.id === qid);
+            if (!quest) return;
+            
+            if (action === 'edit') {
+                this.editQuest(quest);
+            } else if (action === 'obj') {
+                this.addQuestObjective(quest);
+            } else if (action === 'status') {
+                quest.status = quest.status === 'active' ? 'completed' : 'active';
+                this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid + '/status').set(quest.status);
+            } else if (action === 'delete') {
+                if (confirm('Quest "' + quest.title + '" löschen?')) {
+                    this.db.ref('whiteboard/' + this.roomCode + '/quests/' + qid).remove();
+                }
+            }
+        };
+    },
+    
+    editQuest(quest) {
+        const existing = document.getElementById('questEditOverlay');
+        if (existing) existing.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'questEditOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px)';
+        
+        overlay.innerHTML = `
+            <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:24px;width:380px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.6)">
+                <div style="font-size:14px;font-weight:700;color:white;margin-bottom:16px">Quest bearbeiten</div>
+                <label style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Titel</label>
+                <input id="qeTitle" type="text" value="${quest.title || ''}" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:13px;margin-bottom:12px;outline:none;font-family:Inter,sans-serif">
+                <label style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Beschreibung</label>
+                <textarea id="qeDesc" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:12px;height:80px;resize:vertical;outline:none;font-family:Inter,sans-serif">${quest.description || ''}</textarea>
+                <div style="margin-top:8px">
+                    <label style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Ziele (eins pro Zeile)</label>
+                    <textarea id="qeObjs" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:12px;height:80px;resize:vertical;outline:none;font-family:Inter,sans-serif">${(quest.objectives || []).map(o => (o.done ? '[x] ' : '') + o.text).join('\n')}</textarea>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+                    <button id="qeCancel" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);cursor:pointer;font-size:12px">Abbrechen</button>
+                    <button id="qeSave" style="padding:8px 16px;border-radius:8px;border:none;background:#8b5cf6;color:white;cursor:pointer;font-size:12px;font-weight:600">Speichern</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        document.getElementById('qeTitle').focus();
+        
+        const close = () => overlay.remove();
+        document.getElementById('qeCancel').onclick = close;
+        overlay.onclick = e => { if (e.target === overlay) close(); };
+        
+        document.getElementById('qeSave').onclick = () => {
+            quest.title = document.getElementById('qeTitle').value.trim() || 'Ohne Titel';
+            quest.description = document.getElementById('qeDesc').value.trim();
+            quest.objectives = document.getElementById('qeObjs').value.split('\n').filter(l => l.trim()).map(l => {
+                const done = l.startsWith('[x] ');
+                const text = l.replace(/^\[x?\]\s*/, '').trim();
+                return { text, done };
+            });
+            const { id, ...data } = quest;
+            this.db.ref('whiteboard/' + this.roomCode + '/quests/' + id).set(data);
+            close();
+            this.toast('Quest gespeichert');
+        };
+    },
+    
+    addQuestObjective(quest) {
+        if (!quest.objectives) quest.objectives = [];
+        quest.objectives.push({ text: 'Neues Ziel', done: false });
+        const { id, ...data } = quest;
+        this.db.ref('whiteboard/' + this.roomCode + '/quests/' + id).set(data);
+    },
+    
+    // ==================== QUICK SEARCH ====================
+    showQuickSearch() {
+        const existing = document.getElementById('quickSearchOverlay');
+        if (existing) { existing.remove(); return; }
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'quickSearchOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding-top:18vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px)';
+        
+        overlay.innerHTML = `
+            <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;width:440px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.6);overflow:hidden">
+                <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="qsInput" type="text" placeholder="Token, Journal, Monster suchen..." autocomplete="off" style="flex:1;background:none;border:none;outline:none;color:white;font-size:14px;font-family:Inter,sans-serif">
+                    <kbd style="font-size:10px;color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:2px 6px">Esc</kbd>
+                </div>
+                <div id="qsResults" style="max-height:320px;overflow-y:auto;padding:4px"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        const input = document.getElementById('qsInput');
+        const results = document.getElementById('qsResults');
+        input.focus();
+        
+        let selectedIdx = -1;
+        
+        const search = () => {
+            const q = input.value.trim().toLowerCase();
+            if (!q) { results.innerHTML = '<div style="padding:16px;text-align:center;font-size:11px;color:rgba(255,255,255,0.25)">Tippe um zu suchen...</div>'; selectedIdx = -1; return; }
+            
+            const items = [];
+            
+            // Search tokens
+            this.tokens.forEach(t => {
+                if (t.name?.toLowerCase().includes(q) || t.label?.toLowerCase().includes(q)) {
+                    items.push({ type: 'token', name: t.name || t.label || '?', sub: `${t.type || 'token'} · HP ${t.hp ?? '?'}/${t.maxHp ?? '?'}`, icon: 'token', color: t.borderColor || '#8b5cf6', data: t });
+                }
+            });
+            
+            // Search journal
+            this._journal.forEach(e => {
+                if (e.title?.toLowerCase().includes(q) || e.content?.toLowerCase().includes(q)) {
+                    const preview = (e.content || '').replace(/[#*_]/g, '').substring(0, 50);
+                    items.push({ type: 'journal', name: e.title || 'Ohne Titel', sub: preview, icon: 'journal', color: '#3b82f6', data: e });
+                }
+            });
+            
+            // Search bestiary (if loaded)
+            if (this._srdMonsters) {
+                this._srdMonsters.forEach(m => {
+                    if (m.name?.toLowerCase().includes(q) || m.index?.toLowerCase().includes(q)) {
+                        items.push({ type: 'bestiary', name: m.name, sub: `Monster · ${m.url || ''}`, icon: 'bestiary', color: '#ef4444', data: m });
+                    }
+                });
+            }
+            
+            if (items.length === 0) {
+                results.innerHTML = '<div style="padding:16px;text-align:center;font-size:11px;color:rgba(255,255,255,0.25)">Keine Ergebnisse</div>';
+                selectedIdx = -1;
+                return;
+            }
+            
+            const icons = {
+                token: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>',
+                journal: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+                bestiary: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c-4-3-8-7-8-12a8 8 0 0 1 16 0c0 5-4 9-8 12z"/><circle cx="12" cy="10" r="3"/></svg>'
+            };
+            
+            // Limit to 12 results
+            const limited = items.slice(0, 12);
+            selectedIdx = 0;
+            
+            results.innerHTML = limited.map((item, i) => `
+                <div class="qs-item${i === 0 ? ' qs-item--active' : ''}" data-idx="${i}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;${i === 0 ? 'background:rgba(255,255,255,0.06)' : ''}">
+                    <div style="width:28px;height:28px;border-radius:6px;background:${item.color}20;color:${item.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">${icons[item.icon]}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.sub}</div>
+                    </div>
+                    <span style="font-size:9px;color:rgba(255,255,255,0.2);text-transform:uppercase">${item.type === 'token' ? 'Token' : item.type === 'journal' ? 'Journal' : 'Bestiary'}</span>
+                </div>
+            `).join('');
+            
+            // Click handlers
+            results.querySelectorAll('.qs-item').forEach((el, i) => {
+                el.onclick = () => selectItem(limited[i]);
+                el.onmouseenter = () => {
+                    results.querySelectorAll('.qs-item').forEach(e => { e.classList.remove('qs-item--active'); e.style.background = ''; });
+                    el.classList.add('qs-item--active');
+                    el.style.background = 'rgba(255,255,255,0.06)';
+                    selectedIdx = i;
+                };
+            });
+        };
+        
+        const selectItem = (item) => {
+            close();
+            if (item.type === 'token') {
+                // Pan to token
+                const t = item.data;
+                this.targetPanX = this.mainCanvas.width / 2 - t.x * this.zoom;
+                this.targetPanY = this.mainCanvas.height / 2 - t.y * this.zoom;
+                this.startAnimation();
+                this.select({ type: 'token', item: t });
+                this.renderTokens();
+                setTimeout(() => this.turnPing(t), 300);
+            } else if (item.type === 'journal') {
+                this.toggleJournal();
+                // Open entry viewer
+                const entry = item.data;
+                setTimeout(() => {
+                    const viewerEl = document.querySelector(`[data-jid="${entry.id}"]`);
+                    if (viewerEl) viewerEl.click();
+                }, 100);
+            } else if (item.type === 'bestiary') {
+                // Open bestiary panel with search pre-filled
+                const bPanel = document.getElementById('bestiaryPanel');
+                if (bPanel && !bPanel.classList.contains('visible')) {
+                    document.getElementById('bestiaryBtn')?.click();
+                }
+                setTimeout(() => {
+                    const bInput = document.getElementById('bestiarySearch');
+                    if (bInput) { bInput.value = item.data.name; bInput.dispatchEvent(new Event('input')); }
+                }, 200);
+            }
+        };
+        
+        const updateHighlight = () => {
+            const items = results.querySelectorAll('.qs-item');
+            items.forEach((el, i) => {
+                el.classList.toggle('qs-item--active', i === selectedIdx);
+                el.style.background = i === selectedIdx ? 'rgba(255,255,255,0.06)' : '';
+            });
+            items[selectedIdx]?.scrollIntoView({ block: 'nearest' });
+        };
+        
+        const close = () => overlay.remove();
+        
+        input.oninput = search;
+        input.onkeydown = e => {
+            const items = results.querySelectorAll('.qs-item');
+            if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, items.length - 1); updateHighlight(); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); updateHighlight(); }
+            if (e.key === 'Enter' && selectedIdx >= 0) {
+                e.preventDefault();
+                const q = input.value.trim().toLowerCase();
+                const allItems = [];
+                this.tokens.forEach(t => { if (t.name?.toLowerCase().includes(q) || t.label?.toLowerCase().includes(q)) allItems.push({ type: 'token', data: t }); });
+                this._journal.forEach(ej => { if (ej.title?.toLowerCase().includes(q) || ej.content?.toLowerCase().includes(q)) allItems.push({ type: 'journal', data: ej }); });
+                if (this._srdMonsters) this._srdMonsters.forEach(m => { if (m.name?.toLowerCase().includes(q) || m.index?.toLowerCase().includes(q)) allItems.push({ type: 'bestiary', data: m }); });
+                if (allItems[selectedIdx]) selectItem(allItems[selectedIdx]);
+            }
+            if (e.key === 'Escape') close();
+        };
+        
+        overlay.onclick = e => { if (e.target === overlay) close(); };
+        search();
     },
     
     // ==================== FIREBASE ====================
@@ -11827,10 +12251,13 @@ const WB = {
         // Player variants (in Scene menu) - hide for GM since they have their own in Spielleitung menu
         const resetBtnP = document.getElementById('resetPanelBtnPlayer');
         const hotkeyBtnP = document.getElementById('hotkeyHelpBtnPlayer');
+        const questBtnP = document.getElementById('questLogBtnPlayer');
         if (this.isGM) {
             if (resetBtnP) resetBtnP.style.display = 'none';
             if (hotkeyBtnP) hotkeyBtnP.style.display = 'none';
+            if (questBtnP) questBtnP.style.display = 'none';
             // Also hide the separator before them
+            if (questBtnP?.previousElementSibling?.classList.contains('wb-dd-sep')) questBtnP.previousElementSibling.style.display = 'none';
             if (resetBtnP?.previousElementSibling?.classList.contains('wb-dd-sep')) resetBtnP.previousElementSibling.style.display = 'none';
         } else {
             if (resetBtnP) {
@@ -11842,6 +12269,9 @@ const WB = {
             }
             if (hotkeyBtnP) {
                 hotkeyBtnP.onclick = () => this.showHotkeyHelp();
+            }
+            if (questBtnP) {
+                questBtnP.onclick = () => this.toggleQuestLog();
             }
         }
         
@@ -11867,6 +12297,7 @@ const WB = {
             { el: 'atmoPanel', header: '.wb-atmo-panel__header' },
             { el: 'soundPanel', header: '.wb-sound-panel__header' },
             { el: 'journalPanel', header: '.wb-journal__header' },
+            { el: 'questPanel', header: '.wb-quests__header' },
         ];
         
         panels.forEach(({ el, header }) => {
@@ -13240,7 +13671,11 @@ const WB = {
         
         const el = document.createElement('div');
         el.className = `wb-clog wb-clog--${type}`;
-        el.innerHTML = `<div class="wb-clog__icon">${entry.icon}</div><div class="wb-clog__body"><div class="wb-clog__text">${data.text}</div>${data.detail ? `<div class="wb-clog__detail">${data.detail}</div>` : ''}</div><span class="wb-clog__time">${time}</span>`;
+        const hasDetail = !!data.detail;
+        el.innerHTML = `<div class="wb-clog__icon">${entry.icon}</div><div class="wb-clog__body"><div class="wb-clog__text">${data.text}</div>${hasDetail ? `<div class="wb-clog__expand">...</div><div class="wb-clog__detail">${data.detail}</div>` : ''}</div><span class="wb-clog__time">${time}</span>`;
+        if (hasDetail) {
+            el.onclick = () => el.classList.toggle('expanded');
+        }
         body.appendChild(el);
         body.scrollTop = body.scrollHeight;
         
@@ -13259,6 +13694,12 @@ const WB = {
         document.getElementById('combatLogClear').onclick = () => {
             this._combatLogEntries = [];
             document.getElementById('combatLogBody').innerHTML = '<div class="wb-combat-log__empty">Keine Einträge</div>';
+        };
+        document.getElementById('combatLogExpandAll').onclick = () => {
+            document.querySelectorAll('#combatLogBody .wb-clog').forEach(el => el.classList.add('expanded'));
+        };
+        document.getElementById('combatLogCollapseAll').onclick = () => {
+            document.querySelectorAll('#combatLogBody .wb-clog').forEach(el => el.classList.remove('expanded'));
         };
     },
     
