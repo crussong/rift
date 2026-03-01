@@ -2851,7 +2851,9 @@ const WB = {
                 y: p.rawY,
                 rotation: 0,
                 state: 'closed',
-                label: ''
+                label: '',
+                variant: 'normal',
+                size: 1
             };
             // Snap to grid if enabled
             if (this.snap && this.gridSize) {
@@ -3143,7 +3145,16 @@ const WB = {
             }
             
             // Clamp movement to remaining speed (only during initiative/combat)
-            if (this.initiativeActive && t.speed) {
+            // Check door blocking (always active)
+            const blockingDoor = this.doorBlocksPath(fromX, fromY, targetX, targetY);
+            if (blockingDoor) {
+                // Stop token at its current position (don't let it through)
+                targetX = fromX;
+                targetY = fromY;
+                this.toast(blockingDoor.state === 'locked' ? 'Tür verschlossen!' : 'Tür blockiert den Weg!', 'error');
+            }
+            
+            if (this.initiativeActive && t.speed && !blockingDoor) {
                 const clamped = this.clampMovement(t, fromX, fromY, targetX, targetY);
                 targetX = clamped.x;
                 targetY = clamped.y;
@@ -7607,6 +7618,49 @@ const WB = {
         
         ctx.save();
         
+        // Door blocking indicator
+        const doorBlock = this.doorBlocksPath(drag.startX, drag.startY, p.rawX, p.rawY);
+        if (doorBlock && dist > 5) {
+            // Draw red blocked line
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([6, 8]);
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(startSX, startSY);
+            ctx.lineTo(snapSX, snapSY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Door position indicator (red X)
+            const doorSX = doorBlock.x * this.zoom + this.panX;
+            const doorSY = doorBlock.y * this.zoom + this.panY;
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(doorSX - 8, doorSY - 8); ctx.lineTo(doorSX + 8, doorSY + 8);
+            ctx.moveTo(doorSX + 8, doorSY - 8); ctx.lineTo(doorSX - 8, doorSY + 8);
+            ctx.stroke();
+            
+            // Blocked badge
+            ctx.globalAlpha = 1;
+            ctx.font = '600 11px Inter, sans-serif';
+            const badgeText = doorBlock.state === 'locked' ? 'Verschlossen' : 'Blockiert';
+            const bw = ctx.measureText(badgeText).width + 12;
+            const bx = (startSX + snapSX) / 2 - bw / 2;
+            const by = (startSY + snapSY) / 2 - 18;
+            ctx.fillStyle = 'rgba(239,68,68,0.85)';
+            ctx.beginPath();
+            ctx.roundRect(bx, by, bw, 20, 6);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(badgeText, bx + bw / 2, by + 10);
+            ctx.restore();
+            return;
+        }
+        
         if (inCombat && fields > 0 && dist > 1) {
             // Draw color-segmented ruler: green (normal) → yellow (dash) → red (over)
             const dirX = (snapSX - startSX) / dist / this.zoom;
@@ -9235,8 +9289,13 @@ const WB = {
             const segStartDist = cumDist;
             cumDist += segFields;
             
+            // Check door blocking on this segment
+            const doorBlock = this.doorBlocksPath(from.x, from.y, to.x, to.y);
+            
             let segColor;
-            if (to.preview) {
+            if (doorBlock) {
+                segColor = '#ef4444';
+            } else if (to.preview) {
                 segColor = cumDist > dashFields ? 'rgba(239,68,68,0.35)' : cumDist > maxFields ? 'rgba(234,179,8,0.35)' : 'rgba(34,197,94,0.35)';
             } else if (inCombat) {
                 segColor = cumDist > dashFields ? '#ef4444' : cumDist > maxFields ? '#eab308' : '#22c55e';
@@ -9266,6 +9325,19 @@ const WB = {
                 ctx.lineTo(sx2 - 12 * Math.cos(angle + 0.4), sy2 - 12 * Math.sin(angle + 0.4));
                 ctx.closePath();
                 ctx.fill();
+            }
+            
+            // Door blocking X indicator
+            if (doorBlock) {
+                const dsx = doorBlock.x * this.zoom + this.panX;
+                const dsy = doorBlock.y * this.zoom + this.panY;
+                ctx.globalAlpha = 0.9;
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(dsx - 8, dsy - 8); ctx.lineTo(dsx + 8, dsy + 8);
+                ctx.moveTo(dsx + 8, dsy - 8); ctx.lineTo(dsx - 8, dsy + 8);
+                ctx.stroke();
             }
         }
         
@@ -9352,6 +9424,22 @@ const WB = {
         const token = this._waypointToken;
         const fromX = token.x, fromY = token.y;
         const gs = this.gridSize || 70;
+        
+        // Door blocking: check each waypoint segment, truncate at first blocked door
+        let prev = { x: token.x, y: token.y };
+        const validWaypoints = [];
+        for (const wp of this._waypoints) {
+            const blocker = this.doorBlocksPath(prev.x, prev.y, wp.x, wp.y);
+            if (blocker) {
+                this.toast(blocker.state === 'locked' ? 'Tür verschlossen!' : 'Tür blockiert den Weg!', 'error');
+                break;
+            }
+            validWaypoints.push(wp);
+            prev = wp;
+        }
+        if (validWaypoints.length === 0) { this.cancelWaypoints(); return; }
+        // Replace _waypoints with valid portion
+        this._waypoints = validWaypoints;
         
         // Clamp to movement in combat
         let waypoints = [...this._waypoints];
@@ -12652,10 +12740,19 @@ const WB = {
     
     // ==================== INTERACTIVE DOORS ====================
     _doors: [],
+    _doorDragging: null,
+    
+    // Door variants with icons
+    _doorVariants: {
+        normal:  { label: 'Standard',   icon: (s) => `<svg viewBox="0 0 24 24" width="${14*s}" height="14" fill="none" stroke="white" stroke-width="2"><rect x="${12-8*s}" y="2" width="${16*s}" height="20" rx="1"/><circle cx="${12+5*s}" cy="12" r="1.5" fill="white" stroke="none"/></svg>` },
+        double:  { label: 'Doppeltür',  icon: (s) => `<svg viewBox="0 0 24 24" width="${14*s}" height="14" fill="none" stroke="white" stroke-width="2"><rect x="${12-8*s}" y="2" width="${8*s}" height="20" rx="1"/><rect x="12" y="2" width="${8*s}" height="20" rx="1"/><circle cx="${12-2*s}" cy="12" r="1" fill="white" stroke="none"/><circle cx="${12+2*s}" cy="12" r="1" fill="white" stroke="none"/></svg>` },
+        gate:    { label: 'Gitter/Tor', icon: (s) => `<svg viewBox="0 0 24 24" width="${14*s}" height="14" fill="none" stroke="white" stroke-width="2"><line x1="4" y1="2" x2="4" y2="22"/><line x1="20" y1="2" x2="20" y2="22"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><line x1="9" y1="2" x2="9" y2="22"/><line x1="15" y1="2" x2="15" y2="22"/></svg>` },
+        secret:  { label: 'Geheim',     icon: (s) => `<svg viewBox="0 0 24 24" width="${14*s}" height="14" fill="none" stroke="white" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>` }
+    },
     
     syncDoor(d) {
         if (this.db && this.roomCode) {
-            const clean = { x: d.x, y: d.y, rotation: d.rotation || 0, state: d.state, label: d.label || '' };
+            const clean = { x: d.x, y: d.y, rotation: d.rotation || 0, state: d.state, label: d.label || '', variant: d.variant || 'normal', size: d.size || 1 };
             this.db.ref('whiteboard/' + this.roomCode + '/doors/' + d.id).set(clean);
         }
     },
@@ -12676,32 +12773,92 @@ const WB = {
         this.renderDoors();
     },
     
+    // Get door as a line segment in world coords for collision
+    getDoorSegment(d) {
+        const gs = this.gridSize || 70;
+        const halfLen = (d.size || 1) * gs / 2;
+        const rot = (d.rotation || 0) * Math.PI / 180;
+        const dx = Math.cos(rot) * halfLen;
+        const dy = Math.sin(rot) * halfLen;
+        return { x1: d.x - dx, y1: d.y - dy, x2: d.x + dx, y2: d.y + dy };
+    },
+    
+    // Line segment intersection test
+    _segmentsIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
+        const d1x = ax2 - ax1, d1y = ay2 - ay1;
+        const d2x = bx2 - bx1, d2y = by2 - by1;
+        const cross = d1x * d2y - d1y * d2x;
+        if (Math.abs(cross) < 0.0001) return false;
+        const t = ((bx1 - ax1) * d2y - (by1 - ay1) * d2x) / cross;
+        const u = ((bx1 - ax1) * d1y - (by1 - ay1) * d1x) / cross;
+        return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+    },
+    
+    // Check if movement path is blocked by any closed/locked door
+    doorBlocksPath(fromX, fromY, toX, toY) {
+        if (!this._doors?.length) return null;
+        for (const d of this._doors) {
+            if (d.state === 'open') continue;
+            // Secret doors: don't block players (they don't know it's there)
+            if (d.variant === 'secret' && !this.isGM) continue;
+            const seg = this.getDoorSegment(d);
+            if (this._segmentsIntersect(fromX, fromY, toX, toY, seg.x1, seg.y1, seg.x2, seg.y2)) {
+                return d;
+            }
+        }
+        return null;
+    },
+    
     renderDoors() {
         const c = document.getElementById('notesContainer');
         c.querySelectorAll('.wb-door').forEach(el => el.remove());
         
-        const doorIcons = {
-            closed: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5"><rect x="4" y="2" width="16" height="20" rx="1"/><circle cx="16" cy="12" r="1.5" fill="white" stroke="none"/></svg>',
-            open: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2"><path d="M4 2v20"/><path d="M4 2l12 3v14l-12 3"/></svg>',
-            locked: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+        const gs = this.gridSize || 70;
+        
+        // State icons (small, centered in body)
+        const stateIcons = {
+            closed: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="white" stroke-width="2.5"><rect x="4" y="2" width="16" height="20" rx="1"/><circle cx="16" cy="12" r="1.5" fill="white" stroke="none"/></svg>',
+            open: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="white" stroke-width="2"><path d="M4 2v20"/><path d="M4 2l12 3v14l-12 3"/></svg>',
+            locked: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+        };
+        
+        // Variant-specific decorators
+        const variantDecorators = {
+            normal: '',
+            double: '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:60%;background:rgba(255,255,255,0.3)"></div>',
+            gate: '<div style="position:absolute;inset:3px;border:1px dashed rgba(255,255,255,0.2);border-radius:2px"></div>',
+            secret: ''
         };
         
         this._doors.forEach(d => {
+            // Secret doors: invisible to players
+            if (d.variant === 'secret' && !this.isGM) return;
+            
             const el = document.createElement('div');
             el.className = `wb-door wb-door--${d.state}`;
             el.dataset.doorId = d.id;
             const x = d.x * this.zoom + this.panX;
             const y = d.y * this.zoom + this.panY;
             const rot = d.rotation || 0;
+            const size = d.size || 1;
+            const variant = d.variant || 'normal';
+            const bodyW = Math.max(24, size * gs * this.zoom * 0.85);
+            const bodyH = 18;
+            
             el.style.left = x + 'px';
             el.style.top = y + 'px';
             
-            el.innerHTML = `<div class="wb-door__body" style="transform:rotate(${rot}deg)">
-                <div class="wb-door__icon">${doorIcons[d.state] || doorIcons.closed}</div>
+            const isSecret = variant === 'secret';
+            const secretStyle = isSecret ? 'opacity:0.5;border-style:dotted;' : '';
+            
+            el.innerHTML = `<div class="wb-door__body" style="width:${bodyW}px;height:${bodyH}px;transform:rotate(${rot}deg);${secretStyle}">
+                ${variantDecorators[variant] || ''}
+                <div class="wb-door__icon">${stateIcons[d.state] || stateIcons.closed}</div>
             </div>${d.label ? `<div class="wb-door__label">${d.label}</div>` : ''}`;
             
-            // Click: toggle open/closed (all users)
+            // Click: toggle open/closed (all users, except secret for non-GM)
             el.onclick = e => {
+                if (this._doorDragging) return;
                 e.stopPropagation();
                 this.toggleDoor(d);
             };
@@ -12714,15 +12871,21 @@ const WB = {
                     this.showDoorContextMenu(d, e.clientX, e.clientY);
                 };
                 
-                // GM: drag to move
+                // GM: normal drag to move (no shift needed)
                 el.onmousedown = e => {
-                    if (e.button !== 0 || !e.shiftKey) return;
+                    if (e.button !== 0) return;
                     e.preventDefault();
                     e.stopPropagation();
                     const startP = this.getPoint(e);
+                    let moved = false;
+                    this._doorDragging = d;
                     
                     const onMove = ev => {
                         const p = this.getPoint(ev);
+                        const dx = p.rawX - startP.rawX;
+                        const dy = p.rawY - startP.rawY;
+                        if (!moved && Math.sqrt(dx*dx + dy*dy) < 3) return;
+                        moved = true;
                         d.x += p.rawX - startP.rawX;
                         d.y += p.rawY - startP.rawY;
                         startP.rawX = p.rawX;
@@ -12730,12 +12893,15 @@ const WB = {
                         this.renderDoors();
                     };
                     const onUp = () => {
-                        if (this.snap && this.gridSize) {
-                            d.x = Math.round(d.x / this.gridSize) * this.gridSize;
-                            d.y = Math.round(d.y / this.gridSize) * this.gridSize;
+                        if (moved) {
+                            if (this.snap && this.gridSize) {
+                                d.x = Math.round(d.x / this.gridSize) * this.gridSize;
+                                d.y = Math.round(d.y / this.gridSize) * this.gridSize;
+                            }
+                            this.syncDoor(d);
+                            this.renderDoors();
                         }
-                        this.syncDoor(d);
-                        this.renderDoors();
+                        setTimeout(() => { this._doorDragging = null; }, 50);
                         window.removeEventListener('mousemove', onMove);
                         window.removeEventListener('mouseup', onUp);
                     };
@@ -12751,80 +12917,72 @@ const WB = {
     showDoorContextMenu(door, mx, my) {
         const m = document.getElementById('contextMenu');
         const states = [
-            { state: 'open', label: 'Offen', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20"/><path d="M4 2l12 3v14l-12 3"/></svg>', color: '#22c55e' },
-            { state: 'closed', label: 'Geschlossen', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="1"/><circle cx="16" cy="12" r="1.5" fill="currentColor"/></svg>', color: '#a78bfa' },
-            { state: 'locked', label: 'Verschlossen', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>', color: '#ef4444' }
+            { state: 'open', label: 'Offen', color: '#22c55e' },
+            { state: 'closed', label: 'Geschlossen', color: '#a78bfa' },
+            { state: 'locked', label: 'Verschlossen', color: '#ef4444' }
         ];
+        const variants = [
+            { v: 'normal', label: 'Standard' },
+            { v: 'double', label: 'Doppeltür' },
+            { v: 'gate', label: 'Gitter/Tor' },
+            { v: 'secret', label: 'Geheim (nur GM)' }
+        ];
+        const sizes = [
+            { s: 1, label: '1 Feld' },
+            { s: 2, label: '2 Felder' },
+            { s: 3, label: '3 Felder' }
+        ];
+        const curVariant = door.variant || 'normal';
+        const curSize = door.size || 1;
+        
+        const ctxItem = (label, active, color, extra='') => `<div class="wb-ctx-item" ${extra} style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:${active ? (color || 'white') : 'rgba(255,255,255,0.6)'};${active ? 'background:rgba(255,255,255,0.06)' : ''}">${label}</div>`;
         
         m.innerHTML = `
-            <div style="padding:6px 10px;font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px">Tür</div>
-            ${states.map(s => `
-                <div class="wb-ctx-item${door.state === s.state ? ' active' : ''}" data-door-state="${s.state}" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:${door.state === s.state ? s.color : 'rgba(255,255,255,0.6)'}">
-                    ${s.icon} ${s.label}
-                </div>
-            `).join('')}
+            <div style="padding:5px 10px;font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px">Status</div>
+            ${states.map(s => ctxItem(s.label, door.state === s.state, s.color, `data-door-state="${s.state}"`)).join('')}
             <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
-            <div class="wb-ctx-item" id="doorRotate" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:rgba(255,255,255,0.6)">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Drehen (90°)
-            </div>
-            <div class="wb-ctx-item" id="doorLabel" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:rgba(255,255,255,0.6)">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Beschriftung
+            <div style="padding:5px 10px;font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px">Variante</div>
+            ${variants.map(v => ctxItem(v.label, curVariant === v.v, null, `data-door-variant="${v.v}"`)).join('')}
+            <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
+            <div style="padding:5px 10px;font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.5px">Breite</div>
+            <div style="display:flex;gap:3px;padding:4px 10px">
+                ${sizes.map(sz => `<button data-door-size="${sz.s}" style="flex:1;padding:4px;border-radius:5px;border:1px solid ${curSize === sz.s ? '#a78bfa' : 'rgba(255,255,255,0.1)'};background:${curSize === sz.s ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.04)'};color:${curSize === sz.s ? '#a78bfa' : 'rgba(255,255,255,0.5)'};cursor:pointer;font-size:10px;font-weight:600">${sz.label}</button>`).join('')}
             </div>
             <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
-            <div class="wb-ctx-item" id="doorDelete" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:#ef4444">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Löschen
-            </div>
+            ${ctxItem('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Drehen (90°)', false, null, 'id="doorRotate"')}
+            ${ctxItem('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Beschriftung', false, null, 'id="doorLabel"')}
+            <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
+            ${ctxItem('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Löschen', false, '#ef4444', 'id="doorDelete"')}
         `;
         
-        // Position
         m.style.left = mx + 'px';
         m.style.top = my + 'px';
         m.classList.add('visible');
         
-        // State change handlers
-        m.querySelectorAll('[data-door-state]').forEach(el => {
+        // Hover on all items
+        m.querySelectorAll('.wb-ctx-item').forEach(el => {
             el.onmouseenter = () => el.style.background = 'rgba(255,255,255,0.06)';
-            el.onmouseleave = () => el.style.background = '';
-            el.onclick = () => {
-                door.state = el.dataset.doorState;
-                this.syncDoor(door);
-                this.renderDoors();
-                m.classList.remove('visible');
-                this.toast(`Tür → ${el.textContent.trim()}`);
-            };
+            el.onmouseleave = () => { if (!el.classList.contains('active')) el.style.background = ''; };
         });
         
-        // Hover on other items
-        ['doorRotate', 'doorLabel', 'doorDelete'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.onmouseenter = () => el.style.background = 'rgba(255,255,255,0.06)';
-                el.onmouseleave = () => el.style.background = '';
-            }
+        // State
+        m.querySelectorAll('[data-door-state]').forEach(el => {
+            el.onclick = () => { door.state = el.dataset.doorState; this.syncDoor(door); this.renderDoors(); m.classList.remove('visible'); };
         });
-        
-        document.getElementById('doorRotate').onclick = () => {
-            door.rotation = ((door.rotation || 0) + 90) % 360;
-            this.syncDoor(door);
-            this.renderDoors();
-            m.classList.remove('visible');
-        };
-        
-        document.getElementById('doorLabel').onclick = () => {
-            m.classList.remove('visible');
-            const label = prompt('Tür-Beschriftung:', door.label || '');
-            if (label !== null) {
-                door.label = label;
-                this.syncDoor(door);
-                this.renderDoors();
-            }
-        };
-        
-        document.getElementById('doorDelete').onclick = () => {
-            this.removeDoor(door.id);
-            m.classList.remove('visible');
-            this.toast('Tür entfernt');
-        };
+        // Variant
+        m.querySelectorAll('[data-door-variant]').forEach(el => {
+            el.onclick = () => { door.variant = el.dataset.doorVariant; this.syncDoor(door); this.renderDoors(); m.classList.remove('visible'); };
+        });
+        // Size
+        m.querySelectorAll('[data-door-size]').forEach(el => {
+            el.onclick = () => { door.size = parseInt(el.dataset.doorSize); this.syncDoor(door); this.renderDoors(); m.classList.remove('visible'); };
+        });
+        // Rotate
+        document.getElementById('doorRotate').onclick = () => { door.rotation = ((door.rotation || 0) + 90) % 360; this.syncDoor(door); this.renderDoors(); m.classList.remove('visible'); };
+        // Label
+        document.getElementById('doorLabel').onclick = () => { m.classList.remove('visible'); const l = prompt('Tür-Beschriftung:', door.label || ''); if (l !== null) { door.label = l; this.syncDoor(door); this.renderDoors(); } };
+        // Delete
+        document.getElementById('doorDelete').onclick = () => { this.removeDoor(door.id); m.classList.remove('visible'); this.toast('Tür entfernt'); };
     },
     
     // ==================== DRAG & DROP ====================
