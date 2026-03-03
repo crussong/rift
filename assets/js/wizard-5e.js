@@ -326,7 +326,7 @@ const SRD_SPELLS = [
     };
     
     // ===== CLASS STARTING DATA (Level 1) =====
-    const CLASS_START = {
+    function getClassStart(d, strMod, dexMod) { return {
         'Barbarian': {
             armor: { light:true, medium:true, heavy:false, shields:true },
             weapons: { simple:true, martial:true },
@@ -533,7 +533,7 @@ const SRD_SPELLS = [
             equipment:'Leichte Armbrust, 20 Bolzen, Beschlagenes Leder, Schild, Diebeswerkzeug, Bastlerwerkzeug, Dungeoneerpaket',
             gold: 10
         }
-    };
+    }; }
 
     const BG_DATA = {
         'Soldier': { tools:'Spielset, Landfahrzeuge', languages:'—', gold:10, equipment:'Rangabzeichen, Trophäe eines gefallenen Feindes, Knochenspielset, Alltagskleidung', feature:'Militärischer Rang: Soldaten deiner ehemaligen Organisation erkennen dich an und gewähren dir Zugang zu Militäreinrichtungen.' },
@@ -2335,6 +2335,7 @@ function applyWizardData() {
     }
 
     // ===== CLASS DATA =====
+    const CLASS_START = getClassStart(d, strMod, dexMod);
     let cData = CLASS_START[cls] ? { ...CLASS_START[cls] } : null;
 
     // Override with selected equipment package
