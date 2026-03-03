@@ -1291,10 +1291,28 @@ function populateWizardEquipment() {
     
     const selected = wizardData.selectedEquipPackage || packages[0].id;
     
+    // Weapon name → icon mapping
+    const wIco = (name) => {
+        const n = name.toLowerCase();
+        if (n.includes('schwert') || n.includes('rapier')) return 'sword';
+        if (n.includes('bogen') || n.includes('langbogen')) return 'bow';
+        if (n.includes('armbrust')) return 'crossbow';
+        if (n.includes('axt') || n.includes('handaxt')) return 'handaxe';
+        if (n.includes('großaxt') || n.includes('streitaxt')) return 'battleaxe';
+        if (n.includes('dolch')) return 'dagger';
+        if (n.includes('spieß') || n.includes('speer') || n.includes('wurfspeer')) return 'spear';
+        if (n.includes('stab') || n.includes('kampfstab')) return 'staff';
+        if (n.includes('kolben') || n.includes('streitkolben')) return 'mace';
+        if (n.includes('hammer')) return 'hammer';
+        if (n.includes('pfeil') || n.includes('wurf')) return 'arrow';
+        if (n.includes('schlag') || n.includes('unbewaffnet')) return 'strike';
+        return 'sword';
+    };
+    
     container.innerHTML = packages.map(pkg => {
         const isSel = pkg.id === selected;
         const weaponLines = pkg.weapons.map(w => 
-            `<div class="wizard-equip-weapon"><span class="weq-name">${w.name}</span><span class="weq-stats">${w.bonus} / ${w.damage}</span></div>`
+            `<div class="wizard-equip-weapon"><img src="/assets/icons/dnd/weapon/${wIco(w.name)}.svg" style="width:14px;height:14px;filter:brightness(0) invert(1);opacity:0.6;" onerror="this.style.display='none'"><span class="weq-name">${w.name}</span><span class="weq-stats">${w.bonus} / ${w.damage}</span></div>`
         ).join('');
         
         return `<div class="wizard-equip-package${isSel ? ' selected' : ''}" data-pkg="${pkg.id}" onclick="selectEquipPackage('${pkg.id}')">
@@ -1467,7 +1485,7 @@ function populateWizardSpells() {
             const name = lang === 'de' ? (SPELLS_DE[s.name] || s.name) : s.name;
             const sel = (wizardData.selectedSpells || []).includes(s.name) ? ' selected' : '';
             const concTag = s.conc ? ' <span style="color:#f59e0b;font-size:9px;">K</span>' : '';
-            const ritualTag = s.ritual ? ' <span style="color:#8b5cf6;font-size:9px;">R</span>' : '';
+            const ritualTag = s.ritual ? ' <span style="color:#d4a844;font-size:9px;">R</span>' : '';
             const dmgType = s.damage !== '—' ? (s.damage.split(' ')[1] || '') : '';
             const dmgColor = DAMAGE_FILTERS[dmgType] || '';
             const dmgIcon = dmgType ? `<img src="/assets/icons/damage/${dmgType}.svg" style="width:14px;height:14px;${dmgColor ? 'filter:' + dmgColor : 'filter:brightness(0) invert(1);opacity:0.5;'}" onerror="this.style.display='none'">` : '';
