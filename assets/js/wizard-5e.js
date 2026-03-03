@@ -2472,12 +2472,38 @@ function applyWizardData() {
         // Currency
         S.currency = { pp: 0, gp: totalGold, ep: 0, sp: 0, cp: 0 };
 
-        // Inventory from equipment text
+        // Inventory from equipment
         S.inventory = [];
         // Add weapons to inventory
         S.weapons.forEach(w => {
-            S.inventory.push({ name: w.name, cat: 'weapon', qty: 1, wt: 3, equipped: true });
+            const qty = w.name.match(/\(×(\d+)\)/);
+            S.inventory.push({ name: w.name.replace(/\s*\(×\d+\)/, ''), cat: 'weapon', qty: qty ? parseInt(qty[1]) : 1, wt: 3, equipped: true });
         });
+        // Add armor to inventory
+        const armorWt = {'Kettenhemd':55,'Schuppenpanzer':45,'Lederrüstung':10,'Beschlagenes Leder':13,'Kettenrüstung':40,'Plattenrüstung':65};
+        const armorStr = cData.startArmor || cData.equipment || '';
+        Object.keys(armorWt).forEach(a => {
+            if (armorStr.includes(a) || (equipText && equipText.includes(a))) {
+                S.inventory.push({ name: a, cat: 'armor', qty: 1, wt: armorWt[a], equipped: true });
+            }
+        });
+        if (cData.shield === '+2' || armorStr.includes('Schild')) {
+            S.inventory.push({ name: 'Schild', cat: 'armor', qty: 1, wt: 6, equipped: true });
+        }
+        // Standard gear from equipment text
+        const gearMap = {'Fackel':{wt:1,qty:5},'Seil (50 ft)':{wt:10,qty:1},'Rationen':{wt:2,qty:8},'Heiltrank':{wt:.5,qty:2},'Bolzen':{wt:1,qty:1},'Pfeile':{wt:1,qty:1}};
+        Object.keys(gearMap).forEach(g => {
+            if (equipText && equipText.toLowerCase().includes(g.toLowerCase())) {
+                S.inventory.push({ name: g, cat: 'gear', qty: gearMap[g].qty, wt: gearMap[g].wt, equipped: false });
+            }
+        });
+        // Add tool proficiencies as items
+        if (toolsText && toolsText !== '\u2014') {
+            toolsText.split(',').forEach(t => {
+                t = t.trim();
+                if (t && t !== '\u2014') S.inventory.push({ name: t, cat: 'gear', qty: 1, wt: 8, equipped: false });
+            });
+        }
     }
 
     // ===== ALIGNMENT =====
@@ -2561,14 +2587,51 @@ function applyWizardData() {
         S.portrait = d.portraitData;
     }
 
-    // ===== ACTIONS (from class resources) =====
+    // ===== ACTIONS (class-specific) =====
     S.actions = [];
-    // Basic attack action placeholder
-    if (S.weapons.length > 0) {
-        const w = S.weapons[0];
-        S.actions.push({
-            name: w.name + ' Angriff', sub: 'Angriff', type: 'action',
-            uses: null, roll: '+' + w.ability, dmg: w.dmg, range: w.range, pinned: true
+    
+    // Standard actions every class gets
+    S.actions.push({
+        name:'Gelegenheitsangriff', sub:'Reaktion', type:'reaction',
+        uses:null, roll:'+str', dmg:S.weapons.length>0?S.weapons[0].dmg:'1W4', range:'5 ft', pinned:true
+    });
+    
+    // Class-specific actions
+    const classActions = {
+        'Barbarian': [
+            {name:'Wutausbruch',sub:'Klasse',type:'bonus',uses:{cur:2,max:2,rest:'long'},roll:'',dmg:'',range:'Selbst',pinned:true}
+        ],
+        'Bard': [
+            {name:'Bardische Inspiration',sub:'Bonusaktion',type:'bonus',uses:{cur:Math.max(1,chaMod),max:Math.max(1,chaMod),rest:'long'},roll:'',dmg:'1W6',range:'18 m',pinned:true}
+        ],
+        'Cleric': [],
+        'Druid': [],
+        'Fighter': [
+            {name:'Zweiter Wind',sub:'Kurze Rast',type:'bonus',uses:{cur:1,max:1,rest:'short'},roll:'',dmg:`1W10+${level}`,range:'Selbst',pinned:true},
+            {name:'Aktionsstoß',sub:'Lange Rast',type:'bonus',uses:{cur:level>=17?2:1,max:level>=17?2:1,rest:'long'},roll:'',dmg:'',range:'Selbst',pinned:level>=2}
+        ],
+        'Monk': [
+            {name:'Flurry of Blows',sub:'Ki',type:'bonus',uses:{cur:level,max:level,rest:'short'},roll:'',dmg:'2x 1W4+'+dexMod,range:'5 ft',pinned:true}
+        ],
+        'Paladin': [
+            {name:'Handauflegen',sub:'Lange Rast',type:'action',uses:{cur:level*5,max:level*5,rest:'long'},roll:'',dmg:'',range:'Berühr.',pinned:true},
+            {name:'Göttliches Niederstr.',sub:'Klasse',type:'action',uses:null,roll:'',dmg:'+2W8 Str.',range:'Nahkampf',pinned:true}
+        ],
+        'Ranger': [],
+        'Rogue': [
+            {name:'Hinterhältiger Angriff',sub:'1x/Zug',type:'action',uses:null,roll:'',dmg:`+${Math.ceil(level/2)}W6`,range:'5 ft/Fernk.',pinned:true}
+        ],
+        'Sorcerer': [],
+        'Warlock': [],
+        'Wizard': [],
+        'Artificer': []
+    };
+    
+    if (classActions[cls]) {
+        classActions[cls].forEach(a => {
+            // Only add level-appropriate actions
+            if (a.name === 'Aktionsstoß' && level < 2) return;
+            S.actions.push(a);
         });
     }
 
@@ -2594,6 +2657,11 @@ function checkAutoOpenWizard() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('new') === 'true') {
         setTimeout(openWizard, 500);
+        return;
+    }
+    // Auto-open if character is blank (empty defaultState)
+    if (typeof S !== 'undefined' && (!S.name || S.name === '') && (!S.class1 || S.class1 === '')) {
+        setTimeout(openWizard, 600);
     }
 }
 

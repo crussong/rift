@@ -46,33 +46,75 @@ function defaultState(){return{
 // ═══════════════════════════════════════════════════════
 // SVG ICONS (no emojis!)
 // ═══════════════════════════════════════════════════════
-const ICO={
-    sword:'<svg viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>',
-    bow:'<svg viewBox="0 0 24 24"><path d="M18 2c-2 0-8 1-11 4L4 9l6 1 1 6 3-3c3-3 4-9 4-11z"/><path d="M2 22l6-6"/><path d="M8 16l-2 2"/></svg>',
-    axe:'<svg viewBox="0 0 24 24"><path d="M14 12l-8.5 8.5a2.12 2.12 0 01-3-3L11 9"/><path d="M15 13L9 7l4-4 6 6-4 4z"/></svg>',
-    shield:'<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
-    bolt:'<svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
-    heart:'<svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
-    flame:'<svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14 0-5.5 3-7.5.5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 01-14 0c0-1.15.5-2.5 1.5-3"/></svg>',
-    rope:'<svg viewBox="0 0 24 24"><path d="M8 6h10M8 12h8M8 18h6"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
-    food:'<svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
-    tool:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>',
-    potion:'<svg viewBox="0 0 24 24"><path d="M10 2v6.29L6 14a6 6 0 006 6 6 6 0 006-6l-4-5.71V2"/><line x1="8.5" y1="2" x2="15.5" y2="2"/></svg>',
-    star:'<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>',
-    zap:'<svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>',
-    target:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
-    refresh:'<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>',
-};
-function ico(name,cls){return `<span class="ico ${cls||''}">${ICO[name]||ICO.star}</span>`}
-function actionIcon(item){
-    if(item.type==='melee'||item.sub?.includes('Nahkampf'))return ico('sword');
-    if(item.type==='ranged'||item.sub?.includes('Fernkampf'))return ico('bow');
-    if(item.name?.includes('Wind')||item.name?.includes('Heil'))return ico('heart');
-    if(item.name?.includes('stoß')||item.name?.includes('Blitz'))return ico('bolt');
-    if(item.name?.includes('Gelegenheit'))return ico('sword');
-    return ico('zap');
+const ICO_BASE = '/assets/icons/';
+const WEAPON_ICO = ICO_BASE + 'dnd/weapon/';
+const SPELL_ICO = ICO_BASE + 'spell/';
+const DAMAGE_ICO = ICO_BASE + 'damage/';
+const COMBAT_ICO = ICO_BASE + 'dnd/combat/';
+
+function ico(file, path, cls) {
+    path = path || WEAPON_ICO;
+    return `<span class="ico ${cls||''}"><img src="${path}${file}.svg" onerror="this.style.display='none'"></span>`;
 }
-function invIcon(cat){return cat==='weapon'?ico('sword'):cat==='armor'?ico('shield'):ico('tool')}
+
+// Map German weapon names to icon filenames
+function weaponIco(name) {
+    if (!name) return ico('sword');
+    const n = name.toLowerCase();
+    if (n.includes('rapier')) return ico('rapier');
+    if (n.includes('großaxt') || n.includes('streitaxt')) return ico('battleaxe');
+    if (n.includes('handaxt')) return ico('handaxe');
+    if (n.includes('armbrust')) return ico('crossbow');
+    if (n.includes('langbogen') || n.includes('kurzbogen') || n.includes('bogen')) return ico('bow');
+    if (n.includes('langschwert') || n.includes('kurzschwert') || n.includes('schwert')) return ico('sword');
+    if (n.includes('dolch')) return ico('dagger');
+    if (n.includes('speer') || n.includes('spieß') || n.includes('wurfspeer')) return ico('spear');
+    if (n.includes('kampfstab') || n.includes('stab')) return ico('staff');
+    if (n.includes('streitkolben') || n.includes('kolben')) return ico('mace');
+    if (n.includes('hammer') || n.includes('kriegshammer')) return ico('hammer');
+    if (n.includes('morgenstern')) return ico('morningstar');
+    if (n.includes('hellebarde')) return ico('halberd');
+    if (n.includes('glefe')) return ico('glaive');
+    if (n.includes('lanze')) return ico('lance');
+    if (n.includes('dreizack')) return ico('trident');
+    if (n.includes('peitsche')) return ico('whip');
+    if (n.includes('flegel')) return ico('flail');
+    if (n.includes('keule')) return ico('club');
+    if (n.includes('sichel')) return ico('sickle');
+    if (n.includes('schleuder')) return ico('sling');
+    if (n.includes('schlag') || n.includes('unbewaffnet')) return ico('strike');
+    if (n.includes('pfeil') || n.includes('wurf')) return ico('arrow');
+    return ico('sword');
+}
+
+function actionIcon(item) {
+    if (item.type === 'melee' || item.sub?.includes('Nahkampf')) return ico('melee', COMBAT_ICO);
+    if (item.type === 'ranged' || item.sub?.includes('Fernkampf')) return ico('ranged', COMBAT_ICO);
+    if (item.name?.includes('Wind') || item.name?.includes('Heil')) return ico('bonus-action', COMBAT_ICO);
+    if (item.name?.includes('stoß') || item.name?.includes('Blitz')) return ico('action', COMBAT_ICO);
+    if (item.name?.includes('Gelegenheit')) return ico('reaction', COMBAT_ICO);
+    return ico('action', COMBAT_ICO);
+}
+
+// Spell school → icon file (German abbreviation → English filename)
+const SCHOOL_MAP = {
+    'Abj.':'abjuration','Erkund.':'divination','Hervorruf.':'evocation',
+    'Illusion':'illusion','Nekro.':'necromancy','Verwandl.':'transmutation',
+    'Verzaub.':'enchantment','Beschw.':'conjuration',
+    'Abjuration':'abjuration','Divination':'divination','Evocation':'evocation',
+    'Necromancy':'necromancy','Transmutation':'transmutation',
+    'Enchantment':'enchantment','Conjuration':'conjuration','Illusion':'illusion'
+};
+function spellSchoolIco(school) {
+    const file = SCHOOL_MAP[school] || school?.toLowerCase() || 'evocation';
+    return `<img src="${SPELL_ICO}${file}.svg" class="spell-school-ico" onerror="this.style.display='none'">`;
+}
+
+function invIcon(cat) {
+    if (cat === 'weapon') return ico('sword');
+    if (cat === 'armor') return `<span class="ico"><img src="${ICO_BASE}dnd/hp/shield.svg" onerror="this.src='${WEAPON_ICO}sword.svg'"></span>`;
+    return `<span class="ico"><img src="${ICO_BASE}dnd/util/gear.svg" onerror="this.style.display='none'"></span>`;
+}
 
 let S=defaultState();
 // CALCULATIONS
@@ -254,7 +296,7 @@ function renderActions(){
     S.weapons.forEach(w=>{
         let aMod=C.mods[w.ability]||0;
         let atk=aMod+C.profBonus;
-        groups.action.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.props,iconHtml:w.type==='melee'?ico('sword'):ico('bow'),roll:fmt(atk),dmg:w.dmg+fmt(aMod),range:w.range,uses:null,pinned:w.pinned,atkMod:atk,dmgStr:w.dmg+'+'+aMod});
+        groups.action.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.props,iconHtml:weaponIco(w.name),roll:fmt(atk),dmg:w.dmg+fmt(aMod),range:w.range,uses:null,pinned:w.pinned,atkMod:atk,dmgStr:w.dmg+'+'+aMod});
     });
     S.actions.forEach(a=>{
         let g=groups[a.type]||groups.other;
@@ -288,7 +330,7 @@ function renderQA(){
     S.weapons.forEach(w=>{
         if(!w.pinned)return;
         let atk=C.mods[w.ability]+C.profBonus;
-        pinned.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.range,val:fmt(atk),iconHtml:w.type==='melee'?ico('sword'):ico('bow'),mod:atk,label:w.name});
+        pinned.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.range,val:fmt(atk),iconHtml:weaponIco(w.name),mod:atk,label:w.name});
     });
     S.actions.forEach(a=>{
         if(!a.pinned)return;
@@ -383,7 +425,7 @@ function renderInventory(){
     let body='';let lastCat='';
     let catLabels={weapon:'Waffen',armor:'Rüstung',gear:'Ausrüstung'};
     let catColors={weapon:'var(--red)',armor:'var(--blu)',gear:'#d4860e'};
-    let catIcons={weapon:ico('sword'),armor:ico('shield'),gear:ico('tool')};
+    let catIcons={armor:invIcon('armor'),gear:invIcon('gear')};
     ['weapon','armor','gear'].forEach(cat=>{
         let items=S.inventory.filter(it=>it.cat===cat);
         if(!items.length)return;
@@ -391,7 +433,8 @@ function renderInventory(){
         items.forEach((it,idx)=>{
             let gi=S.inventory.indexOf(it);
             let wt=it.qty*it.wt;totalWt+=wt;
-            body+=`<tr><td>${it.equipped?'<span class="eq">'+catIcons[cat]+'</span>':catIcons[cat]}</td>
+            let icon=cat==='weapon'?weaponIco(it.name):catIcons[cat];
+            body+=`<tr><td>${it.equipped?'<span class="eq">'+icon+'</span>':icon}</td>
                 <td style="text-align:left" class="${it.equipped?'eq':''}"><input class="e" value="${it.name}" onchange="S.inventory[${gi}].name=this.value;save()" style="font-weight:${it.equipped?700:400}"></td>
                 <td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:30px"></td>
                 <td>${(wt).toFixed(wt%1?1:0)} lb</td>
@@ -452,7 +495,7 @@ function renderSpells(){
             let tags='';
             if(sp.conc)tags+='<span class="conc" title="Konzentration">K</span>';
             if(sp.ritual)tags+='<span class="rit" title="Ritual">R</span>';
-            spH+=`<div class="spr" onclick="toggleSpellNote(${gi})"><div class="spc ${sp.prepared?'on':''}" onclick="event.stopPropagation();S.spells[${gi}].prepared=!S.spells[${gi}].prepared;renderSpells();save()"></div><div class="spsch">${sp.school}</div><div class="spn">${sp.name}</div><div class="spco">${sp.comp}</div><div class="spinf">${sp.info}${tags}</div><span style="cursor:pointer;color:var(--t4);font-size:10px;margin-left:4px" onclick="event.stopPropagation();S.spells.splice(${gi},1);renderSpells();save()">&#10005;</span></div>`;
+            spH+=`<div class="spr" onclick="toggleSpellNote(${gi})"><div class="spc ${sp.prepared?'on':''}" onclick="event.stopPropagation();S.spells[${gi}].prepared=!S.spells[${gi}].prepared;renderSpells();save()"></div><div class="spsch">${spellSchoolIco(sp.school)}</div><div class="spn">${sp.name}</div><div class="spco">${sp.comp}</div><div class="spinf">${sp.info}${tags}</div><span style="cursor:pointer;color:var(--t4);font-size:10px;margin-left:4px" onclick="event.stopPropagation();S.spells.splice(${gi},1);renderSpells();save()">&#10005;</span></div>`;
             spH+=`<div class="sp-note ${sp._noteOpen?'vis':''}" id="spNote${gi}"><input class="e" value="${sp.notes||''}" placeholder="Notizen..." onclick="event.stopPropagation()" onchange="S.spells[${gi}].notes=this.value;save()"></div>`;
         });
     });
