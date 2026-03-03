@@ -330,7 +330,7 @@ const HeaderController = {
             { cat: 'Seiten', name: 'Sessions', url: 'sessions.html', icon: '📅' },
             { cat: 'Seiten', name: 'Charaktere', url: 'sheet.html', icon: '👤' },
             { cat: 'Seiten', name: 'Einstellungen', url: 'user-settings.html', icon: '⚙️' },
-            { cat: 'Regelwerke', name: 'D&D 5e (2024)', url: 'sheet-dnd5e.html', icon: '📕' },
+            { cat: 'Regelwerke', name: 'D&D 5e (2024)', url: '/sheet/5e', icon: '📕' },
             { cat: 'Regelwerke', name: 'Worlds Apart', url: 'sheet-worldsapart.html', icon: '📗' },
             { cat: 'Regelwerke', name: 'Cyberpunk Red', url: 'sheet-cyberpunk.html', icon: '📘' },
             { cat: 'Regelwerke', name: 'How To Be A Hero', url: 'sheet-htbah.html', icon: '📙' },

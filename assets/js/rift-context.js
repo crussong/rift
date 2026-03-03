@@ -20,7 +20,7 @@
     
     const RULESET_INFO = {
         'worldsapart': { name: 'Worlds Apart', icon: 'ruleset_worldsapart.svg', sheet: '/sheet/worldsapart' },
-        'dnd5e':       { name: 'D&D 5e',      icon: 'ruleset_5e_2024.svg',     sheet: '/sheet/5e-de' },
+        'dnd5e':       { name: 'D&D 5e',      icon: 'ruleset_5e_2024.svg',     sheet: '/sheet/5e' },
         'htbah':       { name: 'How To Be A Hero', icon: 'ruleset_htbah.svg',   sheet: '/sheet/htbah' },
         'cyberpunkred':{ name: 'Cyberpunk RED', icon: 'ruleset_cyberpunkred.svg', sheet: '/sheet/cyberpunk' }
     };

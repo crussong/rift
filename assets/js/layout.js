@@ -1891,8 +1891,8 @@ window.RIFTFab = {
         // Map system to sheet file
         const sheetMap = {
             '5e': '/sheet/5e',
-            '5e-de': '/sheet/5e-de',
-            '5e-en': '/sheet/5e-en',
+            '5e-de': '/sheet/5e',
+            '5e-en': '/sheet/5e',
             '5e2024': '/sheet/5e',
             'worldsapart': '/sheet/worldsapart',
             'htbah': '/sheet/htbah',
