@@ -16,79 +16,27 @@ const CONDITIONS=['Betäubt','Blind','Bezaubert','Erschöpft','Festgesetzt','Gel
 const XP_TABLE=[0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000,999999];
 
 function defaultState(){return{
-    name:'Neuer Charakter',level:1,species:'Mensch',class1:'Kämpfer',subclass:'',background:'',alignment:'',size:'Mittel',speed:30,
-    classes:[{name:'Kämpfer',subclass:'',level:1,hitDie:10,hdUsed:0}],
+    name:'',level:1,species:'',class1:'',subclass:'',background:'',alignment:'',size:'Mittel',speed:30,
+    classes:[{name:'',subclass:'',level:1,hitDie:10,hdUsed:0}],
     abilities:{str:10,dex:10,con:10,int:10,wis:10,cha:10},
     saveProficiencies:{str:false,dex:false,con:false,int:false,wis:false,cha:false},
     skillProficiencies:{},skillExpertise:{},
     hp:{cur:10,max:10,temp:0},ac:10,hitDice:{type:10,used:0},
     inspiration:false,deathSaves:[0,0,0,0,0,0],exhaustion:0,xp:0,
-    spellAbility:'int',spellSlots:{1:{max:0,used:0},2:{max:0,used:0},3:{max:0,used:0},4:{max:0,used:0},5:{max:0,used:0},6:{max:0,used:0},7:{max:0,used:0},8:{max:0,used:0},9:{max:0,used:0}},
+    spellAbility:'',spellSlots:{1:{max:0,used:0},2:{max:0,used:0},3:{max:0,used:0},4:{max:0,used:0},5:{max:0,used:0},6:{max:0,used:0},7:{max:0,used:0},8:{max:0,used:0},9:{max:0,used:0}},
     pactSlots:{max:0,used:0},concentrationSpell:'',
     conditions:{},attunement:[false,false,false],
-    weapons:[
-        {name:'Langschwert',type:'melee',ability:'str',dmg:'1W8',dmgType:'Hieb',props:'Vielseitig',range:'5 ft',pinned:true},
-        {name:'Langbogen',type:'ranged',ability:'dex',dmg:'1W8',dmgType:'Stich',props:'Munition',range:'150/600',pinned:true}
-    ],
-    actions:[
-        {name:'Entwaffnen',sub:'Kampfmanöver',type:'action',uses:{cur:4,max:4,rest:'short'},roll:'+str',dmg:'+1W8',range:'5 ft',pinned:true},
-        {name:'Ausweichen',sub:'Kampfmanöver',type:'action',uses:{cur:4,max:4,rest:'short'},roll:'',dmg:'+1W8 RK',range:'Selbst',pinned:false},
-        {name:'Zusätzl. Angriff',sub:'Klasse',type:'action',uses:null,roll:'',dmg:'',range:'',pinned:false},
-        {name:'Zweiter Wind',sub:'Kurze Rast',type:'bonus',uses:{cur:1,max:1,rest:'short'},roll:'',dmg:'1W10+5',range:'Selbst',pinned:true},
-        {name:'Aktionsstoß',sub:'Lange Rast',type:'bonus',uses:{cur:1,max:1,rest:'long'},roll:'',dmg:'',range:'Selbst',pinned:true},
-        {name:'Gelegenheitsangriff',sub:'Reaktion',type:'reaction',uses:null,roll:'+str',dmg:'1W8',range:'5 ft',pinned:true}
-    ],
-    spells:[
-        {name:'Feuerstoß',level:0,school:'Hervorruf.',comp:'V, G',info:'60 ft · 2W10',prepared:true,conc:false},
-        {name:'Licht',level:0,school:'Erkund.',comp:'V, M',info:'Berühr. · 1 Std',prepared:true,conc:false},
-        {name:'Widerstand',level:0,school:'Abj.',comp:'V, G, M',info:'Berühr.',prepared:true,conc:true},
-        {name:'Brennende Hände',level:1,school:'Hervorruf.',comp:'V, G',info:'15 ft · 3W6',prepared:true,conc:false},
-        {name:'Magisches Geschoss',level:1,school:'Hervorruf.',comp:'V, G',info:'120 ft · 3×1W4+1',prepared:true,conc:false},
-        {name:'Schild',level:1,school:'Abj.',comp:'V, G',info:'Selbst · +5 RK',prepared:true,conc:false},
-        {name:'Federfall',level:1,school:'Verwandl.',comp:'V, M',info:'60 ft · 1 Min',prepared:false,conc:false},
-        {name:'Identifizieren',level:1,school:'Erkund.',comp:'V, G, M',info:'Berühr. · 1 Min',prepared:false,conc:false,ritual:true,notes:'Kost. Komponente: 100 GM Perle'},
-        {name:'Flammenkugel',level:2,school:'Hervorruf.',comp:'V, G, M',info:'60 ft · 2W6',prepared:true,conc:true},
-        {name:'Unsichtbarkeit',level:2,school:'Illusion',comp:'V, G, M',info:'Berühr.',prepared:true,conc:true},
-        {name:'Feuerball',level:3,school:'Hervorruf.',comp:'V, G, M',info:'150 ft · 8W6',prepared:true,conc:false}
-    ],
-    inventory:[
-        {name:'Langschwert',cat:'weapon',qty:1,wt:3,equipped:true},
-        {name:'Langbogen',cat:'weapon',qty:1,wt:2,equipped:false},
-        {name:'Handaxt',cat:'weapon',qty:2,wt:2,equipped:false},
-        {name:'Kettenhemd',cat:'armor',qty:1,wt:55,equipped:true},
-        {name:'Schild',cat:'armor',qty:1,wt:6,equipped:true},
-        {name:'Fackel',cat:'gear',qty:5,wt:1,equipped:false},
-        {name:'Seil (50 ft)',cat:'gear',qty:1,wt:10,equipped:false},
-        {name:'Rationen',cat:'gear',qty:8,wt:2,equipped:false},
-        {name:'Schmiedewerkzeug',cat:'gear',qty:1,wt:8,equipped:false},
-        {name:'Heiltrank',cat:'gear',qty:2,wt:.5,equipped:false}
-    ],
-    currency:{pp:0,gp:15,ep:0,sp:8,cp:23},
-    features:{
-        class:[
-            {name:'Kampfstil: Verteidigung',src:'Kämpfer 1',desc:'+1 RK solange du Rüstung trägst.',uses:null},
-            {name:'Zweiter Wind',src:'Kämpfer 1',desc:'Bonusaktion: 1W10+5 HP regenerieren. Kurze Rast.',uses:{cur:1,max:1}},
-            {name:'Aktionsstoß',src:'Kämpfer 2',desc:'Zusätzliche Aktion in deinem Zug. Lange Rast.',uses:{cur:1,max:1}},
-            {name:'Kampfüberlegenheit',src:'Kämpfer 3',desc:'4 Überlegenheitswürfel (W8): Entwaffnen, Ausweichen, Riposte.',uses:{cur:4,max:4}},
-            {name:'Zusätzlicher Angriff',src:'Kämpfer 5',desc:'Zweimal angreifen bei Angriffsaktion.',uses:null},
-            {name:'Unbeugsam',src:'Kämpfer 5',desc:'Gescheiterten Rettungswurf wiederholen. Lange Rast.',uses:{cur:1,max:1}}
-        ],
-        species:[
-            {name:'Dunkelsicht',desc:'Schwaches Licht innerhalb 60 ft wie helles Licht.'},
-            {name:'Zwergenresilienz',desc:'Vorteil gegen Gift, Resistenz gegen Giftschaden.'},
-            {name:'Zwergenrüstung',desc:'Übung mit leichter und mittlerer Rüstung.'}
-        ],
-        feats:[]
-    },
-    senses:{darkvision:'60 ft',resistances:'Gift',immunities:'',vulnerabilities:''},
-    props:{armor:'Leichte, Mittlere, Schwere, Schilde',weapons:'Einfache Waffen, Kriegswaffen',tools:'Schmiedewerkzeug'},
-    languages:'Gemeinsprache, Zwergisch',
+    weapons:[],
+    actions:[],
+    spells:[],
+    inventory:[],
+    currency:{pp:0,gp:0,ep:0,sp:0,cp:0},
+    features:{class:[],species:[],feats:[]},
+    senses:{darkvision:'',resistances:'',immunities:'',vulnerabilities:''},
+    props:{armor:'',weapons:'',tools:''},
+    languages:'',
     movement:{walk:30,fly:0,swim:0,climb:0,burrow:0},
-    resources:[
-        {name:'Überlegenheitswürfel',cur:4,max:4,rest:'short',color:'#e0a030'},
-        {name:'Zweiter Wind',cur:1,max:1,rest:'short',color:'#40b050'},
-        {name:'Aktionsstoß',cur:1,max:1,rest:'long',color:'#4090e0'}
-    ],
+    resources:[],
     bio:{personality:'',ideals:'',bonds:'',flaws:'',backstory:'',appearance:'',notes:''},
     portrait:'',
     headerBg:'',
