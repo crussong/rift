@@ -885,12 +885,36 @@ function save() {
         }, 200);
     }
 
-    // Always save to CharacterStorage as cache/fallback
-    if (_charId && typeof CharacterStorage !== 'undefined') {
-        try { CharacterStorage.save(_charId, 'dnd5e', S); } catch (e) {}
+    // Save to CharacterStorage (correct object format)
+    if (typeof CharacterStorage !== 'undefined') {
+        try {
+            const charObj = {
+                id: _charId || null,
+                ruleset: 'dnd5e',
+                name: S.name || 'Unbenannt',
+                level: S.level || 1,
+                portrait: S.portrait || '',
+                data: JSON.parse(JSON.stringify(S))
+            };
+            const saved = CharacterStorage.save(charObj);
+            if (saved && saved.id) {
+                if (!_charId || _charId !== saved.id) {
+                    _charId = saved.id;
+                    console.log('[5e] CharacterStorage assigned new ID:', _charId);
+                }
+                // Update URL to reflect charId (remove ?new=true)
+                const url = new URL(window.location);
+                if (url.searchParams.get('new') || !url.searchParams.get('id') || url.searchParams.get('id') !== _charId) {
+                    url.searchParams.delete('new');
+                    url.searchParams.set('id', _charId);
+                    if (_roomCode) url.searchParams.set('room', _roomCode);
+                    window.history.replaceState({}, '', url.pathname + url.search);
+                }
+            }
+        } catch (e) { console.warn('[5e] CharacterStorage save error:', e); }
     }
 
-    // Also localStorage as final fallback
+    // localStorage as final fallback
     try { localStorage.setItem('rift-5e', JSON.stringify(S)); } catch (e) {}
 }
 
@@ -907,7 +931,7 @@ function load() {
     _roomCode = paramRoom || localStorage.getItem('rift_current_room');
     if (_roomCode) _roomCode = _roomCode.replace(/-/g, '').toUpperCase();
 
-    // New character: use defaults
+    // New character: use defaults, generate ID, update URL
     if (isNew || !_charId) {
         S = defaultState();
         if (!_charId) {
@@ -916,6 +940,7 @@ function load() {
         }
         migrateState();
         applyPortrait();
+        // Don't update URL here — save() will do it after first save
         return;
     }
 
@@ -923,14 +948,15 @@ function load() {
     if (typeof CharacterStorage !== 'undefined') {
         try {
             const stored = CharacterStorage.getById(_charId);
-            if (stored && stored.data) {
-                S = stored.data;
+            if (stored) {
+                // CharacterStorage wraps state in .data
+                S = stored.data || stored;
                 migrateState();
                 applyPortrait();
                 console.log('[5e] Loaded from CharacterStorage:', _charId);
                 return;
             }
-        } catch (e) {}
+        } catch (e) { console.warn('[5e] CharacterStorage load error:', e); }
     }
 
     // Fallback: localStorage
@@ -1027,6 +1053,7 @@ function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.c
 // ═══════════════════════════════════════════════════════
 function initSheet() {
     load();
+    calc();
     render();
     initRiftLink();
     console.log('[5e] Sheet initialized', _charId ? '(char: ' + _charId + ')' : '(new)');
