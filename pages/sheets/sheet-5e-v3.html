@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<!-- RIFT D&D 5e Charakterbogen v3 -->
+<html lang="de">
+<head>
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/icon_rift_r.svg">
+    <base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>RIFT – D&D 5e Charakterbogen</title>
+    
+    <!-- RIFT Layout -->
+    <link rel="stylesheet" href="/assets/css/sheet-layout.css">
+    <link rel="stylesheet" href="/assets/css/core.css">
+    <link rel="stylesheet" href="/assets/css/ui.css">
+    <link rel="stylesheet" href="/assets/css/dock.css">
+    <link rel="stylesheet" href="/assets/css/settings.css">
+    
+    <!-- Sheet v3 -->
+    <link rel="stylesheet" href="/assets/css/sheet-5e-v3.css?v=1">
+    
+    <!-- External -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+    <!-- Auth Guard -->
+    <style>
+        body:not(.auth-ready) .app { opacity: 0; pointer-events: none; }
+        body:not(.auth-ready) .s5v3 { opacity: 0; pointer-events: none; }
+        body.auth-ready .app { opacity: 1; transition: opacity 0.15s ease; }
+        body.auth-ready .s5v3 { opacity: 1; transition: opacity 0.15s ease; }
+    </style>
+</head>
+<body>
+    <!-- Unified Layout Placeholders -->
+    <div id="topnav-placeholder"></div>
+    <div id="meganav-placeholder"></div>
+    
+    <div class="app">
+        <main class="main main--hub">
+            <div class="main__content">
+                <!-- v3 Sheet Scope -->
+                <div class="s5v3">
+    <div class="wizard-overlay" id="wizardModal">
+        <div class="wizard-modal">
+            <!-- Wizard Tooltip -->
+            <div class="wizard-tooltip" id="wizardTooltip">
+                <div class="wizard-tooltip-title" id="wizardTooltipTitle"></div>
+                <div class="wizard-tooltip-text" id="wizardTooltipText"></div>
+                <div class="wizard-tooltip-detail" id="wizardTooltipDetail"></div>
+            </div>
+            <div class="wizard-header">
+                <button class="wizard-close" onclick="closeWizard()" title="Charakterbogen selbst erstellen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                <h2 id="wizardTitle">Erstelle deinen Charakter</h2>
+                <div class="wizard-progress">
+                    <div class="wizard-progress-step active" data-step="1"></div>
+                    <div class="wizard-progress-step" data-step="2"></div>
+                    <div class="wizard-progress-step" data-step="3"></div>
+                    <div class="wizard-progress-step" data-step="4"></div>
+                    <div class="wizard-progress-step" data-step="5"></div>
+                    <div class="wizard-progress-step" data-step="6"></div>
+                    <div class="wizard-progress-step" data-step="7"></div>
+                    <div class="wizard-progress-step" data-step="8"></div>
+                    <div class="wizard-progress-step" data-step="9"></div>
+                    <div class="wizard-progress-step" data-step="10"></div>
+                    <div class="wizard-progress-step" data-step="11"></div>
+                    <div class="wizard-progress-step" data-step="12"></div>
+                    <div class="wizard-progress-step" data-step="13"></div>
+                </div>
+                <div class="wizard-progress-trail" id="wizardTrail"></div>
+            </div>
+            <div class="wizard-body">
+                <!-- Step 1: Name & Basics -->
+                <div class="wizard-step active" data-step="1">
+                    <h3>Wer ist dein Charakter?</h3>
+                    <p>Jeder Held braucht einen Namen. Wie soll dein Charakter heißen?</p>
+                    <div class="wizard-input-group">
+                        <label>Charaktername</label>
+                        <input type="text" id="wizardName" placeholder="Charaktername eingeben..." oninput="updateWizardNamePreview()">
+                    </div>
+                    <div class="wizard-input-group">
+                        <label>Stufe (1-20)</label>
+                        <input type="number" id="wizardLevel" value="1" min="1" max="20">
+                    </div>
+                    <div class="wizard-name-preview empty" id="wizardNamePreview">
+                        <div class="wizard-name-preview-name" id="wizardNamePreviewText">...</div>
+                        <div class="wizard-name-preview-sub">Abenteurer</div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Species -->
+                <div class="wizard-step" data-step="2">
+                    <h3>Wähle deine Spezies</h3>
+                    <p>Deine Spezies bestimmt deine körperlichen Merkmale und einige Fähigkeiten.</p>
+                    <div class="wizard-options" id="wizardSpeciesOptions">
+                        <div class="wizard-option" data-value="Human" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/human.svg" alt="Mensch"></div>
+                            <div class="wizard-option-name">Mensch</div>
+                            <div class="wizard-option-desc">Vielseitig & anpassungsfähig</div>
+                        </div>
+                        <div class="wizard-option" data-value="Elf" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/elf.svg" alt="Elf"></div>
+                            <div class="wizard-option-name">Elf</div>
+                            <div class="wizard-option-desc">Anmutig & aufmerksam</div>
+                        </div>
+                        <div class="wizard-option" data-value="Dwarf" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/dwarf.svg" alt="Zwerg"></div>
+                            <div class="wizard-option-name">Zwerg</div>
+                            <div class="wizard-option-desc">Zäh & widerstandsfähig</div>
+                        </div>
+                        <div class="wizard-option" data-value="Halfling" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/halfling.svg" alt="Halbling"></div>
+                            <div class="wizard-option-name">Halbling</div>
+                            <div class="wizard-option-desc">Glücklich & flink</div>
+                        </div>
+                        <div class="wizard-option" data-value="Dragonborn" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/dragonborn.svg" alt="Drakonischblütiger"></div>
+                            <div class="wizard-option-name">Drakonischblütiger</div>
+                            <div class="wizard-option-desc">Stolz & mächtig</div>
+                        </div>
+                        <div class="wizard-option" data-value="Tiefling" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/tiefling.svg" alt="Tiefling"></div>
+                            <div class="wizard-option-name">Tiefling</div>
+                            <div class="wizard-option-desc">Charismatisch & teuflisch</div>
+                        </div>
+                        <div class="wizard-option" data-value="Gnome" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/gnome.svg" alt="Gnom"></div>
+                            <div class="wizard-option-name">Gnom</div>
+                            <div class="wizard-option-desc">Clever & erfinderisch</div>
+                        </div>
+                        <div class="wizard-option" data-value="Half-Elf" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/half-elf.svg" alt="Halbelf"></div>
+                            <div class="wizard-option-name">Halbelf</div>
+                            <div class="wizard-option-desc">Vielseitig & charismatisch</div>
+                        </div>
+                        <div class="wizard-option" data-value="Half-Orc" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/half-orc.svg" alt="Halbork"></div>
+                            <div class="wizard-option-name">Halbork</div>
+                            <div class="wizard-option-desc">Stark & wild</div>
+                        </div>
+                        <div class="wizard-option" data-value="Orc" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/orc.svg" alt="Ork"></div>
+                            <div class="wizard-option-name">Ork</div>
+                            <div class="wizard-option-desc">Stark & ausdauernd</div>
+                        </div>
+                        <div class="wizard-option" data-value="Aasimar" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/aasimar.svg" alt="Aasimar"></div>
+                            <div class="wizard-option-name">Aasimar</div>
+                            <div class="wizard-option-desc">Himmlisch & heilig</div>
+                        </div>
+                        <div class="wizard-option" data-value="Goliath" onclick="selectWizardOption(this, 'species')">
+                            <div class="wizard-option-icon"><img src="/assets/img/species/goliath.svg" alt="Goliath"></div>
+                            <div class="wizard-option-name">Goliath</div>
+                            <div class="wizard-option-desc">Riesig & unerschütterlich</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Class -->
+                <div class="wizard-step" data-step="3">
+                    <h3>Wähle deine Klasse</h3>
+                    <p>Deine Klasse definiert deine Fähigkeiten und Rolle in der Gruppe.</p>
+                    <div class="wizard-role-tabs" id="wizardRoleTabs">
+                        <div class="wizard-role-tab active" onclick="filterWizardClasses('all')">Alle</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('melee')">Nahkampf</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('magic')">Magie</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('support')">Support</div>
+                        <div class="wizard-role-tab" onclick="filterWizardClasses('hybrid')">Hybrid</div>
+                    </div>
+                    <div class="wizard-options" id="wizardClassOptions">
+                        <div class="wizard-option" data-value="Barbarian" data-role="melee" onclick="selectWizardOption(this, 'class')">
+                            <span class="wizard-badge-beginner">Einsteiger</span>
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/barbarian.svg" alt="Barbar"></div>
+                            <div class="wizard-option-name">Barbar</div>
+                            <div class="wizard-option-desc">Tobender Krieger</div>
+                        </div>
+                        <div class="wizard-option" data-value="Bard" data-role="support" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/bard.svg" alt="Barde"></div>
+                            <div class="wizard-option-name">Barde</div>
+                            <div class="wizard-option-desc">Musikalische Magie</div>
+                        </div>
+                        <div class="wizard-option" data-value="Cleric" data-role="support" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/cleric.svg" alt="Kleriker"></div>
+                            <div class="wizard-option-name">Kleriker</div>
+                            <div class="wizard-option-desc">Göttlicher Heiler</div>
+                        </div>
+                        <div class="wizard-option" data-value="Druid" data-role="hybrid" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/druid.svg" alt="Druide"></div>
+                            <div class="wizard-option-name">Druide</div>
+                            <div class="wizard-option-desc">Hüter der Natur</div>
+                        </div>
+                        <div class="wizard-option" data-value="Fighter" data-role="melee" onclick="selectWizardOption(this, 'class')">
+                            <span class="wizard-badge-beginner">Einsteiger</span>
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/fighter.svg" alt="Kämpfer"></div>
+                            <div class="wizard-option-name">Kämpfer</div>
+                            <div class="wizard-option-desc">Meister des Kampfes</div>
+                        </div>
+                        <div class="wizard-option" data-value="Monk" data-role="melee" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/monk.svg" alt="Mönch"></div>
+                            <div class="wizard-option-name">Mönch</div>
+                            <div class="wizard-option-desc">Kampfkünstler</div>
+                        </div>
+                        <div class="wizard-option" data-value="Paladin" data-role="hybrid" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/paladin.svg" alt="Paladin"></div>
+                            <div class="wizard-option-name">Paladin</div>
+                            <div class="wizard-option-desc">Heiliger Ritter</div>
+                        </div>
+                        <div class="wizard-option" data-value="Ranger" data-role="hybrid" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/ranger.svg" alt="Waldläufer"></div>
+                            <div class="wizard-option-name">Waldläufer</div>
+                            <div class="wizard-option-desc">Wildnis-Jäger</div>
+                        </div>
+                        <div class="wizard-option" data-value="Rogue" data-role="melee" onclick="selectWizardOption(this, 'class')">
+                            <span class="wizard-badge-beginner">Einsteiger</span>
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/rogue.svg" alt="Schurke"></div>
+                            <div class="wizard-option-name">Schurke</div>
+                            <div class="wizard-option-desc">Heimlich & geschickt</div>
+                        </div>
+                        <div class="wizard-option" data-value="Sorcerer" data-role="magic" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/sorcerer.svg" alt="Zauberer"></div>
+                            <div class="wizard-option-name">Zauberer</div>
+                            <div class="wizard-option-desc">Angeborene Magie</div>
+                        </div>
+                        <div class="wizard-option" data-value="Warlock" data-role="magic" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/warlock.svg" alt="Hexenmeister"></div>
+                            <div class="wizard-option-name">Hexenmeister</div>
+                            <div class="wizard-option-desc">Paktmagie</div>
+                        </div>
+                        <div class="wizard-option" data-value="Wizard" data-role="magic" onclick="selectWizardOption(this, 'class')">
+                            <div class="wizard-option-icon"><img src="/assets/icons/dnd/class/wizard.svg" alt="Magier"></div>
+                            <div class="wizard-option-name">Magier</div>
+                            <div class="wizard-option-desc">Arkaner Gelehrter</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Subclass Preview -->
+                <div class="wizard-step" data-step="4">
+                    <h3>Unterklasse — Vorschau</h3>
+                    <div id="wizardSubclassInfo"></div>
+                </div>
+
+                <!-- Step 5: Background -->
+                <div class="wizard-step" data-step="5">
+                    <h3>Wähle deinen Hintergrund</h3>
+                    <p>Was hat dein Charakter getan, bevor er ein Abenteurer wurde?</p>
+                    <div class="wizard-options" id="wizardBackgroundOptions">
+                        <div class="wizard-option" data-value="Acolyte" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/acolyte.svg" alt="Akolyt"></div>
+                            <div class="wizard-option-name">Akolyt</div>
+                            <div class="wizard-option-desc">Tempeldiener</div>
+                        </div>
+                        <div class="wizard-option" data-value="Criminal" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/criminal.svg" alt="Krimineller"></div>
+                            <div class="wizard-option-name">Krimineller</div>
+                            <div class="wizard-option-desc">Zwielichtige Vergangenheit</div>
+                        </div>
+                        <div class="wizard-option" data-value="Entertainer" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/entertainer.svg" alt="Unterhalter"></div>
+                            <div class="wizard-option-name">Unterhalter</div>
+                            <div class="wizard-option-desc">Darsteller & Künstler</div>
+                        </div>
+                        <div class="wizard-option" data-value="Folk Hero" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/folk_hero.svg" alt="Volksheld"></div>
+                            <div class="wizard-option-name">Volksheld</div>
+                            <div class="wizard-option-desc">Held des Volkes</div>
+                        </div>
+                        <div class="wizard-option" data-value="Hermit" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/hermit.svg" alt="Einsiedler"></div>
+                            <div class="wizard-option-name">Einsiedler</div>
+                            <div class="wizard-option-desc">Einsiedlerischer Sucher</div>
+                        </div>
+                        <div class="wizard-option" data-value="Noble" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/noble.svg" alt="Adliger"></div>
+                            <div class="wizard-option-name">Adliger</div>
+                            <div class="wizard-option-desc">Wohlhabend & privilegiert</div>
+                        </div>
+                        <div class="wizard-option" data-value="Sage" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/sage.svg" alt="Gelehrter"></div>
+                            <div class="wizard-option-name">Gelehrter</div>
+                            <div class="wizard-option-desc">Gelehrter & Forscher</div>
+                        </div>
+                        <div class="wizard-option" data-value="Soldier" onclick="selectWizardOption(this, 'background')">
+                            <div class="wizard-option-icon"><img src="/assets/img/background/fighter.svg" alt="Soldat"></div>
+                            <div class="wizard-option-name">Soldat</div>
+                            <div class="wizard-option-desc">Militärische Ausbildung</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Alignment -->
+                <div class="wizard-step" data-step="6">
+                    <h3>Gesinnung</h3>
+                    <p>Wie steht dein Charakter zu Gesetz und Moral?</p>
+                    <div class="wizard-align-grid" id="wizardAlignGrid">
+                        <div class="wizard-align-card" data-align="Rechtschaffen Gut" data-file="lawful_good" data-color="#d4af37" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/lawful_good.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Rechtschaffen Gut</div>
+                            <div class="wizard-align-lore">Der Beschützer. Folgt einem Ehrenkodex und kämpft für das Wohl aller. Hält Versprechen, schützt die Schwachen, beugt sich dem Gesetz — solange es gerecht ist.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Neutral Gut" data-file="neutral_good" data-color="#e8c547" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/neutral_good.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Neutral Gut</div>
+                            <div class="wizard-align-lore">Der Held. Tut das Richtige, ohne sich an starre Regeln zu binden. Hilft, weil es richtig ist — nicht weil ein Gesetz es verlangt. Die beliebteste Gesinnung für Helden.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Chaotisch Gut" data-file="chaotic_good" data-color="#f0d264" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/chaotic_good.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Chaotisch Gut</div>
+                            <div class="wizard-align-lore">Der Rebell. Bricht Gesetze wenn sie ungerecht sind. Freiheit über alles — aber immer mit gutem Herzen. Rebellisch, idealistisch, unberechenbar gut.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Rechtschaffen Neutral" data-file="lawful_neutral" data-color="#8fa4b5" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/lawful_neutral.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Rechtschaffen Neutral</div>
+                            <div class="wizard-align-lore">Der Richter. Das Gesetz ist das Gesetz — ohne Ansehen der Person. Pflicht und Ordnung stehen über persönlichen Vorlieben. Diszipliniert, berechenbar, fair.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Neutral" data-file="true_neutral" data-color="#a0adb8" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/true_neutral.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Neutral</div>
+                            <div class="wizard-align-lore">Der Pragmatiker. Handelt nach der Situation — weder gut noch böse, weder chaotisch noch ordentlich. Druiden wählen oft diese Gesinnung: Balance in allen Dingen.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Chaotisch Neutral" data-file="chaotic_neutral" data-color="#7b94a8" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/chaotic_neutral.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Chaotisch Neutral</div>
+                            <div class="wizard-align-lore">Der Freigeist. Folgt nur den eigenen Launen und Impulsen. Unberechenbar, aber nicht bösartig. Heute dein bester Freund, morgen verschwunden — ohne böse Absicht.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Rechtschaffen Böse" data-file="lawful_evil" data-color="#c44040" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/lawful_evil.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Rechtschaffen Böse</div>
+                            <div class="wizard-align-lore">Der Tyrann. Nutzt Regeln und Systeme für die eigene Macht. Berechnend, manipulativ, methodisch. Ein Teufel hält seine Verträge — zum eigenen Vorteil.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Neutral Böse" data-file="neutral_evil" data-color="#b53535" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/neutral_evil.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Neutral Böse</div>
+                            <div class="wizard-align-lore">Der Söldner. Tut alles für den eigenen Vorteil — ohne Gewissen, aber auch ohne sinnloses Chaos. Verrät jeden wenn der Preis stimmt. Kalt, effizient, rücksichtslos.</div>
+                        </div>
+                        <div class="wizard-align-card" data-align="Chaotisch Böse" data-file="chaotic_evil" data-color="#8b1a1a" onclick="selectWizardAlignment(this)">
+                            <img src="/assets/img/alignment/chaotic_evil.svg" class="wizard-align-icon">
+                            <div class="wizard-align-name">Chaotisch Böse</div>
+                            <div class="wizard-align-lore">Der Zerstörer. Chaos und Grausamkeit als Selbstzweck. Dämonen verkörpern diese Gesinnung. Als Spielercharakter extrem schwer — dein GM muss einverstanden sein.</div>
+                        </div>
+                    </div>
+                    
+                </div>
+
+                <!-- Step 7: Appearance -->
+                <div class="wizard-step" data-step="7">
+                    <h3>Erscheinung</h3>
+                    <p>Wie sieht dein Charakter aus? (Optional — überspringbar)</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div class="wizard-input-group" style="margin:0;">
+                            <label>Alter</label>
+                            <select id="wizardPhysAge" class="wizard-phys-select"></select>
+                        </div>
+                        <div class="wizard-input-group" style="margin:0;">
+                            <label>Körpergröße</label>
+                            <select id="wizardPhysHeight" class="wizard-phys-select"></select>
+                        </div>
+                        <div class="wizard-input-group" style="margin:0;">
+                            <label>Gewicht</label>
+                            <select id="wizardPhysWeight" class="wizard-phys-select"></select>
+                        </div>
+                        <div class="wizard-input-group" style="margin:0;">
+                            <label>Augenfarbe</label>
+                            <select id="wizardPhysEyes" class="wizard-phys-select"></select>
+                        </div>
+                        <div class="wizard-input-group" style="margin:0;">
+                            <label>Haarfarbe</label>
+                            <select id="wizardPhysHair" class="wizard-phys-select"></select>
+                        </div>
+                        <div class="wizard-input-group" style="margin:0;">
+                            <label>Hautfarbe</label>
+                            <select id="wizardPhysSkin" class="wizard-phys-select"></select>
+                        </div>
+                    </div>
+                    <div class="wizard-input-group" style="margin-top:12px;">
+                        <label>Erscheinung <span style="font-weight:400;opacity:0.5;">(optional)</span></label>
+                        <textarea id="wizardAppearance" placeholder="Narben, Tätowierungen, besondere Merkmale..." style="width:100%;min-height:60px;padding:8px 10px;border-radius:8px;background:var(--md-surface-container-high);color:var(--md-on-surface);border:1px solid var(--md-outline-variant);font-size:12px;resize:vertical;font-family:inherit;"></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 7: Ability Scores -->
+                <div class="wizard-step" data-step="8">
+                    <h3>Lege deine Attribute fest</h3>
+                    <p>Verteile deine Attributswerte. Standard-Array: 15, 14, 13, 12, 10, 8</p>
+                    <div class="wizard-ability-grid">
+                        <div class="wizard-ability-item">
+                            <label>Stärke</label>
+                            <div class="wizard-ability-hint">Nahkampf, Athletik, Tragkraft</div>
+                            <input type="number" id="wizardStr" value="10" min="1" max="20">
+                        </div>
+                        <div class="wizard-ability-item">
+                            <label>Geschicklichkeit</label>
+                            <div class="wizard-ability-hint">RK, Initiative, Fernkampf, Heimlichkeit</div>
+                            <input type="number" id="wizardDex" value="10" min="1" max="20">
+                        </div>
+                        <div class="wizard-ability-item">
+                            <label>Konstitution</label>
+                            <div class="wizard-ability-hint">Trefferpunkte, Ausdauer, Konzentration</div>
+                            <input type="number" id="wizardCon" value="10" min="1" max="20">
+                        </div>
+                        <div class="wizard-ability-item">
+                            <label>Intelligenz</label>
+                            <div class="wizard-ability-hint">Magier-Zauber, Wissen, Nachforschungen</div>
+                            <input type="number" id="wizardInt" value="10" min="1" max="20">
+                        </div>
+                        <div class="wizard-ability-item">
+                            <label>Weisheit</label>
+                            <div class="wizard-ability-hint">Kleriker/Druide, Wahrnehmung, Motiv erkennen</div>
+                            <input type="number" id="wizardWis" value="10" min="1" max="20">
+                        </div>
+                        <div class="wizard-ability-item">
+                            <label>Charisma</label>
+                            <div class="wizard-ability-hint">Barde/Hexer/Paladin, Überreden, Täuschung</div>
+                            <input type="number" id="wizardCha" value="10" min="1" max="20">
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: center; align-items: center;">
+                        <div class="wizard-btn-row">
+                            <button class="new-char-btn" onclick="applyStandardArray()" style="font-size: 12px;">Standard-Array</button>
+                            <div class="wizard-btn-info">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                <div class="wizard-btn-tip"><strong>Standard-Array:</strong> Setzt die Werte 15, 14, 13, 12, 10, 8 in die Felder. Ausgewogene und faire Verteilung. Du kannst sie danach den gewünschten Attributen zuordnen.</div>
+                            </div>
+                        </div>
+                        <div class="wizard-btn-row">
+                            <button class="new-char-btn" id="wizardRollBtn" onclick="rollAllAbilities()" style="font-size: 12px; background: var(--md-surface-container-high); color: var(--md-on-surface);">4W6 Würfeln (3)</button>
+                            <div class="wizard-btn-info">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                <div class="wizard-btn-tip"><strong>4W6 Drop Lowest:</strong> Würfelt 4 sechsseitige Würfel, streicht den niedrigsten und addiert die restlichen drei. Ergibt Werte zwischen 3–18. Riskanter, aber potenziell stärker als Standard-Array.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="font-size: 10px; color: var(--md-on-surface-variant); text-align: center; margin-top: 10px; opacity: 0.7;">Spezies-Bonus (+2/+1 auf beliebige Attribute) einrechnen</p>
+                    <div class="wizard-dice-result" id="wizardDiceResult" style="display:none;"></div>
+                </div>
+
+                <!-- Step 7: Proficiencies -->
+                <div class="wizard-step" data-step="9">
+                    <h3>Geübtheiten</h3>
+                    <div class="wizard-skill-section-title" id="wizardSaveTitle">Rettungswürfe (durch Klasse)</div>
+                    <div class="wizard-save-grid" id="wizardSaveGrid"></div>
+                    <div class="wizard-skill-section-title" id="wizardSkillTitle">Fertigkeiten</div>
+                    <div class="wizard-skill-counter" id="wizardSkillCounter"></div>
+                    <div class="wizard-skill-grid" id="wizardSkillGrid"></div>
+                    
+                    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--md-outline-variant);">
+                        <div style="font-size:12px;font-weight:700;margin-bottom:2px;">Empfohlene Talente</div>
+                        <div style="font-size:10px;opacity:0.5;margin-bottom:8px;">Vormerken für Stufe 4+ — markiere beliebig viele als Erinnerung</div>
+                        <div class="wizard-spell-grid" id="wizardFeatGrid" style="max-height:140px;"></div>
+                    </div>
+                </div>
+
+                <!-- Step 9: Equipment Choice -->
+                <div class="wizard-step" data-step="10">
+                    <h3>Ausrüstung wählen</h3>
+                    <p>Wähle dein Startpaket. Die Waffen und Rüstung werden automatisch eingetragen.</p>
+                    <div id="wizardEquipContent">
+                        <div class="wizard-equip-packages" id="wizardEquipPackages"></div>
+                    </div>
+                </div>
+
+                <!-- Step 10: Spells & Cantrips (conditional) -->
+                <div class="wizard-step" data-step="11">
+                    <h3>Zauber & Zaubertricks</h3>
+                    <p id="wizardSpellsInfo">Wähle deine Zaubertricks und Zauber.</p>
+                    <div id="wizardSpellsContent">
+                        <div id="wizardCantripsSection" style="display:none;">
+                            <div style="font-size:12px;font-weight:700;margin-bottom:8px;">Zaubertricks <span id="wizardCantripCounter" style="font-weight:400;opacity:0.6;"></span></div>
+                            <div class="wizard-spell-grid" id="wizardCantripGrid"></div>
+                        </div>
+                        <div id="wizardSpellsSection" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--md-outline-variant);">
+                            <div style="font-size:12px;font-weight:700;margin-bottom:8px;">Zauber (Grad 1) <span id="wizardSpellCounter" style="font-weight:400;opacity:0.6;"></span></div>
+                            <div class="wizard-spell-grid" id="wizardSpellGrid"></div>
+                        </div>
+                        <div id="wizardNoSpells" style="text-align:center;padding:30px 0;opacity:0.5;">
+                            <div style="font-size:14px;">Deine Klasse hat auf Stufe 1 keine Zauber.</div>
+                            <div style="font-size:11px;margin-top:4px;">Du kannst diesen Schritt überspringen.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 10: Portrait -->
+                <div class="wizard-step" data-step="12">
+                    <h3>Portrait</h3>
+                    <p>Wähle ein Portrait für deinen Charakter oder lade ein eigenes hoch.</p>
+                    <div id="wizardPortraitContent">
+                        <div class="wizard-portrait-grid" id="wizardPortraitGrid">
+                            <div style="text-align:center;padding:30px 0;opacity:0.5;grid-column:1/-1;">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+                                <div style="font-size:12px;margin-top:8px;">Portrait-Galerie wird bald verfügbar</div>
+                                <div style="font-size:10px;margin-top:4px;opacity:0.6;">Spezies-basierte Auswahl kommt in Kürze</div>
+                            </div>
+                        </div>
+                        <div style="text-align:center;margin-top:16px;">
+                            <label class="wizard-upload-btn" id="wizardPortraitUpload">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Portrait hochladen (JPG, PNG, WebP, GIF)
+                                <input type="file" id="wizardPortraitFile" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" onchange="handleWizardPortraitUpload(event)">
+                            </label>
+                            <div id="wizardPortraitPreview" style="display:none;margin-top:12px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 11: Summary -->
+                <div class="wizard-step" data-step="13">
+                    <h3>Zusammenfassung</h3>
+                    <div class="wizard-summary" id="wizardSummary"></div>
+                </div>
+            </div>
+            <div class="wizard-footer">
+                <button class="wizard-btn wizard-btn-back" id="wizardBack" onclick="wizardPrev()" style="display:none;">Zurück</button>
+                <button class="wizard-btn wizard-btn-next" id="wizardNext" onclick="wizardNext()">Weiter</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HP Roll Modal -->
+    <div class="hp-roll-overlay" id="hpRollOverlay" onclick="if(event.target===this)closeHpRollModal()">
+        <div class="hp-roll-modal">
+            <div class="hp-roll-title" id="hpRollTitle">HP Berechnen</div>
+            <div class="hp-roll-subtitle" id="hpRollSubtitle"></div>
+            <div class="hp-roll-levels" id="hpRollLevels"></div>
+            <div class="hp-roll-total">
+                <span class="hp-roll-total-label">Gesamt HP</span>
+                <span class="hp-roll-total-val" id="hpRollTotal">0</span>
+            </div>
+            <div class="hp-roll-actions">
+                <button class="hp-roll-cancel" onclick="closeHpRollModal()">Abbrechen</button>
+                <button class="hp-roll-apply" onclick="applyHpRoll()">HP setzen</button>
+            </div>
+        </div>
+    </div>
+
+<div class="sheet" id="app">
+
+<!-- IDENTITY BOX -->
+<div class="identity">
+    <div class="id-bg" id="idBg"></div>
+    <div class="id-bg-btn" onclick="document.getElementById('bgUpload').click()" title="Hintergrundbild">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </div>
+    <input type="file" id="bgUpload" style="display:none" accept="image/*" onchange="uploadBG(this)">
+    <div class="id-grid">
+        <div class="id-left">
+            <div class="ab-row" id="abs-left"></div>
+        </div>
+        <div class="id-center">
+            <div class="id-sep id-sep-l"><div class="line"></div><div class="diamond"></div><div class="line"></div></div>
+            <div class="id-sep id-sep-r"><div class="line"></div><div class="diamond"></div><div class="line"></div></div>
+            <div class="port-wrap">
+                <div class="port hp-full" id="portrait" onclick="document.getElementById('portUpload').click()">
+                    <div class="port-overlay" id="portOverlay"></div>
+                    <img id="portImg" style="display:none">
+                    <svg class="port-ph" id="portPlaceholder" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <input type="file" id="portUpload" class="port-upload" accept="image/*" onchange="uploadPortrait(this)">
+                <div class="lvl"><span id="lvlBadge" style="cursor:default">1</span></div>
+            </div>
+            <input class="e e-name" id="charName" value="" onchange="S.name=this.value;save()">
+            <div class="orn"><div class="ln"></div><div class="dia"></div><div class="ln"></div></div>
+            <div class="ch-meta" id="metaRow1"></div>
+            <div class="ch-meta" id="metaRow2" style="margin-top:2px"></div>
+        </div>
+        <div class="id-right">
+            <div class="ab-row" id="abs-right"></div>
+        </div>
+    </div>
+</div>
+
+<!-- STAT STRIP -->
+<div class="stats">
+    <!-- Centered AC Shield -->
+    <div class="ac-center">
+        <div class="ac-shield" title="Rüstungsklasse">
+            <svg class="shield-bg" viewBox="0 0 102 118" fill="none"><path d="M51 3L8 22v34c0 26 43 50 43 50s43-24 43-50V22L51 3z" fill="rgba(17,17,19,.95)" stroke="rgba(212,168,68,.30)" stroke-width="1.5"/><path d="M51 9L14 26v30c0 22 37 44 37 44s37-22 37-44V26L51 9z" fill="none" stroke="rgba(212,168,68,.06)" stroke-width=".8"/></svg>
+            <input class="e-num" id="acVal" value="18" style="position:relative;z-index:1;font-size:38px;font-weight:800;font-family:var(--f);width:48px;color:var(--tx)" onchange="S.ac=+this.value;save()">
+            <div class="l">RK</div>
+        </div>
+    </div>
+    <!-- Left: HP + Combat -->
+    <div class="stats-left">
+        <div class="hp-block" style="width:200px">
+            <div class="hp-top">
+                <input class="hp-inp" id="hpCur" value="" onchange="S.hp.cur=+this.value;renderHP();save()">
+                <span class="hp-slash">/</span>
+                <input class="hp-inp" id="hpMax" value="52" onchange="S.hp.max=+this.value;renderHP();save()">
+                <input class="hp-inp hp-temp" id="hpTemp" value="" placeholder="Tmp" onchange="S.hp.temp=+this.value;save()" style="width:36px;font-size:11px">
+            </div>
+            <div class="hp-bar"><div class="hp-fill" id="hpBar"></div></div>
+            <div class="hp-sub">
+                <span id="hdLabel">5W10 TW</span>
+                <div class="hp-btns" style="margin-left:auto">
+                    <button class="hp-b dmg" onclick="openHPModal('dmg')" title="Schaden">−</button>
+                    <button class="hp-b heal" onclick="openHPModal('heal')" title="Heilen">+</button>
+                </div>
+            </div>
+        </div>
+        <div class="sep"></div>
+        <div class="hd-block" title="Trefferwürfel (klicken = verbrauchen)">
+            <div class="hd-label">Trefferwürfel</div>
+            <div class="hd-row" id="hdPips"></div>
+        </div>
+        <div class="sep"></div>
+        <div class="stat-grp-row">
+            <div class="stat-grp" onclick="rollDice('1d20',C.profBonus,'Übungsbonus')" title="Klick = würfeln"><div class="l">ÜB</div><div class="v g" id="profVal">+3</div></div>
+            <div class="stat-grp" onclick="rollDice('1d20',C.init,'Initiative')" title="Klick = würfeln"><div class="l">Init</div><div class="v" id="initVal">+1</div></div>
+            <div class="stat-grp" title="Passive Wahrnehmung"><div class="l">P.Wahr</div><div class="v" id="ppVal">11</div></div>
+            <div class="stat-grp" title="Passive Einsicht"><div class="l">P.Ein</div><div class="v" id="piVal">11</div></div>
+            <div class="stat-grp" title="Passive Nachforschung"><div class="l">P.Nfor</div><div class="v" id="pinvVal">10</div></div>
+        </div>
+    </div>
+    <!-- Right: Status + Tracker -->
+    <div class="stats-right">
+        <div class="insp-chip" id="inspChip" onclick="S.inspiration=!S.inspiration;renderInsp();save()">
+            <div class="ic">&#9733;</div>
+            <div class="txt">Inspiration</div>
+        </div>
+        <div class="sep"></div>
+        <div class="death-saves">
+            <div class="ds-label">Todeswürfe</div>
+            <div class="ds-row"><span class="dl">&#10003;</span><span class="ds-pip succ" onclick="toggleDS(this,0)"></span><span class="ds-pip succ" onclick="toggleDS(this,1)"></span><span class="ds-pip succ" onclick="toggleDS(this,2)"></span></div>
+            <div class="ds-row"><span class="dl">&#10007;</span><span class="ds-pip fail" onclick="toggleDS(this,3)"></span><span class="ds-pip fail" onclick="toggleDS(this,4)"></span><span class="ds-pip fail" onclick="toggleDS(this,5)"></span></div>
+        </div>
+        <div class="sep"></div>
+        <div class="exh-block" title="Erschöpfung (-2 pro Stufe auf Würfe)">
+            <div class="exh-label">Erschöpfung</div>
+            <div class="exh-row" id="exhPips"></div>
+        </div>
+        <div class="sep"></div>
+        <div class="xp-block">
+            <div class="xp-top">
+                <input style="width:48px;text-align:right;background:var(--inp);border:1px solid var(--b1);border-radius:var(--rx);color:var(--gold);font-weight:700;font-size:15px;height:30px;padding:0 4px;transition:border-color .2s" id="xpCur" value="8400" onchange="S.xp=+this.value;renderXP();save()">
+                <span style="color:var(--t3);font-weight:700">/</span>
+                <span id="xpNext" style="font-size:15px;font-weight:700;color:var(--t3)">14.000</span>
+            </div>
+            <div class="xp-bar"><div class="xp-fill" id="xpBar" style="width:60%"></div></div>
+            <div class="xp-label">Erfahrung</div>
+        </div>
+    </div>
+</div>
+
+<!-- CONDITION STRIP -->
+<div class="cond-strip">
+    <span id="condBar"></span>
+    <span class="cond-div"></span>
+    <span id="buffBar"></span>
+</div>
+
+<!-- TWO-BOX LAYOUT -->
+<div class="two-box">
+    <!-- QUICK ACTIONS -->
+    <div class="qa-box">
+        <div class="qa-hdr"><span class="qa-title">Quick Actions</span><span class="qa-count" id="qaCount">0</span></div>
+        <div class="qa-list" id="qaList"></div>
+        <div class="att-row">
+            <span class="att-label">Einstimmung</span>
+            <div class="att-slots" id="attSlots"></div>
+        </div>
+        <div class="rest-row">
+            <button class="rest-btn" onclick="shortRest()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a5 5 0 00-10 0"/><path d="M12 9V2"/><path d="M4.22 10.22l1.42 1.42"/><path d="M18.36 11.64l1.42-1.42"/></svg>Kurze Rast</button>
+            <button class="rest-btn" onclick="longRest()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>Lange Rast</button>
+        </div>
+        <div class="io-row">
+            <button class="io-btn" onclick="exportJSON()">Export</button>
+            <button class="io-btn" onclick="document.getElementById('importFile').click()">Import</button>
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importJSON(this)">
+        </div>
+    </div>
+
+    <!-- TABBED CONTENT -->
+    <div class="content-box">
+        <div class="tabs">
+            <button class="tb on" onclick="sw('act')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2.5L4 13h6l-1 8.5L20 11h-6l1-8.5"/></svg>Aktionen</button>
+            <button class="tb" onclick="sw('sk')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>Skills</button>
+            <button class="tb" onclick="sw('chr')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Charakter</button>
+            <button class="tb" onclick="sw('inv')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>Inventar</button>
+            <button class="tb" onclick="sw('spl')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>Zauber</button>
+            <button class="tb" onclick="sw('fea')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Merkmale</button>
+            <button class="tb" onclick="sw('bio')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Biografie</button>
+        </div>
+        <div class="mn">
+
+<!-- AKTIONEN -->
+<div class="pnl on" id="p-act"><div class="pad">
+    <div class="conc-banner" id="concBanner"><span>&#9679; Konzentration:</span> <span id="concSpell"></span><span class="x" onclick="endConcentration()">&#10005;</span></div>
+    <div id="actionGroups"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="add-cancel" onclick="openAddWeapon()" style="flex:1">+ Waffe</button>
+        <button class="add-cancel" onclick="openAddAction()" style="flex:1">+ Aktion</button>
+    </div>
+</div></div>
+
+<!-- SKILLS -->
+<div class="pnl" id="p-sk"><div class="pad">
+    <div class="sec"><div class="sh">Fertigkeiten <span class="cnt" id="skillCount"></span></div><div id="skillList" style="padding:4px 0"></div></div>
+    <div class="sec"><div class="sh">Rettungswürfe</div><div id="saveList" style="padding:4px 0"></div></div>
+</div></div>
+
+<!-- CHARAKTER -->
+<div class="pnl" id="p-chr"><div class="pad">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="sec"><div class="sh">Klassen <span class="add-btn" onclick="addClass()">+ Klasse</span></div><div style="padding:4px 0" id="classBlock"></div></div>
+        <div class="sec"><div class="sh">Sinne &amp; Resistenzen</div><div style="padding:4px 0" id="senseBlock"></div></div>
+        <div class="sec"><div class="sh">Sprachen &amp; Übungen</div><div style="padding:4px 0" id="langBlock"></div></div>
+        <div class="sec"><div class="sh">Bewegung</div><div style="padding:4px 0" id="moveBlock"></div></div>
+        <div class="sec"><div class="sh">Klassenressourcen <span class="add-btn" onclick="addResource()">+ Ressource</span></div><div style="padding:4px 0" id="resBlock"></div></div>
+        <div class="sec" style="grid-column:1/-1"><div class="sh">Eigenschaften</div><div id="propsBlock" style="padding:4px 0"></div></div>
+    </div>
+</div></div>
+
+<!-- INVENTAR -->
+<div class="pnl" id="p-inv"><div class="pad">
+    <div class="inv-bar">
+        <span>Tragkraft</span><div class="enc"><div class="enc-f" id="encBar"></div></div>
+        <span id="encText">0 / 0 lb</span>
+        <span class="wt-toggle" onclick="toggleWeightUnit()" id="wtUnit" title="Klick: lb/kg umschalten">lb</span>
+        <div class="cur" id="curRow"></div>
+    </div>
+    <div class="sec"><div class="sh">Ausrüstung <span class="add-btn" onclick="addItem()">+ Hinzufügen</span></div><div style="padding:0"><table class="at" id="invTable"><colgroup><col style="width:30px"><col><col style="width:50px"><col style="width:60px"><col style="width:30px"></colgroup><thead><tr><th></th><th style="text-align:left">Gegenstand</th><th>Anz.</th><th>Gew.</th><th></th></tr></thead><tbody id="invBody"></tbody></table></div></div>
+</div></div>
+
+<!-- ZAUBER -->
+<div class="pnl" id="p-spl"><div class="pad">
+    <div class="slots" id="slotBar"></div>
+    <div id="pactRow"></div>
+    <div class="sec"><div class="sh">Zauberliste <span class="add-btn" onclick="addSpell()">+ Zauber</span></div><div style="padding:0" id="spellList"></div></div>
+</div></div>
+
+<!-- MERKMALE -->
+<div class="pnl" id="p-fea"><div class="pad">
+    <div class="sec"><div class="sh">Klassenmerkmale <span class="add-btn" onclick="addFeature('class')">+ Hinzufügen</span></div><div style="padding:0" id="classFeats"></div></div>
+    <div class="sec"><div class="sh">Spezies <span class="cnt" id="speciesName"></span></div><div style="padding:0" id="speciesFeats"></div></div>
+    <div class="sec"><div class="sh">Talente <span class="add-btn" onclick="addFeature('feat')">+ Talent</span></div><div style="padding:0" id="featFeats"></div></div>
+</div></div>
+
+<!-- BIOGRAFIE -->
+<div class="pnl" id="p-bio"><div class="pad"><div class="bg" id="bioGrid"></div></div></div>
+
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Dice Modal -->
+<div class="dice-overlay" id="diceOverlay" onclick="if(event.target===this)closeDice()">
+    <div class="dice-modal">
+        <div class="dice-title" id="diceTitle">Stärke</div>
+        <div class="dice-sub" id="diceSub">1d20 + 3</div>
+        <div class="dice-result" id="diceResult">—</div>
+        <div class="dice-detail" id="diceDetail"></div>
+        <div class="dice-btns">
+            <button class="dice-btn adv" onclick="reroll('adv')">Vorteil</button>
+            <button class="dice-btn" onclick="reroll('normal')">Würfeln</button>
+            <button class="dice-btn dis" onclick="reroll('dis')">Nachteil</button>
+            <button class="dice-btn close" onclick="closeDice()">Schließen</button>
+        </div>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- HP Damage/Heal Modal -->
+<div class="add-overlay" id="hpOverlay" onclick="if(event.target===this)this.classList.remove('on')">
+    <div class="hp-modal">
+        <h3 id="hpModalTitle">Schaden</h3>
+        <input type="number" id="hpDelta" min="0" placeholder="0" onkeydown="if(event.key==='Enter')applyHP()">
+        <div class="hp-confirm">
+            <button class="btn-dmg" onclick="applyHP()">Anwenden</button>
+            <button class="btn-heal" onclick="document.getElementById('hpOverlay').classList.remove('on')" style="background:var(--sf);color:var(--t2)">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Weapon Modal -->
+<div class="add-overlay" id="weaponOverlay" onclick="if(event.target===this)this.classList.remove('on')">
+    <div class="add-modal">
+        <h3>Waffe hinzufügen</h3>
+        <div class="add-row"><label>Name</label><input class="add-inp" id="wName" placeholder="Langschwert"></div>
+        <div class="add-row"><label>Typ</label><select class="add-sel" id="wType"><option value="melee">Nahkampf</option><option value="ranged">Fernkampf</option></select></div>
+        <div class="add-row"><label>Attribut</label><select class="add-sel" id="wAbility"><option value="str">STR</option><option value="dex">GES</option></select></div>
+        <div class="add-row"><label>Schaden</label><input class="add-inp add-inp-sm" id="wDmg" placeholder="1W8"><input class="add-inp add-inp-sm" id="wDmgType" placeholder="Hieb"></div>
+        <div class="add-row"><label>Eigenschaften</label><input class="add-inp" id="wProps" placeholder="Vielseitig, Finesse..."></div>
+        <div class="add-row"><label>Reichweite</label><input class="add-inp add-inp-sm" id="wRange" placeholder="5 ft"></div>
+        <div class="add-btns"><button class="add-cancel" onclick="weaponOverlay.classList.remove('on')">Abbrechen</button><button class="add-ok" onclick="confirmAddWeapon()">Hinzufügen</button></div>
+    </div>
+</div>
+
+<!-- Add Action Modal -->
+<div class="add-overlay" id="actionOverlay" onclick="if(event.target===this)this.classList.remove('on')">
+    <div class="add-modal">
+        <h3>Aktion hinzufügen</h3>
+        <div class="add-row"><label>Name</label><input class="add-inp" id="aName" placeholder="Schildstoß"></div>
+        <div class="add-row"><label>Beschreibung</label><input class="add-inp" id="aSub" placeholder="Kampfmanöver"></div>
+        <div class="add-row"><label>Typ</label><select class="add-sel" id="aType"><option value="action">Aktion</option><option value="bonus">Bonusaktion</option><option value="reaction">Reaktion</option><option value="other">Andere</option></select></div>
+        <div class="add-row"><label>Nutzen</label><input class="add-inp add-inp-sm" id="aUsesCur" placeholder="—" type="number" min="0"> / <input class="add-inp add-inp-sm" id="aUsesMax" placeholder="—" type="number" min="0"><select class="add-sel" id="aUsesRest" style="width:90px"><option value="">Keine</option><option value="short">Kurze Rast</option><option value="long">Lange Rast</option></select></div>
+        <div class="add-row"><label>Wurf</label><input class="add-inp add-inp-sm" id="aRoll" placeholder="+str"><label style="min-width:50px;margin-left:8px">Schaden</label><input class="add-inp add-inp-sm" id="aDmg" placeholder="1W8"></div>
+        <div class="add-row"><label>Reichweite</label><input class="add-inp add-inp-sm" id="aRange" placeholder="5 ft"></div>
+        <div class="add-btns"><button class="add-cancel" onclick="actionOverlay.classList.remove('on')">Abbrechen</button><button class="add-ok" onclick="confirmAddAction()">Hinzufügen</button></div>
+    </div>
+</div>
+
+<!-- Add Buff Modal -->
+<div class="add-overlay" id="buffOverlay" onclick="if(event.target===this)this.classList.remove('on')">
+    <div class="add-modal" style="width:340px">
+        <h3>Effekt hinzufügen</h3>
+        <div class="add-row"><label>Name</label><input class="add-inp" id="bName" placeholder="Segen"></div>
+        <div class="add-row"><label>Typ</label><select class="add-sel" id="bType"><option value="pos">Buff (positiv)</option><option value="neg">Debuff (negativ)</option><option value="neu">Neutral</option></select></div>
+        <div class="add-row"><label>Dauer</label><input class="add-inp add-inp-sm" id="bDur" placeholder="10" type="number" min="0"><span style="font-size:12px;color:var(--t3);margin-left:4px">Runden (0 = ∞)</span></div>
+        <div class="add-row"><label>Notiz</label><input class="add-inp" id="bNote" placeholder="+1W4 auf Angriff/Rettung"></div>
+        <div class="add-btns"><button class="add-cancel" onclick="buffOverlay.classList.remove('on')">Abbrechen</button><button class="add-ok" onclick="confirmAddBuff()">Hinzufügen</button></div>
+    </div>
+</div>
+                </div><!-- /.s5v3 -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast -->
+    <div class="s5v3"><div class="toast" id="toast"></div></div>
+
+    <!-- Firebase + RIFT Core -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+    <script src="/assets/js/firebase-config.js"></script>
+    <script src="/assets/js/rift-state.js"></script>
+    <script src="/assets/js/riftlink.js"></script>
+    <script src="/assets/js/character-storage.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    
+    <!-- Sheet v3 Logic -->
+    <script src="/assets/js/sheet-5e-v3.js?v=1"></script>
+    <script src="/assets/js/wizard-5e-v3.js?v=1"></script>
+    
+    <!-- Dock Placeholder -->
+    <div id="dock-placeholder"></div>
+    
+    <!-- Unified Layout -->
+    <script src="/assets/js/layout-unified.js"></script>
+    <script>if(typeof initUnifiedLayout==='function')initUnifiedLayout();</script>
+    
+    <script src="/assets/js/broadcast.js"></script>
+</body>
+</html>
