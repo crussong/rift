@@ -678,6 +678,7 @@ function closeHpRollModal() {
 // ═══════════════════════════════════════════════════════
 // WIZARD STATE
 // ═══════════════════════════════════════════════════════
+let wizardScrollY = 0;
 let wizardStep = 1;
 let wizardData = {
     name: '',
