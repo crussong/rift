@@ -1880,7 +1880,8 @@ function updateDockCharacterCard(charData, charId, roomCode) {
         const narrative = innerData.narrative || {};
         const coins = innerData.coins || {};
         const weapons = innerData.weapons || [];
-        const conditions = innerData.conditions || [];
+        const conditionsRaw = innerData.conditions || [];
+        const conditions = Array.isArray(conditionsRaw) ? conditionsRaw : Object.keys(conditionsRaw).filter(k => conditionsRaw[k]);
         const deathSaves = innerData.deathSaves || { success: [false,false,false], fail: [false,false,false] };
         const spellSlots = innerData.spellSlots || {};
         const spellcasting = innerData.spellcasting || {};

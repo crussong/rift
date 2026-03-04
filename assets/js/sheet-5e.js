@@ -103,7 +103,10 @@ const SCHOOL_MAP = {
     'Verzaub.':'enchantment','Beschw.':'conjuration',
     'Abjuration':'abjuration','Divination':'divination','Evocation':'evocation',
     'Necromancy':'necromancy','Transmutation':'transmutation',
-    'Enchantment':'enchantment','Conjuration':'conjuration','Illusion':'illusion'
+    'Enchantment':'enchantment','Conjuration':'conjuration','Illusion':'illusion',
+    'Abjura.':'abjuration','Divina.':'divination','Evocat.':'evocation',
+    'Necrom.':'necromancy','Transm.':'transmutation',
+    'Enchan.':'enchantment','Conjur.':'conjuration','Illusi.':'illusion'
 };
 function spellSchoolIco(school) {
     const file = SCHOOL_MAP[school] || school?.toLowerCase() || 'evocation';
@@ -835,6 +838,7 @@ let _roomCode = null;
 let _riftLinkActive = false;
 let _applyingRemote = false;
 let _saveTimer = null;
+let _lastLocalSave = 0;
 
 /**
  * State migration: ensures old saves get new fields
@@ -883,6 +887,7 @@ function save() {
             data.ownerId = window.RIFT?.firebase?.getCurrentUser?.()?.uid || '';
             // Strip portrait from RTDB write (Base64 exceeds 1MB limit)
             delete data.portrait;
+            _lastLocalSave = Date.now();
             try {
                 RIFT.state.set('characters.' + _charId, { id: _charId, ...data });
             } catch (e) {
@@ -1004,31 +1009,25 @@ function initRiftLink() {
     _riftLinkActive = true;
     console.log('[5e] RiftLink connected:', _charId, 'in', _roomCode);
 
-    // Push initial state after short delay (without portrait — RTDB 1MB limit)
-    setTimeout(() => {
-        const data = JSON.parse(JSON.stringify(S));
-        data.ruleset = 'dnd5e';
-        data.updatedAt = Date.now();
-        data.name = S.name || 'Unbenannt';
-        data.ownerId = window.RIFT?.firebase?.getCurrentUser?.()?.uid || '';
-        delete data.portrait;
-        try {
-            RIFT.state.set('characters.' + _charId, { id: _charId, ...data });
-        } catch (e) {
-            console.warn('[5e] RiftLink initial push failed:', e.message);
-        }
-    }, 1500);
+    // Do NOT push initial state here — save() handles all writes.
+    // Pushing here would send empty defaultState before wizard completes.
 
     // Listen for remote changes
     RIFT.state.on('riftlink:char:updated', (ev) => {
         if (!ev || ev.charId !== _charId) return;
         if (ev.origin === 'local') return;
 
+        // Echo guard: ignore remote updates within 3s of our own save
+        if (Date.now() - _lastLocalSave < 3000) {
+            console.log('[5e] Ignoring remote echo (within 3s of local save)');
+            return;
+        }
+
         const remote = RIFT.state.get('characters.' + _charId);
         if (!remote) return;
 
         // Guard: don't overwrite filled local state with empty remote data
-        if (!remote.name && !remote.class1 && S.name) {
+        if ((!remote.abilities || !remote.abilities.str || remote.abilities.str === 10) && S.abilities && S.abilities.str !== 10) {
             console.warn('[5e] Ignoring empty remote state — local data preserved');
             return;
         }
