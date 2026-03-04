@@ -205,27 +205,122 @@ function renderStats(){
     document.getElementById('pinvVal').textContent=C.passiveInvestigation;
 }
 
+// ═══════════════════════════════════════════════════════
+// ORB SYSTEM (adapted from Worlds Apart)
+// ═══════════════════════════════════════════════════════
+function surfaceY(pct){ return 8 + (1 - Math.max(0,Math.min(1,pct))) * 105; }
+
+function createHPOrb(cur, max) {
+    const pct = max > 0 ? Math.max(0, Math.min(1, cur / max)) : 0;
+    const s = surfaceY(pct);
+    // Color shifts: green > 50%, orange 25-50%, red < 25%
+    const C = pct > 0.5
+        ? ['#3ddf80','#2ecc71','#22a854','#1a8a42','#146b34','#0d4a22','#072e15']
+        : pct > 0.25
+        ? ['#ffb347','#f97316','#e06010','#b54a08','#7a3005','#4a1c02','#281001']
+        : ['#ff6b6b','#e04040','#c02828','#9a1818','#6a0808','#3a0404','#1c0202'];
+    const glow = pct > 0.5 ? '#3ddf80' : pct > 0.25 ? '#f97316' : '#e04040';
+    const hl   = pct > 0.5 ? '#a0ffc8' : pct > 0.25 ? '#ffd4a0' : '#ffaaaa';
+    const bg   = pct > 0.5 ? '#050e08' : pct > 0.25 ? '#0e0602' : '#0e0202';
+    const ring = pct > 0.5 ? '#0d2818' : pct > 0.25 ? '#2a1505' : '#2a0505';
+
+    const L = [s,s+2,s+4,s+6,s+9,s+12,s+17];
+    const A = [3,3,3,4,4,4,3];
+    const D = [2,2.6,3.3,4,5,6.5,8];
+    const O = [0.3,0.35,0.45,0.55,0.7,0.9,1];
+    let waves = '';
+    for(let i=6;i>=0;i--){
+        const y=L[i],a=A[i],d=D[i];
+        waves+=`<path fill="${C[i]}" opacity="${O[i]}"><animate attributeName="d" dur="${d}s" repeatCount="indefinite" values="M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y+a} ${25+i*5} ${y} Q${45+i*5} ${y-a} ${65+i*3} ${y} Q${85+i*2} ${y+a} ${105+i*3} ${y} Q${120+i} ${y-a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z"/></path>`;
+    }
+    const maxTxt = max > 0 ? cur : '0';
+    return `<svg viewBox="0 0 120 120">
+<defs>
+<clipPath id="cHp"><circle cx="60" cy="60" r="52"/></clipPath>
+<radialGradient id="gHp" cx="30%" cy="25%" r="60%"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
+</defs>
+<circle cx="60" cy="60" r="56" fill="none" stroke="${ring}" stroke-width="1.5"/>
+<circle cx="60" cy="60" r="55" fill="none" stroke="${ring}" stroke-width="3"/>
+<circle cx="60" cy="60" r="52" fill="${bg}"/>
+<g clip-path="url(#cHp)">
+<g>${waves}</g>
+<path fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"><animate attributeName="d" dur="2.2s" repeatCount="indefinite" values="M9 ${s-3} Q18 ${s} 30 ${s} Q42 ${s-4} 54 ${s} Q66 ${s+4} 78 ${s} Q90 ${s-4} 102 ${s} Q114 ${s} 115 ${s-3};M9 ${s-3} Q18 ${s} 30 ${s} Q42 ${s+4} 54 ${s} Q66 ${s-4} 78 ${s} Q90 ${s+4} 102 ${s} Q114 ${s} 115 ${s-3};M9 ${s-3} Q18 ${s} 30 ${s} Q42 ${s-4} 54 ${s} Q66 ${s+4} 78 ${s} Q90 ${s-4} 102 ${s} Q114 ${s} 115 ${s-3}"/></path>
+<circle r="2" fill="${hl}" opacity="0"><animate attributeName="cx" dur="4s" repeatCount="indefinite" values="35;37;34;35"/><animate attributeName="cy" dur="4s" repeatCount="indefinite" values="100;42;28;100"/><animate attributeName="opacity" dur="4s" repeatCount="indefinite" values="0;0.3;0.1;0"/></circle>
+<circle r="1.2" fill="${hl}" opacity="0"><animate attributeName="cx" dur="5.5s" repeatCount="indefinite" values="72;74;70;72"/><animate attributeName="cy" dur="5.5s" repeatCount="indefinite" values="105;45;32;105"/><animate attributeName="opacity" dur="5.5s" repeatCount="indefinite" values="0;0.22;0.06;0"/></circle>
+<circle r="1.6" fill="${hl}" opacity="0"><animate attributeName="cx" dur="7s" repeatCount="indefinite" values="52;48;55;52"/><animate attributeName="cy" dur="7s" repeatCount="indefinite" values="110;38;24;110"/><animate attributeName="opacity" dur="7s" repeatCount="indefinite" values="0;0.2;0.04;0"/></circle>
+</g>
+<circle cx="60" cy="60" r="52" fill="url(#gHp)"/>
+<ellipse cx="42" cy="36" rx="10" ry="5" fill="rgba(255,255,255,0.05)" transform="rotate(-25 42 36)"/>
+<circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+<text x="60" y="65" text-anchor="middle" fill="white" font-family="Cinzel,serif" font-size="22" font-weight="700" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8))">${cur}</text>
+</svg>`;
+}
+
+function createXPOrb(cur, max) {
+    const pct = max > 0 ? Math.max(0, Math.min(1, cur / max)) : 0;
+    const s = surfaceY(pct);
+    const C = ['#f5d06a','#d4a844','#b8881e','#8a6010','#5a3c06','#362202','#1a1001'];
+    const glow = '#d4a844', hl = '#fde68a', bg = '#0a0803', ring = '#2a1f08';
+    const uid = 'xp' + Date.now().toString(36).slice(-4);
+
+    const L = [s,s+2,s+4,s+7,s+10,s+13,s+17];
+    const D = [1,1.3,1.7,2.2,2.8,3.8,5];
+    const O = [0.3,0.35,0.45,0.55,0.7,0.9,1];
+    let waves = '';
+    for(let i=6;i>=0;i--){
+        const y=L[i],d=D[i],a=3+(i<3?1:0);
+        waves+=`<path fill="${C[i]}" opacity="${O[i]}"><animate attributeName="d" dur="${d}s" repeatCount="indefinite" values="M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y+a} ${25+i*5} ${y} Q${45+i*5} ${y-a} ${65+i*3} ${y} Q${85+i*2} ${y+a} ${105+i*3} ${y} Q${120+i} ${y-a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z"/></path>`;
+    }
+    return `<svg viewBox="0 0 120 120">
+<defs>
+<clipPath id="c${uid}"><circle cx="60" cy="60" r="52"/></clipPath>
+<radialGradient id="g${uid}" cx="30%" cy="25%" r="60%"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
+<filter id="f${uid}"><feGaussianBlur stdDeviation="1.5"/></filter>
+</defs>
+<circle cx="60" cy="60" r="56" fill="none" stroke="${ring}" stroke-width="1.5"/>
+<circle cx="60" cy="60" r="55" fill="none" stroke="${ring}" stroke-width="3" opacity="0.6"/>
+<circle cx="60" cy="60" r="52" fill="${bg}"/>
+<g clip-path="url(#c${uid})">
+<ellipse cx="60" cy="100" rx="35" ry="18" fill="${glow}" opacity="0.06"><animate attributeName="rx" dur="1.4s" repeatCount="indefinite" values="35;44;35"/><animate attributeName="opacity" dur="1.4s" repeatCount="indefinite" values="0.06;0.12;0.06"/></ellipse>
+<g>${waves}</g>
+<path fill="none" stroke="${glow}" stroke-width="1.5" stroke-linecap="round" opacity="0.4"><animate attributeName="d" dur="1.4s" repeatCount="indefinite" values="M9 ${s-2} Q18 ${s+1} 30 ${s+1} Q42 ${s-3} 54 ${s+1} Q66 ${s+5} 78 ${s+1} Q90 ${s-3} 102 ${s+1} Q114 ${s+1} 115 ${s-2};M9 ${s-2} Q18 ${s+1} 30 ${s+1} Q42 ${s+5} 54 ${s+1} Q66 ${s-3} 78 ${s+1} Q90 ${s+5} 102 ${s+1} Q114 ${s+1} 115 ${s-2};M9 ${s-2} Q18 ${s+1} 30 ${s+1} Q42 ${s-3} 54 ${s+1} Q66 ${s+5} 78 ${s+1} Q90 ${s-3} 102 ${s+1} Q114 ${s+1} 115 ${s-2}"/></path>
+<circle r="2.5" fill="${glow}"><animate attributeName="cx" dur="2.5s" repeatCount="indefinite" values="30;34;27;30"/><animate attributeName="cy" dur="2.5s" repeatCount="indefinite" values="102;52;40;102"/><animate attributeName="opacity" dur="2.5s" repeatCount="indefinite" values="0;0.9;0.2;0"/></circle>
+<circle r="1.5" fill="${hl}"><animate attributeName="cx" dur="3.2s" repeatCount="indefinite" values="75;72;78;75"/><animate attributeName="cy" dur="3.2s" repeatCount="indefinite" values="108;55;40;108"/><animate attributeName="opacity" dur="3.2s" repeatCount="indefinite" values="0;0.7;0.1;0"/></circle>
+<circle r="1.2" fill="${hl}"><animate attributeName="cx" dur="4.5s" repeatCount="indefinite" values="52;48;55;52"/><animate attributeName="cy" dur="4.5s" repeatCount="indefinite" values="100;48;34;100"/><animate attributeName="opacity" dur="4.5s" repeatCount="indefinite" values="0;0.5;0.05;0"/></circle>
+</g>
+<circle cx="60" cy="60" r="52" fill="url(#g${uid})"/>
+<ellipse cx="42" cy="36" rx="10" ry="5" fill="rgba(255,255,255,0.05)" transform="rotate(-25 42 36)"/>
+<circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+<text x="60" y="65" text-anchor="middle" fill="${hl}" font-family="Cinzel,serif" font-size="18" font-weight="700" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.9))">${Math.round(pct*100)}%</text>
+</svg>`;
+}
+
 function renderHP(){
-    document.getElementById('hpCur').value=S.hp.cur;
-    document.getElementById('hpMax').value=S.hp.max;
-    document.getElementById('hpTemp').value=S.hp.temp||'';
-    let pct=S.hp.max>0?Math.max(0,Math.min(100,(S.hp.cur/S.hp.max)*100)):0;
-    let bar=document.getElementById('hpBar');
-    bar.style.width=pct+'%';
-    bar.style.background=pct>50?'linear-gradient(90deg,#1d6028,#40b050)':pct>25?'linear-gradient(90deg,#8a6d00,#d4a844)':'linear-gradient(90deg,#8a2020,#d04040)';
+    // Orb
+    const orbEl = document.getElementById('hpOrb');
+    if(orbEl) orbEl.innerHTML = createHPOrb(S.hp.cur, S.hp.max);
+    // Sub-label
+    const subEl = document.getElementById('hpOrbSub');
+    if(subEl){
+        const pct=S.hp.max>0?(S.hp.cur/S.hp.max)*100:0;
+        const col=pct>50?'#3ddf80':pct>25?'#f97316':'#e04040';
+        subEl.innerHTML=`<span style="color:${col};font-weight:700">${S.hp.cur}</span><span style="color:var(--t3)"> / ${S.hp.max}</span>${S.hp.temp?`<span style="color:#60a5fa;font-size:9px"> +${S.hp.temp}tmp</span>`:''}`;
+    }
+    // HD label
     if(S.classes&&S.classes.length>1){
-        document.getElementById('hdLabel').textContent=S.classes.map(c=>c.level+'W'+c.hitDie).join(' + ')+' TW';
+        const hdEl=document.getElementById('hdLabel');if(hdEl)hdEl.textContent=S.classes.map(c=>c.level+'W'+c.hitDie).join(' + ')+' TW';
     } else {
-        document.getElementById('hdLabel').textContent=S.level+'W'+(S.classes&&S.classes[0]?S.classes[0].hitDie:S.hitDice.type)+' TW';
+        const hdEl=document.getElementById('hdLabel');if(hdEl)hdEl.textContent=S.level+'W'+(S.classes&&S.classes[0]?S.classes[0].hitDie:S.hitDice.type)+' TW';
     }
     // Portrait ring
+    const pctP=S.hp.max>0?Math.max(0,Math.min(100,(S.hp.cur/S.hp.max)*100)):0;
     let p=document.getElementById('portrait');
-    p.classList.remove('hp-full','hp-mid','hp-low','hp-crit','hp-dead');
+    if(p){p.classList.remove('hp-full','hp-mid','hp-low','hp-crit','hp-dead');
     if(S.hp.cur<=0)p.classList.add('hp-dead');
-    else if(pct<=25)p.classList.add('hp-crit');
-    else if(pct<=50)p.classList.add('hp-low');
-    else if(pct<=75)p.classList.add('hp-mid');
-    else p.classList.add('hp-full');
+    else if(pctP<=25)p.classList.add('hp-crit');
+    else if(pctP<=50)p.classList.add('hp-low');
+    else if(pctP<=75)p.classList.add('hp-mid');
+    else p.classList.add('hp-full');}
 }
 
 function renderHD(){
@@ -266,10 +361,13 @@ function renderExhaustion(){
 
 function renderXP(){
     let next=XP_TABLE[S.level]||999999,prev=XP_TABLE[S.level-1]||0;
-    let pct=next>prev?((S.xp-prev)/(next-prev))*100:100;
-    document.getElementById('xpBar').style.width=Math.min(100,Math.max(0,pct))+'%';
-    document.getElementById('xpCur').value=S.xp;
-    document.getElementById('xpNext').textContent=next>=999999?'MAX':next.toLocaleString('de');
+    let pct=next>prev?(S.xp-prev)/(next-prev):1;
+    const orbEl=document.getElementById('xpOrb');
+    if(orbEl) orbEl.innerHTML=createXPOrb(S.xp,next===999999?S.xp:next);
+    const subEl=document.getElementById('xpOrbSub');
+    if(subEl) subEl.innerHTML=`<span style="color:var(--gold);font-weight:700">${S.xp.toLocaleString('de')}</span><span style="color:var(--t3)"> / ${next>=999999?'MAX':next.toLocaleString('de')}</span>`;
+    // Legacy input support (hidden but functional)
+    const xpInp=document.getElementById('xpCur');if(xpInp)xpInp.value=S.xp;
 }
 
 function renderConditions(){
