@@ -296,19 +296,19 @@ function renderConcentration(){
 function renderActions(){
     let groups={action:[],bonus:[],reaction:[],other:[]};
     // weapons first
-    S.weapons.forEach(w=>{
+    S.weapons.forEach((w,wi)=>{
         let aMod=C.mods[w.ability]||0;
         let atk=aMod+C.profBonus;
-        groups.action.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.props,iconHtml:weaponIco(w.name),roll:fmt(atk),dmg:w.dmg+fmt(aMod),range:w.range,uses:null,pinned:w.pinned,atkMod:atk,dmgStr:w.dmg+'+'+aMod});
+        groups.action.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.props,iconHtml:weaponIco(w.name),roll:fmt(atk),dmg:w.dmg+fmt(aMod),range:w.range,uses:null,pinned:w.pinned,atkMod:atk,dmgStr:w.dmg+'+'+aMod,_ctxType:'weapon',_ctxIdx:wi});
     });
-    S.actions.forEach(a=>{
+    S.actions.forEach((a,ai)=>{
         let g=groups[a.type]||groups.other;
         let rollVal='';
         if(a.roll){
             if(a.roll.startsWith('+'))rollVal=fmt(C.mods[a.roll.slice(1)]+ C.profBonus);
             else rollVal=a.roll;
         }
-        g.push({name:a.name,sub:a.sub,iconHtml:actionIcon(a),roll:rollVal,dmg:a.dmg,range:a.range,uses:a.uses,pinned:a.pinned});
+        g.push({name:a.name,sub:a.sub,iconHtml:actionIcon(a),roll:rollVal,dmg:a.dmg,range:a.range,uses:a.uses,pinned:a.pinned,_ctxType:'action',_ctxIdx:ai});
     });
     let labels={action:{l:'Aktion',cls:'ag-a'},bonus:{l:'Bonusaktion',cls:'ag-b'},reaction:{l:'Reaktion',cls:'ag-r'},other:{l:'Andere',cls:'ag-o'}};
     let html='';
@@ -316,12 +316,13 @@ function renderActions(){
         let items=groups[t];if(!items.length)return;
         let lb=labels[t];
         html+=`<div class="ag ${lb.cls}"><div class="agh" onclick="this.classList.toggle('collapsed');this.nextElementSibling.style.display=this.classList.contains('collapsed')?'none':''"><span>${lb.l}</span><span class="n">${items.length}</span><span class="chv">&#9662;</span></div>`;
-        html+=`<table class="at"><colgroup><col class="c-nm"><col class="c-ut"><col class="c-wf"><col class="c-sd"><col class="c-rw"></colgroup><thead><tr><th>Name</th><th>Nutzen</th><th>Wurf</th><th>Schaden</th><th>Reichw.</th></tr></thead><tbody>`;
+        html+=`<table class="at"><colgroup><col class="c-nm"><col class="c-ut"><col class="c-wf"><col class="c-sd"><col class="c-rw"><col style="width:28px"></colgroup><thead><tr><th>Name</th><th>Nutzen</th><th>Wurf</th><th>Schaden</th><th>Reichw.</th><th></th></tr></thead><tbody>`;
         items.forEach(it=>{
             html+=`<tr><td><div class="anm"><div class="ai">${it.iconHtml}</div><div><div class="atn">${it.name}</div><div class="ats">${it.sub}</div></div></div></td>`;
             html+=`<td>${it.uses?`<span class="ut" onclick="useCharge(this,event)" data-cur="${it.uses.cur}" data-max="${it.uses.max}">${it.uses.cur}/${it.uses.max}</span>`:'—'}</td>`;
             html+=`<td>${it.roll?`<button class="rb" onclick="rollDice('1d20',${parseInt(it.roll)||0},'${it.name}')">${it.roll}</button>`:'—'}</td>`;
-            html+=`<td class="fm">${it.dmg||'—'}</td><td>${it.range||'—'}</td></tr>`;
+            html+=`<td class="fm">${it.dmg||'—'}</td><td>${it.range||'—'}</td>`;
+            html+=`<td><div class="ctx-dot" onclick="openCtxMenu(event,'${it._ctxType}',${it._ctxIdx})">&#8942;</div></td></tr>`;
         });
         html+=`</tbody></table></div>`;
     });
@@ -330,19 +331,19 @@ function renderActions(){
 
 function renderQA(){
     let pinned=[];
-    S.weapons.forEach(w=>{
+    S.weapons.forEach((w,wi)=>{
         if(!w.pinned)return;
         let atk=C.mods[w.ability]+C.profBonus;
-        pinned.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.range,val:fmt(atk),iconHtml:weaponIco(w.name),mod:atk,label:w.name});
+        pinned.push({name:w.name,sub:(w.type==='melee'?'Nahkampf':'Fernkampf')+' · '+w.range,val:fmt(atk),iconHtml:weaponIco(w.name),mod:atk,label:w.name,_ctxType:'weapon',_ctxIdx:wi});
     });
-    S.actions.forEach(a=>{
+    S.actions.forEach((a,ai)=>{
         if(!a.pinned)return;
         let val=a.uses?a.uses.cur+'/'+a.uses.max:(a.roll?fmt(C.mods[a.roll?.slice(1)]||0+C.profBonus):'');
-        pinned.push({name:a.name,sub:a.sub,val:val,iconHtml:actionIcon(a),mod:0,label:a.name});
+        pinned.push({name:a.name,sub:a.sub,val:val,iconHtml:actionIcon(a),mod:0,label:a.name,_ctxType:'action',_ctxIdx:ai});
     });
     let h='';
     pinned.forEach(p=>{
-        h+=`<div class="si" onclick="rollDice('1d20',${p.mod},'${p.label}')"><div class="si-i">${p.iconHtml}</div><div class="si-t"><div class="si-n">${p.name}</div><div class="si-s">${p.sub}</div></div><div class="si-v">${p.val}</div></div>`;
+        h+=`<div class="si" onclick="rollDice('1d20',${p.mod},'${p.label}')"><div class="si-i">${p.iconHtml}</div><div class="si-t"><div class="si-n">${p.name}</div><div class="si-s">${p.sub}</div></div><div class="si-v">${p.val}</div><div class="ctx-dot" onclick="event.stopPropagation();openCtxMenu(event,'${p._ctxType}',${p._ctxIdx})">&#8942;</div></div>`;
     });
     document.getElementById('qaList').innerHTML=h;
     document.getElementById('qaCount').textContent=pinned.length;
@@ -441,7 +442,7 @@ function renderInventory(){
                 <td style="text-align:left" class="${it.equipped?'eq':''}"><input class="e" value="${it.name}" onchange="S.inventory[${gi}].name=this.value;save()" style="font-weight:${it.equipped?700:400}"></td>
                 <td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:30px"></td>
                 <td>${(wt).toFixed(wt%1?1:0)} lb</td>
-                <td><span style="cursor:pointer;color:var(--t4);font-size:10px" onclick="S.inventory.splice(${gi},1);renderInventory();save()">&#10005;</span></td></tr>`;
+                <td><div class="ctx-dot" onclick="openCtxMenu(event,'inv',${gi})">&#8942;</div></td></tr>`;
         });
     });
     document.getElementById('invBody').innerHTML=body;
@@ -742,20 +743,31 @@ function showHPDelta(val,color){
 // ADD WEAPON / ACTION
 // ═══════════════════════════════════════════════════════
 function openAddWeapon(){
+    delete window._editWeaponIdx;
     ['wName','wDmg','wDmgType','wProps','wRange'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('weaponOverlay').classList.add('on');document.getElementById('wName').focus();
 }
 function confirmAddWeapon(){
     let name=document.getElementById('wName').value.trim();if(!name)return;
-    S.weapons.push({
+    const data = {
         name,type:document.getElementById('wType').value,ability:document.getElementById('wAbility').value,
         dmg:document.getElementById('wDmg').value||'1W4',dmgType:document.getElementById('wDmgType').value||'',
         props:document.getElementById('wProps').value||'',range:document.getElementById('wRange').value||'5 ft',pinned:false
-    });
+    };
+    if (typeof window._editWeaponIdx === 'number') {
+        data.pinned = S.weapons[window._editWeaponIdx].pinned;
+        S.weapons[window._editWeaponIdx] = data;
+        delete window._editWeaponIdx;
+        toast('Waffe aktualisiert: '+name);
+    } else {
+        S.weapons.push(data);
+        toast('Waffe hinzugefuegt: '+name);
+    }
     document.getElementById('weaponOverlay').classList.remove('on');
-    render();save();toast('Waffe hinzugefügt: '+name);
+    render();save();
 }
 function openAddAction(){
+    delete window._editActionIdx;
     ['aName','aSub','aRoll','aDmg','aRange','aUsesCur','aUsesMax'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('actionOverlay').classList.add('on');document.getElementById('aName').focus();
 }
@@ -763,14 +775,23 @@ function confirmAddAction(){
     let name=document.getElementById('aName').value.trim();if(!name)return;
     let usesCur=+document.getElementById('aUsesCur').value,usesMax=+document.getElementById('aUsesMax').value;
     let rest=document.getElementById('aUsesRest').value;
-    S.actions.push({
+    const data = {
         name,sub:document.getElementById('aSub').value||'',type:document.getElementById('aType').value,
         uses:usesMax>0?{cur:usesCur||usesMax,max:usesMax,rest:rest||'long'}:null,
         roll:document.getElementById('aRoll').value||'',dmg:document.getElementById('aDmg').value||'',
         range:document.getElementById('aRange').value||'',pinned:false
-    });
+    };
+    if (typeof window._editActionIdx === 'number') {
+        data.pinned = S.actions[window._editActionIdx].pinned;
+        S.actions[window._editActionIdx] = data;
+        delete window._editActionIdx;
+        toast('Aktion aktualisiert: '+name);
+    } else {
+        S.actions.push(data);
+        toast('Aktion hinzugefuegt: '+name);
+    }
     document.getElementById('actionOverlay').classList.remove('on');
-    render();save();toast('Aktion hinzugefügt: '+name);
+    render();save();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1060,6 +1081,218 @@ function initRiftLink() {
             _applyingRemote = false;
         }
     });
+}
+
+// ═══════════════════════════════════════════════════════
+// CONTEXT MENU
+// ═══════════════════════════════════════════════════════
+let _ctxTarget = null; // {type:'weapon'|'action'|'inv', index:number}
+
+function openCtxMenu(e, type, index) {
+    e.preventDefault();
+    e.stopPropagation();
+    _ctxTarget = { type, index };
+    const menu = document.getElementById('ctxMenu');
+
+    // Configure visible items based on type
+    menu.querySelectorAll('.ctx-item').forEach(el => el.style.display = '');
+    const equipItem = menu.querySelector('[data-action="equip"]');
+    const pinItem = menu.querySelector('[data-action="pin"]');
+
+    if (type === 'weapon') {
+        const w = S.weapons[index];
+        equipItem.style.display = 'none'; // weapons don't have equip toggle here
+        document.getElementById('ctxPinLabel').textContent = w.pinned ? 'Aus Quick Actions entfernen' : 'Zu Quick Actions';
+    } else if (type === 'inv') {
+        const it = S.inventory[index];
+        document.getElementById('ctxEquipLabel').textContent = it.equipped ? 'Ablegen' : 'Anlegen';
+        pinItem.style.display = 'none';
+    } else if (type === 'action') {
+        const a = S.actions[index];
+        equipItem.style.display = 'none';
+        document.getElementById('ctxPinLabel').textContent = a.pinned ? 'Aus Quick Actions entfernen' : 'Zu Quick Actions';
+    }
+
+    // Position
+    const rect = e.currentTarget.getBoundingClientRect();
+    let top = rect.bottom + 4;
+    let left = rect.left;
+    menu.classList.add('on');
+    const mRect = menu.getBoundingClientRect();
+    if (left + mRect.width > window.innerWidth - 8) left = window.innerWidth - mRect.width - 8;
+    if (top + mRect.height > window.innerHeight - 8) top = rect.top - mRect.height - 4;
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+}
+
+function closeCtxMenu() {
+    document.getElementById('ctxMenu').classList.remove('on');
+    _ctxTarget = null;
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.ctx-menu') && !e.target.closest('.ctx-dot')) closeCtxMenu();
+});
+
+document.getElementById('ctxMenu').addEventListener('click', (e) => {
+    const item = e.target.closest('.ctx-item');
+    if (!item || !_ctxTarget) return;
+    const action = item.dataset.action;
+    const { type, index } = _ctxTarget;
+    closeCtxMenu();
+
+    if (action === 'view') {
+        if (type === 'weapon') viewWeapon(index);
+        else if (type === 'inv') viewInventoryItem(index);
+        else if (type === 'action') viewAction(index);
+    } else if (action === 'edit') {
+        if (type === 'weapon') editWeapon(index);
+        else if (type === 'inv') editInventoryItem(index);
+        else if (type === 'action') editAction(index);
+    } else if (action === 'equip') {
+        if (type === 'inv') { S.inventory[index].equipped = !S.inventory[index].equipped; renderInventory(); save(); }
+    } else if (action === 'pin') {
+        if (type === 'weapon') { S.weapons[index].pinned = !S.weapons[index].pinned; render(); save(); }
+        else if (type === 'action') { S.actions[index].pinned = !S.actions[index].pinned; render(); save(); }
+    } else if (action === 'duplicate') {
+        if (type === 'weapon') { S.weapons.push(JSON.parse(JSON.stringify(S.weapons[index]))); render(); save(); toast('Waffe dupliziert'); }
+        else if (type === 'inv') { S.inventory.push(JSON.parse(JSON.stringify(S.inventory[index]))); renderInventory(); save(); toast('Item dupliziert'); }
+        else if (type === 'action') { S.actions.push(JSON.parse(JSON.stringify(S.actions[index]))); render(); save(); toast('Aktion dupliziert'); }
+    } else if (action === 'delete') {
+        if (type === 'weapon') { const n = S.weapons[index].name; S.weapons.splice(index, 1); render(); save(); toast(n + ' entfernt'); }
+        else if (type === 'inv') { const n = S.inventory[index].name; S.inventory.splice(index, 1); renderInventory(); save(); toast(n + ' entfernt'); }
+        else if (type === 'action') { const n = S.actions[index].name; S.actions.splice(index, 1); render(); save(); toast(n + ' entfernt'); }
+    }
+});
+
+// ═══════════════════════════════════════════════════════
+// VIEW MODAL
+// ═══════════════════════════════════════════════════════
+function openViewModal(html) {
+    document.getElementById('viewModal').innerHTML = html;
+    document.getElementById('viewOverlay').classList.add('on');
+}
+function closeViewModal() { document.getElementById('viewOverlay').classList.remove('on'); }
+
+function viewWeapon(i) {
+    const w = S.weapons[i];
+    if (!w) return;
+    const aMod = C.mods[w.ability] || 0;
+    const atk = aMod + C.profBonus;
+    const dmgTotal = w.dmg + (aMod >= 0 ? '+' : '') + aMod;
+    openViewModal(`
+        <div class="view-header">
+            <div class="view-icon">${weaponIco(w.name)}</div>
+            <div>
+                <div class="view-title">${w.name}</div>
+                <div class="view-subtitle">Waffe, ${w.type === 'melee' ? 'Nahkampf' : 'Fernkampf'}, ${AB_DE[w.ability]}-basiert</div>
+            </div>
+            <div class="view-close" onclick="closeViewModal()">&#10005;</div>
+        </div>
+        <div class="view-tags">
+            <span class="view-tag">${w.type === 'melee' ? 'Nahkampf' : 'Fernkampf'}</span>
+            ${w.props ? w.props.split(',').map(p => '<span class="view-tag">' + p.trim() + '</span>').join('') : ''}
+        </div>
+        <div class="view-body">
+            <div class="view-row"><span class="view-label">Angriff</span><span class="view-val" style="color:var(--grn)">+${atk}</span></div>
+            <div class="view-row"><span class="view-label">Schaden</span><span class="view-val">${dmgTotal}</span></div>
+            ${w.dmgType ? '<div class="view-row"><span class="view-label">Schadensart</span><span class="view-val">' + w.dmgType + '</span></div>' : ''}
+            <div class="view-row"><span class="view-label">Reichweite</span><span class="view-val">${w.range}</span></div>
+            <div class="view-row"><span class="view-label">Attribut</span><span class="view-val" style="color:${AB_COLORS[w.ability]}">${AB_FULL_DE[w.ability]}</span></div>
+            <div class="view-row"><span class="view-label">Übungsbonus</span><span class="view-val">+${C.profBonus}</span></div>
+            <div class="view-row"><span class="view-label">Quick Action</span><span class="view-val">${w.pinned ? 'Ja' : 'Nein'}</span></div>
+        </div>
+    `);
+}
+
+function viewInventoryItem(i) {
+    const it = S.inventory[i];
+    if (!it) return;
+    const catLabel = {weapon:'Waffe',armor:'Ruestung',gear:'Ausruestung'}[it.cat] || it.cat;
+    const icon = it.cat === 'weapon' ? weaponIco(it.name) : (it.cat === 'armor' ? invIcon('armor') : invIcon('gear'));
+    openViewModal(`
+        <div class="view-header">
+            <div class="view-icon">${icon}</div>
+            <div>
+                <div class="view-title">${it.name}</div>
+                <div class="view-subtitle">${catLabel}</div>
+            </div>
+            <div class="view-close" onclick="closeViewModal()">&#10005;</div>
+        </div>
+        <div class="view-tags">
+            <span class="view-tag">${catLabel}</span>
+            ${it.equipped ? '<span class="view-tag" style="color:var(--grn);border-color:rgba(74,222,128,.3)">Angelegt</span>' : ''}
+        </div>
+        <div class="view-body">
+            <div class="view-row"><span class="view-label">Anzahl</span><span class="view-val">${it.qty}</span></div>
+            <div class="view-row"><span class="view-label">Gewicht</span><span class="view-val">${it.wt} lb</span></div>
+            <div class="view-row"><span class="view-label">Gesamt</span><span class="view-val">${(it.qty * it.wt).toFixed(1)} lb</span></div>
+            <div class="view-row"><span class="view-label">Status</span><span class="view-val">${it.equipped ? 'Angelegt' : 'Im Inventar'}</span></div>
+        </div>
+    `);
+}
+
+function viewAction(i) {
+    const a = S.actions[i];
+    if (!a) return;
+    openViewModal(`
+        <div class="view-header">
+            <div class="view-icon">${actionIcon(a)}</div>
+            <div>
+                <div class="view-title">${a.name}</div>
+                <div class="view-subtitle">${a.sub || 'Aktion'}</div>
+            </div>
+            <div class="view-close" onclick="closeViewModal()">&#10005;</div>
+        </div>
+        <div class="view-tags">
+            <span class="view-tag">${{action:'Aktion',bonus:'Bonusaktion',reaction:'Reaktion',other:'Andere'}[a.type] || a.type}</span>
+            ${a.pinned ? '<span class="view-tag" style="color:var(--gold);border-color:rgba(212,168,68,.3)">Quick Action</span>' : ''}
+        </div>
+        <div class="view-body">
+            ${a.roll ? '<div class="view-row"><span class="view-label">Wurf</span><span class="view-val" style="color:var(--grn)">' + a.roll + '</span></div>' : ''}
+            ${a.dmg ? '<div class="view-row"><span class="view-label">Schaden</span><span class="view-val">' + a.dmg + '</span></div>' : ''}
+            ${a.range ? '<div class="view-row"><span class="view-label">Reichweite</span><span class="view-val">' + a.range + '</span></div>' : ''}
+            ${a.uses ? '<div class="view-row"><span class="view-label">Nutzen</span><span class="view-val">' + a.uses.cur + '/' + a.uses.max + ' (' + (a.uses.rest === 'short' ? 'Kurze Rast' : 'Lange Rast') + ')</span></div>' : ''}
+        </div>
+    `);
+}
+
+// Edit stubs — reuse add-modals with pre-filled data
+function editWeapon(i) {
+    const w = S.weapons[i];
+    document.getElementById('wName').value = w.name;
+    document.getElementById('wType').value = w.type;
+    document.getElementById('wAbility').value = w.ability;
+    document.getElementById('wDmg').value = w.dmg;
+    document.getElementById('wDmgType').value = w.dmgType || '';
+    document.getElementById('wProps').value = w.props || '';
+    document.getElementById('wRange').value = w.range || '';
+    document.getElementById('weaponOverlay').classList.add('on');
+    // Override confirm to update instead of add
+    window._editWeaponIdx = i;
+    document.getElementById('wName').focus();
+}
+
+function editInventoryItem(i) {
+    toast('Item in Tabelle bearbeiten');
+}
+
+function editAction(i) {
+    const a = S.actions[i];
+    document.getElementById('aName').value = a.name;
+    document.getElementById('aSub').value = a.sub || '';
+    document.getElementById('aType').value = a.type;
+    document.getElementById('aRoll').value = a.roll || '';
+    document.getElementById('aDmg').value = a.dmg || '';
+    document.getElementById('aRange').value = a.range || '';
+    if (a.uses) {
+        document.getElementById('aUsesCur').value = a.uses.cur;
+        document.getElementById('aUsesMax').value = a.uses.max;
+        document.getElementById('aUsesRest').value = a.uses.rest || 'long';
+    }
+    document.getElementById('actionOverlay').classList.add('on');
+    window._editActionIdx = i;
+    document.getElementById('aName').focus();
 }
 
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2500)}
