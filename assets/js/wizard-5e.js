@@ -865,8 +865,6 @@ function updateWizardStep() {
         document.querySelectorAll('.wizard-align-card').forEach(c => {
             c.classList.toggle('selected', c.dataset.align === wizardData.alignment);
         });
-        
-        if (sel) sel.textContent = wizardData.alignment;
     }
     if (wizardStep === 7) populateWizardAppearance();
     if (wizardStep === 8) updateWizardPrimaryStat();
@@ -1539,6 +1537,13 @@ function wizardNext() {
     if (wizardStep === 1) {
         wizardData.name = document.getElementById('wizardName').value;
         wizardData.level = parseInt(document.getElementById('wizardLevel').value) || 1;
+        if (!wizardData.name.trim()) { toast('Bitte gib einen Namen ein'); return; }
+    } else if (wizardStep === 2) {
+        if (!wizardData.species) { toast('Bitte waehle eine Spezies'); return; }
+    } else if (wizardStep === 3) {
+        if (!wizardData.class) { toast('Bitte waehle eine Klasse'); return; }
+    } else if (wizardStep === 5) {
+        if (!wizardData.background) { toast('Bitte waehle einen Hintergrund'); return; }
     } else if (wizardStep === 7) {
         // Alignment already saved via card click in step 6
         wizardData.physAge = document.getElementById('wizardPhysAge').value;
@@ -1575,7 +1580,12 @@ function wizardNext() {
         });
     } else if (wizardStep === 13) {
         closeWizard();
-        try { applyWizardData(); } catch(e) { console.error('Error applying wizard data:', e); }
+        try {
+            applyWizardData();
+        } catch(e) {
+            console.error('[5e Wizard] Error applying wizard data:', e);
+            toast('Fehler beim Erstellen: ' + e.message);
+        }
         return;
     }
     if (wizardStep < 13) { wizardStep++; updateWizardStep(); }
@@ -1590,6 +1600,7 @@ function selectWizardOption(element, type) {
     parent.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
     element.classList.add('selected');
     wizardData[type] = element.dataset.value;
+    console.log('[5e Wizard] Selected:', type, '=', element.dataset.value);
     updateWizardTrail();
 }
 
@@ -2269,6 +2280,12 @@ const SPELLS_DE = {
 
 function applyWizardData() {
     const d = wizardData;
+    console.log('[5e Wizard] Applying wizard data:', JSON.stringify({
+        name: d.name, class: d.class, species: d.species, background: d.background,
+        str: d.str, dex: d.dex, con: d.con, int: d.int, wis: d.wis, cha: d.cha,
+        skills: d.selectedSkills?.length, cantrips: d.selectedCantrips?.length,
+        spells: d.selectedSpells?.length, equipPkg: d.selectedEquipPackage
+    }));
     const cls = d.class || '';
     const spec = d.species || '';
     const bg = d.background || '';
@@ -2356,6 +2373,7 @@ function applyWizardData() {
     // ===== CLASS DATA =====
     const CLASS_START = getClassStart(d, strMod, dexMod);
     let cData = CLASS_START[cls] ? { ...CLASS_START[cls] } : null;
+    console.log('[5e Wizard] Class lookup:', cls, '| cData:', cData ? 'found' : 'NULL', '| Available:', Object.keys(CLASS_START).join(','));
 
     // Override with selected equipment package
     if (cData && d.selectedEquipPackage) {
@@ -2645,6 +2663,13 @@ function applyWizardData() {
     save();
 
     console.log('[5e Wizard] Character created:', S.name, 'Level', S.level, term(cls));
+    console.log('[5e Wizard] Applied data:', {
+        class1: S.class1, species: S.species, background: S.background,
+        abilities: S.abilities, ac: S.ac, hp: S.hp,
+        weapons: S.weapons?.length, actions: S.actions?.length,
+        spells: S.spells?.length, features: S.features?.class?.length,
+        inventory: S.inventory?.length
+    });
     toast(S.name + ' erstellt!');
 }
 
