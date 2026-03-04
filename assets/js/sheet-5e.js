@@ -533,22 +533,21 @@ function renderInventory(){
     ['weapon','armor','gear'].forEach(cat=>{
         let items=S.inventory.filter(it=>it.cat===cat);
         if(!items.length)return;
-        html+=`<div class="ag inv-ag" style="border-top:2px solid ${catBorder[cat]}">`;
-        html+=`<div class="agh" style="background:linear-gradient(90deg,${catBg[cat]},transparent);color:${catColors[cat]}">`;
-        html+=`<span>${catLabels[cat]}</span><span class="n" style="background:${catColors[cat]};color:#fff">${items.length}</span><span class="chv" onclick="this.closest('.agh').classList.toggle('collapsed');this.closest('.ag').querySelector('.inv-body').style.display=this.closest('.agh').classList.contains('collapsed')?'none':''" style="margin-left:auto;opacity:.4;font-size:10px;cursor:pointer">&#9662;</span></div>`;
-        html+=`<div class="inv-body"><table class="at"><colgroup><col class="c-nm"><col style="width:90px"><col style="width:110px"><col style="width:36px"></colgroup>`;
-        html+=`<thead><tr><th class="th-nm">Gegenstand</th><th>Anz.</th><th>Gew.</th><th></th></tr></thead><tbody>`;
+        const lbl=catLabels[cat];
+        const col=catColors[cat];
+        const bgCol={weapon:'rgba(208,64,64,.15)',armor:'rgba(64,144,224,.15)',gear:'rgba(212,134,14,.15)'};
+        html+=`<div class="ag inv-ag" style="border-top:none"><div class="agh" style="background:linear-gradient(90deg,${bgCol[cat]} 0%,transparent 100%);color:${col};border-radius:var(--rs)" onclick="this.classList.toggle('collapsed');this.nextElementSibling.style.display=this.classList.contains('collapsed')?'none':''"><span>${lbl}</span><span class="n" style="background:${col};color:#fff">${items.length}</span><span class="chv">&#9662;</span></div>`;
+        html+=`<table class="at"><colgroup><col class="c-nm"><col style="width:90px"><col style="width:110px"><col style="width:36px"></colgroup><thead><tr><th class="th-nm">Gegenstand</th><th>Anz.</th><th>Gew.</th><th></th></tr></thead><tbody>`;
         items.forEach((it)=>{
             let gi=S.inventory.indexOf(it);
             let wt=it.qty*it.wt;totalWt+=wt;
-            let icon=cat==='weapon'?weaponIco(it.name):catIcons[cat];
-            html+=`<tr class="${it.equipped?'inv-eq':''}">`;
-            html+=`<td class="td-nm"><div class="anm"><div class="ai">${icon}</div><div><div class="atn"><input class="e" value="${it.name}" onchange="S.inventory[${gi}].name=this.value;save()"></div><div class="ats">${(it.wt||0)} lb/Stk</div></div></div></td>`;
+            let icon=cat==='weapon'?weaponIco(it.name):invIcon(cat);
+            html+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${icon}</div><div><div class="atn">${it.name}</div><div class="ats">${(it.wt||0)} lb/Stk</div></div></div></td>`;
             html+=`<td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:50px;text-align:center"></td>`;
-            html+=`<td style="color:var(--t2);font-size:12px">${(wt).toFixed(wt%1?1:0)} lb</td>`;
+            html+=`<td class="fm">${(wt).toFixed(wt%1?1:0)} lb</td>`;
             html+=`<td><div class="ctx-dot" onclick="openCtxMenu(event,'inv',${gi})">&#8942;</div></td></tr>`;
         });
-        html+=`</tbody></table></div></div>`;
+        html+=`</tbody></table></div>`;
     });
     document.getElementById('invBody').innerHTML=html;
     let unit=S.weightUnit||'lb';
@@ -598,22 +597,21 @@ function renderSpells(){
         let lbl=+l===0?'Zaubertricks':`Grad ${l}`;
         let sl=S.spellSlots[l];
         let cnt=+l===0?levels[l].length+' bekannt':(sl?sl.max+' Plätze · '+levels[l].filter(s=>s.prepared).length+' vorb.':'');
-        spH+=`<div class="lvl-h">${lbl} <span>${cnt}</span></div>`;
-        spH+=`<table class="at"><colgroup><col class="c-nm"><col style="width:60px"><col style="width:80px"><col style="width:110px"><col style="width:130px"><col style="width:36px"></colgroup><thead><tr><th class="th-nm">Zauber</th><th>Vorb.</th><th>Komp.</th><th>Info</th><th>Tags</th><th></th></tr></thead><tbody>`;
+        spH+=`<div class="ag ag-gold"><div class="agh" onclick="this.classList.toggle('collapsed');this.nextElementSibling.style.display=this.classList.contains('collapsed')?'none':''"><span>${lbl}</span><span class="n" style="background:var(--gold);color:#1a1a1a">${cnt}</span><span class="chv">&#9662;</span></div>`;
+        spH+=`<table class="at"><colgroup><col class="c-nm"><col style="width:60px"><col style="width:110px"><col style="width:130px"><col style="width:36px"></colgroup><thead><tr><th class="th-nm">Zauber</th><th>Vorb.</th><th>Komp.</th><th>Info</th><th></th></tr></thead><tbody>`;
         levels[l].forEach((sp,i)=>{
             let gi=S.spells.indexOf(sp);
             let tags='';
-            if(sp.conc)tags+='<span class="conc" title="Konzentration">K</span>';
-            if(sp.ritual)tags+='<span class="rit" title="Ritual">R</span>';
-            spH+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${spellSchoolIco(sp.school)}</div><div><div class="atn">${sp.name}</div><div class="ats">${sp.school}</div></div></div></td>`;
+            if(sp.conc)tags+='<span class="conc">K</span>';
+            if(sp.ritual)tags+='<span class="rit">R</span>';
+            spH+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${spellSchoolIco(sp.school)}</div><div><div class="atn">${sp.name}${tags}</div><div class="ats">${sp.school||'—'}</div></div></div></td>`;
             spH+=`<td><div class="spc ${sp.prepared?'on':''}" onclick="event.stopPropagation();S.spells[${gi}].prepared=!S.spells[${gi}].prepared;renderSpells();save()" title="Vorbereitet"></div></td>`;
-            spH+=`<td style="font-size:11px;color:var(--t3)">${sp.comp||'—'}</td>`;
-            spH+=`<td style="font-size:12px;color:var(--t2)">${sp.info||'—'}</td>`;
-            spH+=`<td>${tags}</td>`;
+            spH+=`<td class="fm">${sp.comp||'—'}</td>`;
+            spH+=`<td class="fm">${sp.info||'—'}</td>`;
             spH+=`<td><div class="ctx-dot" onclick="event.stopPropagation();openCtxMenu(event,'spell',${gi})">&#8942;</div></td></tr>`;
-            spH+=`<tr class="sp-note-row ${sp._noteOpen?'vis':''}"><td colspan="6" style="padding:0"><div class="sp-note ${sp._noteOpen?'vis':''}" id="spNote${gi}"><input class="e" value="${sp.notes||''}" placeholder="Notizen..." onclick="event.stopPropagation()" onchange="S.spells[${gi}].notes=this.value;save()"></div></td></tr>`;
+            spH+=`<tr class="sp-note-row ${sp._noteOpen?'vis':''}"><td colspan="5" style="padding:0 0 0 64px"><div class="sp-note ${sp._noteOpen?'vis':''}" id="spNote${gi}"><input class="e" value="${sp.notes||''}" placeholder="Notizen..." onclick="event.stopPropagation()" onchange="S.spells[${gi}].notes=this.value;save()"></div></td></tr>`;
         });
-        spH+=`</tbody></table>`;
+        spH+=`</tbody></table></div>`;
     });
     document.getElementById('spellList').innerHTML=spH;
 }
