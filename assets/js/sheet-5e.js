@@ -159,7 +159,7 @@ function render(){
     renderInsp();renderDeathSaves();renderExhaustion();renderXP();
     renderConditions();renderConcentration();renderActions();renderQA();renderBuffs();
     renderSkills();renderSaves();renderCharacter();renderInventory();
-    renderSpells();renderFeatures();renderBio();renderAttunement();
+    renderSpells();renderFeatures();renderBio();renderNotes();renderAttunement();
 }
 
 function renderAbilities(){
@@ -629,6 +629,14 @@ function renderFeatures(){
         ft+=`<div class="feat"><div class="feat-h"><span class="feat-n">${f.name}</span><div class="ctx-dot" onclick="event.stopPropagation();openCtxMenu(event,'feature-feat',${i})">&#8942;</div></div><div class="feat-d">${f.desc}</div></div>`;
     });
     document.getElementById('featFeats').innerHTML=ft||'<div style="padding:14px;color:var(--t3);font-size:12px">Keine Talente gewählt</div>';
+}
+
+function renderNotes(){
+    let n=S.notes||{};
+    ['Quests','NPCs','Places','Session','Misc'].forEach(k=>{
+        let el=document.getElementById('notes'+k);
+        if(el)el.value=n[k.toLowerCase()]||'';
+    });
 }
 
 function renderBio(){
