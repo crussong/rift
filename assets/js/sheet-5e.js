@@ -543,8 +543,8 @@ function renderInventory(){
             let wt=it.qty*it.wt;totalWt+=wt;
             let icon=cat==='weapon'?weaponIco(it.name):catIcons[cat];
             html+=`<tr class="${it.equipped?'inv-eq':''}">`;
-            html+=`<td><div class="ai" style="${it.equipped?'border-color:rgba(212,168,68,.4);background:rgba(212,168,68,.06)':''}">${icon}</div></td>`;
-            html+=`<td style="text-align:left"><div class="atn" style="${it.equipped?'color:var(--gold)':''}"><input class="e" value="${it.name}" onchange="S.inventory[${gi}].name=this.value;save()"></div><div class="ats">${it.equipped?'Angelegt · ':''} ${(it.wt||0)} lb/Stk</div></td>`;
+            html+=`<td><div class="ai">${icon}</div></td>`;
+            html+=`<td style="text-align:left"><div class="atn"><input class="e" value="${it.name}" onchange="S.inventory[${gi}].name=this.value;save()"></div><div class="ats">${(it.wt||0)} lb/Stk</div></td>`;
             html+=`<td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:36px"></td>`;
             html+=`<td style="color:var(--t2);font-size:12px">${(wt).toFixed(wt%1?1:0)} lb</td>`;
             html+=`<td><div class="ctx-dot" onclick="openCtxMenu(event,'inv',${gi})">&#8942;</div></td></tr>`;
