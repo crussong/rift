@@ -115,8 +115,8 @@ function spellSchoolIco(school) {
 
 function invIcon(cat) {
     if (cat === 'weapon') return ico('sword');
-    if (cat === 'armor') return `<span class="ico"><img src="${ICO_BASE}dnd/hp/shield.svg" onerror="this.src='${WEAPON_ICO}sword.svg'"></span>`;
-    return `<span class="ico"><img src="${ICO_BASE}dnd/util/gear.svg" onerror="this.style.display='none'"></span>`;
+    if (cat === 'armor') return `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(180,180,200,.7)" stroke-width="1.5" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(180,180,200,.7)" stroke-width="1.5" width="20" height="20"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>`;
 }
 
 let S=defaultState();
