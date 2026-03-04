@@ -536,14 +536,14 @@ function renderInventory(){
         html+=`<div class="ag inv-ag" style="border-top:2px solid ${catBorder[cat]}">`;
         html+=`<div class="agh" style="background:linear-gradient(90deg,${catBg[cat]},transparent);color:${catColors[cat]}">`;
         html+=`<span>${catLabels[cat]}</span><span class="n" style="background:${catColors[cat]};color:#fff">${items.length}</span><span class="chv" onclick="this.closest('.agh').classList.toggle('collapsed');this.closest('.ag').querySelector('.inv-body').style.display=this.closest('.agh').classList.contains('collapsed')?'none':''" style="margin-left:auto;opacity:.4;font-size:10px;cursor:pointer">&#9662;</span></div>`;
-        html+=`<div class="inv-body"><table class="at" style="border-radius:0"><colgroup><col style="width:44px"><col><col style="width:50px"><col style="width:70px"><col style="width:28px"></colgroup>`;
+        html+=`<div class="inv-body"><table class="at" style="border-radius:0"><colgroup><col style="width:54px"><col><col style="width:50px"><col style="width:70px"><col style="width:28px"></colgroup>`;
         html+=`<thead><tr><th></th><th style="text-align:left">Gegenstand</th><th>Anz.</th><th>Gew.</th><th></th></tr></thead><tbody>`;
         items.forEach((it)=>{
             let gi=S.inventory.indexOf(it);
             let wt=it.qty*it.wt;totalWt+=wt;
             let icon=cat==='weapon'?weaponIco(it.name):catIcons[cat];
             html+=`<tr class="${it.equipped?'inv-eq':''}">`;
-            html+=`<td><div class="ai">${icon}</div></td>`;
+            html+=`<td style="padding:1px 1px"><div class="ai">${icon}</div></td>`;
             html+=`<td style="text-align:left"><div class="atn"><input class="e" value="${it.name}" onchange="S.inventory[${gi}].name=this.value;save()"></div><div class="ats">${(it.wt||0)} lb/Stk</div></td>`;
             html+=`<td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:36px"></td>`;
             html+=`<td style="color:var(--t2);font-size:12px">${(wt).toFixed(wt%1?1:0)} lb</td>`;
