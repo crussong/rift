@@ -234,7 +234,7 @@ function createHPOrb(cur, max) {
         waves+=`<path fill="${C[i]}" opacity="${O[i]}"><animate attributeName="d" dur="${d}s" repeatCount="indefinite" values="M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y+a} ${25+i*5} ${y} Q${45+i*5} ${y-a} ${65+i*3} ${y} Q${85+i*2} ${y+a} ${105+i*3} ${y} Q${120+i} ${y-a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z"/></path>`;
     }
     const maxTxt = max > 0 ? cur : '0';
-    return `<svg viewBox="0 0 120 120">
+    return `<svg viewBox="0 0 120 120" width="110" height="110">
 <defs>
 <clipPath id="cHp"><circle cx="60" cy="60" r="52"/></clipPath>
 <radialGradient id="gHp" cx="30%" cy="25%" r="60%"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
@@ -271,7 +271,7 @@ function createXPOrb(cur, max) {
         const y=L[i],d=D[i],a=3+(i<3?1:0);
         waves+=`<path fill="${C[i]}" opacity="${O[i]}"><animate attributeName="d" dur="${d}s" repeatCount="indefinite" values="M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y+a} ${25+i*5} ${y} Q${45+i*5} ${y-a} ${65+i*3} ${y} Q${85+i*2} ${y+a} ${105+i*3} ${y} Q${120+i} ${y-a} 130 ${y} V130 H-10Z;M-10 ${y} Q${10+i*3} ${y-a} ${25+i*5} ${y} Q${45+i*5} ${y+a} ${65+i*3} ${y} Q${85+i*2} ${y-a} ${105+i*3} ${y} Q${120+i} ${y+a} 130 ${y} V130 H-10Z"/></path>`;
     }
-    return `<svg viewBox="0 0 120 120">
+    return `<svg viewBox="0 0 120 120" width="110" height="110">
 <defs>
 <clipPath id="c${uid}"><circle cx="60" cy="60" r="52"/></clipPath>
 <radialGradient id="g${uid}" cx="30%" cy="25%" r="60%"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
