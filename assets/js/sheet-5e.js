@@ -414,7 +414,7 @@ function renderActions(){
         let items=groups[t];if(!items.length)return;
         let lb=labels[t];
         html+=`<div class="ag ${lb.cls}"><div class="agh" onclick="this.classList.toggle('collapsed');this.nextElementSibling.style.display=this.classList.contains('collapsed')?'none':''"><span>${lb.l}</span><span class="n">${items.length}</span><span class="chv">&#9662;</span></div>`;
-        html+=`<table class="at"><colgroup><col class="c-ico"><col class="c-nm"><col class="c-ut"><col class="c-wf"><col class="c-sd"><col class="c-rw"><col class="c-ctx"></colgroup><thead><tr><th></th><th>Name</th><th>Nutzen</th><th>Wurf</th><th>Schaden</th><th>Reichw.</th><th></th></tr></thead><tbody>`;
+        html+=`<table class="at"><colgroup><col class="c-nm"><col class="c-ut"><col class="c-wf"><col class="c-sd"><col class="c-rw"><col class="c-ctx"></colgroup><thead><tr><th>Name</th><th>Nutzen</th><th>Wurf</th><th>Schaden</th><th>Reichw.</th><th></th></tr></thead><tbody>`;
         items.forEach(it=>{
             html+=`<tr><td><div class="anm"><div class="ai">${it.iconHtml}</div><div><div class="atn">${it.name}</div><div class="ats">${it.sub}</div></div></div></td>`;
             html+=`<td>${it.uses?`<span class="ut" onclick="useCharge(this,event)" data-cur="${it.uses.cur}" data-max="${it.uses.max}">${it.uses.cur}/${it.uses.max}</span>`:'—'}</td>`;
