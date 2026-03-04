@@ -881,7 +881,13 @@ function save() {
             data.updatedAt = Date.now();
             data.name = S.name || 'Unbenannt';
             data.ownerId = window.RIFT?.firebase?.getCurrentUser?.()?.uid || '';
-            RIFT.state.set('characters.' + _charId, { id: _charId, ...data });
+            // Strip portrait from RTDB write (Base64 exceeds 1MB limit)
+            delete data.portrait;
+            try {
+                RIFT.state.set('characters.' + _charId, { id: _charId, ...data });
+            } catch (e) {
+                console.warn('[5e] RiftLink write failed:', e.message);
+            }
         }, 200);
     }
 
@@ -998,14 +1004,19 @@ function initRiftLink() {
     _riftLinkActive = true;
     console.log('[5e] RiftLink connected:', _charId, 'in', _roomCode);
 
-    // Push initial state after short delay
+    // Push initial state after short delay (without portrait — RTDB 1MB limit)
     setTimeout(() => {
         const data = JSON.parse(JSON.stringify(S));
         data.ruleset = 'dnd5e';
         data.updatedAt = Date.now();
         data.name = S.name || 'Unbenannt';
         data.ownerId = window.RIFT?.firebase?.getCurrentUser?.()?.uid || '';
-        RIFT.state.set('characters.' + _charId, { id: _charId, ...data });
+        delete data.portrait;
+        try {
+            RIFT.state.set('characters.' + _charId, { id: _charId, ...data });
+        } catch (e) {
+            console.warn('[5e] RiftLink initial push failed:', e.message);
+        }
     }, 1500);
 
     // Listen for remote changes
@@ -1015,6 +1026,12 @@ function initRiftLink() {
 
         const remote = RIFT.state.get('characters.' + _charId);
         if (!remote) return;
+
+        // Guard: don't overwrite filled local state with empty remote data
+        if (!remote.name && !remote.class1 && S.name) {
+            console.warn('[5e] Ignoring empty remote state — local data preserved');
+            return;
+        }
 
         _applyingRemote = true;
         try {
@@ -1027,7 +1044,7 @@ function initRiftLink() {
                 'attunement', 'bio', 'props', 'skillProficiencies',
                 'skillExpertise', 'saveProficiencies', 'hitDice',
                 'name', 'species', 'class1', 'subclass', 'background',
-                'alignment', 'size', 'level', 'portrait', 'headerBg',
+                'alignment', 'size', 'level', 'headerBg',
                 'spellAbility', 'weightUnit'];
 
             for (const key of keys) {
