@@ -1180,54 +1180,233 @@ function viewWeapon(i) {
     const aMod = C.mods[w.ability] || 0;
     const atk = aMod + C.profBonus;
     const dmgTotal = w.dmg + (aMod >= 0 ? '+' : '') + aMod;
+    const rarityColors = {common:'#9ca3af',uncommon:'#4ade80',rare:'#60a5fa','very-rare':'#c084fc',legendary:'#fbbf24',artifact:'#f97316'};
+    const rarity = w.rarity || 'common';
+    const rarityColor = rarityColors[rarity] || '#9ca3af';
+
+    // Weapon properties for checkbox grid
+    const ALL_PROPS = ['Adamantin','Munition','Finesse','Schwer','Leicht','Laden','Magisch','Reichweite','Wurfwaffe','Versilbert','Spezial','Zweihand','Vielseitig'];
+    const curProps = (w.props || '').split(',').map(p => p.trim().toLowerCase());
+
     openViewModal(`
-        <div class="view-header">
-            <div class="view-icon">${weaponIco(w.name)}</div>
-            <div>
-                <div class="view-title">${w.name}</div>
-                <div class="view-subtitle">Waffe, ${w.type === 'melee' ? 'Nahkampf' : 'Fernkampf'}, ${AB_DE[w.ability]}-basiert</div>
+        <div class="vm-side">
+            <div class="vm-art">${weaponIco(w.name)}</div>
+            <div class="vm-rarity">
+                <select onchange="S.weapons[${i}].rarity=this.value;save()" style="color:${rarityColor}">
+                    <option value="common" ${rarity==='common'?'selected':''}>Gewoehnlich</option>
+                    <option value="uncommon" ${rarity==='uncommon'?'selected':''} style="color:#4ade80">Ungewoehnlich</option>
+                    <option value="rare" ${rarity==='rare'?'selected':''} style="color:#60a5fa">Selten</option>
+                    <option value="very-rare" ${rarity==='very-rare'?'selected':''} style="color:#c084fc">Sehr Selten</option>
+                    <option value="legendary" ${rarity==='legendary'?'selected':''} style="color:#fbbf24">Legendaer</option>
+                    <option value="artifact" ${rarity==='artifact'?'selected':''} style="color:#f97316">Artefakt</option>
+                </select>
             </div>
-            <div class="view-close" onclick="closeViewModal()">&#10005;</div>
+            <label class="vm-toggle"><input type="checkbox" ${w.pinned?'checked':''} onchange="S.weapons[${i}].pinned=this.checked;render();save()"> Quick Action</label>
+            <div class="vm-sep"></div>
+            <div class="vm-stat-label">Aktion</div>
+            <div class="vm-pills">
+                <span class="vm-pill hl">Aktion</span>
+                <span class="vm-pill">${w.type==='melee'?'Nahkampf':'Fernkampf'}</span>
+                <span class="vm-pill">${w.range}</span>
+            </div>
+            <div class="vm-stat-label">Angriff / Schaden</div>
+            <div class="vm-pills">
+                <span class="vm-pill hl">+${atk} Treffer</span>
+                <span class="vm-pill">${dmgTotal} ${w.dmgType||''}</span>
+            </div>
+            <div class="vm-stat-label">Eigenschaften</div>
+            <div class="vm-pills">
+                ${w.props ? w.props.split(',').map(p => '<span class="vm-pill">'+p.trim()+'</span>').join('') : '<span class="vm-pill" style="color:var(--t4)">Keine</span>'}
+            </div>
         </div>
-        <div class="view-tags">
-            <span class="view-tag">${w.type === 'melee' ? 'Nahkampf' : 'Fernkampf'}</span>
-            ${w.props ? w.props.split(',').map(p => '<span class="view-tag">' + p.trim() + '</span>').join('') : ''}
-        </div>
-        <div class="view-body">
-            <div class="view-row"><span class="view-label">Angriff</span><span class="view-val" style="color:var(--grn)">+${atk}</span></div>
-            <div class="view-row"><span class="view-label">Schaden</span><span class="view-val">${dmgTotal}</span></div>
-            ${w.dmgType ? '<div class="view-row"><span class="view-label">Schadensart</span><span class="view-val">' + w.dmgType + '</span></div>' : ''}
-            <div class="view-row"><span class="view-label">Reichweite</span><span class="view-val">${w.range}</span></div>
-            <div class="view-row"><span class="view-label">Attribut</span><span class="view-val" style="color:${AB_COLORS[w.ability]}">${AB_FULL_DE[w.ability]}</span></div>
-            <div class="view-row"><span class="view-label">Übungsbonus</span><span class="view-val">+${C.profBonus}</span></div>
-            <div class="view-row"><span class="view-label">Quick Action</span><span class="view-val">${w.pinned ? 'Ja' : 'Nein'}</span></div>
+        <div class="vm-main">
+            <div class="vm-head">
+                <div class="vm-head-info">
+                    <div class="vm-type"><span class="vm-type-dot" style="background:${rarityColor}"></span> Waffe</div>
+                    <div class="vm-title-row">
+                        <div class="vm-title"><input value="${w.name}" onchange="S.weapons[${i}].name=this.value;render();save()"></div>
+                    </div>
+                    <div class="vm-subtitle">Waffe, ${w.type==='melee'?'Einfache Nahkampfwaffe':'Fernkampfwaffe'}, +${atk} Treffer</div>
+                    <div class="vm-meta">
+                        <span>&#9876; <b>${w.dmg}</b> ${w.dmgType||''}</span>
+                        <span>&#9881; <b>${w.range}</b></span>
+                        <span>&#9733; <b>${AB_DE[w.ability]}</b></span>
+                    </div>
+                </div>
+                <div class="vm-close" onclick="closeViewModal()">&#10005;</div>
+            </div>
+            <div class="vm-tabs">
+                <div class="vm-tab on" onclick="vmTab(this,0)">Beschreibung</div>
+                <div class="vm-tab" onclick="vmTab(this,1)">Details</div>
+                <div class="vm-tab" onclick="vmTab(this,2)">Aktivitaeten</div>
+                <div class="vm-tab" onclick="vmTab(this,3)">Effekte</div>
+            </div>
+            <div class="vm-content">
+                <!-- Tab 0: Description -->
+                <div class="vm-panel" data-panel="0">
+                    <div class="vm-desc-block">
+                        <div class="vm-desc-head">Beschreibung <span class="vm-desc-edit" onclick="vmEditDesc(${i},'description')">&#9998;</span></div>
+                        <div class="vm-desc-text" id="vmDescText">${w.description || ''}</div>
+                    </div>
+                    <div class="vm-desc-block">
+                        <div class="vm-desc-head">Chat-Beschreibung <span class="vm-desc-edit" onclick="vmEditDesc(${i},'chatDesc')">&#9998;</span></div>
+                        <div class="vm-desc-text" id="vmChatDesc">${w.chatDesc || ''}</div>
+                    </div>
+                    <div class="vm-desc-block">
+                        <div class="vm-desc-head">Notizen <span class="vm-desc-edit" onclick="vmEditDesc(${i},'notes')">&#9998;</span></div>
+                        <div class="vm-desc-text" id="vmNotes">${w.notes || ''}</div>
+                    </div>
+                </div>
+                <!-- Tab 1: Details -->
+                <div class="vm-panel" data-panel="1" style="display:none">
+                    <div class="vm-field"><label>Gewicht</label><input type="number" value="${w.weight||0}" onchange="S.weapons[${i}].weight=+this.value;save()" style="width:60px;flex:none"> <select class="vm-unit" onchange="S.weapons[${i}].weightUnit=this.value;save()"><option>lb</option><option>kg</option></select></div>
+                    <div class="vm-field"><label>Preis</label><input type="number" value="${w.price||0}" onchange="S.weapons[${i}].price=+this.value;save()" style="width:60px;flex:none"> <select class="vm-unit" onchange="S.weapons[${i}].priceUnit=this.value;save()"><option value="gp">GM</option><option value="sp">SM</option><option value="cp">KM</option></select></div>
+                    <div class="vm-section-head">Waffendetails</div>
+                    <div class="vm-field"><label>Waffentyp</label>
+                        <select onchange="S.weapons[${i}].weaponType=this.value;save()">
+                            <option value="simple-melee" ${(w.weaponType||'')==='simple-melee'?'selected':''}>Einfache Nahkampf</option>
+                            <option value="simple-ranged" ${(w.weaponType||'')==='simple-ranged'?'selected':''}>Einfache Fernkampf</option>
+                            <option value="martial-melee" ${(w.weaponType||'')==='martial-melee'?'selected':''}>Kampf Nahkampf</option>
+                            <option value="martial-ranged" ${(w.weaponType||'')==='martial-ranged'?'selected':''}>Kampf Fernkampf</option>
+                        </select>
+                    </div>
+                    <div class="vm-field"><label>Basiswaffe</label><input value="${w.baseWeapon||w.name}" onchange="S.weapons[${i}].baseWeapon=this.value;save()"></div>
+                    <div class="vm-field"><label>Attribut</label>
+                        <select onchange="S.weapons[${i}].ability=this.value;render();save()">
+                            ${ABILITIES.map(a=>'<option value="'+a+'" '+(w.ability===a?'selected':'')+'>'+AB_FULL_DE[a]+'</option>').join('')}
+                        </select>
+                    </div>
+                    <div class="vm-field"><label>Schaden</label><input value="${w.dmg}" onchange="S.weapons[${i}].dmg=this.value;render();save()" style="width:60px;flex:none"> <input value="${w.dmgType||''}" placeholder="Schadensart" onchange="S.weapons[${i}].dmgType=this.value;save()"></div>
+                    <div class="vm-field"><label>Reichweite</label><input value="${w.range}" onchange="S.weapons[${i}].range=this.value;render();save()"></div>
+                    <div class="vm-field"><label>Kampftyp</label>
+                        <select onchange="S.weapons[${i}].type=this.value;render();save()">
+                            <option value="melee" ${w.type==='melee'?'selected':''}>Nahkampf</option>
+                            <option value="ranged" ${w.type==='ranged'?'selected':''}>Fernkampf</option>
+                        </select>
+                    </div>
+                    <div class="vm-section-head">Waffeneigenschaften</div>
+                    <div class="vm-checks">
+                        ${ALL_PROPS.map(p => {
+                            const checked = curProps.includes(p.toLowerCase()) ? 'checked' : '';
+                            return '<label class="vm-check"><input type="checkbox" '+checked+' onchange="vmToggleProp('+i+',\''+p+'\',this.checked)"> '+p+'</label>';
+                        }).join('')}
+                    </div>
+                </div>
+                <!-- Tab 2: Activities -->
+                <div class="vm-panel" data-panel="2" style="display:none">
+                    <div class="vm-fx-group">
+                        <div class="vm-fx-head temp">Angriff <span class="vm-fx-count">1</span></div>
+                        <div style="padding:8px 0">
+                            <div class="vm-field"><label>Wurf</label><span style="color:var(--grn);font-weight:700">+${atk}</span></div>
+                            <div class="vm-field"><label>Schaden</label><span style="font-weight:600">${dmgTotal} ${w.dmgType||''}</span></div>
+                            <div class="vm-field"><label>Typ</label><span>${w.type==='melee'?'Nahkampf':'Fernkampf'}</span></div>
+                            <div class="vm-field"><label>Reichweite</label><span>${w.range}</span></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tab 3: Effects -->
+                <div class="vm-panel" data-panel="3" style="display:none">
+                    <div class="vm-fx-group">
+                        <div class="vm-fx-head temp">Temporaere Effekte <span class="vm-fx-count">${(w.effects?.temp||[]).length}</span><span class="vm-fx-add">+</span></div>
+                    </div>
+                    <div class="vm-fx-group">
+                        <div class="vm-fx-head pass">Passive Effekte <span class="vm-fx-count">${(w.effects?.passive||[]).length}</span><span class="vm-fx-add">+</span></div>
+                    </div>
+                    <div class="vm-fx-group">
+                        <div class="vm-fx-head inact">Inaktive Effekte <span class="vm-fx-count">${(w.effects?.inactive||[]).length}</span><span class="vm-fx-add">+</span></div>
+                    </div>
+                </div>
+            </div>
         </div>
     `);
+}
+
+function vmTab(el, idx) {
+    el.parentElement.querySelectorAll('.vm-tab').forEach(t => t.classList.remove('on'));
+    el.classList.add('on');
+    el.closest('.vm-main').querySelectorAll('.vm-panel').forEach(p => p.style.display = 'none');
+    el.closest('.vm-main').querySelector('.vm-panel[data-panel="'+idx+'"]').style.display = '';
+}
+
+function vmToggleProp(weaponIdx, prop, checked) {
+    const w = S.weapons[weaponIdx];
+    let props = (w.props || '').split(',').map(p => p.trim()).filter(p => p);
+    if (checked && !props.includes(prop)) props.push(prop);
+    else props = props.filter(p => p.toLowerCase() !== prop.toLowerCase());
+    w.props = props.join(', ');
+    render(); save();
+}
+
+function vmEditDesc(weaponIdx, field) {
+    const w = S.weapons[weaponIdx];
+    const current = w[field] || '';
+    const container = document.getElementById(field === 'description' ? 'vmDescText' : field === 'chatDesc' ? 'vmChatDesc' : 'vmNotes');
+    if (!container) return;
+    container.innerHTML = '<textarea style="width:100%;min-height:60px;background:var(--sf);border:1px solid var(--gold);border-radius:6px;padding:8px;color:var(--tx);font-size:12px;font-family:inherit;resize:vertical" onblur="S.weapons['+weaponIdx+'].'+field+'=this.value;this.parentElement.textContent=this.value;save()">'+current+'</textarea>';
+    container.querySelector('textarea').focus();
 }
 
 function viewInventoryItem(i) {
     const it = S.inventory[i];
     if (!it) return;
     const catLabel = {weapon:'Waffe',armor:'Ruestung',gear:'Ausruestung'}[it.cat] || it.cat;
+    const catColor = {weapon:'var(--red)',armor:'var(--blu)',gear:'#d4860e'}[it.cat] || 'var(--t3)';
     const icon = it.cat === 'weapon' ? weaponIco(it.name) : (it.cat === 'armor' ? invIcon('armor') : invIcon('gear'));
+    const rarity = it.rarity || 'common';
+    const rarityColors = {common:'#9ca3af',uncommon:'#4ade80',rare:'#60a5fa','very-rare':'#c084fc',legendary:'#fbbf24',artifact:'#f97316'};
+
     openViewModal(`
-        <div class="view-header">
-            <div class="view-icon">${icon}</div>
-            <div>
-                <div class="view-title">${it.name}</div>
-                <div class="view-subtitle">${catLabel}</div>
+        <div class="vm-side">
+            <div class="vm-art">${icon}</div>
+            <div class="vm-rarity">
+                <select onchange="S.inventory[${i}].rarity=this.value;save()" style="color:${rarityColors[rarity]||'#9ca3af'}">
+                    <option value="common" ${rarity==='common'?'selected':''}>Gewoehnlich</option>
+                    <option value="uncommon" ${rarity==='uncommon'?'selected':''} style="color:#4ade80">Ungewoehnlich</option>
+                    <option value="rare" ${rarity==='rare'?'selected':''} style="color:#60a5fa">Selten</option>
+                    <option value="very-rare" ${rarity==='very-rare'?'selected':''} style="color:#c084fc">Sehr Selten</option>
+                    <option value="legendary" ${rarity==='legendary'?'selected':''} style="color:#fbbf24">Legendaer</option>
+                </select>
             </div>
-            <div class="view-close" onclick="closeViewModal()">&#10005;</div>
+            <label class="vm-toggle"><input type="checkbox" ${it.equipped?'checked':''} onchange="S.inventory[${i}].equipped=this.checked;renderInventory();save()"> Angelegt</label>
+            <label class="vm-toggle"><input type="checkbox" ${it.attuned?'checked':''} onchange="S.inventory[${i}].attuned=this.checked;save()"> Eingestimmt</label>
+            <label class="vm-toggle"><input type="checkbox" ${it.identified!==false?'checked':''} onchange="S.inventory[${i}].identified=this.checked;save()"> Identifiziert</label>
         </div>
-        <div class="view-tags">
-            <span class="view-tag">${catLabel}</span>
-            ${it.equipped ? '<span class="view-tag" style="color:var(--grn);border-color:rgba(74,222,128,.3)">Angelegt</span>' : ''}
-        </div>
-        <div class="view-body">
-            <div class="view-row"><span class="view-label">Anzahl</span><span class="view-val">${it.qty}</span></div>
-            <div class="view-row"><span class="view-label">Gewicht</span><span class="view-val">${it.wt} lb</span></div>
-            <div class="view-row"><span class="view-label">Gesamt</span><span class="view-val">${(it.qty * it.wt).toFixed(1)} lb</span></div>
-            <div class="view-row"><span class="view-label">Status</span><span class="view-val">${it.equipped ? 'Angelegt' : 'Im Inventar'}</span></div>
+        <div class="vm-main">
+            <div class="vm-head">
+                <div class="vm-head-info">
+                    <div class="vm-type"><span class="vm-type-dot" style="background:${catColor}"></span> ${catLabel}</div>
+                    <div class="vm-title-row"><div class="vm-title"><input value="${it.name}" onchange="S.inventory[${i}].name=this.value;renderInventory();save()"></div></div>
+                    <div class="vm-meta">
+                        <span>&#9878; <b>${it.qty}</b>x</span>
+                        <span>&#9881; <b>${(it.qty*it.wt).toFixed(1)}</b> lb</span>
+                        ${it.equipped?'<span style="color:var(--grn)">&#10003; Angelegt</span>':''}
+                    </div>
+                </div>
+                <div class="vm-close" onclick="closeViewModal()">&#10005;</div>
+            </div>
+            <div class="vm-tabs">
+                <div class="vm-tab on" onclick="vmTab(this,0)">Beschreibung</div>
+                <div class="vm-tab" onclick="vmTab(this,1)">Details</div>
+            </div>
+            <div class="vm-content">
+                <div class="vm-panel" data-panel="0">
+                    <div class="vm-desc-block">
+                        <div class="vm-desc-head">Beschreibung</div>
+                        <div class="vm-desc-text">${it.description || ''}</div>
+                    </div>
+                </div>
+                <div class="vm-panel" data-panel="1" style="display:none">
+                    <div class="vm-field"><label>Anzahl</label><input type="number" value="${it.qty}" min="0" onchange="S.inventory[${i}].qty=+this.value;renderInventory();save()"></div>
+                    <div class="vm-field"><label>Gewicht</label><input type="number" value="${it.wt}" step="0.1" onchange="S.inventory[${i}].wt=+this.value;renderInventory();save()"> <span style="color:var(--t3);font-size:11px">lb/Stueck</span></div>
+                    <div class="vm-field"><label>Kategorie</label>
+                        <select onchange="S.inventory[${i}].cat=this.value;renderInventory();save()">
+                            <option value="weapon" ${it.cat==='weapon'?'selected':''}>Waffe</option>
+                            <option value="armor" ${it.cat==='armor'?'selected':''}>Ruestung</option>
+                            <option value="gear" ${it.cat==='gear'?'selected':''}>Ausruestung</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
     `);
 }
@@ -1235,65 +1414,72 @@ function viewInventoryItem(i) {
 function viewAction(i) {
     const a = S.actions[i];
     if (!a) return;
+    const typeLabel = {action:'Aktion',bonus:'Bonusaktion',reaction:'Reaktion',other:'Andere'}[a.type] || a.type;
+    const typeColor = {action:'var(--red)',bonus:'var(--gold)',reaction:'#c084fc',other:'var(--t3)'}[a.type] || 'var(--t3)';
+
     openViewModal(`
-        <div class="view-header">
-            <div class="view-icon">${actionIcon(a)}</div>
-            <div>
-                <div class="view-title">${a.name}</div>
-                <div class="view-subtitle">${a.sub || 'Aktion'}</div>
+        <div class="vm-side">
+            <div class="vm-art">${actionIcon(a)}</div>
+            <label class="vm-toggle"><input type="checkbox" ${a.pinned?'checked':''} onchange="S.actions[${i}].pinned=this.checked;render();save()"> Quick Action</label>
+            <div class="vm-sep"></div>
+            <div class="vm-stat-label">Typ</div>
+            <div class="vm-pills">
+                <span class="vm-pill hl">${typeLabel}</span>
             </div>
-            <div class="view-close" onclick="closeViewModal()">&#10005;</div>
+            ${a.uses ? '<div class="vm-stat-label">Nutzen</div><div class="vm-pills"><span class="vm-pill hl">'+a.uses.cur+'/'+a.uses.max+'</span><span class="vm-pill">'+(a.uses.rest==='short'?'Kurze Rast':'Lange Rast')+'</span></div>' : ''}
         </div>
-        <div class="view-tags">
-            <span class="view-tag">${{action:'Aktion',bonus:'Bonusaktion',reaction:'Reaktion',other:'Andere'}[a.type] || a.type}</span>
-            ${a.pinned ? '<span class="view-tag" style="color:var(--gold);border-color:rgba(212,168,68,.3)">Quick Action</span>' : ''}
-        </div>
-        <div class="view-body">
-            ${a.roll ? '<div class="view-row"><span class="view-label">Wurf</span><span class="view-val" style="color:var(--grn)">' + a.roll + '</span></div>' : ''}
-            ${a.dmg ? '<div class="view-row"><span class="view-label">Schaden</span><span class="view-val">' + a.dmg + '</span></div>' : ''}
-            ${a.range ? '<div class="view-row"><span class="view-label">Reichweite</span><span class="view-val">' + a.range + '</span></div>' : ''}
-            ${a.uses ? '<div class="view-row"><span class="view-label">Nutzen</span><span class="view-val">' + a.uses.cur + '/' + a.uses.max + ' (' + (a.uses.rest === 'short' ? 'Kurze Rast' : 'Lange Rast') + ')</span></div>' : ''}
+        <div class="vm-main">
+            <div class="vm-head">
+                <div class="vm-head-info">
+                    <div class="vm-type"><span class="vm-type-dot" style="background:${typeColor}"></span> ${typeLabel}</div>
+                    <div class="vm-title-row"><div class="vm-title"><input value="${a.name}" onchange="S.actions[${i}].name=this.value;render();save()"></div></div>
+                    <div class="vm-subtitle">${a.sub || ''}</div>
+                    <div class="vm-meta">
+                        ${a.roll?'<span>&#9876; <b>'+a.roll+'</b></span>':''}
+                        ${a.dmg?'<span>&#9881; <b>'+a.dmg+'</b></span>':''}
+                        ${a.range?'<span>&#8634; <b>'+a.range+'</b></span>':''}
+                    </div>
+                </div>
+                <div class="vm-close" onclick="closeViewModal()">&#10005;</div>
+            </div>
+            <div class="vm-tabs">
+                <div class="vm-tab on" onclick="vmTab(this,0)">Details</div>
+            </div>
+            <div class="vm-content">
+                <div class="vm-panel" data-panel="0">
+                    <div class="vm-field"><label>Name</label><input value="${a.name}" onchange="S.actions[${i}].name=this.value;render();save()"></div>
+                    <div class="vm-field"><label>Beschreibung</label><input value="${a.sub||''}" onchange="S.actions[${i}].sub=this.value;render();save()"></div>
+                    <div class="vm-field"><label>Typ</label>
+                        <select onchange="S.actions[${i}].type=this.value;render();save()">
+                            <option value="action" ${a.type==='action'?'selected':''}>Aktion</option>
+                            <option value="bonus" ${a.type==='bonus'?'selected':''}>Bonusaktion</option>
+                            <option value="reaction" ${a.type==='reaction'?'selected':''}>Reaktion</option>
+                            <option value="other" ${a.type==='other'?'selected':''}>Andere</option>
+                        </select>
+                    </div>
+                    <div class="vm-field"><label>Wurf</label><input value="${a.roll||''}" onchange="S.actions[${i}].roll=this.value;render();save()"></div>
+                    <div class="vm-field"><label>Schaden</label><input value="${a.dmg||''}" onchange="S.actions[${i}].dmg=this.value;render();save()"></div>
+                    <div class="vm-field"><label>Reichweite</label><input value="${a.range||''}" onchange="S.actions[${i}].range=this.value;render();save()"></div>
+                    ${a.uses ? `
+                    <div class="vm-section-head">Nutzungen</div>
+                    <div class="vm-field"><label>Aktuell</label><input type="number" value="${a.uses.cur}" onchange="S.actions[${i}].uses.cur=+this.value;render();save()"></div>
+                    <div class="vm-field"><label>Maximum</label><input type="number" value="${a.uses.max}" onchange="S.actions[${i}].uses.max=+this.value;render();save()"></div>
+                    <div class="vm-field"><label>Erholung</label>
+                        <select onchange="S.actions[${i}].uses.rest=this.value;save()">
+                            <option value="short" ${a.uses.rest==='short'?'selected':''}>Kurze Rast</option>
+                            <option value="long" ${a.uses.rest==='long'?'selected':''}>Lange Rast</option>
+                        </select>
+                    </div>` : ''}
+                </div>
+            </div>
         </div>
     `);
 }
 
-// Edit stubs — reuse add-modals with pre-filled data
-function editWeapon(i) {
-    const w = S.weapons[i];
-    document.getElementById('wName').value = w.name;
-    document.getElementById('wType').value = w.type;
-    document.getElementById('wAbility').value = w.ability;
-    document.getElementById('wDmg').value = w.dmg;
-    document.getElementById('wDmgType').value = w.dmgType || '';
-    document.getElementById('wProps').value = w.props || '';
-    document.getElementById('wRange').value = w.range || '';
-    document.getElementById('weaponOverlay').classList.add('on');
-    // Override confirm to update instead of add
-    window._editWeaponIdx = i;
-    document.getElementById('wName').focus();
-}
-
-function editInventoryItem(i) {
-    toast('Item in Tabelle bearbeiten');
-}
-
-function editAction(i) {
-    const a = S.actions[i];
-    document.getElementById('aName').value = a.name;
-    document.getElementById('aSub').value = a.sub || '';
-    document.getElementById('aType').value = a.type;
-    document.getElementById('aRoll').value = a.roll || '';
-    document.getElementById('aDmg').value = a.dmg || '';
-    document.getElementById('aRange').value = a.range || '';
-    if (a.uses) {
-        document.getElementById('aUsesCur').value = a.uses.cur;
-        document.getElementById('aUsesMax').value = a.uses.max;
-        document.getElementById('aUsesRest').value = a.uses.rest || 'long';
-    }
-    document.getElementById('actionOverlay').classList.add('on');
-    window._editActionIdx = i;
-    document.getElementById('aName').focus();
-}
+// Edit stubs — view modal is fully editable, so edit just opens view
+function editWeapon(i) { viewWeapon(i); }
+function editInventoryItem(i) { viewInventoryItem(i); }
+function editAction(i) { viewAction(i); }
 
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2500)}
 
