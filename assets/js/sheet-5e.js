@@ -499,7 +499,7 @@ function renderSpells(){
             let tags='';
             if(sp.conc)tags+='<span class="conc" title="Konzentration">K</span>';
             if(sp.ritual)tags+='<span class="rit" title="Ritual">R</span>';
-            spH+=`<div class="spr" onclick="toggleSpellNote(${gi})"><div class="spc ${sp.prepared?'on':''}" onclick="event.stopPropagation();S.spells[${gi}].prepared=!S.spells[${gi}].prepared;renderSpells();save()"></div><div class="spsch">${spellSchoolIco(sp.school)}</div><div class="spn">${sp.name}</div><div class="spco">${sp.comp}</div><div class="spinf">${sp.info}${tags}</div><span style="cursor:pointer;color:var(--t4);font-size:10px;margin-left:4px" onclick="event.stopPropagation();S.spells.splice(${gi},1);renderSpells();save()">&#10005;</span></div>`;
+            spH+=`<div class="spr" onclick="toggleSpellNote(${gi})"><div class="spc ${sp.prepared?'on':''}" onclick="event.stopPropagation();S.spells[${gi}].prepared=!S.spells[${gi}].prepared;renderSpells();save()"></div><div class="spsch">${spellSchoolIco(sp.school)}</div><div class="spn">${sp.name}</div><div class="spco">${sp.comp}</div><div class="spinf">${sp.info}${tags}</div><div class="ctx-dot" onclick="event.stopPropagation();openCtxMenu(event,'spell',${gi})">&#8942;</div></div>`;
             spH+=`<div class="sp-note ${sp._noteOpen?'vis':''}" id="spNote${gi}"><input class="e" value="${sp.notes||''}" placeholder="Notizen..." onclick="event.stopPropagation()" onchange="S.spells[${gi}].notes=this.value;save()"></div>`;
         });
     });
@@ -509,18 +509,18 @@ function renderSpells(){
 function renderFeatures(){
     let h='';
     S.features.class.forEach((f,i)=>{
-        h+=`<div class="feat"><div class="feat-h"><span class="feat-n">${f.name}</span><span class="feat-src">${f.src}</span>${f.uses?`<span class="feat-u"><span class="ut">${f.uses.cur}/${f.uses.max}</span></span>`:''}</div><div class="feat-d">${f.desc}</div></div>`;
+        h+=`<div class="feat"><div class="feat-h"><span class="feat-n">${f.name}</span><span class="feat-src">${f.src||''}</span>${f.uses?`<span class="feat-u"><span class="ut">${f.uses.cur}/${f.uses.max}</span></span>`:''}<div class="ctx-dot" onclick="event.stopPropagation();openCtxMenu(event,'feature-class',${i})">&#8942;</div></div><div class="feat-d">${f.desc}</div></div>`;
     });
     document.getElementById('classFeats').innerHTML=h;
     let sp='';
-    S.features.species.forEach(f=>{
-        sp+=`<div class="feat"><div class="feat-h"><span class="feat-n">${f.name}</span></div><div class="feat-d">${f.desc}</div></div>`;
+    S.features.species.forEach((f,i)=>{
+        sp+=`<div class="feat"><div class="feat-h"><span class="feat-n">${f.name}</span><div class="ctx-dot" onclick="event.stopPropagation();openCtxMenu(event,'feature-species',${i})">&#8942;</div></div><div class="feat-d">${f.desc}</div></div>`;
     });
     document.getElementById('speciesFeats').innerHTML=sp;
     document.getElementById('speciesName').textContent=S.species;
     let ft='';
-    S.features.feats.forEach(f=>{
-        ft+=`<div class="feat"><div class="feat-h"><span class="feat-n">${f.name}</span></div><div class="feat-d">${f.desc}</div></div>`;
+    S.features.feats.forEach((f,i)=>{
+        ft+=`<div class="feat"><div class="feat-h"><span class="feat-n">${f.name}</span><div class="ctx-dot" onclick="event.stopPropagation();openCtxMenu(event,'feature-feat',${i})">&#8942;</div></div><div class="feat-d">${f.desc}</div></div>`;
     });
     document.getElementById('featFeats').innerHTML=ft||'<div style="padding:14px;color:var(--t3);font-size:12px">Keine Talente gewählt</div>';
 }
@@ -1111,6 +1111,13 @@ function openCtxMenu(e, type, index) {
         const a = S.actions[index];
         equipItem.style.display = 'none';
         document.getElementById('ctxPinLabel').textContent = a.pinned ? 'Aus Quick Actions entfernen' : 'Zu Quick Actions';
+    } else if (type === 'spell') {
+        equipItem.style.display = 'none';
+        pinItem.style.display = 'none';
+    } else if (type === 'feature-class' || type === 'feature-species' || type === 'feature-feat') {
+        equipItem.style.display = 'none';
+        pinItem.style.display = 'none';
+        menu.querySelector('[data-action="duplicate"]').style.display = 'none';
     }
 
     // Position
@@ -1145,10 +1152,18 @@ document.getElementById('ctxMenu').addEventListener('click', (e) => {
         if (type === 'weapon') viewWeapon(index);
         else if (type === 'inv') viewInventoryItem(index);
         else if (type === 'action') viewAction(index);
+        else if (type === 'spell') viewSpell(index);
+        else if (type === 'feature-class') viewFeature('class', index);
+        else if (type === 'feature-species') viewFeature('species', index);
+        else if (type === 'feature-feat') viewFeature('feats', index);
     } else if (action === 'edit') {
         if (type === 'weapon') editWeapon(index);
         else if (type === 'inv') editInventoryItem(index);
         else if (type === 'action') editAction(index);
+        else if (type === 'spell') viewSpell(index);
+        else if (type === 'feature-class') viewFeature('class', index);
+        else if (type === 'feature-species') viewFeature('species', index);
+        else if (type === 'feature-feat') viewFeature('feats', index);
     } else if (action === 'equip') {
         if (type === 'inv') { S.inventory[index].equipped = !S.inventory[index].equipped; renderInventory(); save(); }
     } else if (action === 'pin') {
@@ -1158,10 +1173,15 @@ document.getElementById('ctxMenu').addEventListener('click', (e) => {
         if (type === 'weapon') { S.weapons.push(JSON.parse(JSON.stringify(S.weapons[index]))); render(); save(); toast('Waffe dupliziert'); }
         else if (type === 'inv') { S.inventory.push(JSON.parse(JSON.stringify(S.inventory[index]))); renderInventory(); save(); toast('Item dupliziert'); }
         else if (type === 'action') { S.actions.push(JSON.parse(JSON.stringify(S.actions[index]))); render(); save(); toast('Aktion dupliziert'); }
+        else if (type === 'spell') { S.spells.push(JSON.parse(JSON.stringify(S.spells[index]))); renderSpells(); save(); toast('Zauber dupliziert'); }
     } else if (action === 'delete') {
         if (type === 'weapon') { const n = S.weapons[index].name; S.weapons.splice(index, 1); render(); save(); toast(n + ' entfernt'); }
         else if (type === 'inv') { const n = S.inventory[index].name; S.inventory.splice(index, 1); renderInventory(); save(); toast(n + ' entfernt'); }
         else if (type === 'action') { const n = S.actions[index].name; S.actions.splice(index, 1); render(); save(); toast(n + ' entfernt'); }
+        else if (type === 'spell') { const n = S.spells[index].name; S.spells.splice(index, 1); renderSpells(); save(); toast(n + ' entfernt'); }
+        else if (type === 'feature-class') { const n = S.features.class[index].name; S.features.class.splice(index, 1); renderFeatures(); save(); toast(n + ' entfernt'); }
+        else if (type === 'feature-species') { const n = S.features.species[index].name; S.features.species.splice(index, 1); renderFeatures(); save(); toast(n + ' entfernt'); }
+        else if (type === 'feature-feat') { const n = S.features.feats[index].name; S.features.feats.splice(index, 1); renderFeatures(); save(); toast(n + ' entfernt'); }
     }
 });
 
@@ -1306,19 +1326,12 @@ function viewWeapon(i) {
                 </div>
                 <!-- Tab 3: Effects -->
                 <div class="vm-panel" data-panel="3" style="display:none">
-                    <div class="vm-fx-group">
-                        <div class="vm-fx-head temp">Temporaere Effekte <span class="vm-fx-count">${(w.effects?.temp||[]).length}</span><span class="vm-fx-add">+</span></div>
-                    </div>
-                    <div class="vm-fx-group">
-                        <div class="vm-fx-head pass">Passive Effekte <span class="vm-fx-count">${(w.effects?.passive||[]).length}</span><span class="vm-fx-add">+</span></div>
-                    </div>
-                    <div class="vm-fx-group">
-                        <div class="vm-fx-head inact">Inaktive Effekte <span class="vm-fx-count">${(w.effects?.inactive||[]).length}</span><span class="vm-fx-add">+</span></div>
-                    </div>
+                    <!-- rendered by vmRenderEffects() after modal opens -->
                 </div>
             </div>
         </div>
     `);
+    vmRenderEffects(i);
 }
 
 function vmTab(el, idx) {
@@ -1474,6 +1487,260 @@ function viewAction(i) {
             </div>
         </div>
     `);
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEW SPELL
+// ═══════════════════════════════════════════════════════
+function viewSpell(i) {
+    const sp = S.spells[i];
+    if (!sp) return;
+    const levelLabel = +sp.level === 0 ? 'Zaubertrick' : `Grad ${sp.level}`;
+    const schoolFull = {
+        'Abj.':'Abjuration','Erkund.':'Divination','Hervorruf.':'Evokation',
+        'Illusion':'Illusion','Nekro.':'Nekromantie','Verwandl.':'Transmutation',
+        'Verzaub.':'Verzauberung','Beschw.':'Beschwörung',
+        'Abjuration':'Abjuration','Divination':'Divination','Evocation':'Evokation',
+        'Necromancy':'Nekromantie','Transmutation':'Transmutation',
+        'Enchantment':'Verzauberung','Conjuration':'Beschwörung'
+    }[sp.school] || sp.school || '?';
+    const schoolColors = {
+        'Abj.':'#60a5fa','Abjuration':'#60a5fa',
+        'Erkund.':'#c084fc','Divination':'#c084fc',
+        'Hervorruf.':'var(--red)','Evocation':'var(--red)',
+        'Illusion':'#f472b6','Nekro.':'#94a3b8','Necromancy':'#94a3b8',
+        'Verwandl.':'var(--grn)','Transmutation':'var(--grn)',
+        'Verzaub.':'var(--gold)','Enchantment':'var(--gold)',
+        'Beschw.':'#fb923c','Conjuration':'#fb923c'
+    };
+    const schoolColor = schoolColors[sp.school] || 'var(--t2)';
+
+    const compParts = (sp.comp || '').split(',').map(c => c.trim()).filter(Boolean);
+    const compIcons = compParts.map(c => {
+        if (c === 'V') return `<span class="vm-pill" title="Verbal"><img src="/assets/icons/dnd/spell/vocal.svg" style="width:11px;height:11px;filter:brightness(0) invert(1);vertical-align:middle;margin-right:3px">V</span>`;
+        if (c === 'G') return `<span class="vm-pill" title="Gestisch"><img src="/assets/icons/dnd/spell/somatic.svg" style="width:11px;height:11px;filter:brightness(0) invert(1);vertical-align:middle;margin-right:3px">G</span>`;
+        if (c === 'M') return `<span class="vm-pill" title="Material"><img src="/assets/icons/dnd/spell/material.svg" style="width:11px;height:11px;filter:brightness(0) invert(1);vertical-align:middle;margin-right:3px">M</span>`;
+        return `<span class="vm-pill">${c}</span>`;
+    }).join('');
+
+    // Parse info field for display (format: "Range · DiceOrDur")
+    const infoParts = (sp.info || '').split('·').map(p => p.trim());
+
+    openViewModal(`
+        <div class="vm-side">
+            <div class="vm-art" style="display:flex;align-items:center;justify-content:center;width:100%;height:100px">
+                <img src="/assets/icons/dnd/spell/${(SCHOOL_MAP[sp.school] || sp.school?.toLowerCase() || 'evocation')}.svg"
+                     style="width:64px;height:64px;filter:brightness(0) invert(1);opacity:.7"
+                     onerror="this.style.display='none'">
+            </div>
+            <div style="text-align:center;font-size:11px;color:${schoolColor};font-weight:600;margin-bottom:8px">${schoolFull}</div>
+            <label class="vm-toggle"><input type="checkbox" ${sp.prepared?'checked':''} onchange="S.spells[${i}].prepared=this.checked;renderSpells();save()"> Vorbereitet</label>
+            <label class="vm-toggle"><input type="checkbox" ${sp.conc?'checked':''} onchange="S.spells[${i}].conc=this.checked;save()"> Konzentration</label>
+            <label class="vm-toggle"><input type="checkbox" ${sp.ritual?'checked':''} onchange="S.spells[${i}].ritual=this.checked;save()"> Ritual</label>
+            <div class="vm-sep"></div>
+            <div class="vm-stat-label">Grad / Schule</div>
+            <div class="vm-pills">
+                <span class="vm-pill hl" style="color:${schoolColor}">${levelLabel}</span>
+                <span class="vm-pill">${schoolFull}</span>
+            </div>
+            <div class="vm-stat-label">Komponenten</div>
+            <div class="vm-pills">${compIcons || '<span class="vm-pill" style="color:var(--t4)">Keine</span>'}</div>
+            ${infoParts[0] ? `<div class="vm-stat-label">Reichweite</div><div class="vm-pills"><span class="vm-pill">${infoParts[0]}</span></div>` : ''}
+            ${infoParts[1] ? `<div class="vm-stat-label">Effekt / Dauer</div><div class="vm-pills"><span class="vm-pill">${infoParts[1]}</span></div>` : ''}
+        </div>
+        <div class="vm-main">
+            <div class="vm-head">
+                <div class="vm-head-info">
+                    <div class="vm-type"><span class="vm-type-dot" style="background:${schoolColor}"></span> ${levelLabel} · ${schoolFull}</div>
+                    <div class="vm-title-row">
+                        <div class="vm-title"><input value="${sp.name}" onchange="S.spells[${i}].name=this.value;renderSpells();save()"></div>
+                    </div>
+                    <div class="vm-meta">
+                        ${sp.comp ? '<span>' + sp.comp + '</span>' : ''}
+                        ${sp.info ? '<span>' + sp.info + '</span>' : ''}
+                        ${sp.conc ? '<span style="color:#f97316">Konz.</span>' : ''}
+                        ${sp.ritual ? '<span style="color:var(--gold)">Ritual</span>' : ''}
+                    </div>
+                </div>
+                <div class="vm-close" onclick="closeViewModal()">&#10005;</div>
+            </div>
+            <div class="vm-tabs">
+                <div class="vm-tab on" onclick="vmTab(this,0)">Beschreibung</div>
+                <div class="vm-tab" onclick="vmTab(this,1)">Details</div>
+            </div>
+            <div class="vm-content">
+                <!-- Tab 0: Beschreibung -->
+                <div class="vm-panel" data-panel="0">
+                    <div class="vm-desc-block">
+                        <div class="vm-desc-head">Beschreibung <span class="vm-desc-edit" onclick="vmEditSpellDesc(${i},'desc')">&#9998;</span></div>
+                        <div class="vm-desc-text" id="vmSpellDesc">${sp.desc || '<span style="color:var(--t4)">Keine Beschreibung</span>'}</div>
+                    </div>
+                    <div class="vm-desc-block">
+                        <div class="vm-desc-head">Notizen <span class="vm-desc-edit" onclick="vmEditSpellDesc(${i},'notes')">&#9998;</span></div>
+                        <div class="vm-desc-text" id="vmSpellNotes">${sp.notes || ''}</div>
+                    </div>
+                </div>
+                <!-- Tab 1: Details -->
+                <div class="vm-panel" data-panel="1" style="display:none">
+                    <div class="vm-field"><label>Name</label><input value="${sp.name}" onchange="S.spells[${i}].name=this.value;renderSpells();save()"></div>
+                    <div class="vm-field"><label>Grad</label>
+                        <select onchange="S.spells[${i}].level=+this.value;renderSpells();save()">
+                            <option value="0" ${+sp.level===0?'selected':''}>Zaubertrick</option>
+                            ${[1,2,3,4,5,6,7,8,9].map(l=>`<option value="${l}" ${+sp.level===l?'selected':''}>Grad ${l}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="vm-field"><label>Schule</label>
+                        <select onchange="S.spells[${i}].school=this.value;renderSpells();save()">
+                            ${['Abj.','Beschw.','Erkund.','Hervorruf.','Illusion','Nekro.','Verwandl.','Verzaub.'].map(s=>`<option value="${s}" ${sp.school===s?'selected':''}>${s}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="vm-field"><label>Komponenten</label><input value="${sp.comp||''}" placeholder="V, G, M" onchange="S.spells[${i}].comp=this.value;renderSpells();save()"></div>
+                    <div class="vm-field"><label>Reichweite / Info</label><input value="${sp.info||''}" placeholder="60 ft · 3W6" onchange="S.spells[${i}].info=this.value;renderSpells();save()"></div>
+                    <div class="vm-field"><label>Hochgestuft</label><input value="${sp.upcast||''}" placeholder="Bei höherem Grad..." onchange="S.spells[${i}].upcast=this.value;save()"></div>
+                </div>
+            </div>
+        </div>
+    `);
+}
+
+function vmEditSpellDesc(spellIdx, field) {
+    const sp = S.spells[spellIdx];
+    const current = sp[field] || '';
+    const elId = field === 'desc' ? 'vmSpellDesc' : 'vmSpellNotes';
+    const container = document.getElementById(elId);
+    if (!container) return;
+    container.innerHTML = `<textarea style="width:100%;min-height:80px;background:var(--sf);border:1px solid var(--gold);border-radius:6px;padding:8px;color:var(--tx);font-size:12px;font-family:inherit;resize:vertical" onblur="S.spells[${spellIdx}].${field}=this.value;this.parentElement.innerHTML=this.value||'';save()">${current}</textarea>`;
+    container.querySelector('textarea').focus();
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEW FEATURE
+// ═══════════════════════════════════════════════════════
+function viewFeature(cat, i) {
+    const arr = S.features[cat];
+    const f = arr ? arr[i] : null;
+    if (!f) return;
+    const catLabel = {class:'Klassenme rkmal',species:'SpeziesMerkmal',feats:'Talent'}[cat] || 'Merkmal';
+    const catColor = {class:'var(--gold)',species:'var(--grn)',feats:'#c084fc'}[cat] || 'var(--t2)';
+
+    openViewModal(`
+        <div class="vm-side">
+            <div class="vm-art" style="display:flex;align-items:center;justify-content:center;width:100%;height:80px">
+                <img src="/assets/icons/dnd/attribute/skillcheck.svg"
+                     style="width:48px;height:48px;filter:brightness(0) invert(1);opacity:.5"
+                     onerror="this.style.display='none'">
+            </div>
+            <div class="vm-sep"></div>
+            <div class="vm-stat-label">Typ</div>
+            <div class="vm-pills"><span class="vm-pill hl" style="color:${catColor}">${catLabel}</span></div>
+            ${f.src ? `<div class="vm-stat-label">Quelle</div><div class="vm-pills"><span class="vm-pill">${f.src}</span></div>` : ''}
+            ${f.uses ? `
+            <div class="vm-stat-label">Nutzungen</div>
+            <div class="vm-pills">
+                <span class="vm-pill hl">${f.uses.cur}/${f.uses.max}</span>
+                <span class="vm-pill">${f.uses.rest==='short'?'K. Rast':'L. Rast'}</span>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+                <button class="vm-use-btn" onclick="if(S.features['${cat}'][${i}].uses.cur>0){S.features['${cat}'][${i}].uses.cur--;renderFeatures();save();document.querySelector('.vm-use-cur').textContent=S.features['${cat}'][${i}].uses.cur}" style="flex:1;padding:4px;background:var(--sf);border:1px solid var(--b2);border-radius:4px;color:var(--tx);cursor:pointer;font-size:11px">- Nutzen</button>
+                <button class="vm-use-btn" onclick="const u=S.features['${cat}'][${i}].uses;if(u.cur<u.max){u.cur++;renderFeatures();save();document.querySelector('.vm-use-cur').textContent=u.cur}" style="flex:1;padding:4px;background:var(--sf);border:1px solid var(--b2);border-radius:4px;color:var(--tx);cursor:pointer;font-size:11px">+ Nutzen</button>
+            </div>` : ''}
+        </div>
+        <div class="vm-main">
+            <div class="vm-head">
+                <div class="vm-head-info">
+                    <div class="vm-type"><span class="vm-type-dot" style="background:${catColor}"></span> ${catLabel}${f.src ? ' · ' + f.src : ''}</div>
+                    <div class="vm-title-row">
+                        <div class="vm-title"><input value="${f.name}" onchange="S.features['${cat}'][${i}].name=this.value;renderFeatures();save()"></div>
+                    </div>
+                </div>
+                <div class="vm-close" onclick="closeViewModal()">&#10005;</div>
+            </div>
+            <div class="vm-tabs">
+                <div class="vm-tab on" onclick="vmTab(this,0)">Beschreibung</div>
+                <div class="vm-tab" onclick="vmTab(this,1)">Details</div>
+            </div>
+            <div class="vm-content">
+                <!-- Tab 0 -->
+                <div class="vm-panel" data-panel="0">
+                    <div class="vm-desc-block">
+                        <div class="vm-desc-head">Beschreibung <span class="vm-desc-edit" onclick="vmEditFeatureDesc('${cat}',${i})">&#9998;</span></div>
+                        <div class="vm-desc-text" id="vmFeatDesc">${f.desc || '<span style="color:var(--t4)">Keine Beschreibung</span>'}</div>
+                    </div>
+                </div>
+                <!-- Tab 1: Details -->
+                <div class="vm-panel" data-panel="1" style="display:none">
+                    <div class="vm-field"><label>Name</label><input value="${f.name}" onchange="S.features['${cat}'][${i}].name=this.value;renderFeatures();save()"></div>
+                    ${cat === 'class' ? `<div class="vm-field"><label>Quelle</label><input value="${f.src||''}" placeholder="Klasse Lvl X" onchange="S.features['${cat}'][${i}].src=this.value;renderFeatures();save()"></div>` : ''}
+                    ${f.uses ? `
+                    <div class="vm-section-head">Nutzungen</div>
+                    <div class="vm-field"><label>Aktuell</label><input type="number" value="${f.uses.cur}" min="0" onchange="S.features['${cat}'][${i}].uses.cur=+this.value;renderFeatures();save()"></div>
+                    <div class="vm-field"><label>Maximum</label><input type="number" value="${f.uses.max}" min="1" onchange="S.features['${cat}'][${i}].uses.max=+this.value;renderFeatures();save()"></div>
+                    <div class="vm-field"><label>Erholung</label>
+                        <select onchange="S.features['${cat}'][${i}].uses.rest=this.value;save()">
+                            <option value="short" ${f.uses.rest==='short'?'selected':''}>Kurze Rast</option>
+                            <option value="long" ${(f.uses.rest==='long'||!f.uses.rest)?'selected':''}>Lange Rast</option>
+                        </select>
+                    </div>` : `
+                    <div class="vm-field" style="align-items:flex-start">
+                        <label style="padding-top:2px">Nutzungen</label>
+                        <button onclick="S.features['${cat}'][${i}].uses={cur:1,max:1,rest:'long'};renderFeatures();save();viewFeature('${cat}',${i})" style="padding:4px 10px;background:var(--sf);border:1px solid var(--b2);border-radius:4px;color:var(--tx);cursor:pointer;font-size:11px">+ Nutzungen hinzufügen</button>
+                    </div>`}
+                </div>
+            </div>
+        </div>
+    `);
+}
+
+function vmEditFeatureDesc(cat, i) {
+    const f = S.features[cat][i];
+    const current = f.desc || '';
+    const container = document.getElementById('vmFeatDesc');
+    if (!container) return;
+    container.innerHTML = `<textarea style="width:100%;min-height:100px;background:var(--sf);border:1px solid var(--gold);border-radius:6px;padding:8px;color:var(--tx);font-size:12px;font-family:inherit;resize:vertical" onblur="S.features['${cat}'][${i}].desc=this.value;this.parentElement.innerHTML=this.value||'';renderFeatures();save()">${current}</textarea>`;
+    container.querySelector('textarea').focus();
+}
+
+// ═══════════════════════════════════════════════════════
+// EFFEKTE TAB (funktional)
+// ═══════════════════════════════════════════════════════
+function vmRenderEffects(weaponIdx) {
+    const w = S.weapons[weaponIdx];
+    if (!w.effects) w.effects = {temp:[],passive:[],inactive:[]};
+    const cats = [{key:'temp',label:'Temporäre Effekte',cls:'temp'},{key:'passive',label:'Passive Effekte',cls:'pass'},{key:'inactive',label:'Inaktive Effekte',cls:'inact'}];
+    const panel = document.querySelector('.vm-panel[data-panel="3"]');
+    if (!panel) return;
+    let html = '';
+    cats.forEach(({key,label,cls}) => {
+        const effects = w.effects[key] || [];
+        html += `<div class="vm-fx-group">
+            <div class="vm-fx-head ${cls}">${label} <span class="vm-fx-count">${effects.length}</span>
+                <span class="vm-fx-add" onclick="vmAddEffect(${weaponIdx},'${key}')" style="cursor:pointer;margin-left:auto;color:var(--gold);font-weight:700;padding:0 4px">+</span>
+            </div>`;
+        effects.forEach((fx, fi) => {
+            html += `<div class="vm-fx-item" style="display:flex;gap:8px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--b1)">
+                <input value="${fx.name||''}" placeholder="Effektname..." onchange="S.weapons[${weaponIdx}].effects['${key}'][${fi}].name=this.value;save()"
+                    style="flex:1;background:transparent;border:none;border-bottom:1px solid var(--b2);color:var(--tx);font-size:12px;padding:2px 0">
+                <input value="${fx.value||''}" placeholder="Wert (z.B. +1 RK)" onchange="S.weapons[${weaponIdx}].effects['${key}'][${fi}].value=this.value;save()"
+                    style="width:90px;background:transparent;border:none;border-bottom:1px solid var(--b2);color:var(--t2);font-size:11px;padding:2px 0">
+                <span onclick="S.weapons[${weaponIdx}].effects['${key}'].splice(${fi},1);vmRenderEffects(${weaponIdx});save()"
+                    style="cursor:pointer;color:var(--t4);font-size:11px;padding:2px 4px;flex-shrink:0" title="Entfernen">&#10005;</span>
+            </div>`;
+        });
+        if (effects.length === 0) {
+            html += `<div style="padding:10px 12px;color:var(--t4);font-size:11px;font-style:italic">Keine Effekte</div>`;
+        }
+        html += `</div>`;
+    });
+    panel.innerHTML = html;
+}
+
+function vmAddEffect(weaponIdx, cat) {
+    const w = S.weapons[weaponIdx];
+    if (!w.effects) w.effects = {temp:[],passive:[],inactive:[]};
+    if (!w.effects[cat]) w.effects[cat] = [];
+    w.effects[cat].push({name:'',value:''});
+    save();
+    vmRenderEffects(weaponIdx);
 }
 
 // Edit stubs — view modal is fully editable, so edit just opens view
