@@ -58,33 +58,45 @@ function ico(file, path, cls) {
 }
 
 // Map German weapon names to icon filenames
+const WEAPON_ICONS={
+    sword:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670780/d3wkbjlxnquqyaqipjqp.png',
+    staff:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670743/dbaaxr6vcpjzwzu2wwwt.png',
+    wand:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670724/bfwyp7us3a80er7sodqz.png',
+    spear:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670669/pc2yop9dx2woe0hhpbii.png',
+    shield:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670624/rcryejjlxvgddzth6ghh.png',
+    scythe:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670566/rmb9ffhilnmdeendzjrl.png',
+    hook:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670557/mb1upvywmaf0uo3gdzhv.png',
+    hammer:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670555/lekbazem8bybvewlmmwj.png',
+    dagger:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670506/abhq7oj4nhhozisxh1mv.png',
+    crossbow:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670120/gpnaajwwwnziol16qxmh.png',
+    bow:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670114/tito79aq2cymqjlw3g9v.png',
+    book:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670081/qjjwci00svs6tck7iwus.png',
+    bolt:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670064/bhrdmkck7s1swbe9fjmv.png',
+    axe:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670059/hw2ygozzmwlbu8aedjnk.png',
+    arrow:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670024/njqinvqdab56sh5t6uap.png',
+};
+function cldIco(type){
+    const url=WEAPON_ICONS[type]||WEAPON_ICONS.sword;
+    return `<img src="${url}" style="width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))" onerror="this.style.display='none'">`;
+}
 function weaponIco(name) {
-    if (!name) return ico('sword');
+    if (!name) return cldIco('sword');
     const n = name.toLowerCase();
-    if (n.includes('rapier')) return ico('rapier');
-    if (n.includes('großaxt') || n.includes('streitaxt')) return ico('battleaxe');
-    if (n.includes('handaxt')) return ico('handaxe');
-    if (n.includes('armbrust')) return ico('crossbow');
-    if (n.includes('langbogen') || n.includes('kurzbogen') || n.includes('bogen')) return ico('bow');
-    if (n.includes('langschwert') || n.includes('kurzschwert') || n.includes('schwert')) return ico('sword');
-    if (n.includes('dolch')) return ico('dagger');
-    if (n.includes('speer') || n.includes('spieß') || n.includes('wurfspeer')) return ico('spear');
-    if (n.includes('kampfstab') || n.includes('stab')) return ico('staff');
-    if (n.includes('streitkolben') || n.includes('kolben')) return ico('mace');
-    if (n.includes('hammer') || n.includes('kriegshammer')) return ico('hammer');
-    if (n.includes('morgenstern')) return ico('morningstar');
-    if (n.includes('hellebarde')) return ico('halberd');
-    if (n.includes('glefe')) return ico('glaive');
-    if (n.includes('lanze')) return ico('lance');
-    if (n.includes('dreizack')) return ico('trident');
-    if (n.includes('peitsche')) return ico('whip');
-    if (n.includes('flegel')) return ico('flail');
-    if (n.includes('keule')) return ico('club');
-    if (n.includes('sichel')) return ico('sickle');
-    if (n.includes('schleuder')) return ico('sling');
-    if (n.includes('schlag') || n.includes('unbewaffnet')) return ico('strike');
-    if (n.includes('pfeil') || n.includes('wurf')) return ico('arrow');
-    return ico('sword');
+    if (n.includes('armbrust') || n.includes('crossbow')) return cldIco('crossbow');
+    if (n.includes('langbogen') || n.includes('kurzbogen') || n.includes('bogen') || n.includes('bow')) return cldIco('bow');
+    if (n.includes('dolch') || n.includes('dagger') || n.includes('messer') || n.includes('rapier')) return cldIco('dagger');
+    if (n.includes('großaxt') || n.includes('streitaxt') || n.includes('handaxt') || n.includes('axt') || n.includes('axe')) return cldIco('axe');
+    if (n.includes('hammer') || n.includes('kriegshammer') || n.includes('streitkolben') || n.includes('kolben') || n.includes('keule') || n.includes('morgenstern') || n.includes('flegel')) return cldIco('hammer');
+    if (n.includes('speer') || n.includes('spieß') || n.includes('hellebarde') || n.includes('glefe') || n.includes('lanze') || n.includes('dreizack')) return cldIco('spear');
+    if (n.includes('sense') || n.includes('sichel') || n.includes('scythe')) return cldIco('scythe');
+    if (n.includes('zauberstab') || n.includes('wand')) return cldIco('wand');
+    if (n.includes('kampfstab') || n.includes('stab') || n.includes('staff')) return cldIco('staff');
+    if (n.includes('schild') || n.includes('shield')) return cldIco('shield');
+    if (n.includes('buch') || n.includes('grimoire') || n.includes('buch')) return cldIco('book');
+    if (n.includes('pfeil') || n.includes('arrow')) return cldIco('arrow');
+    if (n.includes('bolzen') || n.includes('bolt')) return cldIco('bolt');
+    if (n.includes('langschwert') || n.includes('kurzschwert') || n.includes('schwert') || n.includes('sword') || n.includes('klinge') || n.includes('peitsche') || n.includes('schleuder')) return cldIco('sword');
+    return cldIco('sword');
 }
 
 function actionIcon(item) {
