@@ -160,6 +160,8 @@ function spellSchoolIco(school) {
 
 // ── Cloudinary Spell Icons (833 assets, ICONS/SPELLS) ──────────────────────────
 const SPELL_ICONS={
+  'kalte_hand':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772677043/nlohikaq6ddz4a3ahluf.png',
+  'chill_touch':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772677043/nlohikaq6ddz4a3ahluf.png',
   'abgestimmt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772674771/e2gieyj2cnqch6vxci9l.png',
   'acid_splash':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772676852/hpploa6hrkoaomu4avhc.png',
   'aid':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772676750/x6tjxirgtbwnvz9pthb4.png',
