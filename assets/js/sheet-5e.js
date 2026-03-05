@@ -110,7 +110,7 @@ const WEAPON_ICONS={
 };
 const WEAPON_DEFAULT='https://res.cloudinary.com/dza4jgreq/image/upload/v1772670744/t5wimidq3dsilsmhs6tb.png';
 function cldIco(url){
-    return `<img src="${url}" style="width:28px;height:28px;object-fit:contain" onerror="this.style.display='none'">`;
+    return `<img src="${url}" class="ico-cld" onerror="this.style.display='none'">`;
 }
 function weaponIco(name) {
     if (!name) return cldIco(WEAPON_DEFAULT);
