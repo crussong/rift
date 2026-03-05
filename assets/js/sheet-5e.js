@@ -158,9 +158,86 @@ function spellSchoolIco(school) {
     return `<img src="${SPELL_ICO}${file}.svg" class="spell-school-ico" onerror="this.style.display='none'">`;
 }
 
-function invIcon(cat) {
-    if (cat === 'weapon') return ico('sword');
-    if (cat === 'armor') return `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(180,180,200,.7)" stroke-width="1.5" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+// ── Cloudinary Armor Icons (489 assets, ICONS/ARMOR) ──────────────────────────
+const ARMOR_ICONS={
+  // Torso / Rüstung
+  'wattiert':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673361/i3rm8sixveexerhjkcre.png',
+  'leder':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673636/w3n5nmy50q3qxsdwfja5.png',
+  'genietet':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673644/r5ghrykmj3ye1xuw5bm8.png',
+  'verstaerkt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673644/r5ghrykmj3ye1xuw5bm8.png',
+  'studded':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673644/r5ghrykmj3ye1xuw5bm8.png',
+  'kettenhemd':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673365/szugmyzo7gfxuiiqatky.png',
+  'schuppenpanzer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673365/szugmyzo7gfxuiiqatky.png',
+  'brustplatte':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673370/yig8lz7851ktd033lubt.png',
+  'halbplatte':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673945/xlp3hhino1aokscihb2f.png',
+  'kettenpanzer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673945/xlp3hhino1aokscihb2f.png',
+  'schienenpanzer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673945/xlp3hhino1aokscihb2f.png',
+  'plattenpanzer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673945/xlp3hhino1aokscihb2f.png',
+  'plate':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673945/xlp3hhino1aokscihb2f.png',
+  // Schilde (aus ICONS/WEAPONS)
+  'schild':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670566/rmb9ffhilnmdeendzjrl.png',
+  'holzschild':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670566/rmb9ffhilnmdeendzjrl.png',
+  'rundschild':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670583/x6tpn349ixzfjq7yeoue.png',
+  'kreuzschild':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670606/qcbvn0x69uo5hg7tj2ev.png',
+  'turmschild':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670595/c1bhhltuhowerihdnfd2.png',
+  // Helme
+  'helm':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673770/dkk6c6t8mc31qx9yx79g.png',
+  'visierhelm':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673770/dkk6c6t8mc31qx9yx79g.png',
+  'lederhelm':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673316/euofvg4bchcwg2jjcjfe.png',
+  'kapuze':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673332/npynugbtzwzyotkhjhba.png',
+  'hexenhut':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673320/mybgilfbe0oia3n2yxbj.png',
+  // Stiefel
+  'stiefel':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673407/eocsqgqarka2eryoapxj.png',
+  'boot':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673407/eocsqgqarka2eryoapxj.png',
+  // Handschuhe
+  'handschuh':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673379/mwljxzn0qxpxp6a9ahpq.png',
+  'glove':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673379/mwljxzn0qxpxp6a9ahpq.png',
+  'faeustling':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673973/bfn9wzqv5q64ylouckay.png',
+  'gauntlet':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673803/jratohhmsbmmqtxc0lyj.png',
+  // Armschienen
+  'armschiene':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673487/asfkav7n8ioc5pzriwh4.png',
+  'bracer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673487/asfkav7n8ioc5pzriwh4.png',
+  // Umhänge
+  'umhang':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673205/p5ydvxt8lmkvqgxubrx0.png',
+  'mantel':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673340/fdwyg1amvnh6sphuti8n.png',
+  'cloak':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673205/p5ydvxt8lmkvqgxubrx0.png',
+  'cape':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673340/fdwyg1amvnh6sphuti8n.png',
+  // Gürtel / Schulter
+  'guertel':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673383/rc6huy8k6i6sduc4vnlq.png',
+  'belt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673383/rc6huy8k6i6sduc4vnlq.png',
+  'schulter':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673556/jawpb90yfm2hy8d6qx2h.png',
+  'pauldron':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673894/sn5aphwr3lfogfesmaf6.png',
+  // Beinzeug
+  'hose':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673475/joukkxj1fyufxei2ngra.png',
+  'beinschiene':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772673935/etj0n5qrm5lwuz2lyphg.png',
+};
+const ARMOR_DEFAULT='https://res.cloudinary.com/dza4jgreq/image/upload/v1772673365/szugmyzo7gfxuiiqatky.png';
+
+function armorIco(name){
+    if(!name) return cldIco(ARMOR_DEFAULT);
+    const n=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'').replace(/ü/g,'ue').replace(/ö/g,'oe').replace(/ä/g,'ae');
+    for(const [key,url] of Object.entries(ARMOR_ICONS)){
+        if(n.includes(key)) return cldIco(url);
+    }
+    // Broad fallbacks
+    if(n.includes('schild')||n.includes('shield')) return cldIco(ARMOR_ICONS['schild']);
+    if(n.includes('helm')||n.includes('hat')||n.includes('hut')||n.includes('kappe')) return cldIco(ARMOR_ICONS['helm']);
+    if(n.includes('stiefel')||n.includes('boot')||n.includes('schuh')) return cldIco(ARMOR_ICONS['stiefel']);
+    if(n.includes('schuh')) return cldIco(ARMOR_ICONS['stiefel']);
+    if(n.includes('hand')||n.includes('glove')||n.includes('faust')) return cldIco(ARMOR_ICONS['handschuh']);
+    if(n.includes('umhang')||n.includes('mantel')||n.includes('cloak')) return cldIco(ARMOR_ICONS['umhang']);
+    if(n.includes('gurtel')||n.includes('belt')) return cldIco(ARMOR_ICONS['guertel']);
+    if(n.includes('arm')||n.includes('bracer')) return cldIco(ARMOR_ICONS['armschiene']);
+    if(n.includes('leder')||n.includes('leather')) return cldIco(ARMOR_ICONS['leder']);
+    if(n.includes('kette')||n.includes('chain')) return cldIco(ARMOR_ICONS['kettenpanzer']);
+    if(n.includes('platte')||n.includes('plate')) return cldIco(ARMOR_ICONS['brustplatte']);
+    return cldIco(ARMOR_DEFAULT);
+}
+
+function invIcon(cat,name=''){
+    if(cat==='weapon') return weaponIco(name);
+    if(cat==='armor') return armorIco(name);
+    // Gear: generic tool SVG
     return `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(180,180,200,.7)" stroke-width="1.5" width="20" height="20"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>`;
 }
 
@@ -586,7 +663,7 @@ function renderInventory(){
         items.forEach((it)=>{
             let gi=S.inventory.indexOf(it);
             let wt=it.qty*it.wt;totalWt+=wt;
-            let icon=cat==='weapon'?weaponIco(it.name):invIcon(cat);
+            let icon=invIcon(cat,it.name);
             html+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${icon}</div><div><div class="atn">${it.name}</div><div class="ats">${(it.wt||0)} lb/Stk</div></div></div></td>`;
             html+=`<td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:50px;text-align:center"></td>`;
             html+=`<td class="fm">${(wt).toFixed(wt%1?1:0)} lb</td>`;
