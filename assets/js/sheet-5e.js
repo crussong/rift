@@ -59,44 +59,77 @@ function ico(file, path, cls) {
 
 // Map German weapon names to icon filenames
 const WEAPON_ICONS={
-    sword:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670780/d3wkbjlxnquqyaqipjqp.png',
-    staff:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670743/dbaaxr6vcpjzwzu2wwwt.png',
-    wand:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670724/bfwyp7us3a80er7sodqz.png',
-    spear:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670669/pc2yop9dx2woe0hhpbii.png',
-    shield:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670624/rcryejjlxvgddzth6ghh.png',
-    scythe:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670566/rmb9ffhilnmdeendzjrl.png',
-    hook:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670557/mb1upvywmaf0uo3gdzhv.png',
-    hammer:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670555/lekbazem8bybvewlmmwj.png',
-    dagger:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670506/abhq7oj4nhhozisxh1mv.png',
-    crossbow:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670120/gpnaajwwwnziol16qxmh.png',
-    bow:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670114/tito79aq2cymqjlw3g9v.png',
-    book:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670081/qjjwci00svs6tck7iwus.png',
-    bolt:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670064/bhrdmkck7s1swbe9fjmv.png',
-    axe:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670059/hw2ygozzmwlbu8aedjnk.png',
-    arrow:'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670024/njqinvqdab56sh5t6uap.png',
+  'keule':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670506/dv5ka9ihpiuwr6yixxta.png',
+  'knüppel':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670506/dv5ka9ihpiuwr6yixxta.png',
+  'dolch':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670122/aeplvekvywrbepf0q5bz.png',
+  'handaxt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670025/e4ndebtvimtewwq9f1mr.png',
+  'wurfspeer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670625/dmpgfbwkt0fvyuwfo2yp.png',
+  'leichter_hammer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670507/z3sygm0nwpnmba1sijtc.png',
+  'streitkolben':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670512/x3a0g7awllrisoz3wmqa.png',
+  'stab':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670675/wrvr2pqaxaieut1j23du.png',
+  'kampfstab':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670689/tphkk8msjdcb0dwlgndn.png',
+  'sichel':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670563/l2ffvwawnbwzgwcmtnqc.png',
+  'speer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670626/hafyt26vgwsxvzacaphc.png',
+  'leichte_armbrust':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670114/dtnwsia5avwsgj7xqnbn.png',
+  'dart':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670006/szw82eqdoajybjlnuazt.png',
+  'kurzbogen':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670081/rn3lbw0djexulv2wdxvb.png',
+  'schleuder':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670005/negp7fanpmtfwgge0thi.png',
+  'streitaxt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670030/e1jkyuduoydnmg9zuw8o.png',
+  'flegel':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670519/ee7s0wxpswnec8kvfsdq.png',
+  'glefe':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670642/mnb9bzv2srkllangaobf.png',
+  'großaxt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670034/tudjqdz1g2lv7reun26r.png',
+  'großschwert':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670752/zqimhvwwaetgrg3bpbwt.png',
+  'hellebarde':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670648/f230meknbbn2rzqyyvid.png',
+  'lanze':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670632/yxthrauswm6id91zcqcb.png',
+  'langschwert':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670744/t5wimidq3dsilsmhs6tb.png',
+  'morgenstern':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670524/gbfhs3ofmyjsmedcitkl.png',
+  'pik':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670631/ujx3pvcanjwy7zdbwgyh.png',
+  'rapier':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670763/hqro3ashe0qm1iydvpuk.png',
+  'kriegssense':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670563/wsycrfbwuuwc21p90hnk.png',
+  'kurzschwert':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670743/b01zfklnutrhlppabm9p.png',
+  'trident':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670653/t1xn8jip8lbnk1gjt1fs.png',
+  'dreizack':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670653/t1xn8jip8lbnk1gjt1fs.png',
+  'kriegshammer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670523/d6ghloxpfd2q4ynb7hmj.png',
+  'peitsche':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670132/sifujkttvsv2dmpbsyx4.png',
+  'zweihänder':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670773/cimhwmqjgeu5ei2otqlx.png',
+  'blasrohr':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670007/i3wvpkjegw87dij34ddq.png',
+  'handarmbrust':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670115/a8s504h3r5tptxtuoadm.png',
+  'schwere_armbrust':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670119/h9qlkzmsmvatwhvnxl96.png',
+  'armbrust':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670115/jtppz2i3cr5mmynmyk4k.png',
+  'langbogen':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670093/dpuauqw64zxqpjtabzth.png',
+  'bogen':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670088/bs3tntqghbgvndfg39rs.png',
+  'netz':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670005/pahgzhvoc51u0mdca8js.png',
+  'zauberstab':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670724/bfwyp7us3a80er7sodqz.png',
+  'arkaner_fokus':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670734/rwcn0hw41exs1mzdshsm.png',
+  'grimoire':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670074/xtexbwn2lqwmv3uozf6c.png',
+  'arkanes_buch':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670074/xtexbwn2lqwmv3uozf6c.png',
+  'schwert':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670744/t5wimidq3dsilsmhs6tb.png',
+  'axt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670026/lmexnfof4gwfes9d78g3.png',
+  'hammer':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670517/gnjpasrgx8gh4hswhcqh.png',
+  'unbewaffnet':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772670507/byswlsnqsgpmmt2vtogz.png',
 };
-function cldIco(type){
-    const url=WEAPON_ICONS[type]||WEAPON_ICONS.sword;
-    return `<img src="${url}" style="width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))" onerror="this.style.display='none'">`;
+const WEAPON_DEFAULT='https://res.cloudinary.com/dza4jgreq/image/upload/v1772670744/t5wimidq3dsilsmhs6tb.png';
+function cldIco(url){
+    return `<img src="${url}" style="width:28px;height:28px;object-fit:contain" onerror="this.style.display='none'">`;
 }
 function weaponIco(name) {
-    if (!name) return cldIco('sword');
-    const n = name.toLowerCase();
-    if (n.includes('armbrust') || n.includes('crossbow')) return cldIco('crossbow');
-    if (n.includes('langbogen') || n.includes('kurzbogen') || n.includes('bogen') || n.includes('bow')) return cldIco('bow');
-    if (n.includes('dolch') || n.includes('dagger') || n.includes('messer') || n.includes('rapier')) return cldIco('dagger');
-    if (n.includes('großaxt') || n.includes('streitaxt') || n.includes('handaxt') || n.includes('axt') || n.includes('axe')) return cldIco('axe');
-    if (n.includes('hammer') || n.includes('kriegshammer') || n.includes('streitkolben') || n.includes('kolben') || n.includes('keule') || n.includes('morgenstern') || n.includes('flegel')) return cldIco('hammer');
-    if (n.includes('speer') || n.includes('spieß') || n.includes('hellebarde') || n.includes('glefe') || n.includes('lanze') || n.includes('dreizack')) return cldIco('spear');
-    if (n.includes('sense') || n.includes('sichel') || n.includes('scythe')) return cldIco('scythe');
-    if (n.includes('zauberstab') || n.includes('wand')) return cldIco('wand');
-    if (n.includes('kampfstab') || n.includes('stab') || n.includes('staff')) return cldIco('staff');
-    if (n.includes('schild') || n.includes('shield')) return cldIco('shield');
-    if (n.includes('buch') || n.includes('grimoire') || n.includes('buch')) return cldIco('book');
-    if (n.includes('pfeil') || n.includes('arrow')) return cldIco('arrow');
-    if (n.includes('bolzen') || n.includes('bolt')) return cldIco('bolt');
-    if (n.includes('langschwert') || n.includes('kurzschwert') || n.includes('schwert') || n.includes('sword') || n.includes('klinge') || n.includes('peitsche') || n.includes('schleuder')) return cldIco('sword');
-    return cldIco('sword');
+    if (!name) return cldIco(WEAPON_DEFAULT);
+    const n = name.toLowerCase().replace(/\s+/g,'');
+    // Exact match against all keys
+    for (const [key, url] of Object.entries(WEAPON_ICONS)) {
+        if (n.includes(key)) return cldIco(url);
+    }
+    // Broad fallbacks
+    if (n.includes('armbrust')||n.includes('crossbow')) return cldIco(WEAPON_ICONS['armbrust']);
+    if (n.includes('bogen')||n.includes('bow')) return cldIco(WEAPON_ICONS['bogen']);
+    if (n.includes('dolch')||n.includes('dagger')||n.includes('messer')) return cldIco(WEAPON_ICONS['dolch']);
+    if (n.includes('axt')||n.includes('axe')) return cldIco(WEAPON_ICONS['axt']);
+    if (n.includes('hammer')||n.includes('kolben')||n.includes('keule')) return cldIco(WEAPON_ICONS['hammer']);
+    if (n.includes('speer')||n.includes('lanze')) return cldIco(WEAPON_ICONS['speer']);
+    if (n.includes('schwert')||n.includes('sword')||n.includes('klinge')) return cldIco(WEAPON_ICONS['schwert']);
+    if (n.includes('stab')||n.includes('staff')) return cldIco(WEAPON_ICONS['stab']);
+    if (n.includes('sichel')||n.includes('sense')) return cldIco(WEAPON_ICONS['sichel']);
+    return cldIco(WEAPON_DEFAULT);
 }
 
 function actionIcon(item) {
