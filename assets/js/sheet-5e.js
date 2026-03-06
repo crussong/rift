@@ -537,7 +537,8 @@ const SPELL_ICONS={
   'äthergestalt':'https://res.cloudinary.com/dza4jgreq/image/upload/v1772675116/t6bsofsowpmizfvq5ywl.png',
 };
 
-function spellIco(name,school){
+function spellIco(name,school,icon_url=''){
+  if(icon_url) return cldIco(icon_url);
   if(name){
     const n=name.toLowerCase()
       .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
@@ -653,7 +654,8 @@ function armorIco(name){
     return cldIco(ARMOR_DEFAULT);
 }
 
-function invIcon(cat,name=''){
+function invIcon(cat,name='',icon_url=''){
+    if(icon_url) return cldIco(icon_url);
     if(cat==='weapon') return weaponIco(name);
     if(cat==='armor') return armorIco(name);
     // Gear: generic tool SVG
@@ -1082,7 +1084,7 @@ function renderInventory(){
         items.forEach((it)=>{
             let gi=S.inventory.indexOf(it);
             let wt=it.qty*it.wt;totalWt+=wt;
-            let icon=invIcon(cat,it.name);
+            let icon=invIcon(cat,it.name,it.icon_url||'');
             html+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${icon}</div><div><div class="atn">${it.name}</div><div class="ats">${(it.wt||0)} lb/Stk</div></div></div></td>`;
             html+=`<td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:50px;text-align:center"></td>`;
             html+=`<td class="fm">${(wt).toFixed(wt%1?1:0)} lb</td>`;
@@ -1145,7 +1147,7 @@ function renderSpells(){
             let tags='';
             if(sp.conc)tags+='<span class="conc">K</span>';
             if(sp.ritual)tags+='<span class="rit">R</span>';
-            spH+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${spellIco(sp.name,sp.school)}</div><div><div class="atn">${sp.name}${tags}</div><div class="ats">${sp.school||'—'}</div></div></div></td>`;
+            spH+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${spellIco(sp.name,sp.school,sp.icon_url||'')}</div><div><div class="atn">${sp.name}${tags}</div><div class="ats">${sp.school||'—'}</div></div></div></td>`;
             spH+=`<td><div class="spc ${sp.prepared?'on':''}" onclick="event.stopPropagation();S.spells[${gi}].prepared=!S.spells[${gi}].prepared;renderSpells();save()" title="Vorbereitet"></div></td>`;
             spH+=`<td class="fm">${sp.comp||'—'}</td>`;
             spH+=`<td class="fm">${sp.info||'—'}</td>`;
@@ -1216,7 +1218,242 @@ function useCharge(el,ev){ev.stopPropagation();let c=+el.dataset.cur,m=+el.datas
 
 function endConcentration(){S.concentrationSpell='';renderConcentration();save()}
 
-function addItem(){S.inventory.push({name:'Neuer Gegenstand',cat:'gear',qty:1,wt:1,equipped:false});renderInventory();save()}
+// ═══════════════════════════════════════════════════════
+// ITEM DATABASE PICKER
+// ═══════════════════════════════════════════════════════
+let _dndDb = null;
+async function loadDndDb() {
+    if (_dndDb) return _dndDb;
+    try {
+        const r = await fetch('/assets/data/rift_dnd_database.json');
+        const j = await r.json();
+        _dndDb = j.entries || [];
+    } catch(e) {
+        _dndDb = [];
+        console.warn('DnD DB nicht geladen:', e);
+    }
+    return _dndDb;
+}
+
+const RARITY_COLORS = {
+    common: '#9ca3af', uncommon: '#22c55e', rare: '#3b82f6',
+    'very-rare': '#a855f7', legendary: '#f59e0b'
+};
+
+function openItemPicker() {
+    openViewModal(`
+        <div class="vm-close" onclick="closeViewModal()">&#10005;</div>
+        <div style="padding:20px 24px 8px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:12px">Gegenstand hinzufügen</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="dbPickerSearch" placeholder="Suche..." oninput="dbPickerFilter()"
+                    style="flex:1;min-width:160px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+                    border-radius:6px;padding:7px 10px;color:var(--tx);font-size:13px">
+                <select id="dbPickerCat" onchange="dbPickerFilter()"
+                    style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+                    border-radius:6px;padding:7px 10px;color:var(--tx);font-size:13px">
+                    <option value="">Alle Kategorien</option>
+                    <option value="weapon">Waffen</option>
+                    <option value="armor">Rüstung</option>
+                    <option value="item">Gegenstände</option>
+                </select>
+                <select id="dbPickerRarity" onchange="dbPickerFilter()"
+                    style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+                    border-radius:6px;padding:7px 10px;color:var(--tx);font-size:13px">
+                    <option value="">Alle Seltenheiten</option>
+                    <option value="common">Gewöhnlich</option>
+                    <option value="uncommon">Ungewöhnlich</option>
+                    <option value="rare">Selten</option>
+                    <option value="very-rare">Sehr Selten</option>
+                    <option value="legendary">Legendär</option>
+                </select>
+            </div>
+        </div>
+        <div id="dbPickerResults" style="padding:8px 12px;max-height:420px;overflow-y:auto">
+            <div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">Lädt...</div>
+        </div>
+    `);
+    loadDndDb().then(() => dbPickerFilter());
+}
+
+function dbPickerFilter() {
+    if (!_dndDb) return;
+    const q = (document.getElementById('dbPickerSearch')?.value || '').toLowerCase();
+    const cat = document.getElementById('dbPickerCat')?.value || '';
+    const rar = document.getElementById('dbPickerRarity')?.value || '';
+    let results = _dndDb.filter(e => {
+        if (e.category === 'spell') return false; // spells have own picker
+        if (cat && e.category !== cat) return false;
+        if (rar && e.rarity !== rar) return false;
+        if (q && !e.name_de.toLowerCase().includes(q) && !e.icon_label?.toLowerCase().includes(q)) return false;
+        return true;
+    }).slice(0, 60);
+    const container = document.getElementById('dbPickerResults');
+    if (!container) return;
+    if (!results.length) {
+        container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--t3);font-size:13px">Keine Ergebnisse</div>';
+        return;
+    }
+    container.innerHTML = results.map(e => {
+        const rc = RARITY_COLORS[e.rarity] || '#9ca3af';
+        const sub = e.weapon_type_de || e.armor_type_de || e.subcategory_de || '';
+        const stats = e.damage ? `${e.damage} ${e.damage_type}` : (e.armor_class ? `RK ${e.armor_class}` : '');
+        const val = e.value_gp ? `${e.value_gp} GM` : '';
+        return `<div onclick="dbPickerSelect(${JSON.stringify(e).replace(/"/g,'&quot;')})"
+            style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;
+            border-left:2px solid ${rc};margin:3px 0;background:rgba(255,255,255,.03);transition:background .15s"
+            onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
+            <img src="${e.icon_url}" style="width:32px;height:32px;object-fit:contain;flex-shrink:0;border-radius:4px"
+                onerror="this.style.opacity='.2'">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name_de}</div>
+                <div style="font-size:11px;color:var(--t3)">${sub}${stats ? ' · '+stats : ''}${val ? ' · '+val : ''}</div>
+            </div>
+            <span style="font-size:10px;color:${rc};white-space:nowrap">${e.rarity_de}</span>
+        </div>`;
+    }).join('');
+}
+
+function dbPickerSelect(e) {
+    // Map DB entry → inventory item format
+    const catMap = { weapon: 'weapon', armor: 'armor', item: 'gear', spell: 'gear' };
+    const item = {
+        name: e.name_de,
+        cat: catMap[e.category] || 'gear',
+        qty: 1,
+        wt: e.weight_lbs || 0,
+        equipped: false,
+        icon_url: e.icon_url || '',
+        value_gp: e.value_gp || 0,
+        db_id: e.id || '',
+        rarity: e.rarity || 'common',
+    };
+    // Weapon extras
+    if (e.category === 'weapon') {
+        item.damage = e.damage || '';
+        item.dmg_type = e.damage_type || '';
+        item.props = (e.properties || []).join(', ');
+    }
+    // Armor extras
+    if (e.category === 'armor') {
+        item.ac = e.armor_class || '';
+        item.ac_mod = e.ac_modifier || '';
+    }
+    S.inventory.push(item);
+    renderInventory();
+    save();
+    closeViewModal();
+    toast(e.name_de + ' hinzugefügt');
+}
+
+function openSpellPicker() {
+    openViewModal(`
+        <div class="vm-close" onclick="closeViewModal()">&#10005;</div>
+        <div style="padding:20px 24px 8px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:12px">Zauber hinzufügen</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="spPickerSearch" placeholder="Suche..." oninput="spPickerFilter()"
+                    style="flex:1;min-width:160px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+                    border-radius:6px;padding:7px 10px;color:var(--tx);font-size:13px">
+                <select id="spPickerLevel" onchange="spPickerFilter()"
+                    style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+                    border-radius:6px;padding:7px 10px;color:var(--tx);font-size:13px">
+                    <option value="">Alle Grade</option>
+                    <option value="0">Zaubertricks</option>
+                    ${[1,2,3,4,5,6,7,8,9].map(l=>`<option value="${l}">Grad ${l}</option>`).join('')}
+                </select>
+                <select id="spPickerSchool" onchange="spPickerFilter()"
+                    style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+                    border-radius:6px;padding:7px 10px;color:var(--tx);font-size:13px">
+                    <option value="">Alle Schulen</option>
+                    <option value="abjuration">Bannmagie</option>
+                    <option value="conjuration">Beschwörung</option>
+                    <option value="divination">Weissagung</option>
+                    <option value="enchantment">Verzauberung</option>
+                    <option value="evocation">Hervorrufung</option>
+                    <option value="illusion">Illusion</option>
+                    <option value="necromancy">Nekromantie</option>
+                    <option value="transmutation">Transmutation</option>
+                </select>
+            </div>
+        </div>
+        <div id="spPickerResults" style="padding:8px 12px;max-height:420px;overflow-y:auto">
+            <div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">Lädt...</div>
+        </div>
+    `);
+    loadDndDb().then(() => spPickerFilter());
+}
+
+function spPickerFilter() {
+    if (!_dndDb) return;
+    const q = (document.getElementById('spPickerSearch')?.value || '').toLowerCase();
+    const lv = document.getElementById('spPickerLevel')?.value;
+    const sc = document.getElementById('spPickerSchool')?.value || '';
+    let results = _dndDb.filter(e => {
+        if (e.category !== 'spell') return false;
+        if (lv !== '' && lv !== undefined && String(e.level) !== lv) return false;
+        if (sc && e.school !== sc) return false;
+        if (q && !e.name_de.toLowerCase().includes(q)) return false;
+        return true;
+    }).slice(0, 80);
+    const SCHOOL_DE_SHORT = {
+        abjuration:'Bannm.', conjuration:'Beschw.', divination:'Erkund.',
+        enchantment:'Verzaub.', evocation:'Hervorr.', illusion:'Illus.',
+        necromancy:'Nekro.', transmutation:'Verwandl.'
+    };
+    const container = document.getElementById('spPickerResults');
+    if (!container) return;
+    if (!results.length) {
+        container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--t3);font-size:13px">Keine Ergebnisse</div>';
+        return;
+    }
+    container.innerHTML = results.map(e => {
+        const rc = RARITY_COLORS[e.rarity] || '#9ca3af';
+        const lvlLabel = e.level === 0 ? 'Trick' : `Grad ${e.level}`;
+        const schoolShort = SCHOOL_DE_SHORT[e.school] || e.school_de || '';
+        const conc = e.concentration ? ' · K' : '';
+        return `<div onclick="spPickerSelect(${JSON.stringify(e).replace(/"/g,'&quot;')})"
+            style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;
+            border-left:2px solid ${rc};margin:3px 0;background:rgba(255,255,255,.03);transition:background .15s"
+            onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
+            <img src="${e.icon_url}" style="width:32px;height:32px;object-fit:contain;flex-shrink:0;border-radius:4px"
+                onerror="this.style.opacity='.2'">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--tx)">${e.name_de}</div>
+                <div style="font-size:11px;color:var(--t3)">${lvlLabel} · ${schoolShort}${conc} · ${e.casting_time} · ${e.range}</div>
+            </div>
+            <span style="font-size:10px;color:${rc};white-space:nowrap">${e.classes?.join(', ') || ''}</span>
+        </div>`;
+    }).join('');
+}
+
+function spPickerSelect(e) {
+    const SCHOOL_DE_MAP = {
+        abjuration:'Bannmagie', conjuration:'Beschwörung', divination:'Weissagung',
+        enchantment:'Verzauberung', evocation:'Hervorrufung', illusion:'Illusion',
+        necromancy:'Nekromantie', transmutation:'Transmutation'
+    };
+    const spell = {
+        name: e.name_de,
+        level: e.level,
+        school: SCHOOL_DE_MAP[e.school] || e.school_de || e.school,
+        comp: e.components || 'V',
+        info: `${e.casting_time} · ${e.range} · ${e.duration}`,
+        prepared: false,
+        conc: !!e.concentration,
+        ritual: false,
+        notes: '',
+        icon_url: e.icon_url || '',
+        db_id: e.id || '',
+    };
+    S.spells.push(spell);
+    renderSpells();
+    save();
+    closeViewModal();
+    toast(e.name_de + ' hinzugefügt');
+}
+
+function addItem(){ openItemPicker(); }
 function calcTotalGP(){let c=S.currency;return((c.pp||0)*10+(c.gp||0)+(c.ep||0)*0.5+(c.sp||0)*0.1+(c.cp||0)*0.01).toFixed(1)}
 function convertCurrency(){
     let total=(S.currency.pp||0)*1000+(S.currency.gp||0)*100+(S.currency.ep||0)*50+(S.currency.sp||0)*10+(S.currency.cp||0);
@@ -1231,7 +1468,7 @@ function toggleWeightUnit(){
     S.weightUnit=S.weightUnit==='kg'?'lb':'kg';
     renderInventory();save();
 }
-function addSpell(){S.spells.push({name:'Neuer Zauber',level:1,school:'?',comp:'V',info:'—',prepared:false,conc:false,ritual:false,notes:''});renderSpells();save()}
+function addSpell(){ openSpellPicker(); }
 function toggleSpellNote(gi){S.spells[gi]._noteOpen=!S.spells[gi]._noteOpen;renderSpells()}
 function addFeature(type){
     if(type==='class')S.features.class.push({name:'Neues Merkmal',src:'Klasse ?',desc:'Beschreibung...',uses:null});
