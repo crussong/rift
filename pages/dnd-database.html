@@ -1,522 +1,671 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>D&amp;D Datenbank — RIFT</title>
-<link rel="icon" href="/assets/img/favicon.ico"/>
-<link rel="stylesheet" href="/assets/css/core.css"/>
-<link rel="stylesheet" href="/assets/css/topbar.css"/>
-<link rel="stylesheet" href="/assets/css/dock.css"/>
-<link rel="stylesheet" href="/assets/css/footer.css"/>
-<link rel="stylesheet" href="/assets/css/dnd-item-card.css"/>
-<style>
-:root {
-  --ddb-accent: #FF4655;
-  --ddb-bg: #161616;
-  --ddb-surface: #1e1e1e;
-  --ddb-card: #242428;
-  --ddb-border: rgba(255,255,255,0.07);
-  --ddb-text: #e8e8e8;
-  --ddb-muted: rgba(255,255,255,0.38);
-}
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/icon_rift_r.svg">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="view-transition" content="same-origin">
+    <title>RIFT – D&D Datenbank</title>
 
-.ddb-page {
-  min-height: 100vh;
-  background: var(--ddb-bg);
-  color: var(--ddb-text);
-  font-family: 'Inter', sans-serif;
-  padding-top: 60px; /* TopNav height */
-  padding-bottom: 72px; /* Dock height */
-}
+    <link rel="stylesheet" href="/assets/css/core.css">
+    <link rel="stylesheet" href="/assets/css/ui.css">
+    <link rel="stylesheet" href="/assets/css/dock.css">
+    <link rel="stylesheet" href="/assets/css/hub.css">
+    <link rel="stylesheet" href="/assets/css/settings.css">
 
-/* ── Top controls ── */
-.ddb-controls {
-  position: sticky;
-  top: 60px;
-  z-index: 100;
-  background: rgba(22,22,22,0.95);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--ddb-border);
-  padding: 12px 20px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
+    <style>
+        /* ══════════════════════════════════════════════════════
+           RIFT D&D DATABASE — Item Browser
+        ══════════════════════════════════════════════════════ */
+        :root {
+            --db-bg: #141414;
+            --db-card: #1c1c1c;
+            --db-card-hover: #222;
+            --db-border: rgba(255,255,255,.06);
+            --db-border-hover: rgba(255,255,255,.12);
+            --db-tx: #e8e8ec;
+            --db-t2: #9a9aa4;
+            --db-t3: #505060;
+            --db-gold: #d4a844;
+            --db-red: #d04040;
+            --db-blu: #4090e0;
+            --db-grn: #40b050;
+            --db-pur: #9050d0;
 
-.ddb-search-wrap {
-  flex: 1;
-  min-width: 200px;
-  position: relative;
-}
-.ddb-search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ddb-muted);
-  pointer-events: none;
-  display: flex;
-}
-.ddb-search-icon svg { width: 15px; height: 15px; }
-.ddb-search {
-  width: 100%;
-  padding: 9px 12px 9px 36px;
-  background: var(--ddb-surface);
-  border: 1px solid var(--ddb-border);
-  border-radius: 8px;
-  color: var(--ddb-text);
-  font-size: 13px;
-  font-family: inherit;
-  box-sizing: border-box;
-  transition: border-color 0.15s;
-}
-.ddb-search:focus { outline: none; border-color: rgba(255,70,85,0.4); }
-.ddb-search::placeholder { color: var(--ddb-muted); }
+            --rc-common: #6b7280;
+            --rc-uncommon: #22c55e;
+            --rc-rare: #3b82f6;
+            --rc-very-rare: #a855f7;
+            --rc-legendary: #f59e0b;
 
-/* Category tabs */
-.ddb-tabs {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.ddb-tab {
-  padding: 7px 14px;
-  border-radius: 7px;
-  border: 1px solid var(--ddb-border);
-  background: transparent;
-  color: var(--ddb-muted);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
-  white-space: nowrap;
-}
-.ddb-tab:hover { background: rgba(255,255,255,0.06); color: var(--ddb-text); }
-.ddb-tab.active {
-  background: rgba(255,70,85,0.15);
-  color: #FF4655;
-  border-color: rgba(255,70,85,0.3);
-}
+            --ease: cubic-bezier(.22,1,.36,1);
+        }
 
-/* Count badge */
-.ddb-count {
-  font-size: 11px;
-  color: var(--ddb-muted);
-  white-space: nowrap;
-  padding: 7px 0;
-}
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Grid ── */
-.ddb-grid-wrap {
-  padding: 16px 20px;
-}
-.ddb-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 8px;
-}
+        body { background: var(--db-bg); color: var(--db-tx); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
 
-/* ── Item tile ── */
-.ddb-tile {
-  background: var(--ddb-card);
-  border: 1px solid var(--ddb-border);
-  border-radius: 10px;
-  padding: 12px;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, transform 0.1s;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
-  position: relative;
-}
-.ddb-tile:hover {
-  background: #2a2a30;
-  border-color: rgba(255,70,85,0.25);
-  transform: translateY(-1px);
-}
-.ddb-tile:active { transform: translateY(0); }
+        /* ── Page wrapper ── */
+        .db-page {
+            padding: 20px 24px 100px;
+            min-height: 100vh;
+        }
 
-.ddb-tile__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.ddb-tile__icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 4px;
-  box-sizing: border-box;
-}
+        /* ── Header ── */
+        .db-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .db-header__icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, rgba(212,168,68,.2), rgba(212,168,68,.05));
+            border: 1px solid rgba(212,168,68,.25);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .db-header__icon svg { width: 22px; height: 22px; stroke: var(--db-gold); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+        .db-header__title { font-size: 22px; font-weight: 700; color: var(--db-tx); font-family: 'Cinzel', serif; letter-spacing: .03em; }
+        .db-header__sub { font-size: 12px; color: var(--db-t2); margin-top: 2px; }
+        .db-header__count { margin-left: auto; font-size: 12px; color: var(--db-t3); white-space: nowrap; }
 
-.ddb-tile__content { flex: 1; min-width: 0; }
-.ddb-tile__name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ddb-text);
-  line-height: 1.3;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  margin: 0 0 4px;
-}
-.ddb-tile__name-de {
-  font-size: 10px;
-  color: var(--ddb-muted);
-  margin: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-style: italic;
-}
-.ddb-tile__sub {
-  font-size: 10px;
-  color: rgba(255,255,255,0.28);
-  margin: 0;
-}
-.ddb-tile__tag {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-top: 4px;
-}
-.ddb-tile__tag--spell    { background: rgba(120,80,220,0.18); color: #a78bfa; }
-.ddb-tile__tag--weapon   { background: rgba(255,70,85,0.12); color: #ff8a95; }
-.ddb-tile__tag--armor    { background: rgba(56,189,248,0.1); color: #7dd3fc; }
-.ddb-tile__tag--equip    { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.4); }
-.ddb-tile__tag--magic    { background: rgba(245,158,11,0.12); color: #fcd34d; }
-.ddb-tile__tag--common   { background: rgba(156,163,175,0.08); color: #9ca3af; }
-.ddb-tile__tag--uncommon { background: rgba(34,197,94,0.08); color: #4ade80; }
-.ddb-tile__tag--rare     { background: rgba(59,130,246,0.1); color: #93c5fd; }
-.ddb-tile__tag--epic     { background: rgba(168,85,247,0.1); color: #d8b4fe; }
-.ddb-tile__tag--legendary{ background: rgba(245,158,11,0.12); color: #fcd34d; }
+        /* ── Category tabs ── */
+        .db-tabs {
+            display: flex; gap: 4px;
+            margin-bottom: 16px;
+            background: rgba(255,255,255,.03);
+            border: 1px solid var(--db-border);
+            border-radius: 10px;
+            padding: 4px;
+        }
+        .db-tab {
+            flex: 1; padding: 8px 4px;
+            border: none; border-radius: 7px;
+            background: transparent; color: var(--db-t2);
+            font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all .2s var(--ease);
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            white-space: nowrap;
+        }
+        .db-tab svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+        .db-tab:hover { color: var(--db-tx); background: rgba(255,255,255,.04); }
+        .db-tab.on { background: rgba(212,168,68,.12); color: var(--db-gold); border: 1px solid rgba(212,168,68,.2); }
+        .db-tab .db-tab-n {
+            font-size: 10px; background: rgba(255,255,255,.08); border-radius: 10px;
+            padding: 1px 5px; font-weight: 400; color: var(--db-t3);
+        }
+        .db-tab.on .db-tab-n { background: rgba(212,168,68,.15); color: var(--db-gold); }
 
-/* Level badge on tile icon */
-.ddb-tile__level {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  background: #FF4655;
-  color: white;
-  font-size: 8px;
-  font-weight: 800;
-  padding: 2px 4px;
-  border-radius: 4px;
-  line-height: 1;
-}
+        /* ── Toolbar ── */
+        .db-toolbar {
+            display: flex; gap: 8px; align-items: center;
+            margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .db-search {
+            flex: 1; min-width: 200px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid var(--db-border);
+            border-radius: 8px; padding: 8px 12px;
+            color: var(--db-tx); font-size: 13px;
+            outline: none; transition: border-color .2s;
+        }
+        .db-search:focus { border-color: rgba(212,168,68,.4); }
+        .db-search::placeholder { color: var(--db-t3); }
+        .db-sel {
+            background: rgba(255,255,255,.05);
+            border: 1px solid var(--db-border);
+            border-radius: 8px; padding: 8px 10px;
+            color: var(--db-tx); font-size: 12px;
+            outline: none; cursor: pointer;
+            transition: border-color .2s;
+        }
+        .db-sel:focus { border-color: rgba(212,168,68,.4); }
+        .db-sel option { background: #222; }
 
-/* Empty state */
-.ddb-empty {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--ddb-muted);
-  font-size: 13px;
-}
-.ddb-empty svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; display: block; margin-inline: auto; }
+        /* ── Grid ── */
+        .db-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 6px;
+        }
 
-/* Loading */
-.ddb-loading {
-  text-align: center;
-  padding: 80px 20px;
-  color: var(--ddb-muted);
-  font-size: 13px;
-}
-.ddb-spinner {
-  width: 28px; height: 28px;
-  border: 2px solid rgba(255,70,85,0.2);
-  border-top-color: #FF4655;
-  border-radius: 50%;
-  animation: ddb-spin 0.7s linear infinite;
-  margin: 0 auto 12px;
-}
-@keyframes ddb-spin { to { transform: rotate(360deg); } }
+        /* ── Item card ── */
+        .db-card {
+            background: var(--db-card);
+            border: 1px solid var(--db-border);
+            border-radius: 8px;
+            padding: 8px 6px 7px;
+            cursor: pointer;
+            transition: all .18s var(--ease);
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            position: relative; overflow: hidden;
+            aspect-ratio: 1 / 1.15;
+        }
+        .db-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: var(--rarity-color, transparent);
+            opacity: 0; transition: opacity .2s;
+        }
+        .db-card:hover { background: var(--db-card-hover); border-color: var(--db-border-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+        .db-card:hover::before { opacity: 1; }
+        .db-card.selected { border-color: var(--rarity-color, rgba(212,168,68,.5)); background: var(--db-card-hover); }
+        .db-card.selected::before { opacity: 1; }
 
-/* Rarity border on tile */
-.ddb-tile[data-rarity="uncommon"] { border-left: 2px solid #4ade80; }
-.ddb-tile[data-rarity="rare"]     { border-left: 2px solid #93c5fd; }
-.ddb-tile[data-rarity="epic"]     { border-left: 2px solid #d8b4fe; }
-.ddb-tile[data-rarity="legendary"]{ border-left: 2px solid #fcd34d; }
+        .db-card__img {
+            width: 44px; height: 44px;
+            object-fit: contain;
+            flex-shrink: 0;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
+            transition: transform .2s var(--ease);
+        }
+        .db-card:hover .db-card__img { transform: scale(1.08); }
+        .db-card__img-placeholder {
+            width: 44px; height: 44px; flex-shrink: 0;
+            background: rgba(255,255,255,.04); border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .db-card__name {
+            font-size: 9.5px; color: var(--db-t2); text-align: center;
+            line-height: 1.3; display: -webkit-box;
+            -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            width: 100%;
+        }
+        .db-card__rarity-dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--rarity-color, var(--db-t3));
+            flex-shrink: 0; margin-top: auto;
+        }
 
-/* Pagination */
-.ddb-pagination {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  padding: 16px 20px 24px;
-  flex-wrap: wrap;
-}
-.ddb-page-btn {
-  padding: 6px 14px;
-  border-radius: 7px;
-  border: 1px solid var(--ddb-border);
-  background: transparent;
-  color: var(--ddb-muted);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-.ddb-page-btn:hover { background: rgba(255,255,255,0.06); color: var(--ddb-text); }
-.ddb-page-btn.active { background: rgba(255,70,85,0.15); color: #FF4655; border-color: rgba(255,70,85,0.3); }
-.ddb-page-btn:disabled { opacity: 0.3; cursor: default; }
-</style>
+        /* ── Detail panel ── */
+        .db-detail {
+            position: fixed; top: 0; right: 0; bottom: 0;
+            width: 340px; max-width: 90vw;
+            background: #181818;
+            border-left: 1px solid var(--db-border);
+            z-index: 500; overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform .3s var(--ease);
+            display: flex; flex-direction: column;
+        }
+        .db-detail.open { transform: translateX(0); }
+
+        .db-detail__header {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--db-border);
+            position: relative;
+            background: linear-gradient(180deg, rgba(212,168,68,.05) 0%, transparent 100%);
+        }
+        .db-detail__close {
+            position: absolute; top: 16px; right: 16px;
+            width: 28px; height: 28px; border-radius: 6px;
+            background: rgba(255,255,255,.06); border: 1px solid var(--db-border);
+            color: var(--db-t2); font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all .15s;
+        }
+        .db-detail__close:hover { color: var(--db-tx); background: rgba(255,255,255,.1); }
+
+        .db-detail__img-wrap {
+            display: flex; justify-content: center; margin-bottom: 14px;
+        }
+        .db-detail__img {
+            width: 80px; height: 80px; object-fit: contain;
+            filter: drop-shadow(0 4px 16px rgba(0,0,0,.6));
+        }
+
+        .db-detail__name {
+            font-size: 16px; font-weight: 700; color: var(--db-tx);
+            text-align: center; margin-bottom: 4px;
+            font-family: 'Cinzel', serif; letter-spacing: .02em;
+        }
+        .db-detail__rarity {
+            text-align: center; font-size: 11px; font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .db-detail__label {
+            text-align: center; font-size: 11px; color: var(--db-t2);
+        }
+
+        .db-detail__body { padding: 16px 20px; flex: 1; }
+
+        .db-stat-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;
+        }
+        .db-stat {
+            background: rgba(255,255,255,.03);
+            border: 1px solid var(--db-border); border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .db-stat.full { grid-column: 1 / -1; }
+        .db-stat__label { font-size: 10px; color: var(--db-t3); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+        .db-stat__val { font-size: 14px; color: var(--db-tx); font-weight: 600; }
+        .db-stat__val.accent { color: var(--db-gold); }
+        .db-stat__val.small { font-size: 12px; color: var(--db-t2); font-weight: 400; }
+
+        .db-props {
+            display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px;
+        }
+        .db-prop {
+            font-size: 11px; padding: 3px 8px; border-radius: 12px;
+            background: rgba(255,255,255,.05); border: 1px solid var(--db-border);
+            color: var(--db-t2);
+        }
+        .db-prop.highlight { background: rgba(212,168,68,.08); border-color: rgba(212,168,68,.2); color: var(--db-gold); }
+
+        .db-classes {
+            display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+        }
+        .db-class-pill {
+            font-size: 10px; padding: 2px 7px; border-radius: 10px;
+            background: rgba(64,144,224,.1); border: 1px solid rgba(64,144,224,.2);
+            color: var(--db-blu);
+        }
+
+        /* ── Rarity accent stripe on detail ── */
+        .db-detail__stripe {
+            height: 3px; width: 100%;
+            background: var(--rarity-color, var(--db-gold));
+        }
+
+        /* ── Empty state ── */
+        .db-empty {
+            grid-column: 1 / -1;
+            text-align: center; padding: 60px 20px;
+            color: var(--db-t3); font-size: 13px;
+        }
+        .db-empty svg { width: 40px; height: 40px; stroke: var(--db-t3); fill: none; stroke-width: 1.2; margin-bottom: 12px; opacity: .4; }
+
+        /* ── Loading ── */
+        .db-loading {
+            grid-column: 1 / -1;
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; padding: 60px; color: var(--db-t3); font-size: 13px;
+        }
+        .db-spinner {
+            width: 18px; height: 18px;
+            border: 2px solid rgba(212,168,68,.15);
+            border-top-color: var(--db-gold);
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Overlay backdrop ── */
+        .db-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,.4);
+            z-index: 499; opacity: 0; pointer-events: none;
+            transition: opacity .3s;
+        }
+        .db-backdrop.on { opacity: 1; pointer-events: all; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 3px; }
+
+        /* ── With panel open, shift grid ── */
+        @media (min-width: 800px) {
+            .db-page.panel-open { margin-right: 340px; transition: margin-right .3s var(--ease); }
+        }
+        @media (max-width: 799px) {
+            .db-backdrop { display: block; }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
 </head>
-<body class="dark">
+<body>
+<div class="db-page" id="dbPage">
 
-<div class="ddb-page" id="ddbPage">
-
-  <div class="ddb-controls">
-    <div class="ddb-search-wrap">
-      <span class="ddb-search-icon">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="7" cy="7" r="4.5"/>
-          <line x1="10.5" y1="10.5" x2="14" y2="14"/>
-        </svg>
-      </span>
-      <input class="ddb-search" type="text" id="ddbSearch" placeholder="Suchen — Zauber, Waffe, Item..." autocomplete="off"/>
+    <div class="db-header">
+        <div class="db-header__icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+            <div class="db-header__title">D&amp;D Datenbank</div>
+            <div class="db-header__sub">Gegenstände, Waffen, Rüstungen &amp; Zauber</div>
+        </div>
+        <div class="db-header__count" id="dbCount"></div>
     </div>
-    <div class="ddb-tabs" id="ddbTabs">
-      <button class="ddb-tab active" data-type="spells">Zauber</button>
-      <button class="ddb-tab" data-type="weapons">Waffen</button>
-      <button class="ddb-tab" data-type="armor">Rüstungen</button>
-      <button class="ddb-tab" data-type="equipment">Ausrüstung</button>
-      <button class="ddb-tab" data-type="magic_items">Mag. Items</button>
-    </div>
-    <span class="ddb-count" id="ddbCount"></span>
-  </div>
 
-  <div class="ddb-grid-wrap">
-    <div class="ddb-loading" id="ddbLoading">
-      <div class="ddb-spinner"></div>
-      Datenbank wird geladen…
+    <!-- Category tabs -->
+    <div class="db-tabs">
+        <button class="db-tab on" data-cat="weapon" onclick="switchCat('weapon',this)">
+            <svg viewBox="0 0 24 24"><path d="M14.5 2.5L6 11l2.5 2.5L3 19l5.5-5.5L11 16l8.5-8.5z"/></svg>
+            Waffen<span class="db-tab-n" id="n-weapon">—</span>
+        </button>
+        <button class="db-tab" data-cat="armor" onclick="switchCat('armor',this)">
+            <svg viewBox="0 0 24 24"><path d="M12 2L4 7v6c0 5.5 3.4 10.7 8 12 4.6-1.3 8-6.5 8-12V7l-8-5z"/></svg>
+            Rüstung<span class="db-tab-n" id="n-armor">—</span>
+        </button>
+        <button class="db-tab" data-cat="spell" onclick="switchCat('spell',this)">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+            Zauber<span class="db-tab-n" id="n-spell">—</span>
+        </button>
+        <button class="db-tab" data-cat="item" onclick="switchCat('item',this)">
+            <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/></svg>
+            Items<span class="db-tab-n" id="n-item">—</span>
+        </button>
     </div>
-    <div class="ddb-grid" id="ddbGrid" style="display:none"></div>
-  </div>
 
-  <div class="ddb-pagination" id="ddbPagination"></div>
+    <!-- Toolbar -->
+    <div class="db-toolbar">
+        <input type="search" class="db-search" id="dbSearch" placeholder="Suche..." oninput="filterEntries()">
+        <select class="db-sel" id="dbFilterA" onchange="filterEntries()">
+            <option value="">Alle</option>
+        </select>
+        <select class="db-sel" id="dbFilterRarity" onchange="filterEntries()">
+            <option value="">Alle Seltenheiten</option>
+            <option value="common">Gewöhnlich</option>
+            <option value="uncommon">Ungewöhnlich</option>
+            <option value="rare">Selten</option>
+            <option value="very-rare">Sehr Selten</option>
+            <option value="legendary">Legendär</option>
+        </select>
+    </div>
+
+    <!-- Grid -->
+    <div class="db-grid" id="dbGrid">
+        <div class="db-loading"><div class="db-spinner"></div> Lade Datenbank...</div>
+    </div>
 
 </div>
 
-<script src="/assets/js/firebase-config.js"></script>
-<script src="/assets/js/app.js"></script>
-<script src="/assets/js/layout-unified.js"></script>
-<script src="/assets/js/dnd-item-card.js"></script>
-<script>
-// ── RIFT D&D Database Browser ────────────────────────────────────────────────
-(function() {
-  'use strict';
+<!-- Backdrop -->
+<div class="db-backdrop" id="dbBackdrop" onclick="closeDetail()"></div>
 
-  const PAGE_SIZE = 48;
-
-  let db = null;
-  let currentType = 'spells';
-  let currentQuery = '';
-  let currentPage = 0;
-  let filteredItems = [];
-
-  const elLoading    = document.getElementById('ddbLoading');
-  const elGrid       = document.getElementById('ddbGrid');
-  const elCount      = document.getElementById('ddbCount');
-  const elSearch     = document.getElementById('ddbSearch');
-  const elTabs       = document.getElementById('ddbTabs');
-  const elPagination = document.getElementById('ddbPagination');
-
-  // ── Load database ──────────────────────────────────────────────────────────
-  async function loadDb() {
-    try {
-      const res = await fetch('/assets/data/rift_dnd_database.json');
-      db = await res.json();
-      RiftItemCard.setDb(db);
-      elLoading.style.display = 'none';
-      elGrid.style.display = 'grid';
-      refresh();
-    } catch(e) {
-      elLoading.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>Fehler beim Laden der Datenbank`;
-    }
-  }
-
-  // ── Filter & render ────────────────────────────────────────────────────────
-  function refresh() {
-    if (!db) return;
-    const section = db[currentType] || {};
-    const query = currentQuery.toLowerCase().trim();
-    const entries = Object.entries(section);
-
-    filteredItems = query
-      ? entries.filter(([idx, entry]) => {
-          const name    = (entry.name || '').toLowerCase();
-          const nameDe  = (entry.name_de || '').toLowerCase();
-          const school  = (entry.school || '').toLowerCase();
-          const dmg     = (entry.damage_type || '').toLowerCase();
-          const cat     = (entry.category || '').toLowerCase();
-          const rarity  = (entry.rarity_en || '').toLowerCase();
-          return name.includes(query) || nameDe.includes(query) || school.includes(query)
-              || dmg.includes(query)  || cat.includes(query)    || rarity.includes(query)
-              || idx.includes(query);
-        })
-      : entries;
-
-    currentPage = 0;
-    elCount.textContent = `${filteredItems.length} Einträge`;
-    renderPage();
-  }
-
-  function renderPage() {
-    const start = currentPage * PAGE_SIZE;
-    const page  = filteredItems.slice(start, start + PAGE_SIZE);
-
-    if (filteredItems.length === 0) {
-      elGrid.innerHTML = `
-        <div class="ddb-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            <line x1="8" y1="11" x2="14" y2="11"/>
-          </svg>
-          Keine Ergebnisse für „${currentQuery}"
-        </div>`;
-      elPagination.innerHTML = '';
-      return;
-    }
-
-    elGrid.innerHTML = page.map(([idx, entry]) => buildTile(idx, entry)).join('');
-
-    // Click handlers
-    elGrid.querySelectorAll('.ddb-tile').forEach(tile => {
-      tile.addEventListener('click', () => {
-        RiftItemCard.show(currentType, tile.dataset.index);
-      });
-    });
-
-    renderPagination();
-  }
-
-  function buildTile(idx, entry) {
-    const type = currentType;
-    const name   = entry.name || idx;
-    const nameDe = (entry.name_de && entry.name_de !== name) ? entry.name_de : '';
-    const icon   = entry.icon_url || '';
-    const rarity = entry.rarity || '';
-
-    let tagHtml = '';
-    let subHtml = '';
-    let levelBadge = '';
-
-    if (type === 'spells') {
-      const level = entry.level;
-      const levelText = level === 0 ? 'Zaubertrick' : `Grad ${level}`;
-      subHtml = `<p class="ddb-tile__sub">${entry.school || ''}</p>`;
-      tagHtml = `<span class="ddb-tile__tag ddb-tile__tag--spell">${levelText}</span>`;
-      levelBadge = `<span class="ddb-tile__level">${level === 0 ? 'C' : level}</span>`;
-    } else if (type === 'weapons') {
-      const cat = entry.category || '';
-      const dmg = entry.damage || '';
-      subHtml = `<p class="ddb-tile__sub">${dmg}</p>`;
-      tagHtml = `<span class="ddb-tile__tag ddb-tile__tag--weapon">${cat}</span>`;
-    } else if (type === 'armor') {
-      subHtml = `<p class="ddb-tile__sub">RK ${entry.ac || ''}</p>`;
-      tagHtml = `<span class="ddb-tile__tag ddb-tile__tag--armor">${entry.category || ''}</span>`;
-    } else if (type === 'equipment') {
-      subHtml = `<p class="ddb-tile__sub">${entry.cost || ''}</p>`;
-      tagHtml = `<span class="ddb-tile__tag ddb-tile__tag--equip">${entry.category || 'item'}</span>`;
-    } else if (type === 'magic_items') {
-      subHtml = '';
-      const rcls = rarity || 'common';
-      tagHtml = `<span class="ddb-tile__tag ddb-tile__tag--${rcls}">${entry.rarity_en || rarity}</span>`;
-    }
-
-    return `
-      <div class="ddb-tile" data-index="${idx}" ${rarity ? `data-rarity="${rarity}"` : ''}>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <div class="ddb-tile__icon" style="position:relative">
-            ${icon ? `<img src="${icon}" alt="${name}" loading="lazy"/>` : ''}
-            ${levelBadge}
-          </div>
-          <div class="ddb-tile__content">
-            <p class="ddb-tile__name">${name}</p>
-            ${nameDe ? `<p class="ddb-tile__name-de">${nameDe}</p>` : ''}
-            ${subHtml}
-            ${tagHtml}
-          </div>
+<!-- Detail panel -->
+<div class="db-detail" id="dbDetail">
+    <div class="db-detail__stripe" id="detStripe"></div>
+    <div class="db-detail__header">
+        <button class="db-detail__close" onclick="closeDetail()">&#10005;</button>
+        <div class="db-detail__img-wrap">
+            <img class="db-detail__img" id="detImg" src="" alt="" onerror="this.style.opacity='.15'">
         </div>
-      </div>`;
-  }
+        <div class="db-detail__name" id="detName"></div>
+        <div class="db-detail__rarity" id="detRarity"></div>
+        <div class="db-detail__label" id="detLabel"></div>
+    </div>
+    <div class="db-detail__body" id="detBody"></div>
+</div>
 
-  function renderPagination() {
-    const total = Math.ceil(filteredItems.length / PAGE_SIZE);
-    if (total <= 1) { elPagination.innerHTML = ''; return; }
+<script src="/assets/js/pro-status.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script src="/assets/js/layout-unified.js"></script>
+<script src="/assets/js/settings.js"></script>
+<script src="/assets/js/admin.js"></script>
+<script src="/assets/js/transitions.js"></script>
+<script src="/assets/js/app.js"></script>
 
-    let html = `<button class="ddb-page-btn" id="ddbPrev" ${currentPage === 0 ? 'disabled' : ''}>‹ Zurück</button>`;
+<script>
+// ══════════════════════════════════════════════════════════
+//  RIFT D&D Database Browser
+// ══════════════════════════════════════════════════════════
 
-    // Show max 7 page buttons
-    const range = 3;
-    for (let i = 0; i < total; i++) {
-      if (i === 0 || i === total - 1 || Math.abs(i - currentPage) <= range) {
-        html += `<button class="ddb-page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i + 1}</button>`;
-      } else if (Math.abs(i - currentPage) === range + 1) {
-        html += `<span style="color:rgba(255,255,255,0.2);padding:6px 4px">…</span>`;
-      }
+const RARITY_COLOR = {
+    common:    '#6b7280',
+    uncommon:  '#22c55e',
+    rare:      '#3b82f6',
+    'very-rare': '#a855f7',
+    legendary: '#f59e0b'
+};
+
+const CAT_FILTER_OPTS = {
+    weapon: { label: 'Waffentyp',  key: 'weapon_type_de' },
+    armor:  { label: 'Slot',       key: 'armor_slot' },
+    spell:  { label: 'Schule',     key: 'school_de' },
+    item:   { label: 'Kategorie',  key: 'subcategory_de' }
+};
+
+let DB      = [];      // all entries
+let curCat  = 'weapon';
+let curSel  = null;    // selected entry
+
+// ── Load ────────────────────────────────────────────────
+async function loadDB() {
+    try {
+        const r = await fetch('/assets/data/rift_dnd_database.json');
+        const j = await r.json();
+        DB = j.entries || [];
+        initCounts();
+        updateFilterA();
+        filterEntries();
+    } catch(e) {
+        document.getElementById('dbGrid').innerHTML =
+            '<div class="db-empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Datenbank nicht gefunden.</div>';
     }
-    html += `<button class="ddb-page-btn" id="ddbNext" ${currentPage >= total - 1 ? 'disabled' : ''}>Weiter ›</button>`;
+}
 
-    elPagination.innerHTML = html;
-    elPagination.querySelector('#ddbPrev')?.addEventListener('click', () => { currentPage--; renderPage(); scrollToGrid(); });
-    elPagination.querySelector('#ddbNext')?.addEventListener('click', () => { currentPage++; renderPage(); scrollToGrid(); });
-    elPagination.querySelectorAll('[data-page]').forEach(btn => {
-      btn.addEventListener('click', () => { currentPage = +btn.dataset.page; renderPage(); scrollToGrid(); });
+function initCounts() {
+    ['weapon','armor','spell','item'].forEach(cat => {
+        const n = DB.filter(e => e.category === cat).length;
+        document.getElementById('n-'+cat).textContent = n;
     });
-  }
+}
 
-  function scrollToGrid() {
-    elGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+// ── Category switch ─────────────────────────────────────
+function switchCat(cat, el) {
+    curCat = cat;
+    document.querySelectorAll('.db-tab').forEach(t => t.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById('dbSearch').value = '';
+    document.getElementById('dbFilterRarity').value = '';
+    closeDetail();
+    updateFilterA();
+    filterEntries();
+}
 
-  // ── Events ─────────────────────────────────────────────────────────────────
-  elSearch.addEventListener('input', () => {
-    currentQuery = elSearch.value;
-    refresh();
-  });
-
-  elTabs.querySelectorAll('.ddb-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      elTabs.querySelectorAll('.ddb-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      currentType = tab.dataset.type;
-      currentQuery = '';
-      elSearch.value = '';
-      refresh();
+// ── Dynamic filter A (varies by category) ──────────────
+function updateFilterA() {
+    const sel = document.getElementById('dbFilterA');
+    const cfg = CAT_FILTER_OPTS[curCat];
+    sel.innerHTML = `<option value="">Alle ${cfg.label}</option>`;
+    const vals = [...new Set(
+        DB.filter(e => e.category === curCat)
+          .map(e => e[cfg.key])
+          .filter(Boolean)
+    )].sort();
+    vals.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        sel.appendChild(o);
     });
-  });
+}
 
-  // Roll event → forward to RIFT dice module if available
-  document.addEventListener('rift-ic-roll', e => {
-    const { formula, label } = e.detail;
-    if (window.RiftDice?.roll) {
-      window.RiftDice.roll(formula, label);
-    } else if (window.riftRollDice) {
-      window.riftRollDice(formula, label);
+// ── Filter & render ─────────────────────────────────────
+function filterEntries() {
+    const q      = document.getElementById('dbSearch').value.toLowerCase().trim();
+    const rar    = document.getElementById('dbFilterRarity').value;
+    const subA   = document.getElementById('dbFilterA').value;
+    const cfg    = CAT_FILTER_OPTS[curCat];
+
+    const results = DB.filter(e => {
+        if (e.category !== curCat) return false;
+        if (rar && e.rarity !== rar) return false;
+        if (subA && e[cfg.key] !== subA) return false;
+        if (q) {
+            const hay = [e.name_de, e.name_en, e.icon_label, e[cfg.key]].filter(Boolean).join(' ').toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    document.getElementById('dbCount').textContent = `${results.length} Einträge`;
+    renderGrid(results);
+}
+
+// ── Render grid ─────────────────────────────────────────
+function renderGrid(entries) {
+    const grid = document.getElementById('dbGrid');
+
+    if (!entries.length) {
+        grid.innerHTML = `<div class="db-empty">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Keine Einträge gefunden
+        </div>`;
+        return;
     }
-  });
 
-  // ── Init ───────────────────────────────────────────────────────────────────
-  loadDb();
+    grid.innerHTML = '';
+    const frag = document.createDocumentFragment();
 
-})();
+    entries.forEach(e => {
+        const rc = RARITY_COLOR[e.rarity] || '#6b7280';
+        const div = document.createElement('div');
+        div.className = 'db-card' + (curSel?.id === e.id ? ' selected' : '');
+        div.style.setProperty('--rarity-color', rc);
+        div.dataset.id = e.id;
+        div.onclick = () => openDetail(e, div);
+
+        div.innerHTML = `
+            <img class="db-card__img" src="${e.icon_url}" alt="${e.name_de}"
+                 loading="lazy" onerror="this.style.opacity='.08'">
+            <div class="db-card__name">${e.name_de}</div>
+            <div class="db-card__rarity-dot"></div>
+        `;
+        frag.appendChild(div);
+    });
+
+    grid.appendChild(frag);
+}
+
+// ── Detail panel ─────────────────────────────────────────
+function openDetail(e, cardEl) {
+    // deselect previous
+    document.querySelectorAll('.db-card.selected').forEach(c => c.classList.remove('selected'));
+    if (curSel?.id === e.id) { closeDetail(); return; }
+    curSel = e;
+    if (cardEl) cardEl.classList.add('selected');
+
+    const rc = RARITY_COLOR[e.rarity] || '#d4a844';
+
+    document.getElementById('detStripe').style.background = rc;
+    document.getElementById('detImg').src = e.icon_url;
+    document.getElementById('detName').textContent = e.name_de;
+    document.getElementById('detRarity').textContent = e.rarity_de || '';
+    document.getElementById('detRarity').style.color = rc;
+
+    // label line under name
+    let labelParts = [];
+    if (e.weapon_type_de)  labelParts.push(e.weapon_type_de);
+    if (e.armor_type_de)   labelParts.push(e.armor_type_de);
+    if (e.armor_slot)      labelParts.push(e.armor_slot);
+    if (e.subcategory_de)  labelParts.push(e.subcategory_de);
+    if (e.school_de)       labelParts.push(e.school_de);
+    if (e.level !== undefined && e.category === 'spell') {
+        labelParts.push(e.level === 0 ? 'Zaubertrick' : `Grad ${e.level}`);
+    }
+    document.getElementById('detLabel').textContent = labelParts.join(' · ');
+
+    document.getElementById('detBody').innerHTML = buildDetailBody(e, rc);
+
+    document.getElementById('dbDetail').classList.add('open');
+    document.getElementById('dbBackdrop').classList.add('on');
+    document.getElementById('dbPage').classList.add('panel-open');
+}
+
+function closeDetail() {
+    curSel = null;
+    document.querySelectorAll('.db-card.selected').forEach(c => c.classList.remove('selected'));
+    document.getElementById('dbDetail').classList.remove('open');
+    document.getElementById('dbBackdrop').classList.remove('on');
+    document.getElementById('dbPage').classList.remove('panel-open');
+}
+
+function buildDetailBody(e, rc) {
+    let h = '<div class="db-stat-grid">';
+
+    if (e.category === 'weapon') {
+        h += stat('Schaden', `${e.damage || '—'} ${e.damage_type || ''}`.trim(), true);
+        h += stat('Typ', e.weapon_type_de || '—');
+        h += stat('Gewicht', e.weight_lbs ? `${e.weight_lbs} lb` : '—');
+        h += stat('Wert', e.value_gp ? `${e.value_gp} GM` : '—');
+        h += '</div>';
+        if (e.properties?.length) {
+            h += '<div class="db-props">';
+            e.properties.forEach(p => {
+                h += `<span class="db-prop highlight">${p}</span>`;
+            });
+            h += '</div>';
+        }
+    }
+
+    else if (e.category === 'armor') {
+        const acVal = e.armor_class ? `RK ${e.armor_class}` : (e.ac_modifier ? `+${e.ac_modifier}` : '—');
+        h += stat('Rüstungsklasse', acVal, true);
+        h += stat('Typ', e.armor_type_de || '—');
+        h += stat('Slot', e.armor_slot || '—');
+        h += stat('Gewicht', e.weight_lbs ? `${e.weight_lbs} lb` : '—');
+        h += stat('Wert', e.value_gp ? `${e.value_gp} GM` : '—');
+        if (e.str_requirement) h += stat('St-Min.', e.str_requirement);
+        h += '</div>';
+        if (e.stealth_disadvantage) {
+            h += '<div class="db-props"><span class="db-prop">Nachteil auf Heimlichkeit</span></div>';
+        }
+    }
+
+    else if (e.category === 'spell') {
+        h += stat('Wirken', e.casting_time || '—');
+        h += stat('Reichweite', e.range || '—');
+        h += stat('Dauer', e.duration || '—');
+        h += stat('Schule', e.school_de || '—');
+        h += '</div>';
+        const flags = [];
+        if (e.concentration) flags.push('Konzentration');
+        if (e.components) {
+            const cmap = { V:'Verbal', S:'Gestisch', M:'Material' };
+            e.components.split('').forEach(c => { if (cmap[c]) flags.push(cmap[c]); });
+        }
+        if (flags.length) {
+            h += '<div class="db-props">';
+            flags.forEach(f => h += `<span class="db-prop">${f}</span>`);
+            h += '</div>';
+        }
+        if (e.classes?.length) {
+            h += '<div style="margin-top:14px"><div style="font-size:10px;color:var(--db-t3);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px">Klassen</div>';
+            h += '<div class="db-classes">';
+            e.classes.forEach(c => h += `<span class="db-class-pill">${c}</span>`);
+            h += '</div></div>';
+        }
+    }
+
+    else if (e.category === 'item') {
+        h += stat('Kategorie', e.subcategory_de || '—');
+        h += stat('Gewicht', e.weight_lbs ? `${e.weight_lbs} lb` : '—');
+        h += stat('Wert', e.value_gp ? `${e.value_gp} GM` : '—');
+        h += '</div>';
+    }
+
+    // Icon label from original annotation
+    if (e.icon_label) {
+        h += `<div style="margin-top:16px;padding:10px 12px;background:rgba(255,255,255,.02);border:1px solid var(--db-border);border-radius:8px">
+            <div style="font-size:10px;color:var(--db-t3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Icon-Label</div>
+            <div style="font-size:12px;color:var(--db-t2)">${e.icon_label}</div>
+        </div>`;
+    }
+
+    return h;
+}
+
+function stat(label, val, accent=false) {
+    return `<div class="db-stat">
+        <div class="db-stat__label">${label}</div>
+        <div class="db-stat__val ${accent ? 'accent' : ''}">${val}</div>
+    </div>`;
+}
+
+// ── Keyboard ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeDetail();
+});
+
+// ── Boot ─────────────────────────────────────────────────
+loadDB();
 </script>
-
 </body>
 </html>
