@@ -45,6 +45,11 @@ const RiftDB = (() => {
   function _all()       { return _entries || []; }
   function _cat(c)      { return _all().filter(e => e.category === c); }
 
+  function _normalize(s) {
+    return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/ü/g,'u').replace(/ö/g,'o').replace(/ä/g,'a').replace(/ß/g,'ss');
+  }
+
   function _matches(e, opts = {}) {
     if (opts.id       && e.id !== opts.id)                                   return false;
     if (opts.category && e.category !== opts.category)                       return false;
@@ -56,12 +61,32 @@ const RiftDB = (() => {
       if (!classes.some(c => c.toLowerCase().includes(opts.class.toLowerCase()))) return false;
     }
     if (opts.q) {
-      const q = opts.q.toLowerCase();
-      const searchable = [e.name_de, e.name_en, e.icon_label, e.desc, e.subcategory_de]
-        .filter(Boolean).join(' ').toLowerCase();
+      const q = _normalize(opts.q);
+      const searchable = _normalize([e.name_de, e.name_en, e.icon_label, e.desc, e.subcategory_de, e.slug]
+        .filter(Boolean).join(' '));
       if (!searchable.includes(q)) return false;
     }
     return true;
+  }
+
+  // Best-match: tries exact, then normalized, then each word
+  function _bestMatch(cat, name) {
+    if (!name || !_entries) return null;
+    const pool = cat ? _entries.filter(e => e.category === cat) : _entries;
+    const norm = _normalize(name);
+    // 1. exact normalized name match
+    let hit = pool.find(e => _normalize(e.name_de) === norm || _normalize(e.name_en) === norm);
+    if (hit) return hit;
+    // 2. contains
+    hit = pool.find(e => _normalize(e.name_de).includes(norm) || norm.includes(_normalize(e.name_de)));
+    if (hit) return hit;
+    // 3. any word match (longest matching word wins)
+    const words = norm.split(/\s+/).filter(w => w.length > 2).sort((a,b) => b.length - a.length);
+    for (const w of words) {
+      hit = pool.find(e => _normalize(e.name_de).includes(w) || _normalize(e.name_en).includes(w));
+      if (hit) return hit;
+    }
+    return null;
   }
 
   // ── Public API
@@ -125,6 +150,13 @@ const RiftDB = (() => {
 
     /** How many entries are loaded. */
     get count() { return _entries ? _entries.length : 0; },
+
+    /** Best icon URL for a name + optional category. Uses fuzzy name matching.
+     *  Returns icon_url string or null. */
+    bestIcon(name, category) {
+      const hit = _bestMatch(category || null, name);
+      return hit?.icon_url || null;
+    },
   };
 })();
 

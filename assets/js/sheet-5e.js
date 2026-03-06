@@ -118,6 +118,11 @@ function cldIcoTint(url, hex, amount=60){
 }
 function weaponIco(name) {
     if (!name) return cldIco(WEAPON_DEFAULT);
+    // DB-Lookup first
+    if(typeof RiftDB!=='undefined' && RiftDB.count>0){
+        const _hit=RiftDB.find({category:'weapon',q:name,limit:1})[0];
+        if(_hit?.icon_url) return cldIco(_hit.icon_url);
+    }
     const n = name.toLowerCase().replace(/\s+/g,'');
     // Exact match against all keys
     for (const [key, url] of Object.entries(WEAPON_ICONS)) {
@@ -539,6 +544,11 @@ const SPELL_ICONS={
 
 function spellIco(name,school,icon_url=''){
   if(icon_url) return cldIco(icon_url);
+  // DB-Lookup by name when no icon_url saved
+  if(name && typeof RiftDB!=='undefined' && RiftDB.count>0){
+    const _hit=RiftDB.find({category:'spell',q:name,limit:1})[0];
+    if(_hit?.icon_url) return cldIco(_hit.icon_url);
+  }
   if(name){
     const n=name.toLowerCase()
       .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
@@ -635,6 +645,11 @@ const ARMOR_DEFAULT='https://res.cloudinary.com/dza4jgreq/image/upload/v17726733
 
 function armorIco(name){
     if(!name) return cldIco(ARMOR_DEFAULT);
+    // DB-Lookup first
+    if(typeof RiftDB!=='undefined' && RiftDB.count>0){
+        const _hit=RiftDB.find({category:'armor',q:name,limit:1})[0];
+        if(_hit?.icon_url) return cldIco(_hit.icon_url);
+    }
     const n=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'').replace(/ü/g,'ue').replace(/ö/g,'oe').replace(/ä/g,'ae');
     for(const [key,url] of Object.entries(ARMOR_ICONS)){
         if(n.includes(key)) return cldIco(url);
@@ -656,6 +671,12 @@ function armorIco(name){
 
 function invIcon(cat,name='',icon_url=''){
     if(icon_url) return cldIco(icon_url);
+    // DB-Lookup by name
+    if(name && typeof RiftDB!=='undefined' && RiftDB.count>0){
+        const _cats = cat==='weapon'?'weapon': cat==='armor'?'armor':'item';
+        const _hit = RiftDB.find({category:_cats, q:name, limit:1})[0];
+        if(_hit?.icon_url) return cldIco(_hit.icon_url);
+    }
     if(cat==='weapon') return weaponIco(name);
     if(cat==='armor') return armorIco(name);
     // Gear: generic tool SVG
