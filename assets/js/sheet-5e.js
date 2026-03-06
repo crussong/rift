@@ -1224,14 +1224,8 @@ function endConcentration(){S.concentrationSpell='';renderConcentration();save()
 let _dndDb = null;
 async function loadDndDb() {
     if (_dndDb) return _dndDb;
-    try {
-        const r = await fetch('/assets/data/rift_dnd_database.json');
-        const j = await r.json();
-        _dndDb = j.entries || [];
-    } catch(e) {
-        _dndDb = [];
-        console.warn('DnD DB nicht geladen:', e);
-    }
+    await RiftDB.ready;
+    _dndDb = RiftDB.find({ limit: 99999 });
     return _dndDb;
 }
 
