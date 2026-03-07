@@ -9698,50 +9698,69 @@
                 if (this.initialized) return;
                 this.initialized = true;
 
-                // Small files first (all except monsters), parallel
                 const smallKeys = Object.keys(this.FILES).filter(k => k !== 'monsters');
                 this.setStatus('Lade ' + smallKeys.length + ' Dateien...');
 
                 const errors = [];
                 await Promise.all(smallKeys.map(async key => {
+                    const url = this.FILES[key];
+                    console.log('[DndDB] Fetching:', url);
                     try {
-                        await this.loadFile(key);
+                        const count = await this.loadFile(key);
+                        console.log('[DndDB] OK:', key, count, 'entries');
                     } catch(e) {
-                        errors.push({ key, msg: e.message });
+                        console.error('[DndDB] FAIL:', key, e.message, url);
+                        errors.push({ key, url, msg: e.message });
                         this.loaded[key] = [];
                     }
                 }));
 
                 this.rebuildAll();
                 this.buildSourceFilter();
+                this.applyFilters();
 
+                // Show persistent error banner if any files failed
                 if (errors.length) {
-                    // Reset initialized so user can retry after deploying files
-                    this.initialized = false;
-                    // Show errors directly in table
-                    const tbody = document.getElementById('dndTableBody');
-                    if (tbody) {
-                        const rows = errors.map(e =>
-                            '<tr><td colspan="7" style="padding:6px 20px;font-size:12px;color:#f87171;font-family:monospace">' +
-                            '✗ 404 — /assets/data/dnd/dnd-' + e.key + '.json</td></tr>'
-                        ).join('');
-                        tbody.innerHTML =
-                            '<tr><td colspan="7" style="padding:16px 20px 4px;font-size:13px;font-weight:700;color:#f87171">' +
-                            '⚠ ' + errors.length + ' von ' + smallKeys.length + ' Dateien nicht gefunden:</td></tr>' +
-                            rows +
-                            '<tr><td colspan="7" style="padding:8px 20px 16px;font-size:12px;color:var(--text-muted)">' +
-                            'Prüfe ob die JSON-Dateien in <code>/assets/data/dnd/</code> deployed sind, dann Tab neu laden.' +
-                            '</td></tr>';
-                    }
-                    const pag = document.getElementById('dndPagination');
-                    if (pag) pag.style.display = 'none';
-                } else {
-                    this.applyFilters();
+                    this._showErrorBanner(errors);
                 }
 
-                // Monster badge
                 const mEl = document.getElementById('dndCntMonsters');
                 if (mEl) mEl.textContent = '(klick)';
+            },
+
+            _showErrorBanner(errors) {
+                // Remove old banner if exists
+                const old = document.getElementById('dndErrBanner');
+                if (old) old.remove();
+
+                const page = document.getElementById('page-dndDatabase');
+                if (!page) return;
+
+                const banner = document.createElement('div');
+                banner.id = 'dndErrBanner';
+                banner.style.cssText = 'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:14px 18px;margin-bottom:12px;font-size:12px;position:relative';
+
+                const title = document.createElement('div');
+                title.style.cssText = 'font-weight:700;color:#f87171;margin-bottom:8px';
+                title.textContent = '⚠ ' + errors.length + ' Datei(en) konnten nicht geladen werden — prüfe die Browser-Console (F12) für Details';
+                banner.appendChild(title);
+
+                errors.forEach(e => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'font-family:monospace;color:rgba(248,113,113,0.7);margin-bottom:2px';
+                    row.textContent = '✗ ' + e.url + '  (' + e.msg + ')';
+                    banner.appendChild(row);
+                });
+
+                const hint = document.createElement('div');
+                hint.style.cssText = 'margin-top:8px;color:var(--text-muted)';
+                hint.textContent = 'Prüfe ob /assets/data/dnd/dnd-*.json korrekt deployed sind. Tab neu laden zum erneuten Versuch.';
+                banner.appendChild(hint);
+
+                // Insert before first card
+                const firstCard = page.querySelector('.card');
+                if (firstCard) page.insertBefore(banner, firstCard);
+                else page.prepend(banner);
             },
 
             showLoadErrors(errors) {
