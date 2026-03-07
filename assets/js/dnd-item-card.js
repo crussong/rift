@@ -1,26 +1,29 @@
 /**
  * RIFT D&D Item Card
  * ─────────────────────────────────────────────────────────────────────────────
- * Reusable item view modal. Displays full stat block for spells, weapons,
- * armor, equipment, and magic items from rift_dnd_database.json
+ * Reusable item view modal. Zeigt vollständige Stat-Blöcke für Spells,
+ * Waffen, Rüstungen und Items aus den RIFT DB Split-Dateien.
+ * Benötigt rift-db.js (RiftDB muss vor diesem Script eingebunden sein).
  *
  * Usage:
- *   await RiftItemCard.init('/assets/data/rift_dnd_database.json');
- *   RiftItemCard.show('spells', 'fireball');
- *   RiftItemCard.show('weapons', 'longsword');
- *   RiftItemCard.show('magic_items', 'bag-of-holding');
+ *   await RiftItemCard.init();           // wartet auf RiftDB.ready
+ *   RiftItemCard.showEntry('spell',  entry);
+ *   RiftItemCard.showEntry('weapon', entry);
+ *   RiftItemCard.showEntry('armor',  entry);
+ *   RiftItemCard.showEntry('item',   entry);
+ *   RiftItemCard.showById('spell_fireball');
  *
  * Events dispatched on document:
  *   rift-ic-roll   → { detail: { formula, label } }
- *   rift-ic-add    → { detail: { type, index, entry } }
+ *   rift-ic-add    → { detail: { type, entry } }
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 const RiftItemCard = (() => {
   'use strict';
 
-  let _db = null;
-  let _el = null; // backdrop element
+  let _ready = false;
+  let _el    = null; // backdrop element
 
   // ── SVG icons (inline, no emojis) ─────────────────────────────────────────
   const SVG = {
@@ -119,48 +122,31 @@ const RiftItemCard = (() => {
       </div>`;
   }
 
-  // ── Render by type ─────────────────────────────────────────────────────────
   function _renderSpell(entry) {
     const Q = _el;
-    const card = Q.querySelector('.rift-ic-card');
-    card.removeAttribute('data-rarity');
+    Q.querySelector('.rift-ic-card').removeAttribute('data-rarity');
 
-    // Header
-    Q.querySelector('.rift-ic-name').textContent = entry.name;
-    const nameDe = entry.name_de !== entry.name ? entry.name_de : '';
-    Q.querySelector('.rift-ic-name-de').textContent = nameDe;
+    Q.querySelector('.rift-ic-name').textContent    = entry.name_de || entry.name_en || '';
+    const nameEn = (entry.name_en && entry.name_en !== entry.name_de) ? entry.name_en : '';
+    Q.querySelector('.rift-ic-name-de').textContent = nameEn;
 
-    // Tags
-    let tags = levelLabel(entry.level);
-    const schoolColor = SCHOOL_COLOR[entry.school_en] || '#a78bfa';
+    const schoolColor = SCHOOL_COLOR[entry.school] || '#a78bfa';
     let metaHtml = _tag(levelLabel(entry.level), 'level')
-      + _tag(entry.school, 'school', `style="color:${schoolColor}"`)
+      + _tag(entry.school_de || entry.school || '', 'school', `style="color:${schoolColor}"`);
     if (entry.damage_type) metaHtml += _tag(entry.damage_type, 'damage');
     if (entry.concentration) metaHtml += _tag('Konz.', 'conc');
-    if (entry.ritual) metaHtml += _tag('Ritual', 'ritual');
+    if (entry.ritual)        metaHtml += _tag('Ritual', 'ritual');
     Q.querySelector('.rift-ic-meta').innerHTML = metaHtml;
 
-    // Stats
-    let dc = '';
-    if (entry.dc_attribute) {
-      const success = entry.dc_success === 'half' ? '(halber Schaden)' : entry.dc_success === 'none' ? '' : '';
-      dc = `${entry.dc_attribute} ${success}`.trim();
-    }
-    const aoe = entry.aoe && entry.aoe.type
-      ? `${entry.aoe.size} Fuß ${_aoeLabel(entry.aoe.type)}`
-      : '';
-
+    const comps = entry.components ? entry.components.split(',').map(c => c.trim()).filter(Boolean) : [];
     Q.querySelector('.rift-ic-stats').innerHTML =
-      _stat('Wirkzeit',      entry.casting_time) +
-      _stat('Reichweite',    entry.range) +
-      _stat('Dauer',         entry.duration) +
-      (entry.damage ? _stat('Schaden', entry.damage + (entry.damage_type ? ' ' + entry.damage_type : ''), 'rift-ic-stat__value--damage') : '') +
-      (dc            ? _stat('Rettungswurf', dc)   : '') +
-      (aoe           ? _stat('Wirkungsbereich', aoe) : '') +
-      _components(entry.components, entry.material);
+      _stat('Wirkzeit',   entry.casting_time || '—') +
+      _stat('Reichweite', entry.range        || '—') +
+      _stat('Dauer',      entry.duration     || '—') +
+      (entry.damage_dice ? _stat('Schaden', `${entry.damage_dice}${entry.damage_type ? ' ' + entry.damage_type : ''}`, 'rift-ic-stat__value--damage') : '') +
+      _components(comps, entry.material);
 
-    // Description
-    Q.querySelector('.rift-ic-desc').textContent = entry.description;
+    Q.querySelector('.rift-ic-desc').textContent = entry.desc || '';
     const hlEl = Q.querySelector('.rift-ic-higher-level');
     if (entry.higher_level) {
       hlEl.style.display = '';
@@ -169,70 +155,64 @@ const RiftItemCard = (() => {
       hlEl.style.display = 'none';
     }
 
-    // Footer
-    const hasRoll = entry.damage && /\d+d\d+/.test(entry.damage);
-    const rollLabel = entry.damage ? `${entry.damage}${entry.damage_type ? ' ' + entry.damage_type : ''}` : '';
+    const hasRoll = entry.damage_dice && /\d+d\d+/.test(entry.damage_dice);
     Q.querySelector('.rift-ic-footer').innerHTML = `
-      ${hasRoll ? `<button class="rift-ic-btn rift-ic-btn--secondary rift-ic-roll-btn" data-formula="${entry.damage}" data-label="${entry.name}">${SVG.dice} Würfeln</button>` : ''}
+      ${hasRoll ? `<button class="rift-ic-btn rift-ic-btn--secondary rift-ic-roll-btn" data-formula="${entry.damage_dice}" data-label="${entry.name_de || ''}">${SVG.dice} Würfeln</button>` : ''}
       <button class="rift-ic-btn rift-ic-btn--primary rift-ic-add-btn">${SVG.plus} Hinzufügen</button>
     `;
-    _attachFooterListeners('spells', entry);
+    _attachFooterListeners('spell', entry);
   }
 
   function _renderWeapon(entry) {
     const Q = _el;
     Q.querySelector('.rift-ic-card').removeAttribute('data-rarity');
-    Q.querySelector('.rift-ic-name').textContent = entry.name;
-    Q.querySelector('.rift-ic-name-de').textContent = entry.name_de !== entry.name ? entry.name_de : '';
+    Q.querySelector('.rift-ic-name').textContent    = entry.name_de || '';
+    Q.querySelector('.rift-ic-name-de').textContent = entry.name_en || '';
 
-    const rangeLabel = entry.range === 'melee' ? 'Nahkampf' : 'Fernkampf';
     Q.querySelector('.rift-ic-meta').innerHTML =
       _tag('Waffe', 'cat') +
-      _tag(entry.category, 'level') +
-      _tag(rangeLabel, 'range');
+      _tag(entry.weapon_type_de || '', 'level');
 
     let propsHtml = '';
-    if (entry.properties && entry.properties.length) {
-      propsHtml = _statWide('Eigenschaften', entry.properties.join(', '));
-    }
+    if (entry.properties?.length) propsHtml = _statWide('Eigenschaften', entry.properties.join(', '));
+
     Q.querySelector('.rift-ic-stats').innerHTML =
-      _stat('Schaden',       entry.damage, 'rift-ic-stat__value--damage') +
-      (entry.two_handed_damage ? _stat('Zweihand', entry.two_handed_damage, 'rift-ic-stat__value--damage') : '') +
-      _stat('Reichweite',    rangeLabel) +
-      _stat('Kosten',        entry.cost) +
-      _stat('Gewicht',       entry.weight ? `${entry.weight} lb` : '') +
+      _stat('Schaden',  `${entry.damage || '—'} ${entry.damage_type || ''}`.trim(), 'rift-ic-stat__value--damage') +
+      _stat('Gewicht',  entry.weight_lbs ? `${entry.weight_lbs} lb` : '—') +
+      _stat('Wert',     entry.value_gp   ? `${entry.value_gp} GM`   : '—') +
       propsHtml;
 
-    Q.querySelector('.rift-ic-desc').textContent = '';
+    Q.querySelector('.rift-ic-desc').textContent = entry.desc || '';
     Q.querySelector('.rift-ic-higher-level').style.display = 'none';
 
     const hasRoll = entry.damage && /\d+d\d+/.test(entry.damage);
     Q.querySelector('.rift-ic-footer').innerHTML = `
-      ${hasRoll ? `<button class="rift-ic-btn rift-ic-btn--secondary rift-ic-roll-btn" data-formula="${entry.damage.split(' ')[0]}" data-label="${entry.name}">${SVG.dice} Würfeln</button>` : ''}
+      ${hasRoll ? `<button class="rift-ic-btn rift-ic-btn--secondary rift-ic-roll-btn" data-formula="${entry.damage.split(' ')[0]}" data-label="${entry.name_de || ''}">${SVG.dice} Würfeln</button>` : ''}
       <button class="rift-ic-btn rift-ic-btn--primary rift-ic-add-btn">${SVG.plus} Hinzufügen</button>
     `;
-    _attachFooterListeners('weapons', entry);
+    _attachFooterListeners('weapon', entry);
   }
 
   function _renderArmor(entry) {
     const Q = _el;
     Q.querySelector('.rift-ic-card').removeAttribute('data-rarity');
-    Q.querySelector('.rift-ic-name').textContent = entry.name;
-    Q.querySelector('.rift-ic-name-de').textContent = entry.name_de !== entry.name ? entry.name_de : '';
+    Q.querySelector('.rift-ic-name').textContent    = entry.name_de || '';
+    Q.querySelector('.rift-ic-name-de').textContent = entry.name_en || '';
 
     Q.querySelector('.rift-ic-meta').innerHTML =
       _tag('Rüstung', 'cat') +
-      _tag(entry.category || '', 'level');
+      _tag(entry.armor_type_de || '', 'level') +
+      _tag(entry.armor_slot    || '', 'range');
 
     Q.querySelector('.rift-ic-stats').innerHTML =
-      _stat('Rüstungsklasse', entry.ac, 'rift-ic-stat__value--ac') +
-      _stat('Kategorie',      entry.category) +
-      _stat('Min. STR',       entry.str_minimum || '') +
-      _stat('Kosten',         entry.cost) +
-      _stat('Gewicht',        entry.weight ? `${entry.weight} lb` : '') +
+      _stat('RK',        `${entry.armor_class || '—'}${entry.ac_modifier ? ' + ' + entry.ac_modifier : ''}`, 'rift-ic-stat__value--ac') +
+      _stat('Slot',      entry.armor_slot  || '—') +
+      _stat('Gewicht',   entry.weight_lbs  ? `${entry.weight_lbs} lb` : '—') +
+      _stat('Wert',      entry.value_gp    ? `${entry.value_gp} GM`   : '—') +
+      (entry.str_requirement ? _stat('Min. STR', entry.str_requirement) : '') +
       (entry.stealth_disadvantage ? _statWide('Schleichen', 'Nachteil') : '');
 
-    Q.querySelector('.rift-ic-desc').textContent = '';
+    Q.querySelector('.rift-ic-desc').textContent = entry.desc || '';
     Q.querySelector('.rift-ic-higher-level').style.display = 'none';
     Q.querySelector('.rift-ic-footer').innerHTML = `
       <button class="rift-ic-btn rift-ic-btn--primary rift-ic-add-btn">${SVG.plus} Hinzufügen</button>
@@ -240,49 +220,32 @@ const RiftItemCard = (() => {
     _attachFooterListeners('armor', entry);
   }
 
-  function _renderEquipment(entry) {
+  function _renderItem(entry) {
     const Q = _el;
-    Q.querySelector('.rift-ic-card').removeAttribute('data-rarity');
-    Q.querySelector('.rift-ic-name').textContent = entry.name;
-    Q.querySelector('.rift-ic-name-de').textContent = entry.name_de !== entry.name ? entry.name_de : '';
+    const rarity = entry.rarity || 'common';
+    Q.querySelector('.rift-ic-card').setAttribute('data-rarity', rarity);
+    Q.querySelector('.rift-ic-name').textContent    = entry.name_de || '';
+    const nameEn = (entry.name_en && entry.name_en !== entry.name_de) ? entry.name_en : '';
+    Q.querySelector('.rift-ic-name-de').textContent = nameEn;
 
-    Q.querySelector('.rift-ic-meta').innerHTML = _tag(entry.category || 'Ausrüstung', 'cat');
-
-    Q.querySelector('.rift-ic-stats').innerHTML =
-      _stat('Kosten',   entry.cost) +
-      _stat('Gewicht',  entry.weight ? `${entry.weight} lb` : '');
-
-    Q.querySelector('.rift-ic-desc').textContent = entry.description || '';
-    Q.querySelector('.rift-ic-higher-level').style.display = 'none';
-    Q.querySelector('.rift-ic-footer').innerHTML = `
-      <button class="rift-ic-btn rift-ic-btn--primary rift-ic-add-btn">${SVG.plus} Hinzufügen</button>
-    `;
-    _attachFooterListeners('equipment', entry);
-  }
-
-  function _renderMagicItem(entry) {
-    const Q = _el;
-    Q.querySelector('.rift-ic-card').setAttribute('data-rarity', entry.rarity || 'common');
-    Q.querySelector('.rift-ic-name').textContent = entry.name;
-    Q.querySelector('.rift-ic-name-de').textContent = entry.name_de !== entry.name ? entry.name_de : '';
-
-    let metaHtml = _tag(entry.rarity_en || entry.rarity, entry.rarity || 'common');
-    if (entry.requires_attunement) metaHtml += _tag('Beschwörung nötig', 'conc');
-    if (entry.category) metaHtml += _tag(entry.category, 'cat');
+    let metaHtml = _tag(entry.rarity_de || entry.rarity || '', rarity);
+    if (entry.requires_attunement) metaHtml += _tag('Abstimmung', 'conc');
+    if (entry.subcategory_de)      metaHtml += _tag(entry.subcategory_de, 'cat');
     Q.querySelector('.rift-ic-meta').innerHTML = metaHtml;
 
-    Q.querySelector('.rift-ic-stats').innerHTML = `
-      ${entry.rarity_en ? _stat('Seltenheit', entry.rarity_en) : ''}
-      ${_stat('Abstimmung', entry.requires_attunement ? 'Ja' : 'Nein')}
-    `;
+    Q.querySelector('.rift-ic-stats').innerHTML =
+      _stat('Kategorie', entry.subcategory_de || '—') +
+      _stat('Gewicht',   entry.weight_lbs ? `${entry.weight_lbs} lb` : '—') +
+      _stat('Wert',      entry.value_gp   ? `${entry.value_gp} GM`   : '—') +
+      _stat('Abstimmung', entry.requires_attunement ? 'Ja' : 'Nein');
 
-    Q.querySelector('.rift-ic-desc').textContent = entry.description || '';
+    Q.querySelector('.rift-ic-desc').textContent = entry.desc || '';
     Q.querySelector('.rift-ic-higher-level').style.display = 'none';
     Q.querySelector('.rift-ic-footer').innerHTML = `
       <button class="rift-ic-btn rift-ic-btn--secondary rift-ic-copy-btn">${SVG.copy} Kopieren</button>
       <button class="rift-ic-btn rift-ic-btn--primary rift-ic-add-btn">${SVG.plus} Hinzufügen</button>
     `;
-    _attachFooterListeners('magic_items', entry);
+    _attachFooterListeners('item', entry);
   }
 
   function _attachFooterListeners(type, entry) {
@@ -340,50 +303,55 @@ const RiftItemCard = (() => {
     return map[type] || type;
   }
 
+  // ── Render-Dispatcher ──────────────────────────────────────────────────────
+  function _dispatch(cat, entry) {
+    if (!_el) _el = _build();
+    _setIcon(entry);
+    if      (cat === 'spell')  _renderSpell(entry);
+    else if (cat === 'weapon') _renderWeapon(entry);
+    else if (cat === 'armor')  _renderArmor(entry);
+    else                       _renderItem(entry);
+    _el.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
-  async function init(dbUrl) {
-    if (_db) return;
-    const res = await fetch(dbUrl);
-    _db = await res.json();
-    _el = _build();
+
+  /** Wartet auf RiftDB.ready. Muss vor show/showById aufgerufen werden. */
+  async function init() {
+    if (_ready) return;
+    if (typeof RiftDB === 'undefined') {
+      console.error('[RiftItemCard] RiftDB nicht gefunden — rift-db.js einbinden.');
+      return;
+    }
+    await RiftDB.ready;
+    if (!_el) _el = _build();
+    _ready = true;
   }
 
-  function setDb(db) {
-    _db = db;
-    if (!_el) _el = _build();
+  /** Zeigt ein Entry-Objekt direkt an.
+   *  cat: 'spell' | 'weapon' | 'armor' | 'item'
+   */
+  function showEntry(cat, entry) {
+    if (!entry) return;
+    _dispatch(cat || entry.category, entry);
   }
 
-  function show(type, index) {
-    if (!_db) { console.warn('[RiftItemCard] DB not loaded'); return; }
-    if (!_el) _el = _build();
-
-    const section = _db[type];
-    if (!section) { console.warn('[RiftItemCard] Unknown type:', type); return; }
-    const entry = section[index];
-    if (!entry) { console.warn('[RiftItemCard] Entry not found:', type, index); return; }
-
-    _setIcon(entry);
-
-    if (type === 'spells')      _renderSpell(entry);
-    else if (type === 'weapons') _renderWeapon(entry);
-    else if (type === 'armor')   _renderArmor(entry);
-    else if (type === 'equipment') _renderEquipment(entry);
-    else if (type === 'magic_items') _renderMagicItem(entry);
-
-    _el.classList.add('visible');
-    document.body.style.overflow = 'hidden';
+  /** Sucht Entry by ID (z. B. 'spell_fireball') und zeigt es an. */
+  function showById(id) {
+    if (typeof RiftDB === 'undefined') return;
+    const entry = RiftDB.get(id);
+    if (!entry) { console.warn('[RiftItemCard] Entry nicht gefunden:', id); return; }
+    _dispatch(entry.category, entry);
   }
 
-  function showEntry(type, entry) {
-    if (!_el) _el = _build();
-    _setIcon(entry);
-    if (type === 'spells')      _renderSpell(entry);
-    else if (type === 'weapons') _renderWeapon(entry);
-    else if (type === 'armor')   _renderArmor(entry);
-    else if (type === 'equipment') _renderEquipment(entry);
-    else if (type === 'magic_items') _renderMagicItem(entry);
-    _el.classList.add('visible');
-    document.body.style.overflow = 'hidden';
+  /** Rückwärtskompatibel: show(type, entry) oder show(type, id_string) */
+  function show(type, indexOrEntry) {
+    if (typeof indexOrEntry === 'object' && indexOrEntry !== null) {
+      showEntry(type, indexOrEntry);
+    } else if (typeof indexOrEntry === 'string') {
+      showById(indexOrEntry);
+    }
   }
 
   function hide() {
@@ -392,9 +360,7 @@ const RiftItemCard = (() => {
     document.body.style.overflow = '';
   }
 
-  function getDb() { return _db; }
-
-  return { init, setDb, show, showEntry, hide, getDb };
+  return { init, show, showEntry, showById, hide };
 })();
 
 // Expose globally
