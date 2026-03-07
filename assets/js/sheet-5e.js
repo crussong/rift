@@ -669,17 +669,19 @@ function armorIco(name){
     return cldIco(ARMOR_DEFAULT);
 }
 
-function invIcon(cat,name='',icon_url=''){
+function invIcon(cat, name='', icon_url='', type_key=''){
+    // 1. Explizite icon_url hat immer Vorrang
     if(icon_url) return cldIco(icon_url);
-    // DB-Lookup by name
-    if(name && typeof RiftDB!=='undefined' && RiftDB.count>0){
-        const _cats = cat==='weapon'?'weapon': cat==='armor'?'armor':'item';
-        const _hit = RiftDB.find({category:_cats, q:name, limit:1})[0];
-        if(_hit?.icon_url) return cldIco(_hit.icon_url);
+    // 2. Kanonisches Typ-Icon (armor_type / weapon_type / subcategory)
+    if(type_key && typeof RiftDB!=='undefined'){
+        const _tiCat = cat==='armor'?'armor': cat==='weapon'?'weapon':'item';
+        const ti = RiftDB.typeIcon(_tiCat, type_key);
+        if(ti?.url) return cldIco(ti.url);
     }
+    // 3. Name-basierter Fallback
     if(cat==='weapon') return weaponIco(name);
-    if(cat==='armor') return armorIco(name);
-    // Gear: generic tool SVG
+    if(cat==='armor')  return armorIco(name);
+    // 4. Gear: generisches Icon
     return `<svg viewBox="0 0 24 24" fill="none" stroke="rgba(180,180,200,.7)" stroke-width="1.5" width="20" height="20"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>`;
 }
 
@@ -1105,7 +1107,7 @@ function renderInventory(){
         items.forEach((it)=>{
             let gi=S.inventory.indexOf(it);
             let wt=it.qty*it.wt;totalWt+=wt;
-            let icon=invIcon(cat,it.name,it.icon_url||'');
+            let icon=invIcon(cat,it.name,it.icon_url||'',it.type_key||'');
             html+=`<tr><td class="td-nm"><div class="anm"><div class="ai">${icon}</div><div><div class="atn">${it.name}</div><div class="ats">${(it.wt||0)} lb/Stk</div></div></div></td>`;
             html+=`<td><input class="e-num" value="${it.qty}" onchange="S.inventory[${gi}].qty=+this.value;renderInventory();save()" style="width:50px;text-align:center"></td>`;
             html+=`<td class="fm">${(wt).toFixed(wt%1?1:0)} lb</td>`;
@@ -1342,6 +1344,7 @@ function dbPickerSelect(e) {
         value_gp: e.value_gp || 0,
         db_id: e.id || '',
         rarity: e.rarity || 'common',
+        type_key: e.armor_type || e.weapon_type || e.subcategory || '',
     };
     // Weapon extras
     if (e.category === 'weapon') {
@@ -2275,7 +2278,7 @@ function viewInventoryItem(i) {
     if (!it) return;
     const catLabel = {weapon:'Waffe',armor:'Ruestung',gear:'Ausruestung'}[it.cat] || it.cat;
     const catColor = {weapon:'var(--red)',armor:'var(--blu)',gear:'#d4860e'}[it.cat] || 'var(--t3)';
-    const icon = it.cat === 'weapon' ? weaponIco(it.name) : (it.cat === 'armor' ? invIcon('armor') : invIcon('gear'));
+    const icon = invIcon(it.cat, it.name, it.icon_url||'', it.type_key||'');
     const rarity = it.rarity || 'common';
     const rarityColors = {common:'#9ca3af',uncommon:'#4ade80',rare:'#60a5fa','very-rare':'#c084fc',legendary:'#fbbf24',artifact:'#f97316'};
 
