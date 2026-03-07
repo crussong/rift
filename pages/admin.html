@@ -9707,19 +9707,36 @@
                     try {
                         await this.loadFile(key);
                     } catch(e) {
-                        errors.push(key + ': ' + e.message);
+                        errors.push({ key, msg: e.message });
                         this.loaded[key] = [];
-                        console.error('DndDB load failed:', key, e.message);
                     }
                 }));
 
                 this.rebuildAll();
                 this.buildSourceFilter();
-                this.applyFilters();
 
-                // Show errors if any
                 if (errors.length) {
-                    this.showLoadErrors(errors);
+                    // Reset initialized so user can retry after deploying files
+                    this.initialized = false;
+                    // Show errors directly in table
+                    const tbody = document.getElementById('dndTableBody');
+                    if (tbody) {
+                        const rows = errors.map(e =>
+                            '<tr><td colspan="7" style="padding:6px 20px;font-size:12px;color:#f87171;font-family:monospace">' +
+                            '✗ 404 — /assets/data/dnd/dnd-' + e.key + '.json</td></tr>'
+                        ).join('');
+                        tbody.innerHTML =
+                            '<tr><td colspan="7" style="padding:16px 20px 4px;font-size:13px;font-weight:700;color:#f87171">' +
+                            '⚠ ' + errors.length + ' von ' + smallKeys.length + ' Dateien nicht gefunden:</td></tr>' +
+                            rows +
+                            '<tr><td colspan="7" style="padding:8px 20px 16px;font-size:12px;color:var(--text-muted)">' +
+                            'Prüfe ob die JSON-Dateien in <code>/assets/data/dnd/</code> deployed sind, dann Tab neu laden.' +
+                            '</td></tr>';
+                    }
+                    const pag = document.getElementById('dndPagination');
+                    if (pag) pag.style.display = 'none';
+                } else {
+                    this.applyFilters();
                 }
 
                 // Monster badge
