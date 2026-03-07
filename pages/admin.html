@@ -9699,68 +9699,47 @@
                 this.initialized = true;
 
                 const smallKeys = Object.keys(this.FILES).filter(k => k !== 'monsters');
-                this.setStatus('Lade ' + smallKeys.length + ' Dateien...');
+                let loaded = 0;
 
-                const errors = [];
-                await Promise.all(smallKeys.map(async key => {
-                    const url = this.FILES[key];
-                    console.log('[DndDB] Fetching:', url);
+                for (const key of smallKeys) {
+                    this.setStatus('Lade ' + (loaded+1) + ' / ' + smallKeys.length + ': ' + key + '...');
                     try {
-                        const count = await this.loadFile(key);
-                        console.log('[DndDB] OK:', key, count, 'entries');
+                        await this.loadFile(key);
+                        loaded++;
                     } catch(e) {
-                        console.error('[DndDB] FAIL:', key, e.message, url);
-                        errors.push({ key, url, msg: e.message });
+                        console.error('[DndDB] FAIL:', key, e.message);
                         this.loaded[key] = [];
                     }
-                }));
+                }
 
                 this.rebuildAll();
                 this.buildSourceFilter();
                 this.applyFilters();
-
-                // Show persistent error banner if any files failed
-                if (errors.length) {
-                    this._showErrorBanner(errors);
-                }
 
                 const mEl = document.getElementById('dndCntMonsters');
                 if (mEl) mEl.textContent = '(klick)';
             },
 
             _showErrorBanner(errors) {
-                // Remove old banner if exists
                 const old = document.getElementById('dndErrBanner');
                 if (old) old.remove();
-
                 const page = document.getElementById('page-dndDatabase');
                 if (!page) return;
-
                 const banner = document.createElement('div');
                 banner.id = 'dndErrBanner';
-                banner.style.cssText = 'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:14px 18px;margin-bottom:12px;font-size:12px;position:relative';
-
+                banner.style.cssText = 'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:14px 18px;margin-bottom:12px;font-size:12px';
                 const title = document.createElement('div');
                 title.style.cssText = 'font-weight:700;color:#f87171;margin-bottom:8px';
-                title.textContent = '⚠ ' + errors.length + ' Datei(en) konnten nicht geladen werden — prüfe die Browser-Console (F12) für Details';
+                title.textContent = '⚠ ' + errors.length + ' Datei(en) fehlgeschlagen';
                 banner.appendChild(title);
-
                 errors.forEach(e => {
                     const row = document.createElement('div');
                     row.style.cssText = 'font-family:monospace;color:rgba(248,113,113,0.7);margin-bottom:2px';
-                    row.textContent = '✗ ' + e.url + '  (' + e.msg + ')';
+                    row.textContent = '✗ ' + e.url + ' (' + e.msg + ')';
                     banner.appendChild(row);
                 });
-
-                const hint = document.createElement('div');
-                hint.style.cssText = 'margin-top:8px;color:var(--text-muted)';
-                hint.textContent = 'Prüfe ob /assets/data/dnd/dnd-*.json korrekt deployed sind. Tab neu laden zum erneuten Versuch.';
-                banner.appendChild(hint);
-
-                // Insert before first card
                 const firstCard = page.querySelector('.card');
                 if (firstCard) page.insertBefore(banner, firstCard);
-                else page.prepend(banner);
             },
 
             showLoadErrors(errors) {
