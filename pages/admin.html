@@ -4285,7 +4285,6 @@
                 </div>
             </div>
             
-        </main>
 
             <!-- ═══════════════════════════════════════
                  ICON KATALOG
@@ -4328,6 +4327,12 @@
                         <select class="ik-select" id="ikSubcatFilter" onchange="IconKatalog.setSubcat(this.value)" style="min-width:130px">
                             <option value="">Alle Typen</option>
                         </select>
+                        <select class="ik-select" id="ikMaterialFilter" onchange="IconKatalog.setMaterial(this.value)" style="min-width:130px">
+                            <option value="">Alle Materialien</option>
+                        </select>
+                        <select class="ik-select" id="ikColorFilter" onchange="IconKatalog.setColor(this.value)" style="min-width:130px">
+                            <option value="">Alle Farben</option>
+                        </select>
                     </div>
                 </div>
 
@@ -4345,6 +4350,9 @@
                     <button id="ikNextBtn" onclick="IconKatalog.nextPage()">Weiter →</button>
                 </div>
             </div>
+
+        </main>
+
     </div>
     
     <!-- Editor Modal -->
@@ -9262,13 +9270,15 @@
         // ICON KATALOG MODULE
         // ========================================
         const IconKatalog = {
-            loaded: {},
+            // State
+            loaded: {},          // { weapons: [...], ... } — lazy loaded per category
             filtered: [],
             currentCat: 'all',
             page: 0,
-            PAGE_SIZE: 80,
-            filters: { search: '', magic: 'all', subcat: '' },
+            PAGE_SIZE: 60,
+            filters: { search: '', magic: 'all', subcat: '', color: '', material: '' },
             initialized: false,
+            loading: false,
 
             CATALOGS: {
                 weapons:   '/assets/data/icon-catalog/catalog-weapons.json',
@@ -9278,77 +9288,130 @@
                 skills:    '/assets/data/icon-catalog/catalog-skills.json',
             },
 
+            CAT_COUNTS: { weapons: 624, armor: 1244, spells: 1622, resources: 1305, skills: 70 },
+
             async init() {
                 if (this.initialized) return;
                 this.initialized = true;
-                await this.loadAll();
-            },
-
-            async loadAll() {
-                this.setGridLoading('Kataloge werden geladen...');
+                // Show counts from known data
                 let total = 0;
-                for (const [key, url] of Object.entries(this.CATALOGS)) {
-                    try {
-                        const r = await fetch(url);
-                        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                        const data = await r.json();
-                        data.forEach(ic => ic._cat = key);
-                        this.loaded[key] = data;
-                        total += data.length;
-                        const cntEl = document.getElementById('ikCnt' + key.charAt(0).toUpperCase() + key.slice(1));
-                        if (cntEl) cntEl.textContent = `(${data.length})`;
-                    } catch(e) {
-                        console.warn(`IconKatalog: ${key} failed:`, e);
-                        this.loaded[key] = [];
-                    }
+                for (const [k, v] of Object.entries(this.CAT_COUNTS)) {
+                    total += v;
+                    const el = document.getElementById('ikCnt' + k.charAt(0).toUpperCase() + k.slice(1));
+                    if (el) el.textContent = `(${v})`;
                 }
                 const allEl = document.getElementById('ikCntAll');
                 if (allEl) allEl.textContent = `(${total})`;
                 const statEl = document.getElementById('ikStatLoaded');
-                if (statEl) statEl.textContent = total;
-                this.buildSubcatDropdown();
+                if (statEl) statEl.textContent = '0';
+                // Load "all" lazily — start with weapons+armor for speed
+                await this.loadCat('weapons');
+                await this.loadCat('armor');
                 this.applyFilters();
+                this.buildDynamicFilters();
+                // Load rest in background
+                this.loadRemaining();
             },
 
-            buildSubcatDropdown() {
-                const sel = document.getElementById('ikSubcatFilter');
-                if (!sel) return;
-                const subcats = new Set();
-                for (const icons of Object.values(this.loaded)) {
-                    for (const ic of icons) {
-                        const s = ic.analysis?.subcategory_guess;
-                        if (s) subcats.add(s);
-                    }
+            async loadRemaining() {
+                for (const key of ['spells', 'resources', 'skills']) {
+                    if (!this.loaded[key]) await this.loadCat(key);
                 }
-                sel.innerHTML = '<option value="">Alle Typen</option>' +
-                    [...subcats].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+                // Refresh if on "all"
+                if (this.currentCat === 'all') this.applyFilters();
             },
 
-            setCat(cat, btn) {
+            async loadCat(key) {
+                if (this.loaded[key]) return;
+                try {
+                    const r = await fetch(this.CATALOGS[key]);
+                    if (!r.ok) throw new Error(`HTTP ${r.status} for ${key}`);
+                    const data = await r.json();
+                    data.forEach(ic => ic._cat = key);
+                    this.loaded[key] = data;
+                    const el = document.getElementById('ikStatLoaded');
+                    if (el) {
+                        const cur = parseInt(el.textContent) || 0;
+                        el.textContent = cur + data.length;
+                    }
+                } catch(e) {
+                    console.error(`IconKatalog: failed to load ${key}:`, e);
+                    this.loaded[key] = [];
+                    this.showError(`Fehler beim Laden von "${key}": ${e.message}`);
+                }
+            },
+
+            showError(msg) {
+                const grid = document.getElementById('ikGrid');
+                if (!grid) return;
+                const err = document.createElement('div');
+                err.style.cssText = 'grid-column:1/-1;padding:12px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#f87171;font-size:13px;';
+                err.textContent = '⚠ ' + msg;
+                grid.prepend(err);
+            },
+
+            async setCat(cat, btn) {
                 this.currentCat = cat;
                 this.page = 0;
                 document.querySelectorAll('.ik-cat-btn').forEach(b => b.classList.remove('active'));
                 if (btn) btn.classList.add('active');
+                // Ensure this cat is loaded
+                if (cat !== 'all' && !this.loaded[cat]) {
+                    this.setGridLoading(`Lade ${cat}...`);
+                    await this.loadCat(cat);
+                }
                 this.applyFilters();
+                this.buildDynamicFilters();
+            },
+
+            buildDynamicFilters() {
+                // Subcat dropdown
+                const selSub = document.getElementById('ikSubcatFilter');
+                const selCol = document.getElementById('ikColorFilter');
+                const selMat = document.getElementById('ikMaterialFilter');
+                if (!selSub) return;
+
+                let pool = this.getPool();
+                const subcats = new Set(), colors = new Set(), materials = new Set();
+                for (const ic of pool) {
+                    const a = ic.analysis || {};
+                    if (a.subcategory_guess) subcats.add(a.subcategory_guess);
+                    if (a.colors?.dominant) colors.add(a.colors.dominant);
+                    (a.materials || []).forEach(m => materials.add(m));
+                }
+                selSub.innerHTML = '<option value="">Alle Typen</option>' +
+                    [...subcats].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+                if (selCol) selCol.innerHTML = '<option value="">Alle Farben</option>' +
+                    [...colors].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+                if (selMat) selMat.innerHTML = '<option value="">Alle Materialien</option>' +
+                    [...materials].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+            },
+
+            getPool() {
+                if (this.currentCat === 'all') {
+                    let pool = [];
+                    for (const icons of Object.values(this.loaded)) pool = pool.concat(icons);
+                    return pool;
+                }
+                return this.loaded[this.currentCat] || [];
             },
 
             setSearch(val) { this.filters.search = val.toLowerCase().trim(); this.page = 0; this.applyFilters(); },
             setMagic(val)  { this.filters.magic  = val; this.page = 0; this.applyFilters(); },
             setSubcat(val) { this.filters.subcat  = val; this.page = 0; this.applyFilters(); },
+            setColor(val)  { this.filters.color   = val; this.page = 0; this.applyFilters(); },
+            setMaterial(val){ this.filters.material = val; this.page = 0; this.applyFilters(); },
 
             applyFilters() {
-                let pool = [];
-                if (this.currentCat === 'all') {
-                    for (const icons of Object.values(this.loaded)) pool = pool.concat(icons);
-                } else {
-                    pool = this.loaded[this.currentCat] || [];
-                }
-                const { search, magic, subcat } = this.filters;
+                const pool = this.getPool();
+                const { search, magic, subcat, color, material } = this.filters;
                 this.filtered = pool.filter(ic => {
                     const a = ic.analysis || {};
                     if (magic === 'magic'  && !a.magical_fx) return false;
                     if (magic === 'normal' &&  a.magical_fx) return false;
                     if (subcat && a.subcategory_guess !== subcat) return false;
+                    if (color && a.colors?.dominant !== color) return false;
+                    if (material && !(a.materials||[]).includes(material)) return false;
                     if (search) {
                         const hay = [
                             ic.display_name||'', a.object_type||'', a.object_subtype||'',
@@ -9367,20 +9430,23 @@
             renderGrid() {
                 const grid = document.getElementById('ikGrid');
                 if (!grid) return;
+
                 if (!this.filtered.length) {
                     grid.innerHTML = '<div class="ik-empty" style="grid-column:1/-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;margin:0 auto 12px;display:block;opacity:0.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>Keine Icons gefunden</p></div>';
                     const pag = document.getElementById('ikPagination');
                     if (pag) pag.style.display = 'none';
                     return;
                 }
+
                 const start = this.page * this.PAGE_SIZE;
                 const slice = this.filtered.slice(start, start + this.PAGE_SIZE);
                 grid.innerHTML = slice.map((ic, i) => this.cardHTML(ic, start + i)).join('');
+
                 const totalPages = Math.ceil(this.filtered.length / this.PAGE_SIZE);
                 const pag = document.getElementById('ikPagination');
                 if (pag) pag.style.display = totalPages > 1 ? 'flex' : 'none';
                 const pi = document.getElementById('ikPageInfo');
-                if (pi) pi.textContent = `Seite ${this.page+1} / ${totalPages} — ${this.filtered.length} Icons`;
+                if (pi) pi.textContent = `Seite ${this.page+1} / ${totalPages} — ${this.filtered.length.toLocaleString()} Icons`;
                 const prev = document.getElementById('ikPrevBtn');
                 const next = document.getElementById('ikNextBtn');
                 if (prev) prev.disabled = this.page === 0;
@@ -9401,10 +9467,12 @@
                 </div>`;
             },
 
-            prevPage() { if (this.page > 0) { this.page--; this.renderGrid(); window.scrollTo(0,200); } },
+            prevPage() {
+                if (this.page > 0) { this.page--; this.renderGrid(); document.getElementById('page-iconKatalog')?.scrollIntoView({behavior:'smooth'}); }
+            },
             nextPage() {
                 const tot = Math.ceil(this.filtered.length / this.PAGE_SIZE);
-                if (this.page < tot-1) { this.page++; this.renderGrid(); window.scrollTo(0,200); }
+                if (this.page < tot-1) { this.page++; this.renderGrid(); document.getElementById('page-iconKatalog')?.scrollIntoView({behavior:'smooth'}); }
             },
 
             openDetail(idx) {
@@ -9414,10 +9482,12 @@
                 const name = (ic.display_name || ic.public_id).replace(/_/g, ' ');
                 const kws = (a.keywords || []).map(k => `<span class="ik-kw">${k}</span>`).join('');
                 const mats = (a.materials || []).join(', ') || '—';
-                const colors = a.colors ? [a.colors.dominant, a.colors.accent].filter(Boolean).join(' / ') : '—';
+                const colors = a.colors ? [a.colors.dominant, a.colors.accent, a.colors.glow_or_fx].filter(c => c && c !== 'none').join(' / ') : '—';
                 const magicTag = a.magical_fx ? '<span class="ik-kw ik-tag-magic">✨ Magisch</span>' : '<span class="ik-kw">Normal</span>';
-                const urlEsc = ic.cloudinary_url.replace(/'/g, "\\'");
-                const idEsc  = ic.public_id.replace(/'/g, "\\'");
+                const urlEsc = ic.cloudinary_url.replace(/'/g, "\'");
+                const idEsc  = ic.public_id.replace(/'/g, "\'");
+
+                const catLabel = { weapons:'Waffe', armor:'Rüstung', spells:'Zauber', resources:'Ressource', skills:'Skill' }[ic._cat] || ic._cat;
 
                 const html = `<div class="ik-modal-overlay" id="ikModal" onclick="if(event.target===this)IconKatalog.closeDetail()">
                     <div class="ik-modal">
@@ -9425,10 +9495,11 @@
                             <img class="ik-modal__thumb" src="${ic.cloudinary_url}" alt="${name}">
                             <div style="flex:1;min-width:0">
                                 <div class="ik-modal__title">${name}</div>
-                                <div class="ik-modal__meta">${ic.asset_folder} &bull; ${ic.width}×${ic.height}px</div>
+                                <div class="ik-modal__meta">${ic.asset_folder} &bull; ${ic.width}×${ic.height}px &bull; ${catLabel}</div>
                                 <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
                                     ${magicTag}
                                     ${a.category_guess ? `<span class="ik-kw">${a.category_guess}</span>` : ''}
+                                    ${a.style ? `<span class="ik-kw" style="opacity:0.6">${a.style}</span>` : ''}
                                 </div>
                             </div>
                             <button class="ik-modal__close" onclick="IconKatalog.closeDetail()">
@@ -9453,6 +9524,14 @@
                                     <div class="ik-detail-label">Farben</div>
                                     <div class="ik-detail-val">${colors}</div>
                                 </div>
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Zustand</div>
+                                    <div class="ik-detail-val">${a.condition||'—'}</div>
+                                </div>
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Public ID</div>
+                                    <div class="ik-detail-val" style="font-family:monospace;font-size:11px;word-break:break-all">${ic.public_id}</div>
+                                </div>
                                 <div class="ik-detail-row" style="grid-column:1/-1">
                                     <div class="ik-detail-label">Beschreibung</div>
                                     <div class="ik-detail-val" style="font-size:12px;line-height:1.6;color:var(--text-muted)">${a.visual_description||'—'}</div>
@@ -9462,7 +9541,7 @@
                                     <div class="ik-detail-val" style="font-size:12px;line-height:1.6;color:var(--text-muted)">${a.rpg_context||'—'}</div>
                                 </div>
                                 ${a['NOT'] ? `<div class="ik-detail-row" style="grid-column:1/-1">
-                                    <div class="ik-detail-label">NOT</div>
+                                    <div class="ik-detail-label">NICHT (Verwechslungsgefahr)</div>
                                     <div class="ik-detail-val" style="font-size:11px;color:var(--text-muted)">${a['NOT']}</div>
                                 </div>` : ''}
                             </div>
