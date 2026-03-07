@@ -9940,72 +9940,180 @@
                 const e = this.filtered[idx];
                 if (!e) return;
                 const cat = e._cat || e.category || '';
-                let sections = '';
+
+                const badgeMap = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond'};
+                const badgeCls2 = badgeMap[cat] || 'other';
+
+                // Build fields
                 const fields = [];
-                if (e.type)         fields.push(['Typ', e.type]);
-                if (e.school)       fields.push(['Schule', e.school]);
-                if (e.subtype)      fields.push(['Subtyp', e.subtype]);
-                if (e.size)         fields.push(['Größe', e.size]);
-                if (e.alignment)    fields.push(['Gesinnung', e.alignment]);
-                if (e.cr!=null)     fields.push(['CR', 'CR ' + e.cr + (e.xp?' ('+Number(e.xp).toLocaleString()+' XP)':'')]);
-                if (cat==='spells') fields.push(['Level', e.level===0?'Cantrip':e.level]);
-                if (e.casting_time) fields.push(['Casting Time', e.casting_time]);
-                if (e.range)        fields.push(['Range', e.range]);
-                if (e.components)   fields.push(['Komponenten', e.components+(e.material?' ('+e.material+')':'')]);
-                if (e.duration)     fields.push(['Duration', e.duration]);
-                if (e.concentration)fields.push(['Concentration', '✓']);
-                if (e.ritual)       fields.push(['Ritual', '✓']);
-                if (e.classes&&e.classes.length) fields.push(['Klassen', e.classes.join(', ')]);
-                if (e.rarity)       fields.push(['Seltenheit', e.rarity]);
-                if (e.attunement)   fields.push(['Attunement', e.attunement]);
-                if (e.damage)       fields.push(['Schaden', e.damage]);
-                if (e.damage_type)  fields.push(['Schadenstyp', e.damage_type]);
-                if (e.ac_base)      fields.push(['AC Basis', e.ac_base]);
-                if (e.cost)         fields.push(['Kosten', e.cost]);
-                if (e.weight)       fields.push(['Gewicht', e.weight + ' lb']);
-                if (e.hp)           fields.push(['HP', e.hp]);
-                if (e.ac)           fields.push(['AC', e.ac]);
-                if (e.languages)    fields.push(['Sprachen', e.languages]);
-                if (e.source_title) fields.push(['Quelle', e.source_title]);
-                const sp = e.speed&&typeof e.speed==='object' ? Object.entries(e.speed).filter(([,v])=>v).map(([k,v])=>k+' '+v).join(', ') : '';
-                if (sp) fields.push(['Speed', sp]);
+                if (e.type)          fields.push(['Typ', e.type]);
+                if (e.school)        fields.push(['Schule', e.school]);
+                if (e.subtype)       fields.push(['Subtyp', e.subtype]);
+                if (e.size)          fields.push(['Größe', e.size]);
+                if (e.alignment)     fields.push(['Gesinnung', e.alignment]);
+                if (e.cr != null)    fields.push(['CR', 'CR ' + e.cr + (e.xp ? ' (' + Number(e.xp).toLocaleString() + ' XP)' : '')]);
+                if (cat === 'spells') fields.push(['Level', e.level === 0 ? 'Cantrip' : e.level]);
+                if (e.casting_time)  fields.push(['Casting Time', e.casting_time]);
+                if (e.range)         fields.push(['Range', e.range]);
+                if (e.components)    fields.push(['Komponenten', e.components + (e.material ? ' (' + e.material + ')' : '')]);
+                if (e.duration)      fields.push(['Duration', e.duration]);
+                if (e.concentration) fields.push(['Concentration', '✓']);
+                if (e.ritual)        fields.push(['Ritual', '✓']);
+                if (e.classes && e.classes.length) fields.push(['Klassen', e.classes.join(', ')]);
+                if (e.rarity)        fields.push(['Seltenheit', e.rarity]);
+                if (e.attunement)    fields.push(['Attunement', e.attunement]);
+                if (e.damage)        fields.push(['Schaden', e.damage]);
+                if (e.damage_type)   fields.push(['Schadenstyp', e.damage_type]);
+                if (e.ac_base)       fields.push(['AC Basis', e.ac_base]);
+                if (e.cost)          fields.push(['Kosten', e.cost]);
+                if (e.weight)        fields.push(['Gewicht', e.weight + ' lb']);
+                if (e.hp)            fields.push(['HP', e.hp]);
+                if (e.ac)            fields.push(['AC', e.ac]);
+                if (e.languages)     fields.push(['Sprachen', e.languages]);
+                if (e.source_title)  fields.push(['Quelle', e.source_title]);
+                const spd = e.speed && typeof e.speed === 'object'
+                    ? Object.entries(e.speed).filter(([,v]) => v).map(([k,v]) => k + ' ' + v).join(', ') : '';
+                if (spd) fields.push(['Speed', spd]);
+
+                // Build modal DOM (no inline strings with quotes)
+                const overlay = document.createElement('div');
+                overlay.className = 'ik-modal-overlay';
+                overlay.id = 'dndModal';
+                overlay.addEventListener('click', ev => { if (ev.target === overlay) DndDB.closeDetail(); });
+
+                const modal = document.createElement('div');
+                modal.className = 'ik-modal';
+                modal.style.maxWidth = '760px';
+
+                // Head
+                const head = document.createElement('div');
+                head.className = 'ik-modal__head';
+                if (e.icon_url) {
+                    const img = document.createElement('img');
+                    img.className = 'ik-modal__thumb';
+                    img.src = e.icon_url;
+                    head.appendChild(img);
+                } else {
+                    const ph = document.createElement('div');
+                    ph.className = 'ik-modal__thumb';
+                    ph.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--bg-elevated);font-size:28px;border-radius:10px;color:var(--text-muted)';
+                    ph.textContent = '?';
+                    head.appendChild(ph);
+                }
+                const titleWrap = document.createElement('div');
+                titleWrap.style.cssText = 'flex:1;min-width:0';
+                const titleEl = document.createElement('div');
+                titleEl.className = 'ik-modal__title';
+                titleEl.textContent = e.name_en || e.id || '—';
+                titleWrap.appendChild(titleEl);
+                if (e.name_de) {
+                    const deEl = document.createElement('div');
+                    deEl.style.cssText = 'font-size:13px;color:var(--text-muted);margin-bottom:4px';
+                    deEl.textContent = e.name_de;
+                    titleWrap.appendChild(deEl);
+                }
+                const badges = document.createElement('div');
+                badges.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:4px';
+                const b1 = document.createElement('span');
+                b1.className = 'dnd-badge dnd-badge--' + badgeCls2;
+                b1.textContent = this.CAT_LABELS[cat] || cat;
+                const b2 = document.createElement('span');
+                b2.className = 'ik-kw';
+                b2.textContent = e.source || '—';
+                badges.appendChild(b1); badges.appendChild(b2);
+                titleWrap.appendChild(badges);
+                head.appendChild(titleWrap);
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'ik-modal__close';
+                closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+                closeBtn.addEventListener('click', () => DndDB.closeDetail());
+                head.appendChild(closeBtn);
+                modal.appendChild(head);
+
+                // Body
+                const body = document.createElement('div');
+                body.className = 'ik-modal__body';
+
                 if (fields.length) {
-                    sections += '<div class="ik-detail-grid" style="margin-bottom:16px">' +
-                        fields.map(([k,v]) => '<div class="ik-detail-row"><div class="ik-detail-label">'+k+'</div><div class="ik-detail-val">'+v+'</div></div>').join('') +
-                        '</div>';
+                    const grid = document.createElement('div');
+                    grid.className = 'ik-detail-grid';
+                    grid.style.marginBottom = '16px';
+                    fields.forEach(([k, v]) => {
+                        const row = document.createElement('div');
+                        row.className = 'ik-detail-row';
+                        row.innerHTML = '<div class="ik-detail-label">' + k + '</div><div class="ik-detail-val">' + v + '</div>';
+                        grid.appendChild(row);
+                    });
+                    body.appendChild(grid);
                 }
-                if (cat==='monsters'&&e.str) {
-                    sections += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px;padding:12px;background:var(--bg-elevated);border-radius:8px;text-align:center">' +
-                        [['STR',e.str],['DEX',e.dex],['CON',e.con],['INT',e.int],['WIS',e.wis],['CHA',e.cha]].map(([k,v]) =>
-                            '<div><div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:2px">'+k+'</div><div style="font-size:16px;font-weight:700">'+(v||'—')+'</div><div style="font-size:10px;color:var(--text-muted)">'+(v?(Math.floor((v-10)/2)>=0?'+':'')+Math.floor((v-10)/2):'')+'</div></div>'
-                        ).join('') + '</div>';
+
+                // Stat block for monsters
+                if (cat === 'monsters' && e.str) {
+                    const statBlock = document.createElement('div');
+                    statBlock.style.cssText = 'display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px;padding:12px;background:var(--bg-elevated);border-radius:8px;text-align:center';
+                    [['STR',e.str],['DEX',e.dex],['CON',e.con],['INT',e.int],['WIS',e.wis],['CHA',e.cha]].forEach(([k,v]) => {
+                        const cell = document.createElement('div');
+                        const mod = v != null ? (Math.floor((v-10)/2) >= 0 ? '+' : '') + Math.floor((v-10)/2) : '';
+                        cell.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:2px">'+k+'</div>' +
+                            '<div style="font-size:16px;font-weight:700">'+(v||'—')+'</div>' +
+                            '<div style="font-size:10px;color:var(--text-muted)">'+mod+'</div>';
+                        statBlock.appendChild(cell);
+                    });
+                    body.appendChild(statBlock);
                 }
-                const desc = e.description||e.desc||'';
-                if (desc) sections += '<div style="margin-bottom:12px"><div class="ik-detail-label" style="margin-bottom:6px">Beschreibung</div><div style="font-size:12px;line-height:1.7;color:var(--text-muted);max-height:200px;overflow-y:auto">'+desc+'</div></div>';
-                if (e.higher_level) sections += '<div style="margin-bottom:12px"><div class="ik-detail-label" style="margin-bottom:6px">Auf höheren Leveln</div><div style="font-size:12px;line-height:1.7;color:var(--text-muted)">'+e.higher_level+'</div></div>';
-                const badgeCls2 = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond'}[cat]||'other';
-                const html = '<div class="ik-modal-overlay" id="dndModal" onclick="if(event.target===this)DndDB.closeDetail()">' +
-                    '<div class="ik-modal" style="max-width:760px">' +
-                    '<div class="ik-modal__head">' +
-                    (e.icon_url?'<img class="ik-modal__thumb" src="'+e.icon_url+'" alt="">':'<div class="ik-modal__thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-elevated);font-size:28px;border-radius:10px;color:var(--text-muted)">?</div>') +
-                    '<div style="flex:1;min-width:0">' +
-                    '<div class="ik-modal__title">'+(e.name_en||e.id)+'</div>' +
-                    (e.name_de?'<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">'+e.name_de+'</div>':'') +
-                    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
-                    '<span class="dnd-badge dnd-badge--'+badgeCls2+'">'+(this.CAT_LABELS[cat]||cat)+'</span>' +
-                    '<span class="ik-kw">'+(e.source||'—')+'</span></div></div>' +
-                    '<button class="ik-modal__close" onclick="DndDB.closeDetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
-                    '</div><div class="ik-modal__body">' + sections +
-                    '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)">' +
-                    '<button class="ik-copy-btn" onclick="navigator.clipboard.writeText(this.closest('.ik-modal').querySelector('.ik-modal__title').textContent).then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='Name kopieren',1500)})">Name kopieren</button>' +
-                    '<button class="ik-copy-btn" onclick="navigator.clipboard.writeText('' + (e.id||'').replace(/'/g, '') + '').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='ID kopieren',1500)})">ID kopieren</button>' +
-                    '</div></div></div></div>';
+
+                const desc = e.description || e.desc || '';
+                if (desc) {
+                    const descWrap = document.createElement('div');
+                    descWrap.style.marginBottom = '12px';
+                    descWrap.innerHTML = '<div class="ik-detail-label" style="margin-bottom:6px">Beschreibung</div><div style="font-size:12px;line-height:1.7;color:var(--text-muted);max-height:200px;overflow-y:auto">' + desc + '</div>';
+                    body.appendChild(descWrap);
+                }
+                if (e.higher_level) {
+                    const hlWrap = document.createElement('div');
+                    hlWrap.style.marginBottom = '12px';
+                    hlWrap.innerHTML = '<div class="ik-detail-label" style="margin-bottom:6px">Auf höheren Leveln</div><div style="font-size:12px;line-height:1.7;color:var(--text-muted)">' + e.higher_level + '</div>';
+                    body.appendChild(hlWrap);
+                }
+
+                // Action buttons
+                const actions = document.createElement('div');
+                actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)';
+                const copyName = document.createElement('button');
+                copyName.className = 'ik-copy-btn';
+                copyName.textContent = 'Name kopieren';
+                copyName.addEventListener('click', () => {
+                    navigator.clipboard.writeText(e.name_en || e.id || '').then(() => {
+                        copyName.textContent = '✓'; setTimeout(() => copyName.textContent = 'Name kopieren', 1500);
+                    });
+                });
+                const copyId = document.createElement('button');
+                copyId.className = 'ik-copy-btn';
+                copyId.textContent = 'ID kopieren';
+                copyId.addEventListener('click', () => {
+                    navigator.clipboard.writeText(e.id || '').then(() => {
+                        copyId.textContent = '✓'; setTimeout(() => copyId.textContent = 'ID kopieren', 1500);
+                    });
+                });
+                actions.appendChild(copyName);
+                actions.appendChild(copyId);
+                body.appendChild(actions);
+                modal.appendChild(body);
+                overlay.appendChild(modal);
+
                 const ex = document.getElementById('dndModal');
                 if (ex) ex.remove();
-                document.body.insertAdjacentHTML('beforeend', html);
+                document.body.appendChild(overlay);
             },
 
             closeDetail() { const m = document.getElementById('dndModal'); if (m) m.remove(); },
+            _copyName(btn) {
+                const title = btn.closest('.ik-modal')?.querySelector('.ik-modal__title')?.textContent || '';
+                navigator.clipboard.writeText(title).then(() => { btn.textContent = '✓'; setTimeout(() => btn.textContent = 'Name kopieren', 1500); });
+            },
+            _copyId(btn, id) {
+                navigator.clipboard.writeText(id).then(() => { btn.textContent = '✓'; setTimeout(() => btn.textContent = 'ID kopieren', 1500); });
+            },
             prevPage() { if (this.page>0){this.page--;this.renderTable();window.scrollTo(0,200);} },
             nextPage() { const t=Math.ceil(this.filtered.length/this.PAGE_SIZE); if(this.page<t-1){this.page++;this.renderTable();window.scrollTo(0,200);} },
             setStatus(msg) {
