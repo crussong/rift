@@ -9657,9 +9657,11 @@
             sortDir: 'asc',
             initialized: false,
 
+            // monsters lazy-loaded separately (9MB)
+            LAZY: ['monsters'],
+
             FILES: {
                 spells:       '/assets/data/dnd/dnd-spells.json',
-                monsters:     '/assets/data/dnd/dnd-monsters.json',
                 magic_items:  '/assets/data/dnd/dnd-magic_items.json',
                 weapons:      '/assets/data/dnd/dnd-weapons.json',
                 armor:        '/assets/data/dnd/dnd-armor.json',
@@ -9672,6 +9674,8 @@
                 races:        '/assets/data/dnd/dnd-races.json',
                 classes:      '/assets/data/dnd/dnd-classes.json',
                 backgrounds:  '/assets/data/dnd/dnd-backgrounds.json',
+                // lazy:
+                monsters:     '/assets/data/dnd/dnd-monsters.json',
             },
 
             CAT_LABELS: {
@@ -9685,41 +9689,77 @@
             async init() {
                 if (this.initialized) return;
                 this.initialized = true;
-                this.setLoading('Datenbank wird geladen...');
-                // Load all files
-                let total = 0;
-                for (const [key, url] of Object.entries(this.FILES)) {
-                    try {
-                        const r = await fetch(url);
+
+                // Load all non-monster files in PARALLEL
+                const eagerKeys = Object.keys(this.FILES).filter(k => !this.LAZY.includes(k));
+                this.setLoading('Lade ' + eagerKeys.length + ' Dateien parallel...');
+
+                const results = await Promise.allSettled(
+                    eagerKeys.map(key => fetch(this.FILES[key]).then(r => {
                         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                        const data = await r.json();
+                        return r.json().then(data => ({ key, data }));
+                    }))
+                );
+
+                for (const res of results) {
+                    if (res.status === 'fulfilled') {
+                        const { key, data } = res.value;
                         data.forEach(e => { e._cat = key; if (!e.category) e.category = key; });
                         this.loaded[key] = data;
-                        total += data.length;
-                        // Update cat count badge
-                        const badge_key = key.replace('_', '').replace('_', '');
-                        const parts = key.split('_').map((p,i) => i===0 ? p : p.charAt(0).toUpperCase()+p.slice(1));
-                        const camelKey = parts.join('');
-                        const el = document.getElementById('dndCnt' + camelKey.charAt(0).toUpperCase() + camelKey.slice(1));
-                        if (el) el.textContent = `(${data.length})`;
-                    } catch(e) {
-                        console.warn(`DndDB: failed ${key}:`, e.message);
+                        this.updateCatBadge(key, data.length);
+                    } else {
+                        const key = eagerKeys[results.indexOf(res)];
+                        console.warn('DndDB: failed', key, res.reason?.message);
                         this.loaded[key] = [];
                     }
                 }
-                // Flatten all
-                this.all = [];
-                for (const data of Object.values(this.loaded)) this.all = this.all.concat(data);
 
-                const tot = document.getElementById('dndStatTotal');
-                if (tot) tot.textContent = this.all.length.toLocaleString();
-
+                // Flatten (without monsters for now)
+                this.rebuildAll();
                 this.buildFilters();
                 this.applyFilters();
+
+                // Monster badge: show placeholder
+                const mEl = document.getElementById('dndCntMonsters');
+                if (mEl) mEl.textContent = '(klick zum Laden)';
+            },
+
+            rebuildAll() {
+                this.all = [];
+                for (const data of Object.values(this.loaded)) this.all = this.all.concat(data);
+                const tot = document.getElementById('dndStatTotal');
+                if (tot) tot.textContent = this.all.length.toLocaleString();
+            },
+
+            updateCatBadge(key, count) {
+                // Convert key like "magic_items" → "dndCntMagicItems"
+                const camel = key.split('_').map((p,i) => i===0 ? p : p.charAt(0).toUpperCase()+p.slice(1)).join('');
+                const id = 'dndCnt' + camel.charAt(0).toUpperCase() + camel.slice(1);
+                const el = document.getElementById(id);
+                if (el) el.textContent = `(${count})`;
+            },
+
+            async loadLazy(key) {
+                if (this.loaded[key]) return;
+                const btn = document.querySelector(`[data-cat="${key}"]`);
+                if (btn) btn.textContent = btn.textContent.replace(/\(.*\)/, '(lädt...)');
+                try {
+                    const r = await fetch(this.FILES[key]);
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    const data = await r.json();
+                    data.forEach(e => { e._cat = key; if (!e.category) e.category = key; });
+                    this.loaded[key] = data;
+                    this.updateCatBadge(key, data.length);
+                    this.rebuildAll();
+                } catch(e) {
+                    console.error('DndDB lazy load failed:', key, e);
+                    this.loaded[key] = [];
+                    const mEl = document.getElementById('dndCntMonsters');
+                    if (mEl) mEl.textContent = '(Fehler)';
+                }
             },
 
             buildFilters() {
-                // Source dropdown
                 const sources = new Set();
                 for (const e of this.all) { if (e.source) sources.add(e.source); }
                 const sel = document.getElementById('dndSourceFilter');
@@ -9733,7 +9773,7 @@
                 const pool = this.getPool();
                 const subs = new Set();
                 for (const e of pool) {
-                    const s = e.type || e.school || e.subtype || e.weapon_type || e.category_main || e.subcategory || e.size || e.armor_class;
+                    const s = e.type || e.school || e.subtype || e.weapon_type || e.category_main || e.subcategory || e.size;
                     if (s && typeof s === 'string') subs.add(s);
                 }
                 const sel = document.getElementById('dndSubFilter');
@@ -9748,14 +9788,20 @@
                 return this.loaded[this.currentCat] || [];
             },
 
-            setCat(cat, btn) {
+            async setCat(cat, btn) {
                 this.currentCat = cat;
                 this.page = 0;
                 this.filters.sub = '';
-                document.querySelectorAll('.ik-cat-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#dndCatBar .ik-cat-btn').forEach(b => b.classList.remove('active'));
                 if (btn) btn.classList.add('active');
                 const s = document.getElementById('dndSubFilter');
                 if (s) s.value = '';
+                // Lazy load if needed
+                if (this.LAZY.includes(cat) && !this.loaded[cat]) {
+                    this.setLoading('Monster werden geladen (9MB, bitte warten)...');
+                    await this.loadLazy(cat);
+                    this.buildFilters();
+                }
                 this.buildSubFilter();
                 this.applyFilters();
             },
@@ -9766,14 +9812,9 @@
             setNoIcon(v) { this.filters.noIcon = v; this.page = 0; this.applyFilters(); },
 
             sort(key) {
-                if (this.sortKey === key) {
-                    this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
-                } else {
-                    this.sortKey = key;
-                    this.sortDir = 'asc';
-                }
-                // Update sort icons
-                document.querySelectorAll('.dnd-sort-icon').forEach(el => { el.className = 'dnd-sort-icon'; });
+                this.sortDir = this.sortKey === key ? (this.sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+                this.sortKey = key;
+                document.querySelectorAll('.dnd-sort-icon').forEach(el => el.className = 'dnd-sort-icon');
                 const icon = document.getElementById('dndSort' + key.charAt(0).toUpperCase() + key.slice(1));
                 if (icon) icon.className = 'dnd-sort-icon ' + this.sortDir;
                 this.page = 0;
@@ -9783,33 +9824,26 @@
             applyFilters() {
                 let pool = this.getPool();
                 const { search, source, sub, noIcon } = this.filters;
-
                 pool = pool.filter(e => {
                     if (noIcon && (e.icon_id || e.icon_url)) return false;
                     if (source && e.source !== source) return false;
                     if (sub) {
-                        const eType = e.type || e.school || e.subtype || e.weapon_type || e.category_main || e.subcategory || e.size || '';
-                        if (eType !== sub) return false;
+                        const t = e.type || e.school || e.subtype || e.weapon_type || e.category_main || e.subcategory || e.size || '';
+                        if (t !== sub) return false;
                     }
                     if (search) {
-                        const hay = [
-                            e.name_en||'', e.name_de||'', e.type||'', e.school||'',
-                            e.subtype||'', e.description||'', e.desc||'',
-                            (e.keywords||[]).join(' '), e.alignment||''
-                        ].join(' ').toLowerCase();
+                        const hay = [e.name_en||'', e.name_de||'', e.type||'', e.school||'',
+                            e.subtype||'', e.description||'', e.desc||'', e.alignment||''].join(' ').toLowerCase();
                         if (!hay.includes(search)) return false;
                     }
                     return true;
                 });
-
-                // Sort
                 const dir = this.sortDir === 'asc' ? 1 : -1;
-                pool.sort((a, b) => {
+                pool.sort((a,b) => {
                     const av = (a[this.sortKey]||'').toString().toLowerCase();
                     const bv = (b[this.sortKey]||'').toString().toLowerCase();
                     return av < bv ? -dir : av > bv ? dir : 0;
                 });
-
                 this.filtered = pool;
                 const fEl = document.getElementById('dndStatFiltered');
                 if (fEl) fEl.textContent = pool.length.toLocaleString();
@@ -9821,18 +9855,14 @@
             renderTable() {
                 const tbody = document.getElementById('dndTableBody');
                 if (!tbody) return;
-
                 if (!this.filtered.length) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:60px;color:var(--text-muted)">Keine Einträge gefunden</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Keine Einträge gefunden</td></tr>';
                     document.getElementById('dndPagination').style.display = 'none';
                     return;
                 }
-
                 const start = this.page * this.PAGE_SIZE;
                 const slice = this.filtered.slice(start, start + this.PAGE_SIZE);
-
                 tbody.innerHTML = slice.map((e, i) => this.rowHTML(e, start + i)).join('');
-
                 const total = Math.ceil(this.filtered.length / this.PAGE_SIZE);
                 const pag = document.getElementById('dndPagination');
                 pag.style.display = total > 1 ? 'flex' : 'none';
@@ -9844,79 +9874,57 @@
 
             rowHTML(e, idx) {
                 const cat = e._cat || e.category || '';
-                const badgeCls = {
-                    spells:'spell', monsters:'monster', magic_items:'magic',
-                    weapons:'weapon', armor:'armor', equipment:'equip',
-                    food_drink:'food', herbs_alchemy:'herb', materials:'material',
-                    misc_items:'misc', conditions:'cond',
-                }[cat] || 'other';
-
+                const badgeCls = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond'}[cat] || 'other';
                 const catLabel = this.CAT_LABELS[cat] || cat;
-
-                // Meta column: CR for monsters, Level for spells, Rarity for magic items, etc.
-                let meta = '';
-                if (cat === 'monsters') {
-                    meta = `<span class="dnd-cr">CR${e.cr ?? '?'}</span>`;
-                    if (e.type) meta += ` <span class="dnd-detail-chip">${e.type}${e.subtype ? ' ('+e.subtype+')' : ''}</span>`;
+                let meta = '', extra = '';
+                if (cat==='monsters') {
+                    meta = `<span class="dnd-cr">CR${e.cr??'?'}</span>`;
+                    if (e.type) meta += ` <span class="dnd-detail-chip">${e.type}${e.subtype?' ('+e.subtype+')':''}</span>`;
                     if (e.size) meta += ` <span class="dnd-detail-chip">${e.size}</span>`;
-                } else if (cat === 'spells') {
-                    meta = `<span class="dnd-level">${e.level === 0 ? 'C' : e.level}</span>`;
+                    if (e.hp)   extra += `<span class="dnd-detail-chip">HP ${e.hp}</span>`;
+                    if (e.ac)   extra += `<span class="dnd-detail-chip">AC ${e.ac}</span>`;
+                    if (e.xp)   extra += `<span class="dnd-detail-chip">${e.xp.toLocaleString()} XP</span>`;
+                } else if (cat==='spells') {
+                    meta = `<span class="dnd-level">${e.level===0?'C':e.level}</span>`;
                     if (e.school) meta += ` <span class="dnd-detail-chip">${e.school}</span>`;
-                } else if (cat === 'magic_items') {
-                    const rarityClass = {common:'common',uncommon:'uncommon',rare:'rare','very rare':'very-rare',legendary:'legendary'}[(e.rarity||'').toLowerCase()] || '';
-                    meta = `<span class="dnd-rarity-${rarityClass}" style="font-weight:600">${e.rarity||'—'}</span>`;
+                    if (e.casting_time) extra += `<span class="dnd-detail-chip">${e.casting_time}</span>`;
+                    if (e.range)        extra += `<span class="dnd-detail-chip">${e.range}</span>`;
+                    if (e.concentration) extra += `<span class="dnd-detail-chip" style="color:var(--accent)">K</span>`;
+                    if (e.ritual)        extra += `<span class="dnd-detail-chip" style="color:var(--green)">R</span>`;
+                    if (e.classes?.length) extra += `<span class="dnd-detail-chip">${e.classes.slice(0,3).join(', ')}</span>`;
+                } else if (cat==='magic_items') {
+                    const rc = {common:'common',uncommon:'uncommon',rare:'rare','very rare':'very-rare',legendary:'legendary'}[(e.rarity||'').toLowerCase()]||'';
+                    meta = `<span class="dnd-rarity-${rc}" style="font-weight:600">${e.rarity||'—'}</span>`;
                     if (e.type) meta += ` <span class="dnd-detail-chip">${e.type}</span>`;
-                } else if (cat === 'weapons') {
+                    extra = `<span style="font-size:11px;color:var(--text-muted)">${(e.description||'').slice(0,80)}${(e.description||'').length>80?'…':''}</span>`;
+                } else if (cat==='weapons') {
                     meta = e.damage ? `<span class="dnd-detail-chip">${e.damage}</span>` : '—';
                     if (e.damage_type) meta += ` <span class="dnd-detail-chip">${e.damage_type}</span>`;
-                } else if (cat === 'armor') {
+                    if (e.cost)   extra += `<span class="dnd-detail-chip">${e.cost}</span>`;
+                    if (e.weight) extra += `<span class="dnd-detail-chip">${e.weight} lb</span>`;
+                } else if (cat==='armor') {
                     meta = e.ac_base ? `<span class="dnd-detail-chip">AC ${e.ac_base}</span>` : '—';
+                    if (e.cost)   extra += `<span class="dnd-detail-chip">${e.cost}</span>`;
+                    if (e.weight) extra += `<span class="dnd-detail-chip">${e.weight} lb</span>`;
                 } else {
                     const sub = e.type || e.school || e.category_main || e.subcategory || '';
                     meta = sub ? `<span class="dnd-detail-chip">${sub}</span>` : '—';
-                }
-
-                // Extra column
-                let extra = '';
-                if (cat === 'spells') {
-                    if (e.casting_time) extra += `<span class="dnd-detail-chip">${e.casting_time}</span>`;
-                    if (e.range) extra += `<span class="dnd-detail-chip">${e.range}</span>`;
-                    if (e.concentration) extra += `<span class="dnd-detail-chip" style="color:var(--accent)">K</span>`;
-                    if (e.ritual) extra += `<span class="dnd-detail-chip" style="color:var(--green)">R</span>`;
-                    if (e.classes && e.classes.length) extra += `<span class="dnd-detail-chip">${e.classes.slice(0,3).join(', ')}</span>`;
-                } else if (cat === 'monsters') {
-                    if (e.hp) extra += `<span class="dnd-detail-chip">HP ${e.hp}</span>`;
-                    if (e.ac) extra += `<span class="dnd-detail-chip">AC ${e.ac}</span>`;
-                    if (e.xp) extra += `<span class="dnd-detail-chip">${e.xp.toLocaleString()} XP</span>`;
-                } else if (cat === 'weapons' || cat === 'armor' || cat === 'equipment') {
-                    if (e.cost) extra += `<span class="dnd-detail-chip">${e.cost}</span>`;
+                    if (e.cost)   extra += `<span class="dnd-detail-chip">${e.cost}</span>`;
                     if (e.weight) extra += `<span class="dnd-detail-chip">${e.weight} lb</span>`;
-                } else if (e.cost || e.weight) {
-                    if (e.cost) extra += `<span class="dnd-detail-chip">${e.cost}</span>`;
-                    if (e.weight) extra += `<span class="dnd-detail-chip">${e.weight} lb</span>`;
-                } else if (e.description) {
-                    extra = `<span style="font-size:11px;color:var(--text-muted)">${(e.description||'').slice(0,80)}${e.description && e.description.length > 80 ? '…' : ''}</span>`;
+                    if (!extra && e.description) extra = `<span style="font-size:11px;color:var(--text-muted)">${(e.description||'').slice(0,80)}…</span>`;
                 }
-
-                // Icon
                 const iconHTML = e.icon_url
                     ? `<img class="dnd-icon-thumb" src="${e.icon_url}" alt="" loading="lazy">`
                     : `<div class="dnd-no-icon" title="Kein Icon">+</div>`;
-
-                const src = e.source || '';
-                const srcShort = src.replace('wotc-','').replace('-srd','').replace('srd-','').toUpperCase().slice(0,8);
-
+                const srcShort = (e.source||'').replace('wotc-','').replace('-srd','').replace('srd-','').toUpperCase().slice(0,8);
                 return `<tr onclick="DndDB.openDetail(${idx})">
                     <td style="padding:6px 8px 6px 14px">${iconHTML}</td>
-                    <td>
-                        <div class="dnd-name">${e.name_en || e.id || '—'}</div>
-                        ${e.name_de ? `<div class="dnd-name-de">${e.name_de}</div>` : ''}
-                    </td>
+                    <td><div class="dnd-name">${e.name_en||e.id||'—'}</div>${e.name_de?`<div class="dnd-name-de">${e.name_de}</div>`:''}</td>
                     <td><span class="dnd-badge dnd-badge--${badgeCls}">${catLabel}</span></td>
                     <td>${meta}</td>
-                    <td>${extra || '—'}</td>
+                    <td>${extra||'—'}</td>
                     <td><span class="dnd-source">${srcShort}</span></td>
-                    <td style="text-align:center">${e.icon_url ? '✓' : ''}</td>
+                    <td style="text-align:center">${e.icon_url?'✓':''}</td>
                 </tr>`;
             },
 
@@ -9924,90 +9932,58 @@
                 const e = this.filtered[idx];
                 if (!e) return;
                 const cat = e._cat || e.category || '';
-
-                // Build detail sections
                 let sections = '';
-
-                // Basic info grid
                 const fields = [];
                 if (e.type)         fields.push(['Typ', e.type]);
                 if (e.school)       fields.push(['Schule', e.school]);
                 if (e.subtype)      fields.push(['Subtyp', e.subtype]);
                 if (e.size)         fields.push(['Größe', e.size]);
                 if (e.alignment)    fields.push(['Gesinnung', e.alignment]);
-                if (e.cr != null)   fields.push(['Challenge Rating', `CR ${e.cr} (${e.xp ? e.xp.toLocaleString()+' XP' : '?'})`]);
-                if (e.level != null && cat === 'spells') fields.push(['Level', e.level === 0 ? 'Cantrip' : e.level]);
-                if (e.school)       {} // already added
+                if (e.cr!=null)     fields.push(['Challenge Rating', `CR ${e.cr}${e.xp?' ('+e.xp.toLocaleString()+' XP)':''}`]);
+                if (cat==='spells' && e.level!=null) fields.push(['Level', e.level===0?'Cantrip':e.level]);
                 if (e.casting_time) fields.push(['Casting Time', e.casting_time]);
                 if (e.range)        fields.push(['Range', e.range]);
-                if (e.components)   fields.push(['Komponenten', e.components + (e.material ? ` (${e.material})` : '')]);
+                if (e.components)   fields.push(['Komponenten', e.components+(e.material?` (${e.material})`:'')] );
                 if (e.duration)     fields.push(['Duration', e.duration]);
                 if (e.concentration)fields.push(['Concentration', '✓']);
                 if (e.ritual)       fields.push(['Ritual', '✓']);
-                if (e.classes && e.classes.length) fields.push(['Klassen', e.classes.join(', ')]);
+                if (e.classes?.length) fields.push(['Klassen', e.classes.join(', ')]);
                 if (e.rarity)       fields.push(['Seltenheit', e.rarity]);
                 if (e.attunement)   fields.push(['Attunement', e.attunement]);
                 if (e.damage)       fields.push(['Schaden', e.damage]);
                 if (e.damage_type)  fields.push(['Schadenstyp', e.damage_type]);
-                if (e.weapon_type)  fields.push(['Waffentyp', e.weapon_type]);
                 if (e.ac_base)      fields.push(['AC Basis', e.ac_base]);
                 if (e.cost)         fields.push(['Kosten', e.cost]);
                 if (e.weight)       fields.push(['Gewicht', `${e.weight} lb`]);
                 if (e.hp)           fields.push(['HP', e.hp]);
                 if (e.ac)           fields.push(['AC', e.ac]);
-                if (e.speed && typeof e.speed === 'object') {
-                    const sp = Object.entries(e.speed).filter(([k,v])=>v).map(([k,v])=>`${k} ${v}`).join(', ');
-                    if (sp) fields.push(['Speed', sp]);
-                }
                 if (e.languages)    fields.push(['Sprachen', e.languages]);
                 if (e.source_title) fields.push(['Quelle', e.source_title]);
-
+                const sp = e.speed && typeof e.speed==='object' ? Object.entries(e.speed).filter(([,v])=>v).map(([k,v])=>`${k} ${v}`).join(', ') : '';
+                if (sp) fields.push(['Speed', sp]);
                 if (fields.length) {
-                    sections += `<div class="ik-detail-grid" style="margin-bottom:16px">` +
-                        fields.map(([k,v]) => `<div class="ik-detail-row"><div class="ik-detail-label">${k}</div><div class="ik-detail-val">${v}</div></div>`).join('') +
-                        `</div>`;
+                    sections += `<div class="ik-detail-grid" style="margin-bottom:16px">${fields.map(([k,v])=>`<div class="ik-detail-row"><div class="ik-detail-label">${k}</div><div class="ik-detail-val">${v}</div></div>`).join('')}</div>`;
                 }
-
-                // Stats block for monsters
-                if (cat === 'monsters' && e.str) {
+                if (cat==='monsters' && e.str) {
                     sections += `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px;padding:12px;background:var(--bg-elevated);border-radius:8px;text-align:center">` +
-                        [['STR',e.str],['DEX',e.dex],['CON',e.con],['INT',e.int],['WIS',e.wis],['CHA',e.cha]]
-                        .map(([k,v]) => `<div><div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:2px">${k}</div><div style="font-size:16px;font-weight:700">${v||'—'}</div><div style="font-size:10px;color:var(--text-muted)">${v ? (Math.floor((v-10)/2) >= 0 ? '+' : '')+Math.floor((v-10)/2) : ''}</div></div>`).join('') +
-                        `</div>`;
+                        [['STR',e.str],['DEX',e.dex],['CON',e.con],['INT',e.int],['WIS',e.wis],['CHA',e.cha]].map(([k,v])=>
+                            `<div><div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:2px">${k}</div><div style="font-size:16px;font-weight:700">${v||'—'}</div><div style="font-size:10px;color:var(--text-muted)">${v?(Math.floor((v-10)/2)>=0?'+':'')+Math.floor((v-10)/2):''}</div></div>`
+                        ).join('') + `</div>`;
                 }
-
-                // Description
                 const desc = e.description || e.desc || '';
-                if (desc) {
-                    sections += `<div class="ik-detail-row" style="margin-bottom:12px">
-                        <div class="ik-detail-label" style="margin-bottom:6px">Beschreibung</div>
-                        <div style="font-size:12px;line-height:1.7;color:var(--text-muted);max-height:200px;overflow-y:auto;padding-right:4px">${desc}</div>
-                    </div>`;
-                }
-
-                // Higher level for spells
-                if (e.higher_level) {
-                    sections += `<div class="ik-detail-row" style="margin-bottom:12px">
-                        <div class="ik-detail-label" style="margin-bottom:6px">Auf höheren Leveln</div>
-                        <div style="font-size:12px;line-height:1.7;color:var(--text-muted)">${e.higher_level}</div>
-                    </div>`;
-                }
-
-                const urlEsc = (e.icon_url||'').replace(/'/g,"\\'");
-                const nameEsc = (e.name_en||'').replace(/'/g,"\\'");
-
+                if (desc) sections += `<div class="ik-detail-row" style="margin-bottom:12px"><div class="ik-detail-label" style="margin-bottom:6px">Beschreibung</div><div style="font-size:12px;line-height:1.7;color:var(--text-muted);max-height:200px;overflow-y:auto">${desc}</div></div>`;
+                if (e.higher_level) sections += `<div class="ik-detail-row" style="margin-bottom:12px"><div class="ik-detail-label" style="margin-bottom:6px">Auf höheren Leveln</div><div style="font-size:12px;line-height:1.7;color:var(--text-muted)">${e.higher_level}</div></div>`;
+                const badgeCls2 = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond'}[cat]||'other';
+                const nameEsc = (e.name_en||'').replace(/'/g,"\'");
                 const html = `<div class="ik-modal-overlay" id="dndModal" onclick="if(event.target===this)DndDB.closeDetail()">
                     <div class="ik-modal" style="max-width:760px">
                         <div class="ik-modal__head">
-                            ${e.icon_url
-                                ? `<img class="ik-modal__thumb" src="${e.icon_url}" alt="${e.name_en||''}">`
-                                : `<div class="ik-modal__thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-elevated);font-size:28px;border-radius:10px">?</div>`
-                            }
+                            ${e.icon_url?`<img class="ik-modal__thumb" src="${e.icon_url}" alt="">` : `<div class="ik-modal__thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-elevated);font-size:28px;border-radius:10px;color:var(--text-muted)">?</div>`}
                             <div style="flex:1;min-width:0">
-                                <div class="ik-modal__title">${e.name_en || e.id}</div>
-                                ${e.name_de ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">${e.name_de}</div>` : ''}
+                                <div class="ik-modal__title">${e.name_en||e.id}</div>
+                                ${e.name_de?`<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">${e.name_de}</div>`:''}
                                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-                                    <span class="dnd-badge dnd-badge--${({spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond'}[cat]||'other')}">${this.CAT_LABELS[cat]||cat}</span>
+                                    <span class="dnd-badge dnd-badge--${badgeCls2}">${this.CAT_LABELS[cat]||cat}</span>
                                     <span class="ik-kw">${e.source||'—'}</span>
                                 </div>
                             </div>
@@ -10018,32 +9994,20 @@
                         <div class="ik-modal__body">
                             ${sections}
                             <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)">
-                                <button class="ik-copy-btn" onclick="navigator.clipboard.writeText('${nameEsc}').then(()=>{this.textContent='✓ Kopiert';setTimeout(()=>this.textContent='Name kopieren',1500)})">Name kopieren</button>
-                                <button class="ik-copy-btn" onclick="navigator.clipboard.writeText('${e.id||''}').then(()=>{this.textContent='✓ Kopiert';setTimeout(()=>this.textContent='ID kopieren',1500)})">ID kopieren</button>
-                                ${e.icon_url ? `<button class="ik-copy-btn" onclick="navigator.clipboard.writeText('${urlEsc}').then(()=>{this.textContent='✓ Kopiert';setTimeout(()=>this.textContent='Icon-URL kopieren',1500)})">Icon-URL kopieren</button>` : ''}
+                                <button class="ik-copy-btn" onclick="navigator.clipboard.writeText('${nameEsc}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='Name kopieren',1500)})">Name kopieren</button>
+                                <button class="ik-copy-btn" onclick="navigator.clipboard.writeText('${(e.id||'').replace(/'/g,"\'")}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='ID kopieren',1500)})">ID kopieren</button>
                             </div>
                         </div>
                     </div>
                 </div>`;
-
                 const ex = document.getElementById('dndModal');
                 if (ex) ex.remove();
                 document.body.insertAdjacentHTML('beforeend', html);
             },
 
-            closeDetail() {
-                const m = document.getElementById('dndModal');
-                if (m) m.remove();
-            },
-
-            prevPage() {
-                if (this.page > 0) { this.page--; this.renderTable(); window.scrollTo(0,200); }
-            },
-            nextPage() {
-                const tot = Math.ceil(this.filtered.length / this.PAGE_SIZE);
-                if (this.page < tot-1) { this.page++; this.renderTable(); window.scrollTo(0,200); }
-            },
-
+            closeDetail() { const m = document.getElementById('dndModal'); if (m) m.remove(); },
+            prevPage() { if (this.page>0) { this.page--; this.renderTable(); window.scrollTo(0,200); } },
+            nextPage() { const t=Math.ceil(this.filtered.length/this.PAGE_SIZE); if (this.page<t-1) { this.page++; this.renderTable(); window.scrollTo(0,200); } },
             setLoading(msg) {
                 const tb = document.getElementById('dndTableBody');
                 if (tb) tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:60px;color:var(--text-muted)"><div class="loading-spinner" style="margin:0 auto 16px"></div><p>${msg}</p></td></tr>`;
