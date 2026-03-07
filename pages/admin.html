@@ -9695,29 +9695,46 @@
             },
 
             async init() {
-                if (this.initialized) return;
+                console.log('[DndDB] init() called, initialized=', this.initialized, 'FILES=', !!this.FILES);
+                if (this.initialized) { console.log('[DndDB] already initialized, returning'); return; }
                 this.initialized = true;
 
-                const smallKeys = Object.keys(this.FILES).filter(k => k !== 'monsters');
-                let loaded = 0;
+                try {
+                    const smallKeys = Object.keys(this.FILES).filter(k => k !== 'monsters');
+                    console.log('[DndDB] will load', smallKeys.length, 'files:', smallKeys);
 
-                for (const key of smallKeys) {
-                    this.setStatus('Lade ' + (loaded+1) + ' / ' + smallKeys.length + ': ' + key + '...');
-                    try {
-                        await this.loadFile(key);
-                        loaded++;
-                    } catch(e) {
-                        console.error('[DndDB] FAIL:', key, e.message);
-                        this.loaded[key] = [];
+                    for (const key of smallKeys) {
+                        const url = this.FILES[key];
+                        console.log('[DndDB] fetching', key, url);
+                        this.setStatus('Lade ' + key + '...');
+                        try {
+                            const r = await fetch(url);
+                            console.log('[DndDB]', key, 'status:', r.status, r.ok);
+                            if (!r.ok) throw new Error('HTTP ' + r.status);
+                            const data = await r.json();
+                            console.log('[DndDB]', key, 'parsed, entries:', data.length);
+                            data.forEach(e => { e._cat = key; if (!e.category) e.category = key; });
+                            this.loaded[key] = data;
+                            this.updateCatBadge(key, data.length);
+                        } catch(e) {
+                            console.error('[DndDB] FAIL', key, ':', e.message);
+                            this.loaded[key] = [];
+                        }
                     }
+
+                    console.log('[DndDB] all done, rebuilding...');
+                    this.rebuildAll();
+                    this.buildSourceFilter();
+                    this.applyFilters();
+
+                    const mEl = document.getElementById('dndCntMonsters');
+                    if (mEl) mEl.textContent = '(klick)';
+                    console.log('[DndDB] init complete, total entries:', this.all.length);
+
+                } catch(fatal) {
+                    console.error('[DndDB] FATAL in init():', fatal.message, fatal.stack);
+                    this.setStatus('Fehler: ' + fatal.message);
                 }
-
-                this.rebuildAll();
-                this.buildSourceFilter();
-                this.applyFilters();
-
-                const mEl = document.getElementById('dndCntMonsters');
-                if (mEl) mEl.textContent = '(klick)';
             },
 
             _showErrorBanner(errors) {
