@@ -10310,15 +10310,26 @@
                 document.getElementById('dndDbTbody').innerHTML =
                     '<tr><td colspan="5" style="text-align:center;padding:60px;color:var(--text-muted)">'
                     + '<div class="loading-spinner" style="margin:0 auto 12px"></div>Lade ' + cat.label + '...</td></tr>';
+                // Always load JSON as baseline, then merge Firestore on top
+                await _loadJson(cat);
                 try {
                     const snap = await firebase.firestore().collection(cat.col).get();
                     if (!snap.empty) {
-                        S.entries = snap.docs.map(d => Object.assign({ _docId: d.id }, d.data()));
-                    } else {
-                        await _loadJson(cat);
+                        const fsMap = {};
+                        snap.docs.forEach(d => { fsMap[d.id] = d.data(); });
+                        S.entries = S.entries.map(e => {
+                            const fs = fsMap[e._docId];
+                            return fs ? Object.assign({}, e, fs, { _docId: e._docId }) : e;
+                        });
+                        // Add Firestore-only entries not in JSON
+                        snap.docs.forEach(d => {
+                            if (!S.entries.find(e => e._docId === d.id)) {
+                                S.entries.push(Object.assign({ _docId: d.id }, d.data()));
+                            }
+                        });
                     }
                 } catch(e) {
-                    await _loadJson(cat);
+                    // JSON fallback already loaded, continue
                 }
                 _filter();
             }

@@ -66,38 +66,40 @@ const DndData = (() => {
         if (_pending[key]) return _pending[key];
 
         _pending[key] = (async () => {
-            let data = null;
+            // 1. Always load JSON as baseline
+            let data = [];
+            const file = JSON_FILES[key];
+            if (file) {
+                try {
+                    data = await fetch(JSON_BASE + file).then(r => {
+                        if (!r.ok) throw new Error(r.status);
+                        return r.json();
+                    });
+                    console.log('[DndData] JSON: ' + key + ' (' + data.length + ')');
+                } catch (e) {
+                    console.warn('[DndData] JSON failed for ' + key + ':', e.message);
+                    data = [];
+                }
+            }
 
-            // 1. Try Firestore
+            // 2. Merge Firestore on top (icon_url, edits, etc.)
             const col = COLLECTIONS[key];
             if (col && typeof firebase !== 'undefined' && firebase.firestore) {
                 try {
                     const snap = await firebase.firestore().collection(col).get();
                     if (!snap.empty) {
-                        data = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-                        console.log('[DndData] Firestore: ' + key + ' (' + data.length + ')');
+                        const fsMap = {};
+                        snap.docs.forEach(d => { fsMap[d.id] = d.data(); });
+                        // Merge into JSON entries by id
+                        data = data.map(e => {
+                            const id = e.id || e.name_en || '';
+                            const fs = fsMap[id];
+                            return fs ? Object.assign({}, e, fs) : e;
+                        });
+                        console.log('[DndData] Firestore merged: ' + key + ' (' + Object.keys(fsMap).length + ' entries updated)');
                     }
                 } catch (e) {
-                    console.warn('[DndData] Firestore failed for ' + key + ', falling back to JSON:', e.message);
-                }
-            }
-
-            // 2. Fallback: static JSON
-            if (!data) {
-                const file = JSON_FILES[key];
-                if (file) {
-                    try {
-                        data = await fetch(JSON_BASE + file).then(r => {
-                            if (!r.ok) throw new Error(r.status);
-                            return r.json();
-                        });
-                        console.log('[DndData] JSON fallback: ' + key + ' (' + data.length + ')');
-                    } catch (e) {
-                        console.error('[DndData] JSON fallback failed for ' + key + ':', e.message);
-                        data = [];
-                    }
-                } else {
-                    data = [];
+                    console.warn('[DndData] Firestore merge failed for ' + key + ':', e.message);
                 }
             }
 
