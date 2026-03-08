@@ -1618,6 +1618,10 @@
                             <span>Fokus-Katalog</span>
                         </button>
 
+                        <button class="admin-tab" data-tab="iconKatalog" onclick="switchTab('iconKatalog')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                            <span>Icon-Katalog</span>
+                        </button>
                         <button class="admin-tab" data-tab="dndDb" onclick="switchTab('dndDb')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
                             <span>D&amp;D Datenbank</span>
@@ -4163,6 +4167,68 @@
                 </div>
             </div>
             
+
+<div class="admin-page" id="page-iconKatalog">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-header__title">Icon-Katalog</h1>
+                        <p class="page-header__subtitle">4857 KI-analysierte Icons — Waffen, Rüstungen, Zauber, Ressourcen, Skills</p>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <div class="stat-card" style="padding:8px 16px;display:flex;align-items:center;gap:8px">
+                            <span style="font-size:11px;color:var(--text-muted)">Geladen</span>
+                            <span id="ikStatLoaded" style="font-weight:700;color:var(--green)">0</span>
+                        </div>
+                        <div class="stat-card" style="padding:8px 16px;display:flex;align-items:center;gap:8px">
+                            <span style="font-size:11px;color:var(--text-muted)">Gefiltert</span>
+                            <span id="ikStatFiltered" style="font-weight:700;color:var(--accent)">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Tabs -->
+                <div class="card" style="padding:16px;margin-bottom:12px">
+                    <div class="ik-cat-bar" id="ikCatBar">
+                        <button class="ik-cat-btn active" data-cat="all" onclick="IconKatalog.setCat('all',this)">Alle <span id="ikCntAll" style="opacity:0.6"></span></button>
+                        <button class="ik-cat-btn" data-cat="weapons" onclick="IconKatalog.setCat('weapons',this)">⚔ Waffen <span id="ikCntWeapons" style="opacity:0.6"></span></button>
+                        <button class="ik-cat-btn" data-cat="armor" onclick="IconKatalog.setCat('armor',this)">🛡 Rüstungen <span id="ikCntArmor" style="opacity:0.6"></span></button>
+                        <button class="ik-cat-btn" data-cat="spells" onclick="IconKatalog.setCat('spells',this)">✨ Zauber <span id="ikCntSpells" style="opacity:0.6"></span></button>
+                        <button class="ik-cat-btn" data-cat="resources" onclick="IconKatalog.setCat('resources',this)">📦 Ressourcen <span id="ikCntResources" style="opacity:0.6"></span></button>
+                        <button class="ik-cat-btn" data-cat="skills" onclick="IconKatalog.setCat('skills',this)">🎯 Skills <span id="ikCntSkills" style="opacity:0.6"></span></button>
+                    </div>
+                    <div class="ik-filters">
+                        <input type="text" class="ik-search" id="ikSearch" placeholder="Suchen — Name, Keywords, Typ..." oninput="IconKatalog.setSearch(this.value)">
+                        <select class="ik-select" id="ikMagicFilter" onchange="IconKatalog.setMagic(this.value)">
+                            <option value="all">Alle</option>
+                            <option value="magic">Nur magisch ✨</option>
+                            <option value="normal">Nicht magisch</option>
+                        </select>
+                        <select class="ik-select" id="ikSubcatFilter" onchange="IconKatalog.setSubcat(this.value)" style="min-width:130px">
+                            <option value="">Alle Typen</option>
+                        </select>
+                        <select class="ik-select" id="ikMaterialFilter" onchange="IconKatalog.setMaterial(this.value)" style="min-width:130px">
+                            <option value="">Alle Materialien</option>
+                        </select>
+                        <select class="ik-select" id="ikColorFilter" onchange="IconKatalog.setColor(this.value)" style="min-width:130px">
+                            <option value="">Alle Farben</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Grid + Pagination -->
+                <div id="ikGrid" class="ik-grid">
+                    <div class="ik-loading" style="grid-column:1/-1">
+                        <div class="loading-spinner"></div>
+                        <p>Katalog wird geladen...</p>
+                    </div>
+                </div>
+
+                <div class="ik-pagination" id="ikPagination" style="display:none">
+                    <button id="ikPrevBtn" onclick="IconKatalog.prevPage()" disabled>← Zurück</button>
+                    <span id="ikPageInfo">Seite 1</span>
+                    <button id="ikNextBtn" onclick="IconKatalog.nextPage()">Weiter →</button>
+                </div>
+            </div>
 
             <!-- ============================================================ -->
             <!-- D&D DATENBANK                                                  -->
@@ -9218,7 +9284,309 @@
     <!-- D&D DATENBANK — Admin JS                                     -->
     <!-- ============================================================ -->
     <script>
-    const DndDb = (() => {
+        const IconKatalog = {
+            // State
+            loaded: {},          // { weapons: [...], ... } — lazy loaded per category
+            filtered: [],
+            currentCat: 'all',
+            page: 0,
+            PAGE_SIZE: 60,
+            filters: { search: '', magic: 'all', subcat: '', color: '', material: '' },
+            initialized: false,
+            loading: false,
+
+            CATALOGS: {
+                weapons:   '/assets/data/icon-catalog/catalog-weapons.json',
+                armor:     '/assets/data/icon-catalog/catalog-armor.json',
+                spells:    '/assets/data/icon-catalog/catalog-spells.json',
+                resources: '/assets/data/icon-catalog/catalog-resources.json',
+                skills:    '/assets/data/icon-catalog/catalog-skills.json',
+            },
+
+            CAT_COUNTS: { weapons: 624, armor: 1244, spells: 1622, resources: 1305, skills: 70 },
+
+            async init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                // Show counts from known data
+                let total = 0;
+                for (const [k, v] of Object.entries(this.CAT_COUNTS)) {
+                    total += v;
+                    const el = document.getElementById('ikCnt' + k.charAt(0).toUpperCase() + k.slice(1));
+                    if (el) el.textContent = `(${v})`;
+                }
+                const allEl = document.getElementById('ikCntAll');
+                if (allEl) allEl.textContent = `(${total})`;
+                const statEl = document.getElementById('ikStatLoaded');
+                if (statEl) statEl.textContent = '0';
+                // Load "all" lazily — start with weapons+armor for speed
+                await this.loadCat('weapons');
+                await this.loadCat('armor');
+                this.applyFilters();
+                this.buildDynamicFilters();
+                // Load rest in background
+                this.loadRemaining();
+            },
+
+            async loadRemaining() {
+                for (const key of ['spells', 'resources', 'skills']) {
+                    if (!this.loaded[key]) await this.loadCat(key);
+                }
+                // Refresh if on "all"
+                if (this.currentCat === 'all') this.applyFilters();
+            },
+
+            async loadCat(key) {
+                if (this.loaded[key]) return;
+                try {
+                    const r = await fetch(this.CATALOGS[key]);
+                    if (!r.ok) throw new Error(`HTTP ${r.status} for ${key}`);
+                    const data = await r.json();
+                    data.forEach(ic => ic._cat = key);
+                    this.loaded[key] = data;
+                    const el = document.getElementById('ikStatLoaded');
+                    if (el) {
+                        const cur = parseInt(el.textContent) || 0;
+                        el.textContent = cur + data.length;
+                    }
+                } catch(e) {
+                    console.error(`IconKatalog: failed to load ${key}:`, e);
+                    this.loaded[key] = [];
+                    this.showError(`Fehler beim Laden von "${key}": ${e.message}`);
+                }
+            },
+
+            showError(msg) {
+                const grid = document.getElementById('ikGrid');
+                if (!grid) return;
+                const err = document.createElement('div');
+                err.style.cssText = 'grid-column:1/-1;padding:12px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#f87171;font-size:13px;';
+                err.textContent = '⚠ ' + msg;
+                grid.prepend(err);
+            },
+
+            async setCat(cat, btn) {
+                this.currentCat = cat;
+                this.page = 0;
+                document.querySelectorAll('.ik-cat-btn').forEach(b => b.classList.remove('active'));
+                if (btn) btn.classList.add('active');
+                // Ensure this cat is loaded
+                if (cat !== 'all' && !this.loaded[cat]) {
+                    this.setGridLoading(`Lade ${cat}...`);
+                    await this.loadCat(cat);
+                }
+                this.applyFilters();
+                this.buildDynamicFilters();
+            },
+
+            buildDynamicFilters() {
+                // Subcat dropdown
+                const selSub = document.getElementById('ikSubcatFilter');
+                const selCol = document.getElementById('ikColorFilter');
+                const selMat = document.getElementById('ikMaterialFilter');
+                if (!selSub) return;
+
+                let pool = this.getPool();
+                const subcats = new Set(), colors = new Set(), materials = new Set();
+                for (const ic of pool) {
+                    const a = ic.analysis || {};
+                    if (a.subcategory_guess) subcats.add(a.subcategory_guess);
+                    if (a.colors?.dominant) colors.add(a.colors.dominant);
+                    (a.materials || []).forEach(m => materials.add(m));
+                }
+                selSub.innerHTML = '<option value="">Alle Typen</option>' +
+                    [...subcats].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+                if (selCol) selCol.innerHTML = '<option value="">Alle Farben</option>' +
+                    [...colors].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+                if (selMat) selMat.innerHTML = '<option value="">Alle Materialien</option>' +
+                    [...materials].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+            },
+
+            getPool() {
+                if (this.currentCat === 'all') {
+                    let pool = [];
+                    for (const icons of Object.values(this.loaded)) pool = pool.concat(icons);
+                    return pool;
+                }
+                return this.loaded[this.currentCat] || [];
+            },
+
+            setSearch(val) { this.filters.search = val.toLowerCase().trim(); this.page = 0; this.applyFilters(); },
+            setMagic(val)  { this.filters.magic  = val; this.page = 0; this.applyFilters(); },
+            setSubcat(val) { this.filters.subcat  = val; this.page = 0; this.applyFilters(); },
+            setColor(val)  { this.filters.color   = val; this.page = 0; this.applyFilters(); },
+            setMaterial(val){ this.filters.material = val; this.page = 0; this.applyFilters(); },
+
+            applyFilters() {
+                const pool = this.getPool();
+                const { search, magic, subcat, color, material } = this.filters;
+                this.filtered = pool.filter(ic => {
+                    const a = ic.analysis || {};
+                    if (magic === 'magic'  && !a.magical_fx) return false;
+                    if (magic === 'normal' &&  a.magical_fx) return false;
+                    if (subcat && a.subcategory_guess !== subcat) return false;
+                    if (color && a.colors?.dominant !== color) return false;
+                    if (material && !(a.materials||[]).includes(material)) return false;
+                    if (search) {
+                        const hay = [
+                            ic.display_name||'', a.object_type||'', a.object_subtype||'',
+                            a.subcategory_guess||'', a.category_guess||'',
+                            (a.keywords||[]).join(' '), a.visual_description||''
+                        ].join(' ').toLowerCase();
+                        if (!hay.includes(search)) return false;
+                    }
+                    return true;
+                });
+                const el = document.getElementById('ikStatFiltered');
+                if (el) el.textContent = this.filtered.length;
+                this.renderGrid();
+            },
+
+            renderGrid() {
+                const grid = document.getElementById('ikGrid');
+                if (!grid) return;
+
+                if (!this.filtered.length) {
+                    grid.innerHTML = '<div class="ik-empty" style="grid-column:1/-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;margin:0 auto 12px;display:block;opacity:0.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>Keine Icons gefunden</p></div>';
+                    const pag = document.getElementById('ikPagination');
+                    if (pag) pag.style.display = 'none';
+                    return;
+                }
+
+                const start = this.page * this.PAGE_SIZE;
+                const slice = this.filtered.slice(start, start + this.PAGE_SIZE);
+                grid.innerHTML = slice.map((ic, i) => this.cardHTML(ic, start + i)).join('');
+
+                const totalPages = Math.ceil(this.filtered.length / this.PAGE_SIZE);
+                const pag = document.getElementById('ikPagination');
+                if (pag) pag.style.display = totalPages > 1 ? 'flex' : 'none';
+                const pi = document.getElementById('ikPageInfo');
+                if (pi) pi.textContent = `Seite ${this.page+1} / ${totalPages} — ${this.filtered.length.toLocaleString()} Icons`;
+                const prev = document.getElementById('ikPrevBtn');
+                const next = document.getElementById('ikNextBtn');
+                if (prev) prev.disabled = this.page === 0;
+                if (next) next.disabled = this.page >= totalPages - 1;
+            },
+
+            cardHTML(ic, idx) {
+                const a = ic.analysis || {};
+                const magic = a.magical_fx ? '<div class="ik-card__magic" title="Magisch"></div>' : '';
+                const sub = a.subcategory_guess || a.object_type || '';
+                const thumb = ic.cloudinary_url.replace('/upload/', '/upload/w_96,h_96,c_fit/');
+                const name = (ic.display_name || ic.public_id).replace(/_/g, ' ');
+                return `<div class="ik-card" onclick="IconKatalog.openDetail(${idx})" title="${name}">
+                    ${magic}
+                    <img src="${thumb}" alt="${name}" loading="lazy" onerror="this.src='/assets/icons/icon_rift_r.svg'">
+                    <div class="ik-card__name">${name}</div>
+                    ${sub ? `<div class="ik-card__sub">${sub}</div>` : ''}
+                </div>`;
+            },
+
+            prevPage() {
+                if (this.page > 0) { this.page--; this.renderGrid(); document.getElementById('page-iconKatalog')?.scrollIntoView({behavior:'smooth'}); }
+            },
+            nextPage() {
+                const tot = Math.ceil(this.filtered.length / this.PAGE_SIZE);
+                if (this.page < tot-1) { this.page++; this.renderGrid(); document.getElementById('page-iconKatalog')?.scrollIntoView({behavior:'smooth'}); }
+            },
+
+            openDetail(idx) {
+                const ic = this.filtered[idx];
+                if (!ic) return;
+                const a = ic.analysis || {};
+                const name = (ic.display_name || ic.public_id).replace(/_/g, ' ');
+                const kws = (a.keywords || []).map(k => `<span class="ik-kw">${k}</span>`).join('');
+                const mats = (a.materials || []).join(', ') || '—';
+                const colors = a.colors ? [a.colors.dominant, a.colors.accent, a.colors.glow_or_fx].filter(c => c && c !== 'none').join(' / ') : '—';
+                const magicTag = a.magical_fx ? '<span class="ik-kw ik-tag-magic">✨ Magisch</span>' : '<span class="ik-kw">Normal</span>';
+                const urlEsc = ic.cloudinary_url.replace(/'/g, "\'");
+                const idEsc  = ic.public_id.replace(/'/g, "\'");
+
+                const catLabel = { weapons:'Waffe', armor:'Rüstung', spells:'Zauber', resources:'Ressource', skills:'Skill' }[ic._cat] || ic._cat;
+
+                const html = `<div class="ik-modal-overlay" id="ikModal" onclick="if(event.target===this)IconKatalog.closeDetail()">
+                    <div class="ik-modal">
+                        <div class="ik-modal__head">
+                            <img class="ik-modal__thumb" src="${ic.cloudinary_url}" alt="${name}">
+                            <div style="flex:1;min-width:0">
+                                <div class="ik-modal__title">${name}</div>
+                                <div class="ik-modal__meta">${ic.asset_folder} &bull; ${ic.width}×${ic.height}px &bull; ${catLabel}</div>
+                                <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+                                    ${magicTag}
+                                    ${a.category_guess ? `<span class="ik-kw">${a.category_guess}</span>` : ''}
+                                    ${a.style ? `<span class="ik-kw" style="opacity:0.6">${a.style}</span>` : ''}
+                                </div>
+                            </div>
+                            <button class="ik-modal__close" onclick="IconKatalog.closeDetail()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        <div class="ik-modal__body">
+                            <div class="ik-detail-grid">
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Objekt-Typ</div>
+                                    <div class="ik-detail-val">${a.object_type||'—'} / ${a.object_subtype||'—'}</div>
+                                </div>
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Subkategorie</div>
+                                    <div class="ik-detail-val">${a.subcategory_guess||'—'}</div>
+                                </div>
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Materialien</div>
+                                    <div class="ik-detail-val">${mats}</div>
+                                </div>
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Farben</div>
+                                    <div class="ik-detail-val">${colors}</div>
+                                </div>
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Zustand</div>
+                                    <div class="ik-detail-val">${a.condition||'—'}</div>
+                                </div>
+                                <div class="ik-detail-row">
+                                    <div class="ik-detail-label">Public ID</div>
+                                    <div class="ik-detail-val" style="font-family:monospace;font-size:11px;word-break:break-all">${ic.public_id}</div>
+                                </div>
+                                <div class="ik-detail-row" style="grid-column:1/-1">
+                                    <div class="ik-detail-label">Beschreibung</div>
+                                    <div class="ik-detail-val" style="font-size:12px;line-height:1.6;color:var(--text-muted)">${a.visual_description||'—'}</div>
+                                </div>
+                                <div class="ik-detail-row" style="grid-column:1/-1">
+                                    <div class="ik-detail-label">RPG-Kontext</div>
+                                    <div class="ik-detail-val" style="font-size:12px;line-height:1.6;color:var(--text-muted)">${a.rpg_context||'—'}</div>
+                                </div>
+                                ${a['NOT'] ? `<div class="ik-detail-row" style="grid-column:1/-1">
+                                    <div class="ik-detail-label">NICHT (Verwechslungsgefahr)</div>
+                                    <div class="ik-detail-val" style="font-size:11px;color:var(--text-muted)">${a['NOT']}</div>
+                                </div>` : ''}
+                            </div>
+                            ${kws ? `<div><div class="ik-detail-label" style="margin-bottom:8px">Keywords</div><div class="ik-keywords">${kws}</div></div>` : ''}
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)">
+                                <button class="ik-copy-btn" onclick="navigator.clipboard.writeText('${urlEsc}').then(()=>{this.textContent='✓ Kopiert';setTimeout(()=>this.textContent='URL kopieren',1500)})">URL kopieren</button>
+                                <button class="ik-copy-btn" onclick="navigator.clipboard.writeText('${idEsc}').then(()=>{this.textContent='✓ Kopiert';setTimeout(()=>this.textContent='ID kopieren',1500)})">ID kopieren</button>
+                                <a href="${ic.cloudinary_url}" target="_blank" class="ik-copy-btn" style="text-decoration:none">In Cloudinary öffnen ↗</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+                const existing = document.getElementById('ikModal');
+                if (existing) existing.remove();
+                document.body.insertAdjacentHTML('beforeend', html);
+            },
+
+            closeDetail() {
+                const m = document.getElementById('ikModal');
+                if (m) m.remove();
+            },
+
+            setGridLoading(msg) {
+                const grid = document.getElementById('ikGrid');
+                if (grid) grid.innerHTML = `<div class="ik-loading" style="grid-column:1/-1"><div class="loading-spinner"></div><p>${msg}</p></div>`;
+            }
+        };
+
+
+        const DndDb = (() => {
         // ── Config ──────────────────────────────────────────────────
         const CLOUD = 'dza4jgreq';
         const CLOUD_URL = (id) => `https://res.cloudinary.com/${CLOUD}/image/upload/w_128,h_128,c_fill/${id}.png`;
@@ -9521,90 +9889,158 @@
             state.editData = null;
         }
 
-        // Skip internal fields and build a form for all other fields
-        const SKIP_FIELDS = ['_docId', 'icon_url']; // handled separately
-        const TEXTAREA_FIELDS = ['description', 'higher_level', 'features', 'trait', 'equipment_desc', 'background_feature'];
-        const READONLY_FIELDS = ['id', 'analyzed_at', 'created_at'];
+        // ── Field config per category ────────────────────────────────────
+        // PRIMARY: always shown editable
+        // SECONDARY: shown in collapsible "Weitere Felder"
+        // READONLY: shown greyed out, not editable
+        // SKIP: never shown (icon handled separately, internal fields)
+
+        const FIELD_CONFIG = {
+            _default: {
+                primary:   ['name_en','name_de','source','source_title','description'],
+                secondary: [],
+                readonly:  ['id'],
+                skip:      ['_docId','icon_url','icon_id'],
+            },
+            spells: {
+                primary:   ['name_en','name_de','source_title','level','school','casting_time','range','components','material','duration','concentration','ritual','classes','description','higher_level'],
+                secondary: [],
+                readonly:  ['id','source'],
+                skip:      ['_docId','icon_url','icon_id','category'],
+            },
+            monsters: {
+                primary:   ['name_en','name_de','source_title','type','subtype','size','alignment','cr','hp','hit_dice','ac','speed','description'],
+                secondary: ['str','dex','con','int','wis','cha','xp','skills','senses','languages','damage_resistances','damage_immunities','damage_vulnerabilities','condition_immunities','special_abilities','actions','legendary_actions','reactions','environments'],
+                readonly:  ['id','source'],
+                skip:      ['_docId','icon_url','icon_id','img','category'],
+            },
+            magic_items: {
+                primary:   ['name_en','name_de','source_title','type','rarity','description'],
+                secondary: ['requires_attunement','weight','cost'],
+                readonly:  ['id','source'],
+                skip:      ['_docId','icon_url','icon_id','category'],
+            },
+            weapons: {
+                primary:   ['name_en','name_de','source_title','damage','damage_type','weapon_range','properties','weight','cost','description'],
+                secondary: [],
+                readonly:  ['id','source'],
+                skip:      ['_docId','icon_url','icon_id','category'],
+            },
+            feats: {
+                primary:   ['name_en','source_title','category','prerequisite','description'],
+                secondary: [],
+                readonly:  ['id','source'],
+                skip:      ['_docId','icon_url','icon_id'],
+            },
+            invocations: {
+                primary:   ['name_en','source_title','type','description'],
+                secondary: [],
+                readonly:  ['id','source'],
+                skip:      ['_docId','icon_url','icon_id'],
+            },
+        };
+
+        const TEXTAREA_FIELDS = ['description','higher_level','special_abilities','actions','legendary_actions','reactions','features'];
 
         function _buildEditFields(entry) {
             const container = document.getElementById('dndEditFields');
             if (!container) return;
 
-            const fields = Object.keys(entry).filter(k => !SKIP_FIELDS.includes(k));
+            const cfg = FIELD_CONFIG[state.cat] || FIELD_CONFIG._default;
+            const { primary, secondary, readonly: ro, skip } = cfg;
 
-            // Group: core text fields first, then arrays, then misc
-            const ordered = [
-                'name_en','name_de','source','source_title','level','school','type','category',
-                'rarity','casting_time','range','components','material','duration','concentration',
-                'ritual','classes','damage','description','higher_level','prerequisite',
-                ...fields.filter(k => ![
-                    'name_en','name_de','source','source_title','level','school','type','category',
-                    'rarity','casting_time','range','components','material','duration','concentration',
-                    'ritual','classes','damage','description','higher_level','prerequisite',
-                    '_docId','icon_url','icon_id'
-                ].includes(k))
-            ].filter(k => fields.includes(k));
+            // All fields not in skip
+            const allFields = Object.keys(entry).filter(k => !skip.includes(k));
 
-            container.innerHTML = ordered.map(key => {
+            // Fields not covered by primary/secondary/readonly → add to secondary
+            const covered = new Set([...primary, ...secondary, ...ro]);
+            const leftover = allFields.filter(k => !covered.has(k));
+            const fullSecondary = [...secondary, ...leftover];
+
+            function _renderField(key, isReadonly) {
                 const val = entry[key];
-                const isReadonly = READONLY_FIELDS.includes(key);
-                const label = key.replace(/_/g, ' ').replace(/\w/g, c => c.toUpperCase());
+                const label = key.replace(/_/g, ' ');
 
-                if (typeof val === 'boolean' || val === true || val === false) {
-                    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted)">
-                            <input type="checkbox" ${val ? 'checked' : ''} data-field="${key}"
-                                onchange="DndDb._editField('${key}', this.checked)"
-                                style="width:16px;height:16px;cursor:pointer">
-                            ${label}
-                        </label>
-                    </div>`;
+                if (typeof val === 'boolean') {
+                    return \`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted);margin-bottom:12px">
+                        <input type="checkbox" \${val ? 'checked' : ''} \${isReadonly ? 'disabled' : ''}
+                            onchange="DndDb._editField('\${key}', this.checked)"
+                            style="width:16px;height:16px;cursor:pointer">
+                        \${label}
+                    </label>\`;
                 }
-
                 if (Array.isArray(val)) {
-                    const strVal = val.join(', ');
-                    return `<div style="margin-bottom:12px">
-                        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">${label}</label>
-                        <input type="text" class="field__input" value="${_esc(strVal)}" data-field="${key}"
-                            placeholder="Komma-getrennt" ${isReadonly ? 'readonly style="opacity:0.5"' : ''}
-                            oninput="DndDb._editField('${key}', this.value.split(',').map(s=>s.trim()).filter(Boolean))">
-                    </div>`;
+                    return \`<div style="margin-bottom:12px">
+                        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">\${label}</label>
+                        <input type="text" class="field__input" value="\${_esc(val.join(', '))}"
+                            \${isReadonly ? 'readonly style="opacity:0.5"' : ''}
+                            placeholder="Komma-getrennt"
+                            oninput="DndDb._editField('\${key}', this.value.split(',').map(s=>s.trim()).filter(Boolean))">
+                    </div>\`;
                 }
-
                 if (TEXTAREA_FIELDS.includes(key)) {
-                    return `<div style="margin-bottom:12px">
-                        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">${label}</label>
-                        <textarea class="field__input" rows="4" data-field="${key}"
-                            style="resize:vertical;font-family:inherit" ${isReadonly ? 'readonly style="opacity:0.5"' : ''}
-                            oninput="DndDb._editField('${key}', this.value)">${_esc(val ?? '')}</textarea>
-                    </div>`;
+                    return \`<div style="margin-bottom:12px">
+                        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">\${label}</label>
+                        <textarea class="field__input" rows="5" style="resize:vertical;font-family:inherit;line-height:1.5"
+                            \${isReadonly ? 'readonly style="opacity:0.5"' : ''}
+                            oninput="DndDb._editField('\${key}', this.value)">\${_esc(val ?? '')}</textarea>
+                    </div>\`;
                 }
-
-                // Number
                 if (typeof val === 'number') {
-                    return `<div style="margin-bottom:12px">
-                        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">${label}</label>
-                        <input type="number" class="field__input" value="${val}" data-field="${key}"
-                            ${isReadonly ? 'readonly style="opacity:0.5"' : ''}
-                            oninput="DndDb._editField('${key}', Number(this.value))">
-                    </div>`;
+                    return \`<div style="margin-bottom:12px">
+                        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">\${label}</label>
+                        <input type="number" class="field__input" value="\${val}"
+                            \${isReadonly ? 'readonly style="opacity:0.5"' : ''}
+                            oninput="DndDb._editField('\${key}', Number(this.value))">
+                    </div>\`;
                 }
+                return \`<div style="margin-bottom:12px">
+                    <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">\${label}</label>
+                    <input type="text" class="field__input" value="\${_esc(val ?? '')}"
+                        \${isReadonly ? 'readonly style="opacity:0.5"' : ''}
+                        oninput="DndDb._editField('\${key}', this.value)">
+                </div>\`;
+            }
 
-                // Default: text
-                return `<div style="margin-bottom:12px">
-                    <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">${label}</label>
-                    <input type="text" class="field__input" value="${_esc(val ?? '')}" data-field="${key}"
-                        ${isReadonly ? 'readonly style="opacity:0.5"' : ''}
-                        oninput="DndDb._editField('${key}', this.value)">
-                </div>`;
-            }).join('');
+            let html = '';
+
+            // Primary fields (always visible, 2-col grid where possible)
+            const primFiltered = primary.filter(k => allFields.includes(k));
+            if (primFiltered.length) {
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">';
+                primFiltered.forEach(key => {
+                    const isWide = TEXTAREA_FIELDS.includes(key) || key === 'classes' || key === 'description';
+                    if (isWide) html += '</div><div>';
+                    html += _renderField(key, ro.includes(key));
+                    if (isWide) html += '</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">';
+                });
+                html += '</div>';
+            }
+
+            // Readonly fields
+            const roFiltered = ro.filter(k => allFields.includes(k));
+            if (roFiltered.length) {
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">';
+                roFiltered.forEach(key => { html += _renderField(key, true); });
+                html += '</div>';
+            }
+
+            // Secondary fields (collapsible)
+            const secFiltered = fullSecondary.filter(k => allFields.includes(k));
+            if (secFiltered.length) {
+                html += \`<details style="margin-top:8px">
+                    <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);padding:8px 0;user-select:none;border-top:1px solid var(--border)">
+                        Weitere Felder (\${secFiltered.length})
+                    </summary>
+                    <div style="padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:0 16px">\`;
+                secFiltered.forEach(key => { html += _renderField(key, false); });
+                html += '</div></details>';
+            }
+
+            container.innerHTML = html;
         }
 
-        function _editField(key, value) {
-            if (state.editData) state.editData[key] = value;
-        }
-
-        function _esc(str) {
+        function _esc(str) {        function _esc(str) {
             return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
 
@@ -9806,6 +10242,7 @@
                 const orig = window.switchTab;
                 window.switchTab = function(tab, ...args) {
                     orig.call(this, tab, ...args);
+                    if (tab === 'iconKatalog') IconKatalog.init();
                     if (tab === 'dndDb') init();
                 };
             } else {
