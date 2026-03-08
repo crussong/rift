@@ -8,6 +8,63 @@
 (function() {
 'use strict';
 
+// ===== DB LOADER =====
+// Replaces hardcoded SRD_SPELLS and CLASS_FEATS with live JSON data
+const WizardDB = {
+    spells: null,
+    feats: null,
+    _loading: null,
+
+    async load() {
+        if (this.spells && this.feats) return;
+        if (this._loading) return this._loading;
+        this._loading = Promise.all([
+            fetch('/assets/data/dnd/dnd-spells.json').then(r => r.json()),
+            fetch('/assets/data/dnd/dnd-feats-2024.json').then(r => r.json())
+        ]).then(([spells, feats]) => {
+            this.spells = spells;
+            this.feats  = feats;
+        }).catch(err => {
+            console.warn('[WizardDB] Fallback auf SRD_SPELLS_LEGACY:', err);
+        });
+        return this._loading;
+    },
+
+    getSpells(level, cls) {
+        const src = this.spells || SRD_SPELLS_LEGACY;
+        return src.filter(s => {
+            const l = s.level ?? 0;
+            const classes = s.classes || [];
+            return l === level && classes.some(c =>
+                c === cls || c.toLowerCase() === cls.toLowerCase()
+            );
+        }).map(s => this._norm(s));
+    },
+
+    _norm(s) {
+        if (s._n) return s;
+        return {
+            _n: true,
+            name:    s.name_en || s.name || '',
+            level:   s.level ?? 0,
+            school:  s.school || '',
+            time:    s.casting_time || s.time || 'Action',
+            range:   s.range || '',
+            components: s.components || '',
+            duration:   s.duration || '',
+            conc:    s.concentration ?? s.conc ?? false,
+            ritual:  s.ritual ?? false,
+            classes: s.classes || [],
+            description: s.description || '',
+            damage:  s.damage || '\u2014',
+            source:  s.source || '',
+        };
+    },
+
+    getFeats() { return this.feats || []; }
+};
+
+
 // ═══════════════════════════════════════════════════════
 // SHARED DATA CONSTANTS
 // ═══════════════════════════════════════════════════════
@@ -63,7 +120,7 @@ const SUBCLASSES = {
 // Character data - starts EMPTY
 
 // ═══ SRD SPELL DATABASE ═══
-const SRD_SPELLS = [
+const SRD_SPELLS_LEGACY = [
     // === CANTRIPS (Level 0) ===
     { name: 'Acid Splash', level: 0, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '1d6 acid', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
     { name: 'Chill Touch', level: 0, school: 'Necromancy', time: 'Action', range: '120 ft', damage: '1d8 necrotic', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
@@ -775,6 +832,7 @@ function term(en) { return TERM_DE[en] || en; }
 // ═══════════════════════════════════════════════════════
 function openWizard() {
     wizardStep = 1;
+    WizardDB.load(); // preload DB in background
     wizardData.name = '';
     wizardData.level = 1;
     wizardData.species = '';
@@ -868,9 +926,9 @@ function updateWizardStep() {
     }
     if (wizardStep === 7) populateWizardAppearance();
     if (wizardStep === 8) updateWizardPrimaryStat();
-    if (wizardStep === 9) { populateWizardProficiencies(); populateWizardFeats(); }
+    if (wizardStep === 9) { WizardDB.load().then(() => { populateWizardProficiencies(); populateWizardFeats(); }); }
     if (wizardStep === 10) populateWizardEquipment();
-    if (wizardStep === 11) populateWizardSpells();
+    if (wizardStep === 11) { WizardDB.load().then(() => populateWizardSpells()); }
     if (wizardStep === 13) populateWizardSummary();
     
     updateWizardTrail();
@@ -1021,7 +1079,7 @@ function populateWizardAppearance() {
 }
 
 // ===== STEP 9: Spells & Cantrips =====
-const CLASS_FEATS = {
+const CLASS_FEATS_LEGACY = {
     'Barbarian': [
         { name:'Großwaffenmeister', desc:'Schwere Waffe: -5 Angriff, +10 Schaden' },
         { name:'Zäher Kerl', desc:'+2 KON (max 20), Trefferwürfel heilen min. 2×KON-Mod' },
@@ -1364,15 +1422,32 @@ document.addEventListener('click', (e) => {
 });
 
 function populateWizardFeats() {
-    const cls = wizardData.class || '';
-    const feats = CLASS_FEATS[cls] || [];
     const grid = document.getElementById('wizardFeatGrid');
     if (!grid) return;
-    grid.innerHTML = feats.map(f => {
-        const sel = (wizardData.selectedFeats || []).includes(f.name) ? ' selected' : '';
-        return `<div class="wizard-spell-item${sel}" data-feat="${f.name}" onclick="toggleWizardFeat(this)" title="${f.name}: ${f.desc}">
-            <div class="wizard-spell-item-name">${f.name}</div>
-            <div class="wizard-spell-item-info" style="flex:2;">${f.desc}</div>
+
+    const allFeats = WizardDB.getFeats();
+    if (!allFeats.length) {
+        grid.innerHTML = '<div style="text-align:center;padding:30px 0;opacity:0.5">Feats werden geladen…</div>';
+        return;
+    }
+
+    // General feats + feats whose prerequisite doesn't hard-require another class
+    const displayFeats = allFeats.filter(f => {
+        const cat = (f.category || '').toLowerCase();
+        return cat === 'general' || cat === 'fighting style' || cat === 'epic boon' || !f.category;
+    });
+
+    grid.innerHTML = displayFeats.map(f => {
+        const sel = (wizardData.selectedFeats || []).includes(f.name_en) ? ' selected' : '';
+        const prereq = f.prerequisite ? `<span style="font-size:10px;opacity:0.5;margin-left:4px;">(${f.prerequisite})</span>` : '';
+        const desc = (f.description || '').slice(0, 120) + ((f.description || '').length > 120 ? '…' : '');
+        const catBadge = f.category ? `<span style="font-size:9px;text-transform:uppercase;opacity:0.5;letter-spacing:1px;">${f.category}</span>` : '';
+        return `<div class="wizard-spell-item${sel}" data-feat="${f.name_en}" onclick="toggleWizardFeat(this)" title="${(f.description||'').replace(/"/g,"'")}">
+            <div class="wizard-spell-item-name">${f.name_en}${prereq}</div>
+            <div style="display:flex;flex-direction:column;gap:2px;flex:2;">
+                ${catBadge}
+                <div class="wizard-spell-item-info">${desc}</div>
+            </div>
         </div>`;
     }).join('');
 }
@@ -1440,7 +1515,7 @@ function populateWizardSpells() {
     if (cantripCount > 0) {
         cantripSec.style.display = 'block';
         document.getElementById('wizardCantripCounter').textContent = `(Wähle ${cantripCount})`;
-        const cantrips = SRD_SPELLS.filter(s => s.level === 0 && s.classes.includes(cls));
+        const cantrips = WizardDB.getSpells(0, cls);
         const grid = document.getElementById('wizardCantripGrid');
         grid.innerHTML = cantrips.map(s => {
             const name = lang === 'de' ? (SPELLS_DE[s.name] || s.name) : s.name;
@@ -1465,7 +1540,7 @@ function populateWizardSpells() {
     }
     
     // Spells level 1
-    const level1 = SRD_SPELLS.filter(s => s.level === 1 && s.classes.includes(cls));
+    const level1 = WizardDB.getSpells(1, cls);
     if (level1.length > 0 && (spellsKnown || isPrepared)) {
         spellSec.style.display = 'block';
         let maxSpells = spellsKnown;
@@ -2562,7 +2637,8 @@ function applyWizardData() {
     const selectedSpellsList = d.selectedSpells || [];
 
     selectedCantrips.forEach(srdName => {
-        const spell = SRD_SPELLS.find(s => s.name === srdName);
+        const _rawSpell = (WizardDB.spells || SRD_SPELLS_LEGACY).find(s => (s.name_en || s.name) === srdName);
+        const spell = _rawSpell ? WizardDB._norm(_rawSpell) : null;
         if (!spell) return;
         const name = SPELLS_DE[spell.name] || spell.name;
         S.spells.push({
@@ -2573,7 +2649,8 @@ function applyWizardData() {
     });
 
     selectedSpellsList.forEach(srdName => {
-        const spell = SRD_SPELLS.find(s => s.name === srdName);
+        const _rawSpell = (WizardDB.spells || SRD_SPELLS_LEGACY).find(s => (s.name_en || s.name) === srdName);
+        const spell = _rawSpell ? WizardDB._norm(_rawSpell) : null;
         if (!spell) return;
         const name = SPELLS_DE[spell.name] || spell.name;
         S.spells.push({
@@ -2590,11 +2667,11 @@ function applyWizardData() {
     const selectedFeats = d.selectedFeats || [];
     if (selectedFeats.length > 0) {
         selectedFeats.forEach(fn => {
-            const allFeats = CLASS_FEATS[cls] || [];
-            const f = allFeats.find(x => x.name === fn);
+            const allFeats = WizardDB.getFeats();
+            const f = allFeats.find(x => (x.name_en || x.name) === fn);
             S.features.feats.push({
-                name: f ? f.name : fn,
-                desc: f ? f.desc : '',
+                name: f ? (f.name_en || f.name) : fn,
+                desc: f ? (f.description || '').slice(0, 200) : '',
                 note: 'Vorgemerkt ab Stufe 4'
             });
         });
