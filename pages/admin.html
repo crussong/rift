@@ -1491,7 +1491,16 @@
            ICON KATALOG
            ======================================== */
         .ik-cat-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
-        .ik-cat-btn {
+                .dnd-cat-btn {
+            padding: 12px 16px; background: none; border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted); font-size: 13px; font-weight: 600;
+            cursor: pointer; white-space: nowrap;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .dnd-cat-btn:hover { color: var(--text); }
+        .dnd-cat-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+.ik-cat-btn {
             padding:6px 14px; border-radius:20px; border:1px solid var(--border);
             background:var(--bg-input); color:var(--text-muted); font-size:12px;
             font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap;
@@ -4358,7 +4367,24 @@
                     <div class="stat-card"><div class="stat-card__label">Ohne Icon</div><div class="stat-card__value stat-card__value--green" id="dndDbStatNoIcon">0</div></div>
                 </div>
                 <div class="card" style="padding:0;margin-bottom:16px;overflow-x:auto">
-                    <div style="display:flex;min-width:max-content" id="dndDbCatBar"></div>
+                    <div style="display:flex;min-width:max-content" id="dndDbCatBar">
+                        <button class="dnd-cat-btn active" onclick="DndDb.loadCat('spells',this)">Spells</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('monsters',this)">Monsters</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('magic_items',this)">Magic Items</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('weapons',this)">Weapons</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('armor',this)">Armor</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('equipment',this)">Equipment</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('conditions',this)">Conditions</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('races',this)">Races</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('classes',this)">Classes</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('backgrounds',this)">Backgrounds</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('feats',this)">Feats</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('invocations',this)">Invocations</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('food_drink',this)">Food &amp; Drink</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('herbs_alchemy',this)">Herbs/Alchemy</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('materials',this)">Materials</button>
+                        <button class="dnd-cat-btn" onclick="DndDb.loadCat('misc_items',this)">Misc Items</button>
+                    </div>
                 </div>
                 <div class="card" style="padding:12px;margin-bottom:16px">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -10241,34 +10267,15 @@
                       iconCatalog:{}, pickerCat:'weapons', pickerFiltered:[] };
 
             function init() {
-                const bar = document.getElementById('dndDbCatBar');
-                if (!bar) return;
-                if (bar.dataset.built) {
-                    // already built - if no cat loaded yet, load first
-                    if (!S.cat) loadCat(CATEGORIES[0].id);
-                    return;
-                }
-                bar.dataset.built = '1';
-                bar.innerHTML = CATEGORIES.map(c =>
-                    '<button onclick="DndDb.loadCat(\'' + c.id + '\')" id="dndCatBtn_' + c.id + '"'
-                    + ' style="padding:12px 16px;background:none;border:none;border-bottom:2px solid transparent;'
-                    + 'color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">'
-                    + c.label + '</button>'
-                ).join('');
-                loadCat(CATEGORIES[0].id);
+                if (!S.cat) loadCat('spells');
             }
 
-            async function loadCat(catId) {
+            async function loadCat(catId, btn) {
                 const cat = CATEGORIES.find(c => c.id === catId);
                 if (!cat) return;
                 S.cat = catId; S.page = 0; S.entries = []; S.filtered = [];
-                CATEGORIES.forEach(c => {
-                    const b = document.getElementById('dndCatBtn_' + c.id);
-                    if (!b) return;
-                    const on = c.id === catId;
-                    b.style.borderBottomColor = on ? 'var(--accent)' : 'transparent';
-                    b.style.color = on ? 'var(--text)' : 'var(--text-muted)';
-                });
+                document.querySelectorAll('.dnd-cat-btn').forEach(b => b.classList.remove('active'));
+                if (btn) btn.classList.add('active');
                 document.getElementById('dndDbStatCat').textContent = cat.label;
                 document.getElementById('dndDbTbody').innerHTML =
                     '<tr><td colspan="5" style="text-align:center;padding:60px;color:var(--text-muted)">'
