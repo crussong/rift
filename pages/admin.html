@@ -9378,6 +9378,7 @@
             state.page = 0;
             _updateStats();
             _renderTable();
+            _bindTableClicks();
             _renderPagination();
         }
 
@@ -9435,7 +9436,7 @@
                     <td style="padding:8px 14px;color:var(--text-muted);font-size:12px">${src}</td>
                     <td style="padding:8px 14px;color:var(--text-muted);font-size:12px">${type}</td>
                     <td style="padding:8px 14px;text-align:right">
-                        <button onclick="DndDb.openEdit('${e._docId}')"
+                        <button class="dnd-edit-btn" data-docid="${e._docId.replace(/"/g,'&quot;')}"
                             style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text-muted);cursor:pointer;font-size:12px;transition:all 0.1s"
                             onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
                             onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
@@ -9444,6 +9445,19 @@
                     </td>
                 </tr>`;
             }).join('');
+        }
+
+        // Event delegation — handles any docId safely
+        function _bindTableClicks() {
+            const tbody = document.getElementById('dndDbTbody');
+            if (!tbody || tbody._dndBound) return;
+            tbody._dndBound = true;
+            tbody.addEventListener('click', (e) => {
+                const btn = e.target.closest('.dnd-edit-btn');
+                if (!btn) return;
+                const docId = btn.getAttribute('data-docid');
+                if (docId) openEdit(docId);
+            });
         }
 
         function _renderPagination() {
@@ -9479,8 +9493,12 @@
 
         // ── Edit Modal ───────────────────────────────────────────────
         function openEdit(docId) {
+            console.log('[DndDb] openEdit:', docId, 'entries:', state.entries.length);
             const entry = state.entries.find(e => e._docId === docId);
-            if (!entry) return;
+            if (!entry) {
+                console.warn('[DndDb] Entry not found for docId:', docId);
+                return;
+            }
             state.editId = docId;
             state.editData = JSON.parse(JSON.stringify(entry)); // deep clone
 
