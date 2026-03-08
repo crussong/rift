@@ -4373,6 +4373,8 @@
                         <button class="ik-cat-btn" data-cat="races" onclick="DndDB.setCat('races',this)">🧝 Rassen <span id="dndCntRaces" style="opacity:.6"></span></button>
                         <button class="ik-cat-btn" data-cat="classes" onclick="DndDB.setCat('classes',this)">⚔ Klassen <span id="dndCntClasses" style="opacity:.6"></span></button>
                         <button class="ik-cat-btn" data-cat="backgrounds" onclick="DndDB.setCat('backgrounds',this)">📜 Backgrounds <span id="dndCntBackgrounds" style="opacity:.6"></span></button>
+                        <button class="ik-cat-btn" data-cat="feats" onclick="DndDB.setCat('feats',this)">🏅 Feats <span id="dndCntFeats" style="opacity:.6"></span></button>
+                        <button class="ik-cat-btn" data-cat="invocations" onclick="DndDB.setCat('invocations',this)">🔮 Invocations <span id="dndCntInvocations" style="opacity:.6"></span></button>
                     </div>
                     <!-- Filters -->
                     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -9671,6 +9673,8 @@
                 races:         '/assets/data/dnd/dnd-races.json',
                 classes:       '/assets/data/dnd/dnd-classes.json',
                 backgrounds:   '/assets/data/dnd/dnd-backgrounds.json',
+                feats:         '/assets/data/dnd/dnd-feats-2024.json',
+                invocations:   '/assets/data/dnd/dnd-invocations-2024.json',
                 monsters:      '/assets/data/dnd/dnd-monsters.json',
             },
 
@@ -9679,7 +9683,7 @@
                 weapons:'Waffe', armor:'Rüstung', equipment:'Equipment',
                 food_drink:'Food/Drink', herbs_alchemy:'Kräuter/Alch.', materials:'Material',
                 misc_items:'Misc', conditions:'Condition', races:'Rasse',
-                classes:'Klasse', backgrounds:'Background',
+                classes:'Klasse', backgrounds:'Background', feats:'Feat', invocations:'Invocation',
             },
 
             // Load a single file, returns {key, count} or throws
@@ -9915,7 +9919,7 @@
 
             rowHTML(e, idx) {
                 const cat = e._cat || e.category || '';
-                const badgeCls = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond'}[cat] || 'other';
+                const badgeCls = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond',feats:'feat',invocations:'invoc'}[cat] || 'other';
                 const catLabel = this.CAT_LABELS[cat] || cat;
                 let meta = '', extra = '';
                 if (cat==='monsters') {
@@ -9947,6 +9951,13 @@
                     meta = e.ac_base ? '<span class="dnd-detail-chip">AC ' + e.ac_base + '</span>' : '—';
                     if (e.cost)   extra += '<span class="dnd-detail-chip">' + e.cost + '</span>';
                     if (e.weight) extra += '<span class="dnd-detail-chip">' + e.weight + ' lb</span>';
+                } else if (cat==='feats') {
+                    meta = e.category ? '<span class="dnd-detail-chip">' + e.category + '</span>' : '—';
+                    if (e.prerequisite) extra += '<span class="dnd-detail-chip" style="color:var(--text-muted)">' + e.prerequisite.slice(0,40) + '</span>';
+                    else extra = '<span style="font-size:11px;color:var(--text-muted)">' + (e.description||'').slice(0,80) + '…</span>';
+                } else if (cat==='invocations') {
+                    meta = '<span class="dnd-detail-chip">Warlock</span>';
+                    extra = '<span style="font-size:11px;color:var(--text-muted)">' + (e.description||'').slice(0,80) + '…</span>';
                 } else {
                     const sub = e.type || e.school || e.category_main || e.subcategory || '';
                     meta = sub ? '<span class="dnd-detail-chip">' + sub + '</span>' : '—';
@@ -9974,7 +9985,7 @@
                 if (!e) return;
                 const cat = e._cat || e.category || '';
 
-                const badgeMap = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond'};
+                const badgeMap = {spells:'spell',monsters:'monster',magic_items:'magic',weapons:'weapon',armor:'armor',equipment:'equip',food_drink:'food',herbs_alchemy:'herb',materials:'material',misc_items:'misc',conditions:'cond',feats:'feat',invocations:'invoc'};
                 const badgeCls2 = badgeMap[cat] || 'other';
 
                 // Build fields
@@ -9993,6 +10004,8 @@
                 if (e.concentration) fields.push(['Concentration', '✓']);
                 if (e.ritual)        fields.push(['Ritual', '✓']);
                 if (e.classes && e.classes.length) fields.push(['Klassen', e.classes.join(', ')]);
+                if (e.category)      fields.push(['Kategorie', e.category]);
+                if (e.prerequisite)  fields.push(['Voraussetzung', e.prerequisite]);
                 if (e.rarity)        fields.push(['Seltenheit', e.rarity]);
                 if (e.attunement)    fields.push(['Attunement', e.attunement]);
                 if (e.damage)        fields.push(['Schaden', e.damage]);
