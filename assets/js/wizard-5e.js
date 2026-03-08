@@ -8,63 +8,6 @@
 (function() {
 'use strict';
 
-// ===== DB LOADER =====
-// Replaces hardcoded SRD_SPELLS and CLASS_FEATS with live JSON data
-const WizardDB = {
-    spells: null,
-    feats: null,
-    _loading: null,
-
-    async load() {
-        if (this.spells && this.feats) return;
-        if (this._loading) return this._loading;
-        this._loading = Promise.all([
-            fetch('/assets/data/dnd/dnd-spells.json').then(r => r.json()),
-            fetch('/assets/data/dnd/dnd-feats-2024.json').then(r => r.json())
-        ]).then(([spells, feats]) => {
-            this.spells = spells;
-            this.feats  = feats;
-        }).catch(err => {
-            console.warn('[WizardDB] Fallback auf SRD_SPELLS_LEGACY:', err);
-        });
-        return this._loading;
-    },
-
-    getSpells(level, cls) {
-        const src = this.spells || SRD_SPELLS_LEGACY;
-        return src.filter(s => {
-            const l = s.level ?? 0;
-            const classes = s.classes || [];
-            return l === level && classes.some(c =>
-                c === cls || c.toLowerCase() === cls.toLowerCase()
-            );
-        }).map(s => this._norm(s));
-    },
-
-    _norm(s) {
-        if (s._n) return s;
-        return {
-            _n: true,
-            name:    s.name_en || s.name || '',
-            level:   s.level ?? 0,
-            school:  s.school || '',
-            time:    s.casting_time || s.time || 'Action',
-            range:   s.range || '',
-            components: s.components || '',
-            duration:   s.duration || '',
-            conc:    s.concentration ?? s.conc ?? false,
-            ritual:  s.ritual ?? false,
-            classes: s.classes || [],
-            description: s.description || '',
-            damage:  s.damage || '\u2014',
-            source:  s.source || '',
-        };
-    },
-
-    getFeats() { return this.feats || []; }
-};
-
-
 // ═══════════════════════════════════════════════════════
 // SHARED DATA CONSTANTS
 // ═══════════════════════════════════════════════════════
@@ -120,251 +63,19 @@ const SUBCLASSES = {
 // Character data - starts EMPTY
 
 // ═══ SRD SPELL DATABASE ═══
-const SRD_SPELLS_LEGACY = [
-    // === CANTRIPS (Level 0) ===
+// ═══ SRD SPELL DATABASE ═══
+// Starts with a small built-in set; replaced by DndData (Firestore) when loaded.
+let SRD_SPELLS = [
     { name: 'Acid Splash', level: 0, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '1d6 acid', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Chill Touch', level: 0, school: 'Necromancy', time: 'Action', range: '120 ft', damage: '1d8 necrotic', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Dancing Lights', level: 0, school: 'Evocation', time: 'Action', range: '120 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Druidcraft', level: 0, school: 'Transmutation', time: 'Action', range: '30 ft', damage: '—', classes: ['Druid'], conc: false, ritual: false },
     { name: 'Eldritch Blast', level: 0, school: 'Evocation', time: 'Action', range: '120 ft', damage: '1d10 force', classes: ['Warlock'], conc: false, ritual: false },
     { name: 'Fire Bolt', level: 0, school: 'Evocation', time: 'Action', range: '120 ft', damage: '1d10 fire', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Guidance', level: 0, school: 'Divination', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Druid'], conc: true, ritual: false },
-    { name: 'Light', level: 0, school: 'Evocation', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
     { name: 'Mage Hand', level: 0, school: 'Conjuration', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Mending', level: 0, school: 'Transmutation', time: '1 Minute', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Message', level: 0, school: 'Transmutation', time: 'Action', range: '120 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Minor Illusion', level: 0, school: 'Illusion', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Poison Spray', level: 0, school: 'Conjuration', time: 'Action', range: '10 ft', damage: '1d12 poison', classes: ['Druid', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
     { name: 'Prestidigitation', level: 0, school: 'Transmutation', time: 'Action', range: '10 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Produce Flame', level: 0, school: 'Conjuration', time: 'Action', range: '30 ft', damage: '1d8 fire', classes: ['Druid'], conc: false, ritual: false },
-    { name: 'Ray of Frost', level: 0, school: 'Evocation', time: 'Action', range: '60 ft', damage: '1d8 cold', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Resistance', level: 0, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Druid'], conc: true, ritual: false },
-    { name: 'Sacred Flame', level: 0, school: 'Evocation', time: 'Action', range: '60 ft', damage: '1d8 radiant', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Shillelagh', level: 0, school: 'Transmutation', time: 'Bonus Action', range: 'Touch', damage: '1d8 bludgeoning', classes: ['Druid'], conc: false, ritual: false },
-    { name: 'Shocking Grasp', level: 0, school: 'Evocation', time: 'Action', range: 'Touch', damage: '1d8 lightning', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Spare the Dying', level: 0, school: 'Necromancy', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Thaumaturgy', level: 0, school: 'Transmutation', time: 'Action', range: '30 ft', damage: '—', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'True Strike', level: 0, school: 'Divination', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Vicious Mockery', level: 0, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '1d4 psychic', classes: ['Bard'], conc: false, ritual: false },
-    
-    // === 1ST LEVEL ===
-    { name: 'Alarm', level: 1, school: 'Abjuration', time: '1 Minute', range: '30 ft', damage: '—', classes: ['Ranger', 'Wizard'], conc: false, ritual: true },
-    { name: 'Animal Friendship', level: 1, school: 'Enchantment', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Druid', 'Ranger'], conc: false, ritual: false },
-    { name: 'Bane', level: 1, school: 'Enchantment', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Cleric'], conc: true, ritual: false },
-    { name: 'Bless', level: 1, school: 'Enchantment', time: 'Action', range: '30 ft', damage: '—', classes: ['Cleric', 'Paladin'], conc: true, ritual: false },
-    { name: 'Burning Hands', level: 1, school: 'Evocation', time: 'Action', range: 'Self (15 ft cone)', damage: '3d6 fire', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Charm Person', level: 1, school: 'Enchantment', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Druid', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Color Spray', level: 1, school: 'Illusion', time: 'Action', range: 'Self (15 ft cone)', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Command', level: 1, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Cleric', 'Paladin'], conc: false, ritual: false },
-    { name: 'Comprehend Languages', level: 1, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: true },
-    { name: 'Cure Wounds', level: 1, school: 'Evocation', time: 'Action', range: 'Touch', damage: '1d8 healing', classes: ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger'], conc: false, ritual: false },
-    { name: 'Detect Evil and Good', level: 1, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Cleric', 'Paladin'], conc: true, ritual: false },
-    { name: 'Detect Magic', level: 1, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Sorcerer', 'Wizard'], conc: true, ritual: true },
-    { name: 'Detect Poison and Disease', level: 1, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Cleric', 'Druid', 'Paladin', 'Ranger'], conc: true, ritual: true },
-    { name: 'Disguise Self', level: 1, school: 'Illusion', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Divine Favor', level: 1, school: 'Evocation', time: 'Bonus Action', range: 'Self', damage: '+1d4 radiant', classes: ['Paladin'], conc: true, ritual: false },
-    { name: 'Entangle', level: 1, school: 'Conjuration', time: 'Action', range: '90 ft', damage: '—', classes: ['Druid'], conc: true, ritual: false },
-    { name: 'Expeditious Retreat', level: 1, school: 'Transmutation', time: 'Bonus Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Faerie Fire', level: 1, school: 'Evocation', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Druid'], conc: true, ritual: false },
-    { name: 'False Life', level: 1, school: 'Necromancy', time: 'Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Feather Fall', level: 1, school: 'Transmutation', time: 'Reaction', range: '60 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Find Familiar', level: 1, school: 'Conjuration', time: '1 Hour', range: '10 ft', damage: '—', classes: ['Wizard'], conc: false, ritual: true },
-    { name: 'Fog Cloud', level: 1, school: 'Conjuration', time: 'Action', range: '120 ft', damage: '—', classes: ['Druid', 'Ranger', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Goodberry', level: 1, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Druid', 'Ranger'], conc: false, ritual: false },
-    { name: 'Grease', level: 1, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '—', classes: ['Wizard'], conc: false, ritual: false },
-    { name: 'Guiding Bolt', level: 1, school: 'Evocation', time: 'Action', range: '120 ft', damage: '4d6 radiant', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Healing Word', level: 1, school: 'Evocation', time: 'Bonus Action', range: '60 ft', damage: '1d4 healing', classes: ['Bard', 'Cleric', 'Druid'], conc: false, ritual: false },
-    { name: 'Hellish Rebuke', level: 1, school: 'Evocation', time: 'Reaction', range: '60 ft', damage: '2d10 fire', classes: ['Warlock'], conc: false, ritual: false },
-    { name: 'Heroism', level: 1, school: 'Enchantment', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Paladin'], conc: true, ritual: false },
-    { name: 'Hideous Laughter', level: 1, school: 'Enchantment', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Wizard'], conc: true, ritual: false },
-    { name: "Hunter's Mark", level: 1, school: 'Divination', time: 'Bonus Action', range: '90 ft', damage: '+1d6', classes: ['Ranger'], conc: true, ritual: false },
-    { name: 'Identify', level: 1, school: 'Divination', time: '1 Minute', range: 'Touch', damage: '—', classes: ['Bard', 'Wizard'], conc: false, ritual: true },
-    { name: 'Inflict Wounds', level: 1, school: 'Necromancy', time: 'Action', range: 'Touch', damage: '3d10 necrotic', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Jump', level: 1, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Druid', 'Ranger', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Longstrider', level: 1, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Druid', 'Ranger', 'Wizard'], conc: false, ritual: false },
-    { name: 'Mage Armor', level: 1, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Magic Missile', level: 1, school: 'Evocation', time: 'Action', range: '120 ft', damage: '3×1d4+1 force', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Protection from Evil and Good', level: 1, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Paladin', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Sanctuary', level: 1, school: 'Abjuration', time: 'Bonus Action', range: '30 ft', damage: '—', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Shield', level: 1, school: 'Abjuration', time: 'Reaction', range: 'Self', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Shield of Faith', level: 1, school: 'Abjuration', time: 'Bonus Action', range: '60 ft', damage: '—', classes: ['Cleric', 'Paladin'], conc: true, ritual: false },
-    { name: 'Silent Image', level: 1, school: 'Illusion', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Sleep', level: 1, school: 'Enchantment', time: 'Action', range: '90 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Speak with Animals', level: 1, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Druid', 'Ranger'], conc: false, ritual: true },
-    { name: 'Thunderwave', level: 1, school: 'Evocation', time: 'Action', range: 'Self (15 ft cube)', damage: '2d8 thunder', classes: ['Bard', 'Druid', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Unseen Servant', level: 1, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Warlock', 'Wizard'], conc: false, ritual: true },
-
-    // === 2ND LEVEL ===
-    { name: 'Aid', level: 2, school: 'Abjuration', time: 'Action', range: '30 ft', damage: '—', classes: ['Cleric', 'Paladin'], conc: false, ritual: false },
-    { name: 'Alter Self', level: 2, school: 'Transmutation', time: 'Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Barkskin', level: 2, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Druid', 'Ranger'], conc: true, ritual: false },
-    { name: 'Blindness/Deafness', level: 2, school: 'Necromancy', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Cleric', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Blur', level: 2, school: 'Illusion', time: 'Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Calm Emotions', level: 2, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Cleric'], conc: true, ritual: false },
-    { name: 'Darkness', level: 2, school: 'Evocation', time: 'Action', range: '60 ft', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Darkvision', level: 2, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Druid', 'Ranger', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Detect Thoughts', level: 2, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Enhance Ability', level: 2, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Sorcerer'], conc: true, ritual: false },
-    { name: 'Enlarge/Reduce', level: 2, school: 'Transmutation', time: 'Action', range: '30 ft', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Flame Blade', level: 2, school: 'Evocation', time: 'Bonus Action', range: 'Self', damage: '3d6 fire', classes: ['Druid'], conc: true, ritual: false },
-    { name: 'Flaming Sphere', level: 2, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '2d6 fire', classes: ['Druid', 'Wizard'], conc: true, ritual: false },
-    { name: 'Gust of Wind', level: 2, school: 'Evocation', time: 'Action', range: 'Self (60 ft line)', damage: '—', classes: ['Druid', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Heat Metal', level: 2, school: 'Transmutation', time: 'Action', range: '60 ft', damage: '2d8 fire', classes: ['Bard', 'Druid'], conc: true, ritual: false },
-    { name: 'Hold Person', level: 2, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Invisibility', level: 2, school: 'Illusion', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Knock', level: 2, school: 'Transmutation', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Lesser Restoration', level: 2, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger'], conc: false, ritual: false },
-    { name: 'Levitate', level: 2, school: 'Transmutation', time: 'Action', range: '60 ft', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Magic Weapon', level: 2, school: 'Transmutation', time: 'Bonus Action', range: 'Touch', damage: '—', classes: ['Paladin', 'Wizard'], conc: true, ritual: false },
-    { name: 'Mirror Image', level: 2, school: 'Illusion', time: 'Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Misty Step', level: 2, school: 'Conjuration', time: 'Bonus Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Moonbeam', level: 2, school: 'Evocation', time: 'Action', range: '120 ft', damage: '2d10 radiant', classes: ['Druid'], conc: true, ritual: false },
-    { name: 'Pass without Trace', level: 2, school: 'Abjuration', time: 'Action', range: 'Self', damage: '—', classes: ['Druid', 'Ranger'], conc: true, ritual: false },
-    { name: 'Prayer of Healing', level: 2, school: 'Evocation', time: '10 Minutes', range: '30 ft', damage: '2d8 healing', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Protection from Poison', level: 2, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Druid', 'Paladin', 'Ranger'], conc: false, ritual: false },
-    { name: 'Scorching Ray', level: 2, school: 'Evocation', time: 'Action', range: '120 ft', damage: '3×2d6 fire', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'See Invisibility', level: 2, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Shatter', level: 2, school: 'Evocation', time: 'Action', range: '60 ft', damage: '3d8 thunder', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Silence', level: 2, school: 'Illusion', time: 'Action', range: '120 ft', damage: '—', classes: ['Bard', 'Cleric', 'Ranger'], conc: true, ritual: true },
-    { name: 'Spider Climb', level: 2, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Spike Growth', level: 2, school: 'Transmutation', time: 'Action', range: '150 ft', damage: '2d4 piercing', classes: ['Druid', 'Ranger'], conc: true, ritual: false },
-    { name: 'Spiritual Weapon', level: 2, school: 'Evocation', time: 'Bonus Action', range: '60 ft', damage: '1d8+mod force', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Suggestion', level: 2, school: 'Enchantment', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Web', level: 2, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Zone of Truth', level: 2, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Cleric', 'Paladin'], conc: false, ritual: false },
-
-    // === 3RD LEVEL ===
-    { name: 'Animate Dead', level: 3, school: 'Necromancy', time: '1 Minute', range: '10 ft', damage: '—', classes: ['Cleric', 'Wizard'], conc: false, ritual: false },
-    { name: 'Beacon of Hope', level: 3, school: 'Abjuration', time: 'Action', range: '30 ft', damage: '—', classes: ['Cleric'], conc: true, ritual: false },
-    { name: 'Bestow Curse', level: 3, school: 'Necromancy', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Wizard'], conc: true, ritual: false },
-    { name: 'Blink', level: 3, school: 'Transmutation', time: 'Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Call Lightning', level: 3, school: 'Conjuration', time: 'Action', range: '120 ft', damage: '3d10 lightning', classes: ['Druid'], conc: true, ritual: false },
-    { name: 'Clairvoyance', level: 3, school: 'Divination', time: '10 Minutes', range: '1 mile', damage: '—', classes: ['Bard', 'Cleric', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Conjure Animals', level: 3, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '—', classes: ['Druid', 'Ranger'], conc: true, ritual: false },
-    { name: 'Counterspell', level: 3, school: 'Abjuration', time: 'Reaction', range: '60 ft', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Daylight', level: 3, school: 'Evocation', time: 'Action', range: '60 ft', damage: '—', classes: ['Cleric', 'Druid', 'Paladin', 'Ranger', 'Sorcerer'], conc: false, ritual: false },
-    { name: 'Dispel Magic', level: 3, school: 'Abjuration', time: 'Action', range: '120 ft', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Paladin', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Fear', level: 3, school: 'Illusion', time: 'Action', range: 'Self (30 ft cone)', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Fireball', level: 3, school: 'Evocation', time: 'Action', range: '150 ft', damage: '8d6 fire', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Fly', level: 3, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Gaseous Form', level: 3, school: 'Transmutation', time: 'Action', range: 'Touch', damage: '—', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Haste', level: 3, school: 'Transmutation', time: 'Action', range: '30 ft', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Hypnotic Pattern', level: 3, school: 'Illusion', time: 'Action', range: '120 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Lightning Bolt', level: 3, school: 'Evocation', time: 'Action', range: 'Self (100 ft line)', damage: '8d6 lightning', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Magic Circle', level: 3, school: 'Abjuration', time: '1 Minute', range: '10 ft', damage: '—', classes: ['Cleric', 'Paladin', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Major Image', level: 3, school: 'Illusion', time: 'Action', range: '120 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Mass Healing Word', level: 3, school: 'Evocation', time: 'Bonus Action', range: '60 ft', damage: '1d4 healing', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Protection from Energy', level: 3, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Druid', 'Ranger', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Remove Curse', level: 3, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Paladin', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Revivify', level: 3, school: 'Necromancy', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Paladin'], conc: false, ritual: false },
-    { name: 'Sending', level: 3, school: 'Evocation', time: 'Action', range: 'Unlimited', damage: '—', classes: ['Bard', 'Cleric', 'Wizard'], conc: false, ritual: false },
-    { name: 'Slow', level: 3, school: 'Transmutation', time: 'Action', range: '120 ft', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Speak with Dead', level: 3, school: 'Necromancy', time: 'Action', range: '10 ft', damage: '—', classes: ['Bard', 'Cleric'], conc: false, ritual: false },
-    { name: 'Spirit Guardians', level: 3, school: 'Conjuration', time: 'Action', range: 'Self (15 ft radius)', damage: '3d8 radiant', classes: ['Cleric'], conc: true, ritual: false },
-    { name: 'Stinking Cloud', level: 3, school: 'Conjuration', time: 'Action', range: '90 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Tongues', level: 3, school: 'Divination', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Vampiric Touch', level: 3, school: 'Necromancy', time: 'Action', range: 'Self', damage: '3d6 necrotic', classes: ['Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Water Breathing', level: 3, school: 'Transmutation', time: 'Action', range: '30 ft', damage: '—', classes: ['Druid', 'Ranger', 'Sorcerer', 'Wizard'], conc: false, ritual: true },
-    { name: 'Water Walk', level: 3, school: 'Transmutation', time: 'Action', range: '30 ft', damage: '—', classes: ['Cleric', 'Druid', 'Ranger', 'Sorcerer'], conc: false, ritual: true },
-
-    // === 4TH LEVEL ===
-    { name: 'Banishment', level: 4, school: 'Abjuration', time: 'Action', range: '60 ft', damage: '—', classes: ['Cleric', 'Paladin', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Blight', level: 4, school: 'Necromancy', time: 'Action', range: '30 ft', damage: '8d8 necrotic', classes: ['Druid', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Confusion', level: 4, school: 'Enchantment', time: 'Action', range: '90 ft', damage: '—', classes: ['Bard', 'Druid', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Conjure Minor Elementals', level: 4, school: 'Conjuration', time: '1 Minute', range: '90 ft', damage: '—', classes: ['Druid', 'Wizard'], conc: true, ritual: false },
-    { name: 'Control Water', level: 4, school: 'Transmutation', time: 'Action', range: '300 ft', damage: '—', classes: ['Cleric', 'Druid', 'Wizard'], conc: true, ritual: false },
-    { name: 'Death Ward', level: 4, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Paladin'], conc: false, ritual: false },
-    { name: 'Dimension Door', level: 4, school: 'Conjuration', time: 'Action', range: '500 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Dominate Beast', level: 4, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Druid', 'Sorcerer'], conc: true, ritual: false },
-    { name: 'Fire Shield', level: 4, school: 'Evocation', time: 'Action', range: 'Self', damage: '2d8 fire/cold', classes: ['Wizard'], conc: false, ritual: false },
-    { name: 'Freedom of Movement', level: 4, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Ranger'], conc: false, ritual: false },
-    { name: 'Greater Invisibility', level: 4, school: 'Illusion', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Guardian of Faith', level: 4, school: 'Conjuration', time: 'Action', range: '30 ft', damage: '20 radiant', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Ice Storm', level: 4, school: 'Evocation', time: 'Action', range: '300 ft', damage: '2d8 bludgeoning + 4d6 cold', classes: ['Druid', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Locate Creature', level: 4, school: 'Divination', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Wizard'], conc: true, ritual: false },
-    { name: 'Phantasmal Killer', level: 4, school: 'Illusion', time: 'Action', range: '120 ft', damage: '4d10 psychic', classes: ['Wizard'], conc: true, ritual: false },
-    { name: 'Polymorph', level: 4, school: 'Transmutation', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Druid', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Stoneskin', level: 4, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Druid', 'Ranger', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Wall of Fire', level: 4, school: 'Evocation', time: 'Action', range: '120 ft', damage: '5d8 fire', classes: ['Druid', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-
-    // === 5TH LEVEL ===
-    { name: 'Animate Objects', level: 5, school: 'Transmutation', time: 'Action', range: '120 ft', damage: 'varies', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Cloudkill', level: 5, school: 'Conjuration', time: 'Action', range: '120 ft', damage: '5d8 poison', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Commune', level: 5, school: 'Divination', time: '1 Minute', range: 'Self', damage: '—', classes: ['Cleric'], conc: false, ritual: true },
-    { name: 'Cone of Cold', level: 5, school: 'Evocation', time: 'Action', range: 'Self (60 ft cone)', damage: '8d8 cold', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Conjure Elemental', level: 5, school: 'Conjuration', time: '1 Minute', range: '90 ft', damage: '—', classes: ['Druid', 'Wizard'], conc: true, ritual: false },
-    { name: 'Dominate Person', level: 5, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Dream', level: 5, school: 'Illusion', time: '1 Minute', range: 'Special', damage: '—', classes: ['Bard', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Flame Strike', level: 5, school: 'Evocation', time: 'Action', range: '60 ft', damage: '4d6 fire + 4d6 radiant', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Greater Restoration', level: 5, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Druid'], conc: false, ritual: false },
-    { name: 'Hold Monster', level: 5, school: 'Enchantment', time: 'Action', range: '90 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Insect Plague', level: 5, school: 'Conjuration', time: 'Action', range: '300 ft', damage: '4d10 piercing', classes: ['Cleric', 'Druid', 'Sorcerer'], conc: true, ritual: false },
-    { name: 'Mass Cure Wounds', level: 5, school: 'Evocation', time: 'Action', range: '60 ft', damage: '3d8 healing', classes: ['Bard', 'Cleric', 'Druid'], conc: false, ritual: false },
-    { name: 'Raise Dead', level: 5, school: 'Necromancy', time: '1 Hour', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Paladin'], conc: false, ritual: false },
-    { name: 'Scrying', level: 5, school: 'Divination', time: '10 Minutes', range: 'Self', damage: '—', classes: ['Bard', 'Cleric', 'Druid', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Telekinesis', level: 5, school: 'Transmutation', time: 'Action', range: '60 ft', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Wall of Force', level: 5, school: 'Evocation', time: 'Action', range: '120 ft', damage: '—', classes: ['Wizard'], conc: true, ritual: false },
-    { name: 'Wall of Stone', level: 5, school: 'Evocation', time: 'Action', range: '120 ft', damage: '—', classes: ['Druid', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-
-    // === 6TH LEVEL ===
-    { name: 'Blade Barrier', level: 6, school: 'Evocation', time: 'Action', range: '90 ft', damage: '6d10 slashing', classes: ['Cleric'], conc: true, ritual: false },
-    { name: 'Chain Lightning', level: 6, school: 'Evocation', time: 'Action', range: '150 ft', damage: '10d8 lightning', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Circle of Death', level: 6, school: 'Necromancy', time: 'Action', range: '150 ft', damage: '8d6 necrotic', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Disintegrate', level: 6, school: 'Transmutation', time: 'Action', range: '60 ft', damage: '10d6+40 force', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Eyebite', level: 6, school: 'Necromancy', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Heal', level: 6, school: 'Evocation', time: 'Action', range: '60 ft', damage: '70 healing', classes: ['Cleric', 'Druid'], conc: false, ritual: false },
-    { name: "Heroes' Feast", level: 6, school: 'Conjuration', time: '10 Minutes', range: '30 ft', damage: '—', classes: ['Cleric', 'Druid'], conc: false, ritual: false },
-    { name: 'Mass Suggestion', level: 6, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Sunbeam', level: 6, school: 'Evocation', time: 'Action', range: 'Self (60 ft line)', damage: '6d8 radiant', classes: ['Druid', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'True Seeing', level: 6, school: 'Divination', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Wall of Ice', level: 6, school: 'Evocation', time: 'Action', range: '120 ft', damage: '10d6 cold', classes: ['Wizard'], conc: true, ritual: false },
-    { name: 'Word of Recall', level: 6, school: 'Conjuration', time: 'Action', range: '5 ft', damage: '—', classes: ['Cleric'], conc: false, ritual: false },
-
-    // === 7TH LEVEL ===
-    { name: 'Conjure Celestial', level: 7, school: 'Conjuration', time: '1 Minute', range: '90 ft', damage: '—', classes: ['Cleric'], conc: true, ritual: false },
-    { name: 'Delayed Blast Fireball', level: 7, school: 'Evocation', time: 'Action', range: '150 ft', damage: '12d6 fire', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Divine Word', level: 7, school: 'Evocation', time: 'Bonus Action', range: '30 ft', damage: 'varies', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Etherealness', level: 7, school: 'Transmutation', time: 'Action', range: 'Self', damage: '—', classes: ['Bard', 'Cleric', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Finger of Death', level: 7, school: 'Necromancy', time: 'Action', range: '60 ft', damage: '7d8+30 necrotic', classes: ['Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Fire Storm', level: 7, school: 'Evocation', time: 'Action', range: '150 ft', damage: '7d10 fire', classes: ['Cleric', 'Druid', 'Sorcerer'], conc: false, ritual: false },
-    { name: 'Forcecage', level: 7, school: 'Evocation', time: 'Action', range: '100 ft', damage: '—', classes: ['Bard', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Plane Shift', level: 7, school: 'Conjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Cleric', 'Druid', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Prismatic Spray', level: 7, school: 'Evocation', time: 'Action', range: 'Self (60 ft cone)', damage: '10d6 varies', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Regenerate', level: 7, school: 'Transmutation', time: '1 Minute', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric', 'Druid'], conc: false, ritual: false },
-    { name: 'Resurrection', level: 7, school: 'Necromancy', time: '1 Hour', range: 'Touch', damage: '—', classes: ['Bard', 'Cleric'], conc: false, ritual: false },
-    { name: 'Reverse Gravity', level: 7, school: 'Transmutation', time: 'Action', range: '100 ft', damage: '—', classes: ['Druid', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Simulacrum', level: 7, school: 'Illusion', time: '12 Hours', range: 'Touch', damage: '—', classes: ['Wizard'], conc: false, ritual: false },
-    { name: 'Symbol', level: 7, school: 'Abjuration', time: '1 Minute', range: 'Touch', damage: 'varies', classes: ['Bard', 'Cleric', 'Wizard'], conc: false, ritual: false },
-    { name: 'Teleport', level: 7, school: 'Conjuration', time: 'Action', range: '10 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-
-    // === 8TH LEVEL ===
-    { name: 'Antimagic Field', level: 8, school: 'Abjuration', time: 'Action', range: 'Self (10 ft sphere)', damage: '—', classes: ['Cleric', 'Wizard'], conc: true, ritual: false },
-    { name: 'Clone', level: 8, school: 'Necromancy', time: '1 Hour', range: 'Touch', damage: '—', classes: ['Wizard'], conc: false, ritual: false },
-    { name: 'Control Weather', level: 8, school: 'Transmutation', time: '10 Minutes', range: 'Self (5 mile radius)', damage: '—', classes: ['Cleric', 'Druid', 'Wizard'], conc: true, ritual: false },
-    { name: 'Dominate Monster', level: 8, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'Earthquake', level: 8, school: 'Evocation', time: 'Action', range: '500 ft', damage: 'varies', classes: ['Cleric', 'Druid', 'Sorcerer'], conc: true, ritual: false },
-    { name: 'Feeblemind', level: 8, school: 'Enchantment', time: 'Action', range: '150 ft', damage: '4d6 psychic', classes: ['Bard', 'Druid', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Holy Aura', level: 8, school: 'Abjuration', time: 'Action', range: 'Self', damage: '—', classes: ['Cleric'], conc: true, ritual: false },
-    { name: 'Incendiary Cloud', level: 8, school: 'Conjuration', time: 'Action', range: '150 ft', damage: '10d8 fire', classes: ['Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Maze', level: 8, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '—', classes: ['Wizard'], conc: true, ritual: false },
-    { name: 'Mind Blank', level: 8, school: 'Abjuration', time: 'Action', range: 'Touch', damage: '—', classes: ['Bard', 'Wizard'], conc: false, ritual: false },
-    { name: 'Power Word Stun', level: 8, school: 'Enchantment', time: 'Action', range: '60 ft', damage: '—', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Sunburst', level: 8, school: 'Evocation', time: 'Action', range: '150 ft', damage: '12d6 radiant', classes: ['Druid', 'Sorcerer', 'Wizard'], conc: false, ritual: false },
-
-    // === 9TH LEVEL ===
-    { name: 'Astral Projection', level: 9, school: 'Necromancy', time: '1 Hour', range: '10 ft', damage: '—', classes: ['Cleric', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Foresight', level: 9, school: 'Divination', time: '1 Minute', range: 'Touch', damage: '—', classes: ['Bard', 'Druid', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Gate', level: 9, school: 'Conjuration', time: 'Action', range: '60 ft', damage: '—', classes: ['Cleric', 'Sorcerer', 'Wizard'], conc: true, ritual: false },
-    { name: 'Mass Heal', level: 9, school: 'Evocation', time: 'Action', range: '60 ft', damage: '700 healing', classes: ['Cleric'], conc: false, ritual: false },
-    { name: 'Meteor Swarm', level: 9, school: 'Evocation', time: 'Action', range: '1 mile', damage: '40d6 fire+bludgeoning', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'Power Word Kill', level: 9, school: 'Enchantment', time: 'Action', range: '60 ft', damage: 'death', classes: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], conc: false, ritual: false },
-    { name: 'Prismatic Wall', level: 9, school: 'Abjuration', time: 'Action', range: '60 ft', damage: 'varies', classes: ['Wizard'], conc: false, ritual: false },
-    { name: 'Shapechange', level: 9, school: 'Transmutation', time: 'Action', range: 'Self', damage: '—', classes: ['Druid', 'Wizard'], conc: true, ritual: false },
-    { name: 'Time Stop', level: 9, school: 'Transmutation', time: 'Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false },
-    { name: 'True Polymorph', level: 9, school: 'Transmutation', time: 'Action', range: '30 ft', damage: '—', classes: ['Bard', 'Warlock', 'Wizard'], conc: true, ritual: false },
-    { name: 'True Resurrection', level: 9, school: 'Necromancy', time: '1 Hour', range: 'Touch', damage: '—', classes: ['Cleric', 'Druid'], conc: false, ritual: false },
-    { name: 'Wish', level: 9, school: 'Conjuration', time: 'Action', range: 'Self', damage: '—', classes: ['Sorcerer', 'Wizard'], conc: false, ritual: false }
 ];
+// DndData (dnd-data.js) will patch window.SRD_SPELLS once Firestore loads.
+// wizard-5e reads the variable directly so it gets the full set automatically.
+if (typeof DndData !== 'undefined') DndData.ready('spells', () => { SRD_SPELLS = window.SRD_SPELLS || SRD_SPELLS; });
+
 
 // ═══ SPECIES / CLASS / BACKGROUND DATA ═══
     const SPECIES_DATA = {
@@ -832,7 +543,6 @@ function term(en) { return TERM_DE[en] || en; }
 // ═══════════════════════════════════════════════════════
 function openWizard() {
     wizardStep = 1;
-    WizardDB.load(); // preload DB in background
     wizardData.name = '';
     wizardData.level = 1;
     wizardData.species = '';
@@ -926,9 +636,9 @@ function updateWizardStep() {
     }
     if (wizardStep === 7) populateWizardAppearance();
     if (wizardStep === 8) updateWizardPrimaryStat();
-    if (wizardStep === 9) { WizardDB.load().then(() => { populateWizardProficiencies(); populateWizardFeats(); }); }
+    if (wizardStep === 9) { populateWizardProficiencies(); populateWizardFeats(); }
     if (wizardStep === 10) populateWizardEquipment();
-    if (wizardStep === 11) { WizardDB.load().then(() => populateWizardSpells()); }
+    if (wizardStep === 11) populateWizardSpells();
     if (wizardStep === 13) populateWizardSummary();
     
     updateWizardTrail();
@@ -1079,86 +789,24 @@ function populateWizardAppearance() {
 }
 
 // ===== STEP 9: Spells & Cantrips =====
-const CLASS_FEATS_LEGACY = {
-    'Barbarian': [
-        { name:'Großwaffenmeister', desc:'Schwere Waffe: -5 Angriff, +10 Schaden' },
-        { name:'Zäher Kerl', desc:'+2 KON (max 20), Trefferwürfel heilen min. 2×KON-Mod' },
-        { name:'Sentinel', desc:'Reaktion: Angriff wenn Feind Verbündeten angreift' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' }
-    ],
-    'Bard': [
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration, Schilde-Zauber' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag: Würfe wiederholen' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Schauspieler', desc:'+1 CHA, perfekte Mimik, Vorteil auf Täuschung' }
-    ],
-    'Cleric': [
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Zäher Kerl', desc:'+2 KON, bessere Trefferwürfel-Heilung' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag: Würfe wiederholen' }
-    ],
-    'Druid': [
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Sentinel', desc:'Reaktion: Angriff wenn Feind Verbündeten angreift' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' }
-    ],
-    'Fighter': [
-        { name:'Großwaffenmeister', desc:'Schwere Waffe: -5 Angriff, +10 Schaden' },
-        { name:'Scharfschütze', desc:'Fernkampf: -5 Angriff, +10 Schaden' },
-        { name:'Sentinel', desc:'Reaktion: Angriff wenn Feind Verbündeten angreift' },
-        { name:'Schildmeister', desc:'Bonus-Aktion: Schild-Stoß, +1 RK als Reaktion' }
-    ],
-    'Monk': [
-        { name:'Mobil', desc:'+10ft Bewegung, kein Gelegenheitsangriff nach Nahkampf' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Zäher Kerl', desc:'+2 KON, bessere Trefferwürfel-Heilung' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' }
-    ],
-    'Paladin': [
-        { name:'Großwaffenmeister', desc:'Schwere Waffe: -5 Angriff, +10 Schaden' },
-        { name:'Sentinel', desc:'Reaktion: Angriff wenn Feind Verbündeten angreift' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' },
-        { name:'Zäher Kerl', desc:'+2 KON, bessere Trefferwürfel-Heilung' }
-    ],
-    'Ranger': [
-        { name:'Scharfschütze', desc:'Fernkampf: -5 Angriff, +10 Schaden' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' }
-    ],
-    'Rogue': [
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' },
-        { name:'Mobil', desc:'+10ft Bewegung, kein Gelegenheitsangriff nach Nahkampf' },
-        { name:'Scharfschütze', desc:'Fernkampf: -5 Angriff, +10 Schaden' }
-    ],
-    'Sorcerer': [
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' },
-        { name:'Metamagie-Adept', desc:'2 zusätzliche Zauberpunkte, 2 Metamagie-Optionen' }
-    ],
-    'Warlock': [
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' },
-        { name:'Schauspieler', desc:'+1 CHA, perfekte Mimik' }
-    ],
-    'Wizard': [
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' },
-        { name:'Zäher Kerl', desc:'+2 KON, bessere Trefferwürfel-Heilung' }
-    ],
-    'Artificer': [
-        { name:'Kriegszauberer', desc:'Vorteil auf KON-Rettung für Konzentration' },
-        { name:'Glück', desc:'3 Glückspunkte pro Tag' },
-        { name:'Zäher Kerl', desc:'+2 KON, bessere Trefferwürfel-Heilung' },
-        { name:'Wachsam', desc:'+5 Initiative, kein Überraschungs-Nachteil' }
-    ]
+// ===== STEP 9: Spells & Cantrips =====
+// Feats: starts empty per class, DndData fills it from Firestore.
+let CLASS_FEATS = {
+    'Barbarian': [ { name:'Großwaffenmeister', desc:'-5 Angriff, +10 Schaden mit schwerer Waffe' } ],
+    'Bard':      [ { name:'Vielseitigkeit', desc:'Austausch von Barden-Talenten beim Stufenaufstieg' } ],
+    'Cleric':    [ { name:'Göttliche Intervention', desc:'Göttliche Hilfe rufen (Stufe % Chance)' } ],
+    'Druid':     [ { name:'Tiergestalt', desc:'In Tiere verwandeln (CR-abhängig)' } ],
+    'Fighter':   [ { name:'Zweiter Wind', desc:'1W10+Stufe TP wiederherstellenals Bonusaktion' } ],
+    'Monk':      [ { name:'Ki', desc:'Ki-Punkte für spezielle Techniken ausgeben' } ],
+    'Paladin':   [ { name:'Göttlicher Schlag', desc:'+1W8 Strahlungsschaden beim Angriff (2×/Runde)' } ],
+    'Ranger':    [ { name:'Lieblingsfeind', desc:'+2 Schaden und Vorteil bei Verfolgung' } ],
+    'Rogue':     [ { name:'Heimtückischer Angriff', desc:'+1W6 Schaden bei Vorteil oder Verbündetem in der Nähe' } ],
+    'Sorcerer':  [ { name:'Übermagie', desc:'Metamagie-Punkte für Zaubermodifikationen' } ],
+    'Warlock':   [ { name:'Teufelspakt', desc:'Paktboni je nach gewähltem Pakt' } ],
+    'Wizard':    [ { name:'Arkane Rückgewinnung', desc:'Zauberplätze nach Kurzer Rast zurückgewinnen' } ],
 };
+if (typeof DndData !== 'undefined') DndData.ready('feats', () => { if (window.CLASS_FEATS) CLASS_FEATS = window.CLASS_FEATS; });
+
 
 // ===== STEP 9: Equipment Choice =====
 // Each class gets 2-3 complete starting packages
@@ -1422,32 +1070,15 @@ document.addEventListener('click', (e) => {
 });
 
 function populateWizardFeats() {
+    const cls = wizardData.class || '';
+    const feats = CLASS_FEATS[cls] || [];
     const grid = document.getElementById('wizardFeatGrid');
     if (!grid) return;
-
-    const allFeats = WizardDB.getFeats();
-    if (!allFeats.length) {
-        grid.innerHTML = '<div style="text-align:center;padding:30px 0;opacity:0.5">Feats werden geladen…</div>';
-        return;
-    }
-
-    // General feats + feats whose prerequisite doesn't hard-require another class
-    const displayFeats = allFeats.filter(f => {
-        const cat = (f.category || '').toLowerCase();
-        return cat === 'general' || cat === 'fighting style' || cat === 'epic boon' || !f.category;
-    });
-
-    grid.innerHTML = displayFeats.map(f => {
-        const sel = (wizardData.selectedFeats || []).includes(f.name_en) ? ' selected' : '';
-        const prereq = f.prerequisite ? `<span style="font-size:10px;opacity:0.5;margin-left:4px;">(${f.prerequisite})</span>` : '';
-        const desc = (f.description || '').slice(0, 120) + ((f.description || '').length > 120 ? '…' : '');
-        const catBadge = f.category ? `<span style="font-size:9px;text-transform:uppercase;opacity:0.5;letter-spacing:1px;">${f.category}</span>` : '';
-        return `<div class="wizard-spell-item${sel}" data-feat="${f.name_en}" onclick="toggleWizardFeat(this)" title="${(f.description||'').replace(/"/g,"'")}">
-            <div class="wizard-spell-item-name">${f.name_en}${prereq}</div>
-            <div style="display:flex;flex-direction:column;gap:2px;flex:2;">
-                ${catBadge}
-                <div class="wizard-spell-item-info">${desc}</div>
-            </div>
+    grid.innerHTML = feats.map(f => {
+        const sel = (wizardData.selectedFeats || []).includes(f.name) ? ' selected' : '';
+        return `<div class="wizard-spell-item${sel}" data-feat="${f.name}" onclick="toggleWizardFeat(this)" title="${f.name}: ${f.desc}">
+            <div class="wizard-spell-item-name">${f.name}</div>
+            <div class="wizard-spell-item-info" style="flex:2;">${f.desc}</div>
         </div>`;
     }).join('');
 }
@@ -1515,7 +1146,7 @@ function populateWizardSpells() {
     if (cantripCount > 0) {
         cantripSec.style.display = 'block';
         document.getElementById('wizardCantripCounter').textContent = `(Wähle ${cantripCount})`;
-        const cantrips = WizardDB.getSpells(0, cls);
+        const cantrips = SRD_SPELLS.filter(s => s.level === 0 && s.classes.includes(cls));
         const grid = document.getElementById('wizardCantripGrid');
         grid.innerHTML = cantrips.map(s => {
             const name = lang === 'de' ? (SPELLS_DE[s.name] || s.name) : s.name;
@@ -1540,7 +1171,7 @@ function populateWizardSpells() {
     }
     
     // Spells level 1
-    const level1 = WizardDB.getSpells(1, cls);
+    const level1 = SRD_SPELLS.filter(s => s.level === 1 && s.classes.includes(cls));
     if (level1.length > 0 && (spellsKnown || isPrepared)) {
         spellSec.style.display = 'block';
         let maxSpells = spellsKnown;
@@ -2637,8 +2268,7 @@ function applyWizardData() {
     const selectedSpellsList = d.selectedSpells || [];
 
     selectedCantrips.forEach(srdName => {
-        const _rawSpell = (WizardDB.spells || SRD_SPELLS_LEGACY).find(s => (s.name_en || s.name) === srdName);
-        const spell = _rawSpell ? WizardDB._norm(_rawSpell) : null;
+        const spell = SRD_SPELLS.find(s => s.name === srdName);
         if (!spell) return;
         const name = SPELLS_DE[spell.name] || spell.name;
         S.spells.push({
@@ -2649,8 +2279,7 @@ function applyWizardData() {
     });
 
     selectedSpellsList.forEach(srdName => {
-        const _rawSpell = (WizardDB.spells || SRD_SPELLS_LEGACY).find(s => (s.name_en || s.name) === srdName);
-        const spell = _rawSpell ? WizardDB._norm(_rawSpell) : null;
+        const spell = SRD_SPELLS.find(s => s.name === srdName);
         if (!spell) return;
         const name = SPELLS_DE[spell.name] || spell.name;
         S.spells.push({
@@ -2667,11 +2296,11 @@ function applyWizardData() {
     const selectedFeats = d.selectedFeats || [];
     if (selectedFeats.length > 0) {
         selectedFeats.forEach(fn => {
-            const allFeats = WizardDB.getFeats();
-            const f = allFeats.find(x => (x.name_en || x.name) === fn);
+            const allFeats = CLASS_FEATS[cls] || [];
+            const f = allFeats.find(x => x.name === fn);
             S.features.feats.push({
-                name: f ? (f.name_en || f.name) : fn,
-                desc: f ? (f.description || '').slice(0, 200) : '',
+                name: f ? f.name : fn,
+                desc: f ? f.desc : '',
                 note: 'Vorgemerkt ab Stufe 4'
             });
         });
