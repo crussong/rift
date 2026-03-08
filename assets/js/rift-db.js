@@ -328,3 +328,37 @@ const RiftDB = (() => {
     },
   };
 })();
+
+// ── DndData Bridge ────────────────────────────────────────────────────────
+// When DndData (Firestore) has an icon_url for an entry,
+// prefer it over the static JSON icon. Runs once after page load.
+(function patchRiftDBWithDndData() {
+    function tryPatch() {
+        if (typeof DndData === 'undefined') return;
+        // Patch icon lookups: weapons, armor, spells
+        const patchCat = async (dndKey, riftCat) => {
+            const entries = await DndData.get(dndKey);
+            entries.forEach(e => {
+                if (!e.icon_url) return;
+                const name = (e.name_en || e.name || '').toLowerCase().trim();
+                if (!name) return;
+                // Find matching entry in RiftDB by name
+                const hit = RiftDB.find({ category: riftCat, q: name, limit: 1 })[0];
+                if (hit) hit.icon_url = e.icon_url;
+            });
+        };
+        Promise.all([
+            patchCat('weapons',     'weapon'),
+            patchCat('armor',       'armor'),
+            patchCat('spells',      'spell'),
+            patchCat('magic_items', 'item'),
+        ]).then(() => {
+            console.log('[RiftDB] DndData icon bridge applied');
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => RiftDB.ready.then(tryPatch));
+    } else {
+        RiftDB.ready.then(tryPatch);
+    }
+})();
